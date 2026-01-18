@@ -1,0 +1,90 @@
+ID   001R_FRG3G              Reviewed;         256 AA.
+AC   Q6GZX4;
+DT   28-JUN-2011, integrated into UniProtKB/Swiss-Prot.
+DT   19-JUL-2004, sequence version 1.
+DT   12-AUG-2020, entry version 39.
+DE   RecName: Full=Putative transcription factor 001R;
+GN   ORFNames=FV3-001R;
+OS   Frog virus 3 (isolate Goorha) (FV-3).
+OC   Viruses; Varidnaviria; Bamfordvirae; Nucleocytoviricota;
+OC   Megaviricetes; Pimascovirales; Iridoviridae; Alphairidovirinae;
+OC   Ranavirus; unclassified Ranavirus.
+OX   NCBI_TaxID=654924;
+RN   [1]
+RP   NUCLEOTIDE SEQUENCE [LARGE SCALE GENOMIC DNA].
+RC   STRAIN=Goorha;
+RX   PubMed=15165820; DOI=10.1016/j.virol.2004.02.019;
+RA   Tan W.G., Barkman T.J., Gregory Chinchar V., Essani K.;
+RT   "Comparative genomic analyses of frog virus 3, type species of the
+RT   genus Ranavirus (family Iridoviridae).";
+RL   Virology 323:70-84(2004).
+FT   CHAIN           1..256
+FT                   /note="Putative transcription factor 001R"
+FT                   /id="PRO_0000410512"
+SQ   SEQUENCE   256 AA;  29735 MW;  B4840739BF7D4121 CRC64;
+     MAFSAEDVLK EYDRRRRMEA LLLSLYYPND RKLLDYKEWS PPRVQVECPK APVEWNNPPS
+     EKGLIVGHFS GIKYKGEKAQ ASEVDVNKMC CWVSKFKDAM RRYQGIQTCK IPGKVLSDLD
+     AKIKAYNLTV EGVEGFVRYS RVTKQHVAAF LKELRHSKQY ENVNLIHYER NMKFKNMEIS
+     AKYHEQLSLA GNADQIILEH VKPIHKPRNK PLLFPPVAHS KSSDVFTPYP VHQVLQQVLD
+     KKQTIKVIKK ECGLPQ
+//
+ID   002L_FRG3G              Reviewed;         320 AA.
+AC   Q6GZX3;
+DT   28-JUN-2011, integrated into UniProtKB/Swiss-Prot.
+DT   19-JUL-2004, sequence version 1.
+DT   12-AUG-2020, entry version 43.
+DE   RecName: Full=Uncharacterized protein 002L;
+GN   ORFNames=FV3-002L;
+OS   Frog virus 3 (isolate Goorha) (FV-3).
+OC   Viruses; Varidnaviria; Bamfordvirae; Nucleocytoviricota;
+OC   Megaviricetes; Pimascovirales; Iridoviridae; Alphairidovirinae;
+OC   Ranavirus; unclassified Ranavirus.
+OX   NCBI_TaxID=654924;
+RN   [1]
+RP   NUCLEOTIDE SEQUENCE [LARGE SCALE GENOMIC DNA].
+RC   STRAIN=Goorha;
+RX   PubMed=15165820; DOI=10.1016/j.virol.2004.02.019;
+RA   Tan W.G., Barkman T.J., Gregory Chinchar V., Essani K.;
+RT   "Comparative genomic analyses of frog virus 3, type species of the
+RT   genus Ranavirus (family Iridoviridae).";
+RL   Virology 323:70-84(2004).
+FT   CHAIN           1..320
+FT                   /note="Uncharacterized protein 002L"
+FT                   /id="PRO_0000410513"
+SQ   SEQUENCE   320 AA;  34639 MW;  2A1C6C8B0C09E194 CRC64;
+     MSIIGATRLQ NDKSDTYSAG PCYAGGCSAF TPRGTCGKDW DLGEQTCASG FCTSQPLCAR
+     IKKTQVCGLR YSSKGKDPLV SAEWDSRGAP YVRCTYDADL IDTQAQVDQL VSGLKTFEGS
+     PVKQVVTQWS KQERSGTERH YVFRNESGLR AEPPPQDPSV DADNLSEKLA RITKKKLKPD
+     EFRSVSRLHS MDHAFRDAVL LPKLYPAGWK LTKVPLYHLA GTVCNLQIAP CPSNLVCKVI
+     HKDLTEKDPY LSLRTITPAS LVLHGKMKHV PTLFVMGAGV TTEVTFGGVT CPPKQLGDVV
+     AVVTGGGPKA NTKDKLHFVR
+//
+ID   003L_FRG3G              Reviewed;         198 AA.
+AC   Q197F8;
+DT   16-JUN-2009, integrated into UniProtKB/Swiss-Prot.
+DT   11-JUL-2006, sequence version 1.
+DT   12-AUG-2020, entry version 28.
+DE   RecName: Full=Uncharacterized protein 003L;
+GN   ORFNames=FV3-003L;
+OS   Frog virus 3 (isolate Goorha) (FV-3).
+OC   Viruses; Varidnaviria; Bamfordvirae; Nucleocytoviricota;
+OC   Megaviricetes; Pimascovirales; Iridoviridae; Alphairidovirinae;
+OC   Ranavirus; unclassified Ranavirus.
+OX   NCBI_TaxID=654924;
+RN   [1]
+RP   NUCLEOTIDE SEQUENCE [LARGE SCALE GENOMIC DNA].
+RC   STRAIN=Goorha;
+RX   PubMed=15165820; DOI=10.1016/j.virol.2004.02.019;
+RA   Tan W.G., Barkman T.J., Gregory Chinchar V., Essani K.;
+RT   "Comparative genomic analyses of frog virus 3, type species of the
+RT   genus Ranavirus (family Iridoviridae).";
+RL   Virology 323:70-84(2004).
+FT   CHAIN           1..198
+FT                   /note="Uncharacterized protein 003L"
+FT                   /id="PRO_0000377963"
+SQ   SEQUENCE   198 AA;  22438 MW;  EF891F3EF9A0D0F9 CRC64;
+     MPRFPFVPVS FVPSLYLVRF ITLCLKSRGI DGEYSDPQLQ LCFVSTPPIS LDPCFCTVEL
+     KPVEYNPKDS QLVSQHPDQS TIEVPNLQRA QQKVTQQLRE ILREKKNKPI GKIQSPVEAI
+     HFSYAKNRPF YKKIINRGNG TLMQYNLTKQ TKQGLSAKLK RQTRKQRRTV FRKEFIPRVF
+     QKIELLVKKE DKDCVKSM
+//

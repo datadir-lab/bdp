@@ -1,0 +1,33 @@
+# Real UniProt Test Data (Gitignored)
+
+This directory contains downloaded real UniProt data for local E2E testing.
+
+## What Goes Here
+
+Downloaded UniProt DAT files from ftp://ftp.uniprot.org/pub/databases/uniprot/
+
+Example files:
+- `uniprot_sprot_2024_01.dat.gz` - Full SwissProt release
+- `uniprot_trembl_2024_01.dat.gz` - TrEMBL release (large)
+- `reldate.txt` - Release date information
+
+## Auto-Download
+
+Run: `just e2e-download-data`
+
+This will:
+1. Connect to UniProt FTP
+2. Download a small release (e.g., latest Swiss-Prot)
+3. Cache it here for reuse
+4. Never re-download if files exist
+
+## Why Not Committed?
+
+These files are large (100MB+) and change frequently. Using gitignore keeps
+the repository small while still providing realistic test data for local
+development.
+
+## Cleanup
+
+To free disk space: `rm -rf tests/fixtures/real/*`
+Next test run will re-download automatically.

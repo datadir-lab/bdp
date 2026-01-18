@@ -1,0 +1,64 @@
+# Multi-stage build for BDP CLI tool
+# Stage 1: Builder
+FROM rust:1.75 AS builder
+
+LABEL maintainer="BDP Team"
+LABEL description="BDP CLI - Command-line interface tool"
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create app directory
+WORKDIR /app
+
+# Copy workspace configuration
+COPY Cargo.toml Cargo.lock ./
+COPY crates ./crates
+
+# Build release binary with optimizations
+RUN cargo build --release --package bdp-cli --locked
+
+# Verify the binary was created
+RUN ls -lh /app/target/release/bdp-cli
+
+# Stage 2: Runtime
+FROM debian:bookworm-slim
+
+LABEL maintainer="BDP Team"
+LABEL description="BDP CLI Runtime"
+LABEL org.opencontainers.image.source="https://github.com/datadir-lab/bdp"
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    libssl3 \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user
+RUN useradd -m -u 1000 -s /bin/bash bdp
+
+# Create necessary directories
+RUN mkdir -p /app/data && \
+    chown -R bdp:bdp /app
+
+WORKDIR /app
+
+# Copy binary from builder
+COPY --from=builder /app/target/release/bdp-cli /usr/local/bin/bdp
+
+# Ensure binary is executable
+RUN chmod +x /usr/local/bin/bdp
+
+# Switch to non-root user
+USER bdp
+
+# Set environment variables
+ENV RUST_LOG=info
+
+# Default command shows help
+ENTRYPOINT ["/usr/local/bin/bdp"]
+CMD ["--help"]

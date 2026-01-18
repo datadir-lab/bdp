@@ -1,0 +1,75 @@
+name: Web CI
+
+on:
+  push:
+    branches: ["main", "develop"]
+    paths:
+      - 'web/**'
+      - '.github/workflows/ci-web.yml'
+  pull_request:
+    branches: ["main", "develop"]
+    paths:
+      - 'web/**'
+      - '.github/workflows/ci-web.yml'
+
+jobs:
+  lint-and-typecheck:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./web
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'yarn'
+          cache-dependency-path: web/yarn.lock
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Run ESLint
+        run: yarn lint
+
+      - name: Run TypeScript type check
+        run: yarn type-check
+
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./web
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'yarn'
+          cache-dependency-path: web/yarn.lock
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Build Next.js site
+        run: yarn build
+        env:
+          NEXT_PUBLIC_API_URL: 'http://localhost:8000'
+
+      - name: Index with Pagefind
+        run: yarn pagefind
+
+      - name: Verify Pagefind index was created
+        run: |
+          if [ ! -d "public/_pagefind" ]; then
+            echo "Error: Pagefind index directory not found!"
+            exit 1
+          fi
+          echo "Pagefind index created successfully"
+          ls -la public/_pagefind

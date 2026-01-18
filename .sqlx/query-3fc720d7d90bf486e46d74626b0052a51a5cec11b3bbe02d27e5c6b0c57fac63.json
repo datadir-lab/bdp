@@ -1,0 +1,21 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                INSERT INTO proteins (\n                    id, accession, name, organism, organism_scientific,\n                    taxonomy_id, sequence, sequence_length, created_at, updated_at\n                )\n                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())\n                ON CONFLICT (accession) DO UPDATE SET\n                    name = EXCLUDED.name,\n                    organism = EXCLUDED.organism,\n                    organism_scientific = EXCLUDED.organism_scientific,\n                    taxonomy_id = EXCLUDED.taxonomy_id,\n                    sequence = EXCLUDED.sequence,\n                    sequence_length = EXCLUDED.sequence_length,\n                    updated_at = NOW()\n                ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Varchar",
+        "Text",
+        "Text",
+        "Text",
+        "Int4",
+        "Text",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "3fc720d7d90bf486e46d74626b0052a51a5cec11b3bbe02d27e5c6b0c57fac63"
+}

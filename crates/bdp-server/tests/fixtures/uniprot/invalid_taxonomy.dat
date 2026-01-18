@@ -1,0 +1,13 @@
+ID   INVTAX_TEST             Reviewed;         100 AA.
+AC   P00021;
+DT   01-JAN-2020, integrated into UniProtKB/Swiss-Prot.
+DT   01-JAN-2020, sequence version 1.
+DT   01-JAN-2020, entry version 1.
+DE   RecName: Full=Entry with invalid taxonomy;
+GN   Name=INVTAX;
+OS   Homo sapiens (Human).
+OX   NCBI_TaxID=invalid;
+SQ   SEQUENCE   100 AA;  11000 MW;  1234567890ABCDEF CRC64;
+     MKTAYIAKQR QISFVKSHFS RQLEERLGLI GLNFKVAMTN DLRKQIEEYN KQLESLDLYR
+     QLLQGDQLLQ VDYKDRKQLE EVVRQYVPGG GSVDKLRKQM
+//

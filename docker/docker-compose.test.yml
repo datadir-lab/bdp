@@ -1,0 +1,103 @@
+version: '3.9'
+
+# Docker Compose configuration for BDP integration testing
+#
+# This file defines a minimal PostgreSQL database setup specifically for
+# running integration tests. It's designed to:
+#
+# - Run on a different port (5433) to avoid conflicts with development database
+# - Use temporary volumes that can be easily cleaned up
+# - Start quickly for fast test execution
+# - Provide complete isolation from development environment
+#
+# Usage:
+#   docker-compose -f docker/docker-compose.test.yml up -d
+#   docker-compose -f docker/docker-compose.test.yml down -v
+#
+# Or use the automated script:
+#   ./scripts/test/run-integration-tests.sh
+
+services:
+  # PostgreSQL 16 Test Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: bdp-postgres-test
+    restart: "no"
+    environment:
+      # Test database configuration
+      POSTGRES_DB: bdp_test
+      POSTGRES_USER: bdp_test
+      POSTGRES_PASSWORD: test_password
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+
+      # Performance tuning for tests (faster startup, less durability)
+      POSTGRES_HOST_AUTH_METHOD: trust
+
+    # Use tmpfs for faster test execution (data is ephemeral)
+    tmpfs:
+      - /var/lib/postgresql/data:rw,noexec,nosuid,size=512m
+
+    ports:
+      # Use port 5433 to avoid conflicts with development database
+      - "5433:5432"
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bdp_test -d bdp_test"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+    # Network configuration
+    networks:
+      - bdp-test-network
+
+    # Logging configuration (minimal for tests)
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    # PostgreSQL configuration optimized for testing
+    command:
+      - "postgres"
+      - "-c"
+      - "max_connections=100"
+      - "-c"
+      - "shared_buffers=128MB"
+      - "-c"
+      - "effective_cache_size=256MB"
+      - "-c"
+      - "maintenance_work_mem=64MB"
+      - "-c"
+      - "checkpoint_completion_target=0.9"
+      - "-c"
+      - "wal_buffers=4MB"
+      - "-c"
+      - "default_statistics_target=100"
+      - "-c"
+      - "random_page_cost=1.1"
+      - "-c"
+      - "effective_io_concurrency=200"
+      - "-c"
+      - "work_mem=2MB"
+      - "-c"
+      - "min_wal_size=1GB"
+      - "-c"
+      - "max_wal_size=4GB"
+      # Reduce fsync for faster tests (acceptable for test database)
+      - "-c"
+      - "fsync=off"
+      - "-c"
+      - "synchronous_commit=off"
+      - "-c"
+      - "full_page_writes=off"
+
+networks:
+  bdp-test-network:
+    driver: bridge
+    name: bdp-test-network
+
+# No named volumes - using tmpfs for ephemeral storage
+# This ensures complete cleanup between test runs

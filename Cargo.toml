@@ -1,0 +1,185 @@
+[workspace]
+members = [
+    "crates/bdp-server",
+    "crates/bdp-cli",
+    "crates/bdp-ingest",
+    "crates/bdp-common",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["BDP Team"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/datadir-lab/bdp"
+rust-version = "1.84"
+
+[workspace.metadata.release]
+# Unified version management - all crates share the same version
+shared-version = true
+# Git tagging
+tag = true
+tag-name = "v{{version}}"
+tag-message = "chore: Release {{crate_name}} v{{version}}"
+# Push to GitHub
+push = true
+push-remote = "origin"
+# Pre-release hook to sync version to package.json
+# Script automatically finds workspace root from any crate directory
+pre-release-hook = ["node", "scripts/sync-version.js"]
+# Don't publish to crates.io (we're using GitHub releases)
+publish = false
+
+[workspace.dependencies]
+# ============================================================================
+# Async Runtime
+# ============================================================================
+tokio = { version = "1.42", features = ["full"] }
+futures = "0.3"
+
+# ============================================================================
+# Serialization / Deserialization
+# ============================================================================
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# ============================================================================
+# Error Handling
+# ============================================================================
+anyhow = "1.0"
+thiserror = "2.0"
+
+# ============================================================================
+# Logging / Tracing
+# ============================================================================
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+tracing-appender = "0.2"
+
+# ============================================================================
+# Web Framework (Server)
+# ============================================================================
+axum = { version = "0.7", features = ["macros", "multipart"] }
+tower = "0.5"
+tower-http = { version = "0.6", features = ["fs", "trace", "cors", "compression-full"] }
+
+# ============================================================================
+# Database
+# ============================================================================
+sqlx = { version = "0.8", features = ["runtime-tokio", "postgres", "macros", "uuid", "chrono", "json", "migrate", "bigdecimal"] }
+
+# ============================================================================
+# HTTP Client
+# ============================================================================
+reqwest = { version = "0.12", features = ["json", "stream"] }
+
+# ============================================================================
+# AWS SDK / S3 Storage
+# ============================================================================
+aws-config = { version = "1.5", features = ["behavior-version-latest"] }
+aws-sdk-s3 = { version = "1.69", features = ["behavior-version-latest"] }
+aws-credential-types = "1.2"
+
+# ============================================================================
+# CLI
+# ============================================================================
+clap = { version = "4.5", features = ["derive", "env"] }
+
+# ============================================================================
+# Utilities
+# ============================================================================
+uuid = { version = "1.11", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+sha2 = "0.10"
+
+# ============================================================================
+# Configuration
+# ============================================================================
+config = "0.14"
+dotenvy = "0.15"
+
+# ============================================================================
+# CQRS / Mediator
+# ============================================================================
+mediator = { version = "0.2", features = ["async"] }
+
+# ============================================================================
+# Job Queue
+# ============================================================================
+apalis = "1.0.0-rc.2"
+apalis-postgres = "1.0.0-rc.2"
+apalis-cron = "1.0.0-rc.2"
+
+# ============================================================================
+# FTP Client
+# ============================================================================
+suppaftp = { version = "6.0", features = ["async", "async-rustls"] }
+flate2 = "1.0"
+
+# ============================================================================
+# Workspace Member Dependencies
+# ============================================================================
+bdp-common = { path = "crates/bdp-common" }
+
+# ============================================================================
+# Development Dependencies (Testing)
+# ============================================================================
+[workspace.dev-dependencies]
+# E2E Testing with Docker containers
+testcontainers = "0.23"
+testcontainers-modules = { version = "0.11", features = ["postgres", "minio"] }
+
+# Test utilities
+tokio-test = "0.4"
+serial_test = "3.2"
+tempfile = "3.14"
+ctor = "0.2"
+
+# ============================================================================
+# Build Profiles
+# ============================================================================
+
+[profile.dev]
+# Development profile - fast compilation, minimal optimizations
+opt-level = 0
+debug = true
+debug-assertions = true
+overflow-checks = true
+lto = false
+panic = "unwind"
+incremental = true
+codegen-units = 256
+
+[profile.release]
+# Release profile - maximum performance
+opt-level = 3
+debug = false
+debug-assertions = false
+overflow-checks = false
+lto = "fat"
+panic = "abort"
+incremental = false
+codegen-units = 1
+strip = true
+
+[profile.test]
+# Test profile - inherits from dev with additional checks
+inherits = "dev"
+opt-level = 0
+debug = true
+
+[profile.bench]
+# Benchmark profile - high optimization with debug info
+inherits = "release"
+debug = true
+strip = false
+
+# The profile that 'dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"
+
+[profile.dev.package."*"]
+# Optimize dependencies even in dev mode for better performance
+opt-level = 2

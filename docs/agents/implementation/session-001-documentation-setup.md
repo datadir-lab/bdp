@@ -22,7 +22,7 @@ BDP manages bioinformatics **data sources** and **tools**, not traditional packa
 
 ```bash
 bdp init                              # Initialize project
-bdp source add uniprot:P12345@1.0     # Add protein from UniProt
+bdp source add uniprot:P12345-fasta@1.0     # Add protein from UniProt
 bdp source add ncbi:genome/GCA_000001405.29  # Add reference genome
 bdp tool add samtools@1.18            # Add bioinformatics tool
 bdp lock                              # Lock all dependencies
@@ -40,7 +40,7 @@ authors = ["Your Name <you@example.com>"]
 keywords = ["protein", "structure"]
 
 [sources]
-insulin = "uniprot:P01308@1.0"
+insulin = "uniprot:P01308-fasta@1.0"
 hemoglobin = { provider = "pdb", identifier = "1A3N", version = "latest" }
 human_genome = "ncbi:genome/GCA_000001405.29"
 

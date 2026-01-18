@@ -1,0 +1,36 @@
+# Test Fixtures Directory
+
+This directory contains test data for E2E testing of the BDP ingestion pipeline.
+
+## Structure
+
+- `uniprot_ci_sample.dat` - Small UniProt sample for CI (committed to repo)
+  - ~100 proteins in real UniProt DAT format
+  - Fast execution for CI/CD pipelines
+  - Always available, no network required
+
+- `real/` - Downloaded real UniProt data for local development (gitignored)
+  - Downloaded on first run via `just e2e-download-data`
+  - Cached and reused for subsequent test runs
+  - Provides realistic testing environment
+  - See `real/.gitkeep` for details
+
+## Usage
+
+**CI Mode** (GitHub Actions):
+- Uses `uniprot_ci_sample.dat` (committed)
+- Fast, reliable, no external dependencies
+
+**Dev Mode** (Local):
+- First run: Downloads real data with `just e2e-download-data`
+- Subsequent runs: Reuses cached data
+- Idempotent - won't re-download if data exists
+- To refresh: Delete `real/` directory and re-run
+
+## Adding Test Data
+
+To update the CI sample:
+1. Download a recent UniProt release
+2. Extract ~100 representative proteins
+3. Save as `uniprot_ci_sample.dat`
+4. Commit to repository

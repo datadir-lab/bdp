@@ -1,0 +1,103 @@
+# Einführung
+
+Willkommen zur BDP (Bioinformatics Dependencies Platform) Dokumentation.
+BDP ist eine umfassende Plattform zur Verwaltung von Bioinformatik-Software-Abhängigkeiten,
+die es einfacher macht, Tools für die Bioinformatik-Community zu entdecken, zu teilen und zu verwalten.
+
+## Was ist BDP?
+
+BDP bietet ein zentrales Registry- und Verwaltungssystem für Bioinformatik-Tools und Datenquellen.
+Es hilft Forschern und Entwicklern:
+
+- Bioinformatik-Tools und -Pakete zu entdecken
+- Software-Abhängigkeiten für reproduzierbare Forschung zu verwalten
+- Tools und Datenquellen mit der Community zu teilen
+- Versionen und Updates von Bioinformatik-Ressourcen zu verfolgen
+
+## Hauptmerkmale
+
+<table>
+  <thead>
+    <tr>
+      <th>Merkmal</th>
+      <th>Beschreibung</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Paket-Registry</td>
+      <td>Zentrales Repository für Bioinformatik-Tools und -Pakete</td>
+    </tr>
+    <tr>
+      <td>Datenquellen</td>
+      <td>Unterstützung für verschiedene Datenquellen (UniProt, PDB, etc.)</td>
+    </tr>
+    <tr>
+      <td>CLI-Tool</td>
+      <td>Befehlszeilenschnittstelle für Paketverwaltung mit Audit-Protokollierung</td>
+    </tr>
+    <tr>
+      <td>Audit & Provenienz</td>
+      <td>Lokales Audit-Trail für regulatorische Compliance (FDA, NIH, EMA)</td>
+    </tr>
+    <tr>
+      <td>Integritätsprüfung</td>
+      <td>Hash-Ketten-Manipulationserkennung und Prüfsummenvalidierung</td>
+    </tr>
+    <tr>
+      <td>Weboberfläche</td>
+      <td>Durchsuchen und Suchen von Paketen über eine benutzerfreundliche Oberfläche</td>
+    </tr>
+    <tr>
+      <td>Versionskontrolle</td>
+      <td>Verfolgen verschiedener Versionen von Tools und Datenquellen</td>
+    </tr>
+    <tr>
+      <td>Organisationen</td>
+      <td>Organisieren von Paketen unter Organisationen oder Forschungsgruppen</td>
+    </tr>
+  </tbody>
+</table>
+
+## Schnellstart
+
+Starten Sie mit BDP in nur wenigen Schritten:
+
+1. **BDP CLI installieren** - Folgen Sie der [Installationsanleitung](/docs/installation)
+2. **Projekt initialisieren** (erstellt automatisch Audit-Trail)
+   ```bash
+   bdp init --name mein-projekt
+   ```
+3. **Datenquelle hinzufügen**
+   ```bash
+   bdp source add uniprot:P01308-fasta@1.0
+   ```
+4. **Daten abrufen** (alle Operationen werden protokolliert)
+   ```bash
+   bdp pull
+   ```
+5. **Integrität überprüfen**
+   ```bash
+   bdp audit
+   ```
+6. **Audit-Bericht exportieren** (für Publikationen)
+   ```bash
+   bdp audit export --format das --output data-availability.md
+   ```
+
+## Hilfe erhalten
+
+Benötigen Sie Hilfe oder haben Sie Fragen? Hier sind einige Ressourcen:
+
+- **Dokumentation** - Durchsuchen Sie diese Dokumentation
+- **GitHub Issues** - Melden Sie Fehler oder fordern Sie Funktionen auf [GitHub](https://github.com/bdp-dev/bdp) an
+- **Community** - Treten Sie unseren Community-Diskussionen bei
+
+## Nächste Schritte
+
+Bereit einzutauchen? Schauen Sie sich diese Anleitungen an:
+
+- [Installationsanleitung](/docs/installation) - BDP CLI installieren
+- [Schnellstart](/docs/quick-start) - Schnell loslegen
+- [Architektur](/docs/concepts/architecture) - Verstehen, wie BDP funktioniert
+- [CLI-Befehle](/docs/cli/commands) - Alle CLI-Befehle lernen

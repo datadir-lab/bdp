@@ -1,0 +1,92 @@
+[package]
+name = "bdp-cli"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lib]
+name = "bdp_cli"
+path = "src/lib.rs"
+
+[[bin]]
+name = "bdp"
+path = "src/main.rs"
+
+[dependencies]
+# ============================================================================
+# Workspace Dependencies
+# ============================================================================
+bdp-common = { workspace = true }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+
+# ============================================================================
+# CLI Framework
+# ============================================================================
+clap = { workspace = true }
+
+# ============================================================================
+# HTTP Client
+# ============================================================================
+reqwest = { workspace = true }
+
+# ============================================================================
+# Database
+# ============================================================================
+sqlx = { workspace = true, features = ["runtime-tokio", "sqlite", "macros"] }
+rusqlite = "0.32"  # For audit trail (lightweight SQLite)
+async-trait = "0.1"  # For audit logger trait
+
+# ============================================================================
+# Utilities
+# ============================================================================
+chrono = { workspace = true }
+uuid = { workspace = true }
+dotenvy = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+
+# ============================================================================
+# Additional CLI Dependencies
+# ============================================================================
+# File system utilities
+dirs = "5.0"
+walkdir = "2.5"
+tempfile = "3.10"
+
+# Configuration parsing
+toml = "0.8"
+serde_yaml = "0.9"
+
+# Progress indicators
+indicatif = "0.17"
+console = "0.15"
+
+# Terminal colors and formatting
+colored = "2.1"
+
+# File checksums
+sha2 = "0.10"
+hex = "0.4"
+
+# Hostname for machine ID
+hostname = "0.4"
+
+[dev-dependencies]
+# Testing
+assert_cmd = "2.0"
+predicates = "3.1"
+wiremock = "0.6"
+testcontainers = "0.23"
+
+# Test utilities from workspace
+tokio = { workspace = true, features = ["test-util"] }
+
+[features]
+default = []

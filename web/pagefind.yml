@@ -1,0 +1,16 @@
+# Pagefind configuration for multilingual documentation search
+
+site: .next/server/app
+output_path: public/_pagefind
+
+# Index both English and German content
+# Note: Using output_path instead of deprecated bundle_dir
+
+# Ensure proper indexing of dynamic routes
+glob: "**/*.{html,md,mdx}"
+
+# Keep original URLs for locale-aware routing
+keep_index_url: true
+
+# Custom selectors for better search results
+root_selector: "[data-pagefind-body]"

@@ -1,0 +1,107 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                id, job_id, work_unit_id, record_type, record_identifier,\n                record_name, record_data, content_md5, sequence_md5,\n                source_file, source_offset, parsed_at, status,\n                stored_at, error_message\n            FROM ingestion_staged_records\n            WHERE job_id = $1 AND status = 'staged'\n            ORDER BY parsed_at\n            LIMIT $2\n            FOR UPDATE SKIP LOCKED\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "job_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "work_unit_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 3,
+        "name": "record_type",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "record_identifier",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 5,
+        "name": "record_name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 6,
+        "name": "record_data",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 7,
+        "name": "content_md5",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 8,
+        "name": "sequence_md5",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 9,
+        "name": "source_file",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 10,
+        "name": "source_offset",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 11,
+        "name": "parsed_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 12,
+        "name": "status",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 13,
+        "name": "stored_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 14,
+        "name": "error_message",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false,
+      false,
+      true,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "99dcef53cb434cf425b546bbb49a3eb97a7d0f4b94804c35fdb86c08194501ed"
+}

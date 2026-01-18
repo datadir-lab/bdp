@@ -1,0 +1,131 @@
+# Git and version control
+.git
+.gitignore
+.gitattributes
+.github
+
+# Documentation
+*.md
+docs/
+ROADMAP.md
+AGENTS.md
+LICENSE
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Build artifacts
+target/
+dist/
+build/
+out/
+*.log
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-*
+.project
+.classpath
+.settings/
+
+# Node.js (frontend)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.next/
+.turbo/
+out/
+
+# Rust
+target/
+# Cargo.lock - needed for Docker builds
+*.pdb
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+postgres_data/
+minio_data/
+
+# Cache directories
+.cache/
+.bdp/
+.cargo/cache/
+
+# Testing
+coverage/
+.nyc_output/
+*.test
+*.spec
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Docker
+docker-compose.override.yml
+docker-compose.*.yml
+Dockerfile.dev
+
+# CI/CD
+.github/workflows/
+
+# Security
+*.pem
+*.key
+*.cert
+*.crt
+secrets/
+
+# Backup files
+*.bak
+*.backup
+*.old
+
+# Python (for scripts)
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+venv/
+env/
+ENV/
+
+# Data files (exclude large data)
+*.fasta
+*.dat
+*.gz
+*.zip
+*.tar
+*.tar.gz
+data/
+datasets/
+
+# Config overrides
+config/local/
+config/*.local.toml
+config/*.secret.toml

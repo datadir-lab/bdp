@@ -1,0 +1,61 @@
+[package]
+name = "bdp-common"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lib]
+name = "bdp_common"
+path = "src/lib.rs"
+
+[dependencies]
+# ============================================================================
+# Workspace Dependencies
+# ============================================================================
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+tracing-appender = { workspace = true }
+
+# ============================================================================
+# Additional Common Dependencies
+# ============================================================================
+# Checksums and hashing
+sha2 = "0.10"
+blake3 = "1.5"
+hex = "0.4"
+
+# Compression
+flate2 = "1.0"
+
+# Base64 encoding/decoding
+base64 = "0.22"
+
+# Regular expressions
+regex = "1.11"
+
+# URL parsing
+url = { version = "2.5", features = ["serde"] }
+
+# MIME types
+mime = "0.3"
+
+# File size utilities
+byte-unit = "5.1"
+
+[dev-dependencies]
+# Testing
+tokio = { workspace = true, features = ["test-util"] }
+tempfile = "3.10"
+proptest = "1.4"
+
+[features]
+default = []

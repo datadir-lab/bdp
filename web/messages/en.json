@@ -1,0 +1,106 @@
+{
+  "nav": {
+    "home": "Home",
+    "docs": "Documentation",
+    "features": "Features",
+    "search": "Search",
+    "github": "GitHub"
+  },
+  "hero": {
+    "title": "Bioinformatics Dependencies Platform",
+    "subtitle": "Bioinformatics dependencies platform",
+    "search": {
+      "placeholder": "Search datasources, e.g. uniprot pc0...",
+      "button": "Search"
+    },
+    "cta": {}
+  },
+  "features": {
+    "title": "Why BDP?",
+    "subtitle": "Built for the bioinformatics community",
+    "reproducibility": {
+      "title": "Complete Reproducibility",
+      "description": "Lock files for data, not just code. Version everything from reference genomes to annotation databases."
+    },
+    "collaboration": {
+      "title": "Seamless Collaboration",
+      "description": "Share exact analysis environments across teams. No more 'works on my machine' moments."
+    },
+    "resourceManagement": {
+      "title": "Smart Resource Management",
+      "description": "Shared cache between team members. Download once, use everywhere. Save bandwidth and storage."
+    },
+    "citation": {
+      "title": "Automated Citation",
+      "description": "Generate proper citations for every data source. Never miss a reference in your publications."
+    },
+    "integrity": {
+      "title": "Integrity Verification",
+      "description": "Automatic checksum validation detects tampering and corruption. Audit trails for compliance."
+    },
+    "discovery": {
+      "title": "Unified Discovery",
+      "description": "Search across all bioinformatics resources in one place. Find what you need instantly."
+    },
+    "workflow": {
+      "title": "Workflow Integration",
+      "description": "Native support for Nextflow, Snakemake, and CWL. Plug into your existing pipelines effortlessly."
+    },
+    "openSource": {
+      "title": "Open Source",
+      "description": "Fully transparent and auditable codebase. Review, audit, and contribute. Built in the open for the community.",
+      "button": "Star on GitHub"
+    }
+  },
+  "stats": {
+    "packages": "Data Sources",
+    "organizations": "Organizations",
+    "downloads": "Downloads"
+  },
+  "search": {
+    "placeholder": "Search datasources, e.g. uniprot pc0...",
+    "search": "Search",
+    "clear": "Clear",
+    "filtersButton": "Filters",
+    "noResults": "No results found",
+    "searching": "Searching...",
+    "results": "results",
+    "noResultsFor": "No results found for",
+    "tryDifferentQuery": "Try a different search query or adjust your filters",
+    "activeFilters": "Active filters",
+    "clearAll": "Clear all",
+    "filterDialog": {
+      "title": "Search Filters",
+      "description": "Refine your search with filters",
+      "active": "active",
+      "type": "Type",
+      "organizations": "Organizations",
+      "dateRange": "Date Range",
+      "clearSection": "Clear",
+      "clearAll": "Clear all",
+      "apply": "Apply filters"
+    }
+  },
+  "footer": {
+    "description": "A comprehensive platform for managing bioinformatics software dependencies.",
+    "links": {
+      "product": "Product",
+      "resources": "Resources",
+      "community": "Community"
+    },
+    "copyright": "© 2024 BDP. All rights reserved."
+  },
+  "notFound": {
+    "title": "404",
+    "heading": "Page Not Found",
+    "description": "The page you're looking for doesn't exist or has been moved.",
+    "goHome": "Go Home",
+    "search": "Search"
+  },
+  "docsSearch": {
+    "buttonText": "Search documentation...",
+    "placeholder": "Search documentation...",
+    "noResults": "No results found for \"{query}\"",
+    "startTyping": "Start typing to search documentation..."
+  }
+}

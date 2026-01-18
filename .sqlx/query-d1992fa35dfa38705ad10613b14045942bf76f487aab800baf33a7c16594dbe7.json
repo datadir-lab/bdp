@@ -1,0 +1,64 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT id, citation_type, doi, pubmed_id, title, journal, publication_date, authors\n        FROM citations\n        WHERE version_id = $1\n        ORDER BY citation_type, publication_date DESC\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "citation_type",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "doi",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "pubmed_id",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "title",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "journal",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 6,
+        "name": "publication_date",
+        "type_info": "Date"
+      },
+      {
+        "ordinal": 7,
+        "name": "authors",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "d1992fa35dfa38705ad10613b14045942bf76f487aab800baf33a7c16594dbe7"
+}

@@ -1,0 +1,122 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            re.id,\n            o.slug as organization_slug,\n            re.slug,\n            re.name,\n            re.description,\n            re.entry_type,\n            ds.source_type,\n            t.tool_type,\n            org.scientific_name,\n            org.common_name,\n            org.ncbi_taxonomy_id,\n            ds.external_id,\n            (\n                SELECT v.version\n                FROM versions v\n                WHERE v.entry_id = re.id\n                ORDER BY v.published_at DESC\n                LIMIT 1\n            ) as latest_version,\n            (\n                SELECT v.external_version\n                FROM versions v\n                WHERE v.entry_id = re.id\n                ORDER BY v.published_at DESC\n                LIMIT 1\n            ) as external_version,\n            COALESCE(\n                (\n                    SELECT ARRAY_AGG(DISTINCT vf.format)\n                    FROM versions v\n                    JOIN version_files vf ON vf.version_id = v.id\n                    WHERE v.entry_id = re.id\n                ),\n                ARRAY[]::VARCHAR[]\n            ) as \"available_formats!\",\n            COALESCE(\n                (\n                    SELECT SUM(v.download_count)::bigint\n                    FROM versions v\n                    WHERE v.entry_id = re.id\n                ),\n                0\n            ) as \"total_downloads!\",\n            ts_rank(\n                to_tsvector('english', re.name || ' ' || COALESCE(re.description, '')),\n                plainto_tsquery('english', $1)\n            ) as \"rank!\"\n        FROM registry_entries re\n        JOIN organizations o ON o.id = re.organization_id\n        LEFT JOIN data_sources ds ON ds.id = re.id\n        LEFT JOIN tools t ON t.id = re.id\n        LEFT JOIN organisms org ON org.id = ds.organism_id\n        WHERE to_tsvector('english', re.name || ' ' || COALESCE(re.description, ''))\n            @@ plainto_tsquery('english', $1)\n          AND ($2::VARCHAR[] IS NULL OR re.entry_type = ANY($2))\n          AND ($3::TEXT IS NULL OR org.scientific_name ILIKE $3 OR org.common_name ILIKE $3)\n          AND ($4::TEXT IS NULL OR EXISTS (\n              SELECT 1\n              FROM versions v\n              JOIN version_files vf ON vf.version_id = v.id\n              WHERE v.entry_id = re.id AND vf.format = $4\n          ))\n        ORDER BY 17 DESC, 16 DESC, re.created_at DESC\n        LIMIT $5\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "organization_slug",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "slug",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "description",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "entry_type",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 6,
+        "name": "source_type",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 7,
+        "name": "tool_type",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 8,
+        "name": "scientific_name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 9,
+        "name": "common_name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 10,
+        "name": "ncbi_taxonomy_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 11,
+        "name": "external_id",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 12,
+        "name": "latest_version",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 13,
+        "name": "external_version",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 14,
+        "name": "available_formats!",
+        "type_info": "VarcharArray"
+      },
+      {
+        "ordinal": 15,
+        "name": "total_downloads!",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 16,
+        "name": "rank!",
+        "type_info": "Float4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "VarcharArray",
+        "Text",
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      true,
+      false,
+      true,
+      false,
+      true,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "513eeb525f22e442cebfec5b9dc824a1c0238b5435c4c687a56c791d25c951e1"
+}

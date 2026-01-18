@@ -1,0 +1,248 @@
+# BDP .gitignore
+# This file specifies intentionally untracked files that Git should ignore
+
+# ============================================================================
+# Rust
+# ============================================================================
+# Compiled files and build artifacts
+target/
+Cargo.lock
+
+# Cargo cache (not typically in project root, but listed for completeness)
+.cargo/
+!.cargo/config.toml
+
+# Rust documentation
+doc/
+
+# Rustfmt backup files
+*.rs.bk
+
+# Clippy cache
+.clippy.toml.bk
+
+# Rust analyzer
+.rust-analyzer/
+rust-project.json
+
+# Cargo build artifacts
+**/*.rs.bk
+**/Cargo.lock.orig
+
+# ============================================================================
+# Environment and Configuration
+# ============================================================================
+# Environment files containing secrets and local configuration
+.env
+.env.local
+.env.*.local
+
+# Keep example environment files
+!.env.example
+!.env.test.example
+
+# Test environment files
+.env.test
+
+# ============================================================================
+# SQLx
+# ============================================================================
+# SQLx metadata files for offline mode compilation
+#
+# IMPORTANT: These files SHOULD be committed to version control!
+# They enable offline compilation in CI/CD and Docker builds.
+#
+# However, they need to be regenerated when:
+# - SQL queries are added, modified, or removed
+# - Database schema changes (after migrations)
+# - Query parameter or return types change
+#
+# Regenerate with: ./scripts/dev/sqlx-prepare.sh
+#
+# Uncommenting the line below would ignore .sqlx files (NOT recommended):
+# .sqlx/
+
+# ============================================================================
+# IDE and Editor
+# ============================================================================
+# VS Code
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# IntelliJ IDEA / CLion / RustRover
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Emacs
+*~
+\#*\#
+.\#*
+
+# Vim
+*.swp
+*.swo
+*.swn
+.*.sw[op]
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# ============================================================================
+# Logs and Databases
+# ============================================================================
+# Application logs
+*.log
+logs/
+
+# Database files (if using SQLite locally)
+*.db
+*.sqlite
+*.sqlite3
+
+# ============================================================================
+# Docker
+# ============================================================================
+# Docker volumes and cache
+.docker/
+docker-compose.override.yml
+
+# ============================================================================
+# Testing
+# ============================================================================
+# Test coverage reports
+coverage/
+*.profraw
+*.profdata
+
+# Test artifacts
+test-results/
+test-output/
+*_output.txt
+*_test.log
+
+# E2E test data (real UniProt downloads)
+tests/fixtures/real/*
+!tests/fixtures/real/.gitkeep
+
+# ============================================================================
+# Temporary Files
+# ============================================================================
+# Temporary files and directories
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# ============================================================================
+# OS Generated Files
+# ============================================================================
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+.directory
+.Trash-*
+
+# macOS
+._*
+.Spotlight-V100
+.Trashes
+
+# ============================================================================
+# Build and Distribution
+# ============================================================================
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# ============================================================================
+# Node.js (for frontend)
+# ============================================================================
+node_modules/
+.next/
+out/
+.vercel
+*.next
+
+# npm/yarn
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# ============================================================================
+# MinIO / S3
+# ============================================================================
+# Local S3 storage data (when running MinIO locally)
+minio-data/
+s3-data/
+
+# ============================================================================
+# Development Tools
+# ============================================================================
+# Benchmark results
+criterion/
+bench-results/
+
+# Profiling data
+flamegraph.svg
+perf.data
+perf.data.old
+
+# ============================================================================
+# CI/CD
+# ============================================================================
+# CI/CD cache and artifacts (usually handled by CI platform)
+.cache/
+artifacts/
+
+# ============================================================================
+# Documentation
+# ============================================================================
+# Generated documentation
+book/
+mdbook-output/
+
+# Keep source documentation
+!docs/
+
+# ============================================================================
+# Miscellaneous
+# ============================================================================
+# Local configuration overrides
+local.toml
+config.local.toml
+
+# SSH keys and certificates (should never be committed)
+*.pem
+*.key
+*.crt
+*.csr
+*.p12
+*.pfx
+
+# GPG keys
+*.gpg
+*.asc
+
+# Secrets and credentials
+secrets/
+credentials/
+*.secret
+*.credential

@@ -1,0 +1,82 @@
+# Multi-stage build for BDP Server (Rust backend)
+# Stage 1: Builder
+FROM rustlang/rust:nightly AS builder
+
+LABEL maintainer="BDP Team"
+LABEL description="BDP Server - Rust backend service"
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create app directory
+WORKDIR /app
+
+# Copy workspace configuration
+COPY Cargo.toml Cargo.lock ./
+COPY crates ./crates
+COPY migrations ./migrations
+COPY .sqlx ./.sqlx
+
+# Build release binary with optimizations
+# Use --locked to ensure Cargo.lock is respected
+# Use SQLx offline mode (requires .sqlx query cache)
+ENV SQLX_OFFLINE=true
+RUN cargo build --release --package bdp-server --locked
+
+# Verify the binary was created
+RUN ls -lh /app/target/release/bdp-server
+
+# Stage 2: Runtime
+FROM debian:trixie-slim
+
+LABEL maintainer="BDP Team"
+LABEL description="BDP Server Runtime"
+LABEL org.opencontainers.image.source="https://github.com/datadir-lab/bdp"
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    libssl3 \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user
+RUN useradd -m -u 1000 -s /bin/bash bdp
+
+# Create necessary directories
+RUN mkdir -p /app/data /app/logs && \
+    chown -R bdp:bdp /app
+
+WORKDIR /app
+
+# Copy binary and migrations from builder
+COPY --from=builder /app/target/release/bdp-server /usr/local/bin/bdp-server
+COPY --from=builder /app/migrations /app/migrations
+
+# Ensure binary is executable
+RUN chmod +x /usr/local/bin/bdp-server
+
+# Fix ownership
+RUN chown -R bdp:bdp /app/migrations
+
+# Switch to non-root user
+USER bdp
+
+# Expose server port
+EXPOSE 8000
+
+# Set environment variables
+ENV RUST_LOG=info
+ENV BDP_HOST=0.0.0.0
+ENV BDP_PORT=8000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD ["/bin/sh", "-c", "curl -f http://localhost:8000/health || exit 1"]
+
+# Run the server
+ENTRYPOINT ["/usr/local/bin/bdp-server"]
+CMD []

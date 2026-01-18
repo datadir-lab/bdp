@@ -1,0 +1,115 @@
+{
+  "nav": {
+    "home": "Startseite",
+    "docs": "Dokumentation",
+    "features": "Funktionen",
+    "search": "Suche",
+    "github": "GitHub"
+  },
+  "hero": {
+    "title": "Bioinformatik-Abhängigkeitsplattform",
+    "subtitle": "Entdecken, teilen und verwalten Sie Bioinformatik-Software-Abhängigkeiten. Eine umfassende Registry für die Bioinformatik-Community.",
+    "search": {
+      "placeholder": "Datenquellen suchen, z.B. uniprot pc0...",
+      "button": "Suchen"
+    },
+    "cta": {
+      "getStarted": "Loslegen",
+      "browse": "Pakete durchsuchen"
+    }
+  },
+  "gettingStarted": {
+    "title": "Erste Schritte",
+    "subtitle": "Beginnen Sie in wenigen Minuten mit BDP",
+    "install": {
+      "title": "1. CLI installieren",
+      "description": "Installieren Sie das BDP-Befehlszeilentool"
+    },
+    "search": {
+      "title": "2. Pakete suchen",
+      "description": "Finden Sie die Abhängigkeiten, die Sie benötigen"
+    },
+    "integrate": {
+      "title": "3. Integrieren",
+      "description": "Fügen Sie Abhängigkeiten zu Ihrem Projekt hinzu"
+    }
+  },
+  "features": {
+    "title": "Warum BDP?",
+    "subtitle": "Entwickelt für die Bioinformatik-Community",
+    "registry": {
+      "title": "Umfassende Registry",
+      "description": "Kuratierte Sammlung von Bioinformatik-Tools und Abhängigkeiten"
+    },
+    "versionControl": {
+      "title": "Versionsverwaltung",
+      "description": "Verwalten Sie Abhängigkeitsversionen mit Leichtigkeit"
+    },
+    "reproducible": {
+      "title": "Reproduzierbare Forschung",
+      "description": "Stellen Sie sicher, dass Ihre Analysen umgebungsübergreifend reproduzierbar sind"
+    },
+    "community": {
+      "title": "Community-getrieben",
+      "description": "Von Forschern für Forscher entwickelt"
+    }
+  },
+  "stats": {
+    "packages": "Datenquellen",
+    "organizations": "Organisationen",
+    "downloads": "Downloads",
+    "users": "Benutzer",
+    "contributors": "Mitwirkende"
+  },
+  "cta": {
+    "title": "Bereit anzufangen?",
+    "subtitle": "Treten Sie der Bioinformatik-Community bei und verwalten Sie Ihre Abhängigkeiten besser.",
+    "button": "Dokumentation lesen"
+  },
+  "search": {
+    "placeholder": "Datenquellen suchen, z.B. uniprot pc0...",
+    "search": "Suchen",
+    "clear": "Löschen",
+    "filtersButton": "Filter",
+    "noResults": "Keine Ergebnisse gefunden",
+    "searching": "Suche läuft...",
+    "results": "Ergebnisse",
+    "noResultsFor": "Keine Ergebnisse gefunden für",
+    "tryDifferentQuery": "Versuchen Sie eine andere Suchanfrage oder passen Sie Ihre Filter an",
+    "activeFilters": "Aktive Filter",
+    "clearAll": "Alle löschen",
+    "filterDialog": {
+      "title": "Suchfilter",
+      "description": "Verfeinern Sie Ihre Suche mit Filtern",
+      "active": "aktiv",
+      "type": "Typ",
+      "organizations": "Organisationen",
+      "dateRange": "Datumsbereich",
+      "clearSection": "Löschen",
+      "clearAll": "Alle löschen",
+      "apply": "Filter anwenden"
+    }
+  },
+  "footer": {
+    "description": "Eine umfassende Plattform zur Verwaltung von Bioinformatik-Software-Abhängigkeiten.",
+    "links": {
+      "product": "Produkt",
+      "resources": "Ressourcen",
+      "community": "Community"
+    },
+    "copyright": "© 2024 BDP. Alle Rechte vorbehalten."
+  },
+  "notFound": {
+    "title": "404",
+    "heading": "Seite nicht gefunden",
+    "description": "Die gesuchte Seite existiert nicht oder wurde verschoben.",
+    "goHome": "Zur Startseite",
+    "search": "Suche"
+  },
+  "docsSearch": {
+    "buttonText": "Dokumentation durchsuchen...",
+    "placeholder": "Dokumentation durchsuchen...",
+    "noResults": "Keine Ergebnisse für \"{query}\" gefunden",
+    "startTyping": "Beginnen Sie mit der Eingabe, um die Dokumentation zu durchsuchen..."
+  }
+}

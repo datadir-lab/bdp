@@ -1,0 +1,280 @@
+# Caddyfile - Reverse Proxy Configuration for BDP
+# Caddy automatically handles HTTPS with Let's Encrypt
+
+# ============================================================================
+# Production Configuration
+# ============================================================================
+
+# Main domain - Web Frontend
+bdp.example.com {
+    # Enable compression
+    encode gzip zstd
+
+    # Security headers
+    header {
+        # HSTS - Force HTTPS
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        # Prevent clickjacking
+        X-Frame-Options "SAMEORIGIN"
+        # XSS Protection
+        X-XSS-Protection "1; mode=block"
+        # Content type sniffing protection
+        X-Content-Type-Options "nosniff"
+        # Referrer policy
+        Referrer-Policy "strict-origin-when-cross-origin"
+        # Permissions policy
+        Permissions-Policy "geolocation=(), microphone=(), camera=()"
+        # Remove server header for security
+        -Server
+    }
+
+    # Reverse proxy to Next.js frontend
+    reverse_proxy localhost:3000 {
+        # Health check
+        health_uri /api/health
+        health_interval 30s
+        health_timeout 5s
+
+        # Headers
+        header_up Host {host}
+        header_up X-Real-IP {remote}
+        header_up X-Forwarded-For {remote}
+        header_up X-Forwarded-Proto {scheme}
+    }
+
+    # Logging
+    log {
+        output file /var/log/caddy/bdp-frontend.log {
+            roll_size 100mb
+            roll_keep 10
+            roll_keep_for 720h
+        }
+        format json
+        level INFO
+    }
+}
+
+# API subdomain - Backend API
+api.bdp.example.com {
+    # Enable compression
+    encode gzip zstd
+
+    # Security headers
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Frame-Options "DENY"
+        X-XSS-Protection "1; mode=block"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        -Server
+    }
+
+    # CORS headers (handled by backend, but can be set here as backup)
+    @cors_preflight {
+        method OPTIONS
+    }
+
+    handle @cors_preflight {
+        header Access-Control-Allow-Origin "https://bdp.example.com"
+        header Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+        header Access-Control-Allow-Headers "Content-Type, Authorization"
+        header Access-Control-Max-Age "3600"
+        respond "" 204
+    }
+
+    # API routes
+    reverse_proxy localhost:8000 {
+        # Health check
+        health_uri /health
+        health_interval 10s
+        health_timeout 5s
+
+        # Headers
+        header_up Host {host}
+        header_up X-Real-IP {remote}
+        header_up X-Forwarded-For {remote}
+        header_up X-Forwarded-Proto {scheme}
+
+        # Timeouts for long-running requests
+        transport http {
+            read_timeout 120s
+            write_timeout 120s
+        }
+    }
+
+    # Logging
+    log {
+        output file /var/log/caddy/bdp-api.log {
+            roll_size 100mb
+            roll_keep 10
+            roll_keep_for 720h
+        }
+        format json
+        level INFO
+    }
+}
+
+# CDN subdomain - Static file downloads from S3/MinIO
+cdn.bdp.example.com {
+    # Enable compression
+    encode gzip zstd
+
+    # Cache headers for static files
+    header {
+        Cache-Control "public, max-age=31536000, immutable"
+        -Server
+    }
+
+    # Reverse proxy to MinIO
+    reverse_proxy localhost:9000 {
+        header_up Host {host}
+        header_up X-Real-IP {remote}
+        header_up X-Forwarded-For {remote}
+        header_up X-Forwarded-Proto {scheme}
+    }
+
+    # Logging
+    log {
+        output file /var/log/caddy/bdp-cdn.log {
+            roll_size 100mb
+            roll_keep 10
+            roll_keep_for 720h
+        }
+        format json
+        level WARN
+    }
+}
+
+# Metrics endpoint (internal only, use firewall to restrict access)
+metrics.bdp.example.com {
+    # Restrict to internal IPs
+    @external {
+        not remote_ip 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 127.0.0.1
+    }
+
+    handle @external {
+        respond "Forbidden" 403
+    }
+
+    # Reverse proxy to metrics endpoint
+    reverse_proxy localhost:9090 {
+        header_up Host {host}
+    }
+}
+
+# ============================================================================
+# Development Configuration (localhost)
+# ============================================================================
+
+# Development - All services on localhost
+localhost {
+    # Frontend
+    handle /app/* {
+        uri strip_prefix /app
+        reverse_proxy localhost:3000
+    }
+
+    # API
+    handle /api/* {
+        reverse_proxy localhost:8000
+    }
+
+    # MinIO Console
+    handle /minio/* {
+        uri strip_prefix /minio
+        reverse_proxy localhost:9001
+    }
+
+    # Default to frontend
+    handle {
+        reverse_proxy localhost:3000
+    }
+
+    # Development logging
+    log {
+        output stdout
+        format console
+        level DEBUG
+    }
+}
+
+# Development - Separate ports (alternative)
+localhost:8080 {
+    # Frontend only
+    reverse_proxy localhost:3000
+}
+
+localhost:8081 {
+    # API only
+    reverse_proxy localhost:8000
+}
+
+# ============================================================================
+# Global Options
+# ============================================================================
+
+{
+    # Global Caddy options
+
+    # Email for Let's Encrypt notifications
+    email admin@example.com
+
+    # Use Let's Encrypt production (comment out for staging during testing)
+    # acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
+
+    # Admin API endpoint (disable in production or restrict access)
+    # admin off
+
+    # Enable automatic HTTPS
+    auto_https on
+
+    # Grace period for certificate renewals
+    renew_interval 720h
+
+    # Storage location for certificates
+    storage file_system {
+        root /var/lib/caddy
+    }
+}
+
+# ============================================================================
+# Advanced Configuration Examples
+# ============================================================================
+
+# Example: Rate limiting (requires caddy-rate-limit plugin)
+# api.bdp.example.com {
+#     rate_limit {
+#         zone api_zone {
+#             key {remote_host}
+#             events 100
+#             window 1m
+#         }
+#     }
+#
+#     reverse_proxy localhost:8000
+# }
+
+# Example: Basic authentication for admin routes
+# admin.bdp.example.com {
+#     basicauth /admin/* {
+#         admin $2a$14$hashed_password_here
+#     }
+#
+#     reverse_proxy localhost:8000
+# }
+
+# Example: Redirect www to non-www
+# www.bdp.example.com {
+#     redir https://bdp.example.com{uri} permanent
+# }
+
+# Example: Custom error pages
+# bdp.example.com {
+#     handle_errors {
+#         @404 {
+#             expression {http.error.status_code} == 404
+#         }
+#         rewrite @404 /404.html
+#         file_server
+#     }
+# }

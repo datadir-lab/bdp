@@ -1,0 +1,13 @@
+ID   BADSEQ_TEST             Reviewed;         100 AA.
+AC   P00022;
+DT   01-JAN-2020, integrated into UniProtKB/Swiss-Prot.
+DT   01-JAN-2020, sequence version 1.
+DT   01-JAN-2020, entry version 1.
+DE   RecName: Full=Entry with malformed sequence;
+GN   Name=BADSEQ;
+OS   Homo sapiens (Human).
+OX   NCBI_TaxID=9606;
+SQ   SEQUENCE   100 AA;  11000 MW;  1234567890ABCDEF CRC64;
+     MKTAYIAK12 34QISFVKSH FS56RQLEER LGLI78GLNF KVAMTN90DL RKQIEEYNKQ
+     LESLDLYRQL LQGDQLLQVD YKDRKQLQQQ YVPGGGSVDK
+//

@@ -1,0 +1,119 @@
+# ============================================================================
+# Clippy Linting Configuration for BDP Project
+# ============================================================================
+# This file configures clippy behavior for consistent code quality across
+# the entire workspace. Run with: cargo clippy --all-targets --all-features
+#
+# Documentation: https://rust-lang.github.io/rust-clippy/
+
+# ============================================================================
+# Complexity Thresholds
+# ============================================================================
+# Cognitive complexity threshold - maximum allowed function complexity
+# Functions exceeding this will trigger clippy::cognitive_complexity
+cognitive-complexity-threshold = 30
+
+# Type complexity threshold - maximum allowed type complexity
+# Types exceeding this will trigger clippy::type_complexity
+type-complexity-threshold = 250
+
+# Maximum allowed nesting level for blocks (if/match/loops)
+excessive-nesting-threshold = 6
+
+# Maximum number of lines for a single function
+too-many-lines-threshold = 100
+
+# Maximum number of arguments for a single function
+too-many-arguments-threshold = 7
+
+# ============================================================================
+# Documentation
+# ============================================================================
+# Missing documentation is enforced via #![warn(missing_docs)] in lib.rs
+# Warn on missing documentation for public items
+missing-docs-in-crate-items = true
+
+# ============================================================================
+# String Patterns
+# ============================================================================
+# Note: max-literal-length is not a valid clippy configuration option
+# Use literal-representation-threshold instead if needed
+
+# Maximum number of boolean parameters in a function signature
+max-fn-params-bools = 3
+
+# ============================================================================
+# Vector and Array Operations
+# ============================================================================
+# Maximum allowed size for arrays in suggestions
+vec-box-size-threshold = 4096
+
+# ============================================================================
+# Performance
+# ============================================================================
+# Threshold for when to suggest using references instead of owned values
+# This affects clippy::trivially_copy_pass_by_ref
+trivial-copy-size-limit = 64
+
+# ============================================================================
+# Naming Conventions
+# ============================================================================
+# Enable checking for single character bindings (usually not descriptive)
+single-char-binding-names-threshold = 4
+
+# ============================================================================
+# Additional Configuration
+# ============================================================================
+# Allow these patterns that are commonly used and acceptable
+# These can be overridden with #[allow(clippy::lint_name)] in specific code
+
+# Standard library items that should be avoided (use better alternatives)
+disallowed-types = [
+    # Prefer chrono or time crate over std::time for complex time operations
+    # { path = "std::time::SystemTime", reason = "Use chrono for complex time operations" },
+]
+
+# Methods that should be avoided (use better alternatives)
+disallowed-methods = [
+    # Example: Disallow unwrap in production code
+    # { path = "std::option::Option::unwrap", reason = "Use expect() with a descriptive message or proper error handling" },
+    # { path = "std::result::Result::unwrap", reason = "Use expect() with a descriptive message or proper error handling" },
+]
+
+# ============================================================================
+# Lint Groups to Enable
+# ============================================================================
+# To enable pedantic lints, run:
+#   cargo clippy -- -W clippy::pedantic
+#
+# To enable all lints (very strict), run:
+#   cargo clippy -- -W clippy::all -W clippy::pedantic -W clippy::nursery
+#
+# To deny specific lints in code, add to lib.rs:
+#   #![deny(clippy::unwrap_used)]
+#   #![deny(clippy::expect_used)]
+#   #![deny(clippy::panic)]
+
+# ============================================================================
+# Recommended Project-Specific Lints
+# ============================================================================
+# Add these to your lib.rs or main.rs files:
+#
+# // Deny these common mistakes
+# #![deny(clippy::unwrap_used)]
+# #![deny(clippy::expect_used)]
+# #![deny(clippy::panic)]
+# #![deny(clippy::todo)]
+# #![deny(clippy::unimplemented)]
+#
+# // Warn on these potentially problematic patterns
+# #![warn(clippy::all)]
+# #![warn(clippy::pedantic)]
+# #![warn(clippy::nursery)]
+# #![warn(missing_docs)]
+# #![warn(rust_2018_idioms)]
+#
+# // Allow these specific pedantic lints when needed
+# #![allow(clippy::module_name_repetitions)]
+# #![allow(clippy::missing_errors_doc)]
+# #![allow(clippy::missing_panics_doc)]

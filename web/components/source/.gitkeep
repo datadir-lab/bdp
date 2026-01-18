@@ -1,0 +1,3 @@
+# Data source specific components
+# Components for displaying and interacting with specific biological data sources
+# (UniProt, NCBI, Ensembl, etc.)

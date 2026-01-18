@@ -1,0 +1,100 @@
+# Multi-stage build for BDP Ingest service with cron support
+# Stage 1: Builder
+FROM rust:1.75 AS builder
+
+LABEL maintainer="BDP Team"
+LABEL description="BDP Ingest - Data ingestion service"
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create app directory
+WORKDIR /app
+
+# Copy workspace configuration
+COPY Cargo.toml Cargo.lock ./
+COPY crates ./crates
+
+# Build release binary with optimizations
+RUN cargo build --release --package bdp-ingest --locked
+
+# Verify the binary was created
+RUN ls -lh /app/target/release/bdp-ingest
+
+# Stage 2: Runtime
+FROM debian:bookworm-slim
+
+LABEL maintainer="BDP Team"
+LABEL description="BDP Ingest Runtime with Cron"
+LABEL org.opencontainers.image.source="https://github.com/datadir-lab/bdp"
+
+# Install runtime dependencies including cron
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    libssl3 \
+    cron \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user
+RUN useradd -m -u 1000 -s /bin/bash bdp
+
+# Create necessary directories
+RUN mkdir -p /app/data /app/logs /var/log/cron && \
+    chown -R bdp:bdp /app /var/log/cron
+
+WORKDIR /app
+
+# Copy binary from builder
+COPY --from=builder /app/target/release/bdp-ingest /usr/local/bin/bdp-ingest
+
+# Ensure binary is executable
+RUN chmod +x /usr/local/bin/bdp-ingest
+
+# Copy cron configuration (if exists)
+# The crontab should be provided via volume mount or build argument
+# Default: Run every hour
+RUN echo "0 * * * * bdp /usr/local/bin/bdp-ingest >> /var/log/cron/ingest.log 2>&1" > /etc/cron.d/bdp-ingest && \
+    chmod 0644 /etc/cron.d/bdp-ingest && \
+    crontab -u bdp /etc/cron.d/bdp-ingest
+
+# Create log file
+RUN touch /var/log/cron/ingest.log && \
+    chown bdp:bdp /var/log/cron/ingest.log
+
+# Set environment variables
+ENV RUST_LOG=info
+ENV BDP_INGEST_MODE=scheduled
+
+# Health check - verify the binary can run
+HEALTHCHECK --interval=60s --timeout=5s --start-period=10s --retries=3 \
+    CMD ["/usr/local/bin/bdp-ingest", "--version"]
+
+# Create entrypoint script to run both cron and allow manual execution
+RUN echo '#!/bin/bash\n\
+set -e\n\
+\n\
+if [ "$1" = "cron" ]; then\n\
+    echo "Starting cron service..."\n\
+    cron\n\
+    echo "Cron started. Tailing log file..."\n\
+    tail -f /var/log/cron/ingest.log\n\
+elif [ "$1" = "once" ]; then\n\
+    echo "Running ingest once..."\n\
+    exec /usr/local/bin/bdp-ingest "${@:2}"\n\
+else\n\
+    exec /usr/local/bin/bdp-ingest "$@"\n\
+fi\n\
+' > /usr/local/bin/docker-entrypoint.sh && \
+    chmod +x /usr/local/bin/docker-entrypoint.sh
+
+# Run as root to allow cron access (cron manages bdp user permissions)
+# For manual execution, switch to bdp user
+USER root
+
+# Default: Run in cron mode
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+CMD ["cron"]

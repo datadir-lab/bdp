@@ -1,0 +1,103 @@
+# Test installers after release is created (as draft)
+# This workflow runs after release.yml creates a draft release
+# It tests install/upgrade/uninstall on all platforms
+# If all tests pass, it publishes the release
+
+name: Test and Publish Release
+
+on:
+  release:
+    types: [created]  # Triggered when a draft release is created
+
+permissions:
+  contents: write
+
+jobs:
+  # Test install scripts on all platforms
+  test-installers:
+    name: Test Installer (${{ matrix.os }})
+    # Only run for draft releases
+    if: github.event.release.draft == true
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux x86_64
+          - os: ubuntu-22.04
+            install-script: "curl --proto '=https' --tlsv1.2 -LsSf https://github.com/${{ github.repository }}/releases/download/${{ github.event.release.tag_name }}/bdp-installer.sh | sh"
+            verify-command: "bdp --version"
+            uninstall-command: "bdp uninstall --purge -y"
+          # macOS x86_64
+          - os: macos-13
+            install-script: "curl --proto '=https' --tlsv1.2 -LsSf https://github.com/${{ github.repository }}/releases/download/${{ github.event.release.tag_name }}/bdp-installer.sh | sh"
+            verify-command: "bdp --version"
+            uninstall-command: "bdp uninstall --purge -y"
+          # macOS ARM64
+          - os: macos-14
+            install-script: "curl --proto '=https' --tlsv1.2 -LsSf https://github.com/${{ github.repository }}/releases/download/${{ github.event.release.tag_name }}/bdp-installer.sh | sh"
+            verify-command: "bdp --version"
+            uninstall-command: "bdp uninstall --purge -y"
+          # Windows
+          - os: windows-2022
+            install-script: "irm https://github.com/${{ github.repository }}/releases/download/${{ github.event.release.tag_name }}/bdp-installer.ps1 | iex"
+            verify-command: "bdp --version"
+            uninstall-command: "bdp uninstall --purge -y"
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Test Fresh Install
+        shell: bash
+        run: |
+          echo "Testing fresh install..."
+          ${{ matrix.install-script }}
+
+      - name: Verify Installation
+        shell: bash
+        run: |
+          echo "Verifying installation..."
+          export PATH="$HOME/.cargo/bin:$PATH"
+          ${{ matrix.verify-command }}
+
+      - name: Test Upgrade (Re-install)
+        shell: bash
+        run: |
+          echo "Testing upgrade..."
+          ${{ matrix.install-script }}
+          export PATH="$HOME/.cargo/bin:$PATH"
+          ${{ matrix.verify-command }}
+
+      - name: Test Uninstall
+        shell: bash
+        run: |
+          echo "Testing uninstall..."
+          export PATH="$HOME/.cargo/bin:$PATH"
+          ${{ matrix.uninstall-command }}
+
+      - name: Verify Uninstall
+        shell: bash
+        run: |
+          echo "Verifying uninstall..."
+          # Wait a moment for background processes to complete
+          sleep 3
+          if command -v bdp &> /dev/null; then
+            echo "ERROR: bdp command still exists after uninstall"
+            exit 1
+          fi
+          echo "Uninstall verified successfully"
+
+  # Publish the release after all tests pass
+  publish-release:
+    needs: test-installers
+    if: needs.test-installers.result == 'success' && github.event.release.draft == true
+    runs-on: ubuntu-22.04
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Publish Release
+        run: |
+          echo "All tests passed! Publishing release..."
+          gh release edit "${{ github.event.release.tag_name }}" --draft=false --repo ${{ github.repository }}
+
+      - name: Announce Success
+        run: |
+          echo "✅ Release ${{ github.event.release.tag_name }} published successfully!"
+          echo "Install with: curl -LsSf https://github.com/${{ github.repository }}/releases/latest/download/bdp-installer.sh | sh"

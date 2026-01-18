@@ -1,0 +1,174 @@
+# BDP Backend Server Configuration - Development Environment
+# This configuration is optimized for local development
+
+[server]
+host = "0.0.0.0"
+port = 8000
+workers = 4
+environment = "development"
+
+[server.cors]
+enabled = true
+origins = [
+    "http://localhost:3000",
+    "http://localhost:8000",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:8000"
+]
+allow_credentials = true
+max_age = 3600
+
+[database]
+# Connection string format: postgresql://user:password@host:port/database
+url = "postgresql://bdp:bdp_dev_password@localhost:5432/bdp"
+max_connections = 10
+min_connections = 2
+connect_timeout = 5
+acquire_timeout = 10
+idle_timeout = 600
+max_lifetime = 1800
+# Enable SQL query logging in development
+log_queries = true
+log_slow_queries = true
+slow_query_threshold_ms = 100
+
+[database.pool]
+# SQLx connection pool settings
+test_on_checkout = false
+auto_vacuum = true
+
+[storage]
+# S3/MinIO configuration
+backend = "minio"  # Options: s3, minio
+endpoint = "http://localhost:9000"
+region = "us-east-1"
+bucket = "bdp-data"
+access_key = "minioadmin"
+secret_key = "minioadmin"
+path_style = true  # Required for MinIO
+# Enable presigned URL for downloads
+presigned_url_expiry = 3600  # 1 hour
+
+[storage.upload]
+max_file_size = 10737418240  # 10 GB
+chunk_size = 5242880  # 5 MB
+allowed_formats = [
+    "fasta", "dat", "xml", "json", "txt", "gz", "zip", "tar"
+]
+
+[api]
+base_url = "http://localhost:8000"
+max_page_size = 1000
+default_page_size = 50
+timeout = 30
+enable_compression = true
+
+[api.rate_limit]
+enabled = true
+requests_per_minute = 100
+burst_size = 20
+# In development, be more lenient
+strict_mode = false
+
+[security]
+# JWT Configuration
+jwt_secret = "dev_jwt_secret_change_in_production"
+jwt_expiry = 86400  # 24 hours
+jwt_refresh_expiry = 604800  # 7 days
+# Hash rounds for password hashing (bcrypt)
+password_hash_rounds = 10
+
+[security.api_keys]
+enabled = true
+prefix = "bdp_"
+length = 32
+
+[logging]
+level = "debug"
+format = "pretty"  # Options: json, pretty
+log_sql = true
+log_requests = true
+log_responses = false
+# File logging
+file_enabled = false
+file_path = "logs/bdp-server.log"
+file_rotation = "daily"
+file_retention_days = 7
+
+[ingestion]
+# UniProt ingestion settings
+enabled = true
+schedule = "0 2 * * *"  # Daily at 2 AM
+oldest_version = "2020_01"
+max_concurrent_downloads = 4
+# Skip ingestion on startup in development
+run_on_startup = false
+
+[ingestion.uniprot]
+ftp_host = "ftp.uniprot.org"
+ftp_path = "/pub/databases/uniprot/current_release/knowledgebase/complete"
+ftp_timeout = 300
+retry_attempts = 3
+retry_delay = 5
+
+[ingestion.processing]
+# Processing settings
+batch_size = 1000
+max_memory_mb = 2048
+temp_dir = "/tmp/bdp-ingestion"
+cleanup_on_error = true
+
+[cache]
+# Server-side caching
+enabled = true
+backend = "memory"  # Options: memory, redis
+ttl = 3600  # 1 hour
+max_size_mb = 256
+
+[cache.redis]
+# Redis configuration (if backend = "redis")
+url = "redis://localhost:6379"
+pool_size = 10
+timeout = 5
+
+[search]
+# Search configuration
+enabled = true
+min_query_length = 2
+max_results = 100
+fuzzy_search = true
+# For MVP, use database full-text search
+backend = "postgres"  # Options: postgres, elasticsearch, meilisearch
+
+[search.elasticsearch]
+# Elasticsearch configuration (future)
+enabled = false
+url = "http://localhost:9200"
+index_prefix = "bdp_"
+
+[metrics]
+# Monitoring and metrics
+enabled = true
+port = 9090
+path = "/metrics"
+# Prometheus-compatible metrics
+format = "prometheus"
+
+[tracing]
+# Distributed tracing
+enabled = false
+backend = "jaeger"
+endpoint = "http://localhost:14268/api/traces"
+sample_rate = 0.1
+
+[development]
+# Development-specific settings
+hot_reload = true
+debug_endpoints = true
+verbose_errors = true
+# Auto-run migrations on startup
+auto_migrate = true
+# Seed database with test data
+seed_data = true
+# Enable GraphQL playground
+enable_playground = true

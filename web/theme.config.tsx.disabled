@@ -1,0 +1,80 @@
+import React from 'react';
+import { DocsThemeConfig } from 'nextra-theme-docs';
+import { siteConfig, getGithubTreeUrl } from './lib/site-config';
+
+const config: DocsThemeConfig = {
+  logo: (
+    <div className="flex items-center gap-2">
+      <div className="flex h-6 w-6 items-center justify-center rounded bg-primary">
+        <span className="text-sm font-bold text-primary-foreground">B</span>
+      </div>
+      <span className="font-bold">BDP Documentation</span>
+    </div>
+  ),
+  project: {
+    link: siteConfig.github.url,
+  },
+  chat: {
+    link: siteConfig.social.discord,
+  },
+  docsRepositoryBase: getGithubTreeUrl('web'),
+  footer: {
+    text: (
+      <span>
+        {new Date().getFullYear()} ©{' '}
+        <a href="https://bdp.dev" target="_blank" rel="noopener noreferrer">
+          BDP
+        </a>
+        . All rights reserved.
+      </span>
+    ),
+  },
+  head: (
+    <>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <meta property="og:title" content="BDP Documentation" />
+      <meta
+        property="og:description"
+        content="Documentation for the Blockchain Data Platform"
+      />
+      <link rel="icon" href="/favicon.ico" />
+    </>
+  ),
+  primaryHue: 221,
+  darkMode: true,
+  nextThemes: {
+    defaultTheme: 'system',
+  },
+  sidebar: {
+    defaultMenuCollapseLevel: 1,
+    toggleButton: true,
+  },
+  toc: {
+    backToTop: true,
+  },
+  editLink: {
+    text: 'Edit this page on GitHub →',
+  },
+  feedback: {
+    content: 'Question? Give us feedback →',
+    labels: 'feedback',
+  },
+  navigation: {
+    prev: true,
+    next: true,
+  },
+  banner: {
+    key: 'bdp-v1-release',
+    text: (
+      <a href="/blog/v1-release" target="_blank" rel="noopener noreferrer">
+        BDP v1.0 is released. Read more →
+      </a>
+    ),
+    dismissible: true,
+  },
+  gitTimestamp: ({ timestamp }) => (
+    <>Last updated on {timestamp.toLocaleDateString()}</>
+  ),
+};
+
+export default config;

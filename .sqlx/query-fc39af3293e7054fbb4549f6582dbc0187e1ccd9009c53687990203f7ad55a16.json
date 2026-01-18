@@ -1,0 +1,25 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                INSERT INTO ingestion_staged_records (\n                    id, job_id, work_unit_id, record_type, record_identifier,\n                    record_name, record_data, content_md5, sequence_md5,\n                    source_file, source_offset, status\n                )\n                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)\n                ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Uuid",
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Jsonb",
+        "Varchar",
+        "Varchar",
+        "Text",
+        "Int8",
+        "Varchar"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "fc39af3293e7054fbb4549f6582dbc0187e1ccd9009c53687990203f7ad55a16"
+}

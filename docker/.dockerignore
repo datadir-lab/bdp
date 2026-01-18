@@ -1,0 +1,140 @@
+# Git and version control
+.git
+.gitignore
+.gitattributes
+.github
+
+# Rust build artifacts
+target/
+**/target/
+Cargo.lock
+**/*.rs.bk
+*.pdb
+
+# SQLx offline data (rebuild in container)
+.sqlx/
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.eslintcache
+.node_repl_history
+*.tgz
+.yarn-integrity
+
+# Next.js
+.next/
+out/
+.next/cache/
+*.log
+
+# Development and testing
+.env
+.env.local
+.env.development
+.env.test
+.env.production.local
+*.test
+*.spec
+__tests__/
+coverage/
+.nyc_output/
+.pytest_cache/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-project
+*.sublime-workspace
+.vimrc.local
+.project
+.classpath
+.settings/
+.history/
+
+# Documentation
+*.md
+!README.md
+docs/
+ROADMAP.md
+CONTRIBUTING.md
+TESTING.md
+QUICK_START_SQLX.md
+AGENTS.md
+
+# Docker files (avoid recursive copying)
+docker/
+Dockerfile
+Dockerfile.*
+docker-compose*.yml
+.dockerignore
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+data/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.cache
+.cache/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Build and distribution
+dist/
+build/
+*.egg-info/
+
+# Configuration that should be mounted
+config/local.toml
+config/development.toml
+config/*.local.toml
+
+# Scripts (not needed in container)
+scripts/
+*.sh
+Makefile
+
+# CI/CD
+.travis.yml
+.gitlab-ci.yml
+.circleci/
+azure-pipelines.yml
+Jenkinsfile
+
+# Rust specific
+**/*.rs.bk
+*.orig
+.cargo/config.toml
+rust-toolchain.toml
+clippy.toml
+rustfmt.toml
+
+# Migration files (handle separately if needed)
+migrations/
+
+# License and legal (already in base image metadata)
+LICENSE
+LICENSE-*
+NOTICE

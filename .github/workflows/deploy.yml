@@ -1,0 +1,318 @@
+name: Deploy
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+env:
+  CARGO_TERM_COLOR: always
+  SQLX_OFFLINE: true
+
+jobs:
+  # Build release binaries
+  build-release:
+    name: Build Release (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            artifact_name: bdp-linux-amd64
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+            artifact_name: bdp-linux-amd64-musl
+            musl: true
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            artifact_name: bdp-macos-amd64
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            artifact_name: bdp-macos-arm64
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            artifact_name: bdp-windows-amd64.exe
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install just
+        uses: extractions/setup-just@v2
+
+      - name: Install musl tools
+        if: matrix.musl
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+          key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.target }}-cargo-
+
+      - name: Cache cargo build
+        uses: actions/cache@v4
+        with:
+          path: target
+          key: ${{ runner.os }}-${{ matrix.target }}-cargo-release-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.target }}-cargo-release-
+
+      - name: Build release binaries
+        run: cargo build --release --target ${{ matrix.target }} --workspace
+
+      - name: Package binaries (Unix)
+        if: matrix.os != 'windows-latest'
+        run: |
+          mkdir -p artifacts
+          cp target/${{ matrix.target }}/release/bdp-server artifacts/bdp-server-${{ matrix.artifact_name }}
+          cp target/${{ matrix.target }}/release/bdp-cli artifacts/bdp-cli-${{ matrix.artifact_name }}
+          cp target/${{ matrix.target }}/release/bdp-ingest artifacts/bdp-ingest-${{ matrix.artifact_name }}
+          tar czf ${{ matrix.artifact_name }}.tar.gz -C artifacts .
+
+      - name: Package binaries (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          mkdir artifacts
+          cp target/${{ matrix.target }}/release/bdp-server.exe artifacts/bdp-server-${{ matrix.artifact_name }}
+          cp target/${{ matrix.target }}/release/bdp-cli.exe artifacts/bdp-cli-${{ matrix.artifact_name }}
+          cp target/${{ matrix.target }}/release/bdp-ingest.exe artifacts/bdp-ingest-${{ matrix.artifact_name }}
+          Compress-Archive -Path artifacts/* -DestinationPath ${{ matrix.artifact_name }}.zip
+
+      - name: Upload artifacts (Unix)
+        if: matrix.os != 'windows-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.artifact_name }}.tar.gz
+
+      - name: Upload artifacts (Windows)
+        if: matrix.os == 'windows-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.artifact_name }}.zip
+
+  # Build Docker images
+  build-docker:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Install just
+        uses: extractions/setup-just@v2
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+        continue-on-error: true
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            bdp/server
+            bdp/cli
+            bdp/ingest
+            bdp/web
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=sha
+
+      - name: Build Docker images
+        run: just docker-build
+
+      # Note: Uncomment when ready to push to registry
+      # - name: Push Docker images
+      #   run: |
+      #     docker push bdp/server:latest
+      #     docker push bdp/cli:latest
+      #     docker push bdp/ingest:latest
+      #     docker push bdp/web:latest
+
+  # Build frontend
+  build-frontend:
+    name: Build Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'yarn'
+          cache-dependency-path: web/yarn.lock
+
+      - name: Install just
+        uses: extractions/setup-just@v2
+
+      - name: Install dependencies
+        run: cd web && yarn install --frozen-lockfile
+
+      - name: Build frontend (includes Pagefind indexing)
+        run: just build-web
+        env:
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL || 'https://api.bdp.example.com' }}
+
+      - name: Verify Pagefind index was created
+        run: |
+          if [ -d "web/public/_pagefind" ]; then
+            echo "✓ Pagefind search index created successfully"
+            echo "Index size: $(du -sh web/public/_pagefind | cut -f1)"
+            echo "Index files:"
+            ls -lh web/public/_pagefind/
+          else
+            echo "⚠ Pagefind search index not found (may not be critical for standalone builds)"
+          fi
+
+      - name: Upload frontend build
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build
+          path: |
+            web/.next
+            web/public/_pagefind
+
+  # Create GitHub Release
+  create-release:
+    name: Create GitHub Release
+    needs: [build-release, build-docker, build-frontend]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            artifacts/**/*.tar.gz
+            artifacts/**/*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Deploy to staging (placeholder)
+  deploy-staging:
+    name: Deploy to Staging
+    needs: [build-release, build-docker, build-frontend]
+    runs-on: ubuntu-latest
+    if: |
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging') ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/develop')
+    environment:
+      name: staging
+      url: https://staging.bdp.example.com
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install just
+        uses: extractions/setup-just@v2
+
+      - name: Deploy to staging
+        run: |
+          echo "Deployment to staging not yet implemented"
+          echo "This is a placeholder for future deployment automation"
+          # TODO: Add actual deployment steps
+          # - Configure kubectl/terraform/ansible
+          # - Deploy to staging environment
+          # - Run smoke tests
+          # - Verify deployment
+
+  # Deploy to production (placeholder)
+  deploy-production:
+    name: Deploy to Production
+    needs: [build-release, build-docker, build-frontend]
+    runs-on: ubuntu-latest
+    if: |
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production') ||
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v'))
+    environment:
+      name: production
+      url: https://bdp.example.com
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install just
+        uses: extractions/setup-just@v2
+
+      - name: Deploy to production
+        run: |
+          echo "Deployment to production not yet implemented"
+          echo "This is a placeholder for future deployment automation"
+          # TODO: Add actual deployment steps
+          # - Require manual approval (via GitHub environments)
+          # - Configure kubectl/terraform/ansible
+          # - Deploy to production environment
+          # - Run smoke tests
+          # - Verify deployment
+          # - Send deployment notifications
+
+  # Post-deployment verification (placeholder)
+  verify-deployment:
+    name: Verify Deployment
+    needs: [deploy-staging]
+    runs-on: ubuntu-latest
+    if: |
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging') ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/develop')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run smoke tests
+        run: |
+          echo "Smoke tests not yet implemented"
+          # TODO: Add smoke tests
+          # - Health check endpoints
+          # - Basic API functionality
+          # - Database connectivity
+          # - S3/MinIO connectivity

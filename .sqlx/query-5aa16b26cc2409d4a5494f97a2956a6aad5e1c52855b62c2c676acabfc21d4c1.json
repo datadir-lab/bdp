@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT COUNT(*) as incomplete\n            FROM ingestion_work_units\n            WHERE job_id = $1 AND status NOT IN ('completed', 'cancelled')\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "incomplete",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "5aa16b26cc2409d4a5494f97a2956a6aad5e1c52855b62c2c676acabfc21d4c1"
+}

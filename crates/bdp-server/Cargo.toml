@@ -1,0 +1,125 @@
+[package]
+name = "bdp-server"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lib]
+name = "bdp_server"
+path = "src/lib.rs"
+
+[[bin]]
+name = "bdp-server"
+path = "src/main.rs"
+
+[dependencies]
+# ============================================================================
+# Workspace Dependencies
+# ============================================================================
+bdp-common = { workspace = true }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+# ============================================================================
+# Web Framework
+# ============================================================================
+axum = { workspace = true }
+tower = { workspace = true }
+tower-http = { workspace = true }
+
+# ============================================================================
+# Database
+# ============================================================================
+sqlx = { workspace = true }
+
+# ============================================================================
+# Configuration
+# ============================================================================
+config = { workspace = true }
+dotenvy = { workspace = true }
+
+# ============================================================================
+# Utilities
+# ============================================================================
+chrono = { workspace = true }
+uuid = { workspace = true }
+sha2 = { workspace = true }
+
+# ============================================================================
+# CQRS / Mediator
+# ============================================================================
+mediator = { workspace = true }
+
+# ============================================================================
+# Job Queue
+# ============================================================================
+apalis = { workspace = true }
+# Re-enabled with recursion_limit fix in lib.rs
+apalis-postgres = { workspace = true }
+apalis-cron = { workspace = true }
+
+# ============================================================================
+# FTP Client
+# ============================================================================
+suppaftp = { workspace = true }
+flate2 = { workspace = true }
+
+# ============================================================================
+# AWS SDK / S3 Storage
+# ============================================================================
+aws-config = { workspace = true }
+aws-sdk-s3 = { workspace = true }
+aws-credential-types = { workspace = true }
+
+# ============================================================================
+# Additional Server Dependencies
+# ============================================================================
+# HTTP types
+http = "1.1"
+http-body = "1.0"
+http-body-util = "0.1"
+
+# Async utilities
+tokio-util = { version = "0.7", features = ["io"] }
+
+# Environment
+figment = { version = "0.10", features = ["toml", "env"] }
+
+# Rate limiting
+tower_governor = "0.4"
+hostname = "0.4.2"
+quick-xml = { version = "0.39.0", features = ["serialize"] }
+md5 = { version = "0.7", features = ["std"] }
+async-trait = "0.1.89"
+digest = "0.10.7"
+regex = "1.12.2"
+
+[dev-dependencies]
+# Testing
+tokio-test = "0.4"
+tempfile = "3.10"
+wiremock = "0.6"
+insta = "1.34"
+
+# E2E Testing
+testcontainers = "0.23"
+testcontainers-modules = { version = "0.11", features = ["postgres", "minio"] }
+serial_test = "3.2"
+ctor = "0.2"
+reqwest = { workspace = true }
+
+# Test utilities from workspace
+tokio = { workspace = true, features = ["test-util"] }
+
+[features]
+default = []
+# Enable when you want to fail compilation if SQL queries are not prepared offline
+sqlx-offline = []

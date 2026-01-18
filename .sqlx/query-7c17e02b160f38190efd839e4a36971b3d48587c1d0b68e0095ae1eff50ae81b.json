@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE ingestion_work_units\n            SET status = CASE\n                    WHEN retry_count + 1 >= max_retries THEN 'failed'::text\n                    ELSE 'pending'::text\n                END,\n                retry_count = retry_count + 1,\n                last_error = $1,\n                worker_id = NULL,\n                worker_hostname = NULL,\n                claimed_at = NULL,\n                heartbeat_at = NULL\n            WHERE id = $2\n            RETURNING retry_count, max_retries\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "retry_count",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "max_retries",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      true,
+      true
+    ]
+  },
+  "hash": "7c17e02b160f38190efd839e4a36971b3d48587c1d0b68e0095ae1eff50ae81b"
+}

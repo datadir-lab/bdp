@@ -1,0 +1,48 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO organisms (ncbi_taxonomy_id, scientific_name, common_name)\n        VALUES ($1, $2, $3)\n        ON CONFLICT (ncbi_taxonomy_id)\n        DO UPDATE SET\n            scientific_name = EXCLUDED.scientific_name,\n            common_name = EXCLUDED.common_name\n        RETURNING id, ncbi_taxonomy_id, scientific_name, common_name, created_at\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "ncbi_taxonomy_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "scientific_name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "common_name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Varchar",
+        "Varchar"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "f1fc5f21c60f31e0ff32ca9b573c1960fd6085f8bc38b3a88f2660be951d7944"
+}

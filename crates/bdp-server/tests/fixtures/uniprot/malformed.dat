@@ -1,0 +1,46 @@
+ID   NOACC_TEST              Reviewed;         100 AA.
+DT   01-JAN-2020, integrated into UniProtKB/Swiss-Prot.
+DT   01-JAN-2020, sequence version 1.
+DT   01-JAN-2020, entry version 1.
+DE   RecName: Full=Entry without accession;
+GN   Name=NOACC;
+OS   Homo sapiens (Human).
+OX   NCBI_TaxID=9606;
+SQ   SEQUENCE   100 AA;  11000 MW;  1234567890ABCDEF CRC64;
+     MKTAYIAKQR QISFVKSHFS RQLEERLGLI GLNFKVAMTN DLRKQIEEYN KQLESLDLYR
+     QLLQGDQLLQ VDYKDRKQLE EVVRQYVPGG GSVDKLRKQM
+//
+ID   NOTAX_TEST              Reviewed;         100 AA.
+AC   P00020;
+DT   01-JAN-2020, integrated into UniProtKB/Swiss-Prot.
+DT   01-JAN-2020, sequence version 1.
+DT   01-JAN-2020, entry version 1.
+DE   RecName: Full=Entry without taxonomy;
+GN   Name=NOTAX;
+OS   Homo sapiens (Human).
+SQ   SEQUENCE   100 AA;  11000 MW;  1234567890ABCDEF CRC64;
+     MKTAYIAKQR QISFVKSHFS RQLEERLGLI GLNFKVAMTN DLRKQIEEYN KQLESLDLYR
+     QLLQGDQLLQ VDYKDRKQLE EVVRQYVPGG GSVDKLRKQM
+//
+ID   EMPTY_TEST              Reviewed;         0 AA.
+AC   P00023;
+DT   01-JAN-2020, integrated into UniProtKB/Swiss-Prot.
+DT   01-JAN-2020, sequence version 1.
+DT   01-JAN-2020, entry version 1.
+DE   RecName: Full=Entry with empty sequence;
+GN   Name=EMPTY;
+OS   Homo sapiens (Human).
+OX   NCBI_TaxID=9606;
+SQ   SEQUENCE   0 AA;  0 MW;  0000000000000000 CRC64;
+//
+ID   TRUNC_TEST              Reviewed;         100 AA.
+AC   P00024;
+DT   01-JAN-2020, integrated into UniProtKB/Swiss-Prot.
+DT   01-JAN-2020, sequence version 1.
+DT   01-JAN-2020, entry version 1.
+DE   RecName: Full=Truncated entry without end marker;
+GN   Name=TRUNC;
+OS   Homo sapiens (Human).
+OX   NCBI_TaxID=9606;
+SQ   SEQUENCE   100 AA;  11000 MW;  1234567890ABCDEF CRC64;
+     MKTAYIAKQR QISFVKSHFS RQLEERLGLI GLNFKVAMTN DLRKQIEEYN KQLESLDLYR

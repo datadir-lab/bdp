@@ -1,0 +1,115 @@
+name: E2E Tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  SQLX_OFFLINE: true
+  BDP_E2E_MODE: ci
+
+jobs:
+  e2e-tests:
+    name: End-to-End Tests (CI Mode)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+
+      - name: Install Docker Compose
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y docker-compose
+
+      - name: Verify Docker
+        run: |
+          docker --version
+          docker compose version
+
+      - name: Build workspace
+        run: cargo build --workspace --all-features
+
+      - name: Run E2E tests (CI mode)
+        run: |
+          cargo test --test e2e -- --test-threads=1 --nocapture
+        env:
+          BDP_E2E_MODE: ci
+          RUST_LOG: info,bdp_server=debug,sqlx=warn
+
+      - name: Upload test artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: e2e-test-artifacts
+          path: |
+            target/debug/
+            tests/fixtures/
+          retention-days: 7
+
+  # Optional: Run with real data on schedule (nightly)
+  e2e-tests-real:
+    name: End-to-End Tests (Real Data)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    # Only run on schedule or manual trigger
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Cache real test data
+        uses: actions/cache@v3
+        with:
+          path: tests/fixtures/real
+          key: e2e-real-data-${{ hashFiles('scripts/download-test-data.sh') }}
+          restore-keys: |
+            e2e-real-data-
+
+      - name: Download real UniProt test data
+        run: |
+          cargo build --bin download-test-data
+          cargo run --bin download-test-data
+
+      - name: Build workspace
+        run: cargo build --workspace --all-features
+
+      - name: Run E2E tests (Real mode)
+        run: |
+          cargo test --test e2e --ignored -- --test-threads=1 --nocapture
+        env:
+          BDP_E2E_MODE: real
+          RUST_LOG: info,bdp_server=debug
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: e2e-real-test-results
+          path: |
+            target/debug/
+            tests/fixtures/real/*.log
+          retention-days: 7

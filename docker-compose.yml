@@ -1,0 +1,192 @@
+services:
+  # PostgreSQL 16 Database (Development)
+  postgres:
+    image: postgres:16-alpine
+    container_name: bdp-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-bdp}
+      POSTGRES_USER: ${POSTGRES_USER:-bdp}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bdp_dev_password}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=en_US.UTF-8"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-bdp} -d ${POSTGRES_DB:-bdp}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - bdp-network
+
+  # PostgreSQL 16 Test Database
+  # Separate database instance for running tests
+  # This prevents test data from polluting the development database
+  # and allows for parallel test execution
+  postgres-test:
+    image: postgres:16-alpine
+    container_name: bdp-test-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${TEST_POSTGRES_DB:-bdp_test}
+      POSTGRES_USER: ${TEST_POSTGRES_USER:-bdp}
+      POSTGRES_PASSWORD: ${TEST_POSTGRES_PASSWORD:-bdp_test_password}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=en_US.UTF-8"
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+    ports:
+      - "${TEST_POSTGRES_PORT:-5433}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${TEST_POSTGRES_USER:-bdp} -d ${TEST_POSTGRES_DB:-bdp_test}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - bdp-network
+    profiles:
+      - test
+      - dev
+
+  # MinIO S3-compatible Storage
+  minio:
+    image: minio/minio:latest
+    container_name: bdp-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_DOMAIN: ${MINIO_DOMAIN:-minio}
+      MINIO_REGION: ${MINIO_REGION:-us-east-1}
+    volumes:
+      - minio_data:/data
+    ports:
+      - "${MINIO_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+    networks:
+      - bdp-network
+
+  # MinIO Client - Initialize buckets
+  minio-init:
+    image: minio/mc:latest
+    container_name: bdp-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      /usr/bin/mc alias set myminio http://minio:9000 ${MINIO_ROOT_USER:-minioadmin} ${MINIO_ROOT_PASSWORD:-minioadmin};
+      /usr/bin/mc mb myminio/${MINIO_BUCKET:-bdp-data} --ignore-existing;
+      /usr/bin/mc anonymous set download myminio/${MINIO_BUCKET:-bdp-data};
+      exit 0;
+      "
+    networks:
+      - bdp-network
+
+  # BDP Backend API Server
+  bdp-server:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.server
+    container_name: bdp-server
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    environment:
+      # Server Configuration
+      SERVER_HOST: ${SERVER_HOST:-0.0.0.0}
+      SERVER_PORT: ${SERVER_PORT:-8000}
+      RUST_LOG: ${RUST_LOG:-info,bdp_server=debug,sqlx=warn}
+
+      # Database Configuration
+      DATABASE_URL: postgresql://${POSTGRES_USER:-bdp}:${POSTGRES_PASSWORD:-bdp_dev_password}@postgres:5432/${POSTGRES_DB:-bdp}
+      DATABASE_MAX_CONNECTIONS: ${DATABASE_MAX_CONNECTIONS:-10}
+
+      # S3/MinIO Configuration
+      STORAGE_TYPE: s3
+      STORAGE_S3_ENDPOINT: http://minio:9000
+      STORAGE_S3_REGION: ${MINIO_REGION:-us-east-1}
+      STORAGE_S3_BUCKET: ${MINIO_BUCKET:-bdp-data}
+      STORAGE_S3_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      STORAGE_S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      STORAGE_S3_PATH_STYLE: "true"
+
+      # API Configuration
+      API_BASE_URL: ${API_BASE_URL:-http://localhost:8000}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:8000}
+
+      # Security
+      JWT_SECRET: ${JWT_SECRET:-dev_jwt_secret_change_in_production}
+
+      # Rate Limiting
+      RATE_LIMIT_REQUESTS: ${RATE_LIMIT_REQUESTS:-100}
+      RATE_LIMIT_WINDOW: ${RATE_LIMIT_WINDOW:-60}
+
+      # Ingestion Configuration
+      INGEST_ENABLED: ${INGEST_ENABLED:-false}
+      INGEST_WORKER_THREADS: ${INGEST_WORKER_THREADS:-4}
+      INGEST_MAX_RETRIES: ${INGEST_MAX_RETRIES:-3}
+      INGEST_JOB_TIMEOUT_SECS: ${INGEST_JOB_TIMEOUT_SECS:-3600}
+
+      # UniProt Ingestion Mode
+      INGEST_UNIPROT_MODE: ${INGEST_UNIPROT_MODE:-latest}
+
+      # UniProt Latest Mode Configuration
+      INGEST_UNIPROT_CHECK_INTERVAL_SECS: ${INGEST_UNIPROT_CHECK_INTERVAL_SECS:-86400}
+      INGEST_UNIPROT_AUTO_INGEST: ${INGEST_UNIPROT_AUTO_INGEST:-false}
+      INGEST_UNIPROT_IGNORE_BEFORE: ${INGEST_UNIPROT_IGNORE_BEFORE:-}
+
+      # UniProt Historical Mode Configuration
+      INGEST_UNIPROT_HISTORICAL_START: ${INGEST_UNIPROT_HISTORICAL_START:-2020_01}
+      INGEST_UNIPROT_HISTORICAL_END: ${INGEST_UNIPROT_HISTORICAL_END:-}
+      INGEST_UNIPROT_HISTORICAL_BATCH_SIZE: ${INGEST_UNIPROT_HISTORICAL_BATCH_SIZE:-3}
+      INGEST_UNIPROT_HISTORICAL_SKIP_EXISTING: ${INGEST_UNIPROT_HISTORICAL_SKIP_EXISTING:-true}
+
+      # UniProt FTP Configuration
+      INGEST_UNIPROT_FTP_HOST: ${INGEST_UNIPROT_FTP_HOST:-ftp.uniprot.org}
+      INGEST_UNIPROT_FTP_PATH: ${INGEST_UNIPROT_FTP_PATH:-/pub/databases/uniprot/current_release/knowledgebase/complete}
+      INGEST_UNIPROT_FTP_TIMEOUT_SECS: ${INGEST_UNIPROT_FTP_TIMEOUT_SECS:-300}
+      INGEST_UNIPROT_OLDEST_VERSION: ${INGEST_UNIPROT_OLDEST_VERSION:-2020_01}
+      INGEST_UNIPROT_BATCH_SIZE: ${INGEST_UNIPROT_BATCH_SIZE:-1000}
+      INGEST_UNIPROT_SCHEDULE: ${INGEST_UNIPROT_SCHEDULE:-0 2 * * *}
+      INGEST_UNIPROT_AUTO_ENABLED: ${INGEST_UNIPROT_AUTO_ENABLED:-false}
+    volumes:
+      - ./config:/app/config:ro
+    ports:
+      - "${SERVER_PORT:-8000}:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks:
+      - bdp-network
+
+volumes:
+  postgres_data:
+    driver: local
+  postgres_test_data:
+    driver: local
+  minio_data:
+    driver: local
+
+networks:
+  bdp-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
