@@ -141,9 +141,9 @@ async fn search_organizations_autocomplete(
             id,
             slug,
             name,
-            similarity(name, $1) as match_score
+            word_similarity($1, name) as match_score
         FROM organizations
-        WHERE name % $1
+        WHERE $1 <% name OR name ILIKE '%' || $1 || '%'
         ORDER BY match_score DESC, name
         LIMIT $2
         "#,
@@ -190,11 +190,11 @@ async fn search_entries_autocomplete(
                 ORDER BY v.published_at DESC
                 LIMIT 1
             ) as latest_version,
-            similarity(re.name, $1) as match_score
+            word_similarity($1, re.name) as match_score
         FROM registry_entries re
         JOIN organizations o ON o.id = re.organization_id
         LEFT JOIN data_sources ds ON ds.id = re.id
-        WHERE re.name % $1
+        WHERE $1 <% re.name OR re.name ILIKE '%' || $1 || '%'
           AND ($2::VARCHAR[] IS NULL OR re.entry_type = ANY($2))
         ORDER BY match_score DESC, re.name
         LIMIT $3

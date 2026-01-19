@@ -117,6 +117,8 @@ impl IngestionCoordinator {
         computed_md5: &str,
         verified: bool,
     ) -> Result<()> {
+        let verified_md5 = if verified { Some(computed_md5) } else { None };
+
         sqlx::query!(
             r#"
             UPDATE ingestion_raw_files
@@ -124,7 +126,7 @@ impl IngestionCoordinator {
             WHERE id = $3
             "#,
             computed_md5,
-            verified,
+            verified_md5,
             file_id
         )
         .execute(&*self.pool)

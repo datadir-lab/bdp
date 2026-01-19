@@ -44,7 +44,6 @@ pub mod storage;
 pub mod parser_adapter;
 pub mod storage_adapter;
 pub mod version_discovery;
-pub mod idempotent_pipeline;
 
 // Re-export commonly used types
 pub use config::{ReleaseType, UniProtFtpConfig};
@@ -56,4 +55,3 @@ pub use storage::UniProtStorage;
 pub use parser_adapter::{UniProtParser, UniProtFormatter};
 pub use storage_adapter::UniProtStorageAdapter;
 pub use version_discovery::{DiscoveredVersion, VersionDiscovery};
-pub use idempotent_pipeline::IdempotentUniProtPipeline;

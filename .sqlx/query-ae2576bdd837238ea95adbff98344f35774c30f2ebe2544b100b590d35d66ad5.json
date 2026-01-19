@@ -1,0 +1,34 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                records_processed,\n                records_stored,\n                records_failed\n            FROM ingestion_jobs\n            WHERE id = $1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "records_processed",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "records_stored",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "records_failed",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "ae2576bdd837238ea95adbff98344f35774c30f2ebe2544b100b590d35d66ad5"
+}

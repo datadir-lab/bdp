@@ -9,6 +9,7 @@ interface PagefindResult {
   data: () => Promise<{
     url: string;
     content: string;
+    excerpt: string;
     meta: {
       title: string;
       description?: string;
@@ -50,31 +51,34 @@ export function DocsSearch() {
       }
 
       try {
-        const script = document.createElement('script');
-        script.src = '/_pagefind/pagefind.js';
-        script.type = 'text/javascript';
+        console.log('Loading Pagefind...');
 
-        script.onload = async () => {
-          console.log('Pagefind script loaded');
-          // Wait a bit for pagefind to initialize
-          await new Promise((resolve) => setTimeout(resolve, 100));
+        // Load Pagefind loader script (which imports the module and attaches to window)
+        const script = document.createElement('script');
+        script.src = '/pagefind-loader.js';
+        script.type = 'module';
+
+        document.head.appendChild(script);
+
+        // Poll for window.pagefind to become available
+        let attempts = 0;
+        const maxAttempts = 30; // 3 seconds total
+
+        while (attempts < maxAttempts) {
+          await new Promise(resolve => setTimeout(resolve, 100));
 
           if (window.pagefind) {
             console.log('Pagefind initialized successfully');
             setPagefind(window.pagefind as PagefindSearch);
-          } else {
-            console.error('Pagefind loaded but not available on window');
+            return;
           }
-        };
 
-        script.onerror = (error) => {
-          console.error('Failed to load Pagefind script:', error);
-          console.error('Expected path: /_pagefind/pagefind.js');
-        };
+          attempts++;
+        }
 
-        document.head.appendChild(script);
+        console.error('Pagefind not available after timeout');
       } catch (error) {
-        console.error('Error setting up Pagefind:', error);
+        console.error('Error loading Pagefind:', error);
       }
     };
 
@@ -84,8 +88,8 @@ export function DocsSearch() {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Cmd/Ctrl + K to open search
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      // Cmd/Ctrl + Shift + K to open search
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'K') {
         e.preventDefault();
         setIsOpen(true);
       }
@@ -123,11 +127,29 @@ export function DocsSearch() {
         const processedResults = await Promise.all(
           searchResults.results.slice(0, 5).map(async (result) => {
             const data = await result.data();
+
+            // Transform URL: remove locale prefix and .html extension
+            let url = data.url;
+
+            // Remove leading slash
+            if (url.startsWith('/')) {
+              url = url.substring(1);
+            }
+
+            // Remove locale prefix (en/, de/, etc.)
+            url = url.replace(/^(en|de)\//, '');
+
+            // Remove .html extension
+            url = url.replace(/\.html$/, '');
+
+            // Add leading slash back
+            url = `/${url}`;
+
             return {
               id: result.id,
               title: data.meta.title || 'Untitled',
-              url: data.url,
-              excerpt: data.content.slice(0, 150) + '...',
+              url: url,
+              excerpt: data.excerpt || data.content.slice(0, 150) + '...',
             };
           })
         );
@@ -181,8 +203,8 @@ export function DocsSearch() {
       >
         <Search className="h-4 w-4" />
         <span className="hidden sm:inline">{t('buttonText')}</span>
-        <kbd className="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 text-xs font-mono bg-muted rounded">
-          <span className="text-xs">⌘</span>K
+        <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-xs font-mono bg-muted rounded">
+          <span className="text-xs">⌘</span>+<span className="text-xs">Shift</span>+K
         </kbd>
       </button>
 
@@ -206,7 +228,7 @@ export function DocsSearch() {
                 onChange={handleSearchChange}
                 onKeyDown={handleKeyDown}
                 placeholder={t('placeholder')}
-                className="flex-1 bg-transparent outline-none text-sm"
+                className="flex-1 bg-transparent outline-none border-none focus:outline-none focus:ring-0 text-sm"
               />
               {isLoading && (
                 <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full" />
@@ -248,9 +270,10 @@ export function DocsSearch() {
                   onClick={() => setIsOpen(false)}
                 >
                   <div className="font-medium text-sm mb-1">{result.title}</div>
-                  <div className="text-xs text-muted-foreground line-clamp-2">
-                    {result.excerpt}
-                  </div>
+                  <div
+                    className="text-xs text-muted-foreground line-clamp-2"
+                    dangerouslySetInnerHTML={{ __html: result.excerpt }}
+                  />
                 </a>
               ))}
             </div>

@@ -71,6 +71,7 @@ apalis-cron = { workspace = true }
 # ============================================================================
 suppaftp = { workspace = true }
 flate2 = { workspace = true }
+tar = { workspace = true }
 
 # ============================================================================
 # AWS SDK / S3 Storage

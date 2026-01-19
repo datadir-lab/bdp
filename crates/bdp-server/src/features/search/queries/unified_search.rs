@@ -259,12 +259,12 @@ async fn search_registry_entries(
             re.name,
             re.description,
             re.entry_type,
-            ds.source_type,
-            t.tool_type,
-            org.scientific_name,
-            org.common_name,
-            org.ncbi_taxonomy_id,
-            ds.external_id,
+            ds.source_type as "source_type?",
+            t.tool_type as "tool_type?",
+            org.scientific_name as "scientific_name?",
+            org.common_name as "common_name?",
+            org.ncbi_taxonomy_id as "ncbi_taxonomy_id?",
+            ds.external_id as "external_id?",
             (
                 SELECT v.version
                 FROM versions v

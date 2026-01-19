@@ -1,0 +1,242 @@
+import { siteConfig } from '@/lib/site-config';
+
+# Best Practices
+
+Guidelines for using BDP effectively in research workflows.
+
+## Version Control with Git
+
+BDP is designed to work seamlessly with Git for maximum reproducibility. While not strictly required, combining BDP with Git provides the strongest guarantees for reproducible research.
+
+### Why Use Git with BDP?
+
+- **Track data dependencies** alongside code changes
+- **Share exact configurations** with collaborators via `bdp.yml` and `bdl.lock`
+- **Time-travel** to any point in your project's history with matching data versions
+- **Document changes** with commit messages explaining why data sources changed
+
+### Recommended Workflow
+
+1. **Initialize Git in your project:**
+   ```bash
+   git init
+   git add .
+   git commit -m "Initial commit"
+   ```
+
+2. **Add data sources with BDP:**
+   ```bash
+   bdp source add uniprot:P01308-fasta@1.1.0
+   bdp pull
+   ```
+
+3. **Commit the lockfile:**
+   ```bash
+   git add bdp.yml bdl.lock
+   git commit -m "Add UniProt insulin data source"
+   ```
+
+4. **Collaborators get exact same data:**
+   ```bash
+   git clone <your-repo>
+   bdp pull  # Downloads exact versions from bdl.lock
+   ```
+
+### What to Commit
+
+**Always commit:**
+- `bdp.yml` - Your data source specifications
+- `bdl.lock` - Exact versions and checksums
+- Analysis scripts and code
+- Documentation
+
+**Never commit:**
+- Actual data files (too large for Git)
+- Cache directories
+- Temporary files
+
+### Learning Git
+
+If you're new to Git, we recommend:
+- [Git Documentation](https://git-scm.com/doc)
+- [GitHub Git Handbook](https://guides.github.com/introduction/git-handbook/)
+- [Pro Git Book](https://git-scm.com/book/en/v2) (free online)
+
+## Data Management
+
+### Organize Your Data Sources
+
+Use clear, descriptive names in your `bdp.yml`:
+
+```yaml
+sources:
+  # Good: Specific and versioned
+  - source: uniprot:P01308-fasta@1.1.0
+    name: human-insulin
+
+  # Avoid: Too generic
+  - source: uniprot:Q9Y6K9@latest
+    name: data
+```
+
+### Pin Versions for Production
+
+Always use specific versions in production workflows:
+
+```bash
+# Good: Explicit version
+bdp source add uniprot:P01308-fasta@1.1.0
+
+# Risky: May change over time
+bdp source add uniprot:P01308-fasta@latest
+```
+
+### Use Shared Caches for Teams
+
+Configure a shared cache directory on network storage:
+
+```bash
+# Lab-wide shared cache
+bdp config cache set /mnt/lab-nas/bdp-cache
+```
+
+Benefits:
+- Download once, share with everyone
+- Automatic deduplication
+- Faster onboarding for new team members
+
+## Documentation
+
+### Document Your Data Sources
+
+Keep a `DATA.md` file explaining your data choices:
+
+```markdown
+# Data Sources
+
+## UniProt Human Insulin (P01308)
+- **Why:** Reference sequence for insulin variant analysis
+- **Version:** 1.1.0 (UniProt Release 2024_01)
+- **Added:** 2024-01-15
+- **Used in:** scripts/analyze_variants.py
+```
+
+### Generate Data Availability Statements
+
+Use BDP's audit features for publications:
+
+```bash
+# Generate publication-ready data availability statement
+bdp audit export --format das > data-availability.md
+
+# Generate BibTeX citations
+bdp cite --format bibtex > references.bib
+```
+
+## Reproducibility Checklist
+
+Before publishing or sharing research:
+
+- [ ] All data sources specified in `bdp.yml`
+- [ ] Lockfile (`bdl.lock`) committed to version control
+- [ ] Audit trail verified: `bdp audit verify`
+- [ ] Documentation includes data source rationale
+- [ ] Analysis scripts reference BDP data paths
+- [ ] README includes `bdp pull` in setup instructions
+- [ ] Data Availability Statement generated
+
+## Performance Tips
+
+### Optimize Downloads
+
+For large datasets:
+
+```bash
+# Use parallel downloads (when available)
+bdp pull --parallel
+
+# Verify checksums separately if needed
+bdp audit --checksums-only
+```
+
+### Cache Management
+
+Monitor cache size:
+
+```bash
+# Check cache usage
+bdp config cache info
+
+# Clean unused cached data
+bdp cache clean --unused
+```
+
+## Security
+
+### Validate Data Integrity
+
+Always verify checksums:
+
+```bash
+# Audit all sources
+bdp audit
+
+# Verify specific source
+bdp audit uniprot:P01308-fasta@1.1.0
+```
+
+### Review Audit Trail
+
+Before critical analyses:
+
+```bash
+# Review all data management operations
+bdp audit log
+
+# Verify no tampering detected
+bdp audit verify
+```
+
+## Collaboration
+
+### Onboarding New Team Members
+
+Make it easy for newcomers:
+
+1. Include BDP setup in your README:
+   ```markdown
+   ## Setup
+
+   1. Install BDP: `curl -fsSL https://bdp.dev/install.sh | sh`
+   2. Pull data: `bdp pull`
+   3. Run analysis: `python scripts/analyze.py`
+   ```
+
+2. Document any manual steps required
+3. Test the full setup process periodically
+
+### Sharing Workflows
+
+When sharing methods:
+
+```bash
+# Export exact configuration
+bdp export --format=yaml > workflow-config.yml
+
+# Share with paper supplementary materials
+```
+
+## Getting Help
+
+- **Documentation:** Read the full docs at your BDP installation
+- **Issues:** Report bugs at the GitHub repository
+- **Discussions:** Ask questions in GitHub Discussions
+- **Email:** Contact the maintainers for sensitive questions
+
+## Contributing
+
+Help improve these best practices:
+- Share your workflows and patterns
+- Suggest improvements via GitHub Discussions
+- Contribute documentation improvements
+- Report what works (and what doesn't) in your lab

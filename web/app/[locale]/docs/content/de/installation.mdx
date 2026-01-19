@@ -1,0 +1,50 @@
+import { siteConfig } from '@/lib/site-config';
+
+# Installation
+
+Schnelle und einfache Installation für Windows, macOS und Linux.
+
+## Schnellinstallation (Empfohlen)
+
+<h4 style={{ marginTop: '2rem', marginBottom: '1rem' }}>Unix / macOS / Linux</h4>
+
+```bash
+curl -fsSL https://bdp.dev/install.sh | sh
+```
+
+<h4 style={{ marginTop: '2.5rem', marginBottom: '1rem' }}>Windows (PowerShell)</h4>
+
+```powershell
+irm https://bdp.dev/install.ps1 | iex
+```
+
+Installation überprüfen:
+
+```bash
+bdp --version
+```
+
+## Alternative Methoden
+
+- Laden Sie vorgefertigte Binaries von <a href={siteConfig.github.url + '/releases'} target="_blank" rel="noopener noreferrer">GitHub Releases</a> herunter
+- Aus Quellcode kompilieren - siehe <a href={siteConfig.github.url + '/blob/main/README.md'} target="_blank" rel="noopener noreferrer">README</a> für Anweisungen
+
+## Nächste Schritte
+
+- [Einführung](/docs) - Lernen Sie BDP und seine Vorteile kennen
+- [Schnellstart](/docs/quick-start) - Starten Sie mit Ihrem ersten Projekt
+- [Best Practices](/docs/best-practices) - Empfohlene Workflows und Git-Integration
+
+## Fehlerbehebung
+
+**Befehl nicht gefunden**
+
+Wenn Sie einen "command not found"-Fehler erhalten, stellen Sie sicher, dass sich die BDP-Binary in Ihrem PATH befindet. Siehe <a href="https://gist.github.com/nex3/c395b2f8fd4b02068be37c961301caa7" target="_blank" rel="noopener noreferrer">diese Anleitung</a> zum Hinzufügen zum PATH auf verschiedenen Plattformen.
+
+**Zugriff verweigert**
+
+Stellen Sie auf Unix-ähnlichen Systemen sicher, dass die Binary über Ausführungsberechtigungen verfügt:
+
+```bash
+chmod +x /path/to/bdp
+```

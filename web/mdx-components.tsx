@@ -1,5 +1,6 @@
 import type { MDXComponents } from 'mdx/types';
 import Link from 'next/link';
+import { CodeBlock } from '@/components/docs/code-block';
 
 export function useMDXComponents(components: MDXComponents): MDXComponents {
   return {
@@ -138,14 +139,29 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
         {children}
       </code>
     ),
-    pre: ({ children, ...props }) => (
-      <pre
-        className="mb-4 mt-4 overflow-x-auto rounded-lg border bg-muted p-4"
-        {...props}
-      >
-        {children}
-      </pre>
-    ),
+    pre: ({ children, ...props }) => {
+      // Check if children is a code element
+      if (
+        children &&
+        typeof children === 'object' &&
+        'props' in children
+      ) {
+        const className = (children as any).props?.className || '';
+        const code = (children as any).props?.children || '';
+
+        return <CodeBlock className={className}>{code}</CodeBlock>;
+      }
+
+      // Fallback for non-code pre blocks
+      return (
+        <pre
+          className="mb-4 mt-4 overflow-x-auto rounded-lg border bg-muted p-4"
+          {...props}
+        >
+          {children}
+        </pre>
+      );
+    },
 
     // Tables - enhanced for better display
     table: ({ children, ...props }) => (

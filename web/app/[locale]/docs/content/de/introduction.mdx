@@ -1,103 +1,434 @@
-# Einführung
+import { siteConfig } from '@/lib/site-config';
 
-Willkommen zur BDP (Bioinformatics Dependencies Platform) Dokumentation.
-BDP ist eine umfassende Plattform zur Verwaltung von Bioinformatik-Software-Abhängigkeiten,
-die es einfacher macht, Tools für die Bioinformatik-Community zu entdecken, zu teilen und zu verwalten.
+export const baseUrl = siteConfig.url;
 
-## Was ist BDP?
+> *Fordern Sie Reproduzierbarkeit nicht von Forschern—fordern Sie sie von ihren Werkzeugen.*
 
-BDP bietet ein zentrales Registry- und Verwaltungssystem für Bioinformatik-Tools und Datenquellen.
-Es hilft Forschern und Entwicklern:
+# Die Reproduzierbarkeitskrise
 
-- Bioinformatik-Tools und -Pakete zu entdecken
-- Software-Abhängigkeiten für reproduzierbare Forschung zu verwalten
-- Tools und Datenquellen mit der Community zu teilen
-- Versionen und Updates von Bioinformatik-Ressourcen zu verfolgen
+**BDP ist ein Dependency-Manager für biologische Datenbanken**—behandelt UniProt, NCBI und andere Datenquellen wie Software-Pakete mit Versionskontrolle und Lockfiles.
 
-## Hauptmerkmale
+Nur 11% der Bioinformatik-Studien können reproduziert werden <sup><a href="#ref1">[1]</a></sup>, wobei Daten-Versionierung ein wesentlicher Faktor ist. Das Kernproblem sind nicht die Forscher—es sind die Werkzeuge. Labore verbringen **4-12 Stunden pro Projekt** mit manueller Datenverwaltung: Download-Skripte schreiben, Prüfsummen verifizieren, Versionen mit Kollegen koordinieren und Daten-Provenienz für Publikationen dokumentieren. Forschung zeigt, dass Workflow-Automatisierung 30-75% dieser Zeit einsparen kann <sup><a href="#ref2">[2]</a></sup>. Mit BDP dauern diese Aufgaben **~15 Minuten**.
 
-<table>
-  <thead>
-    <tr>
-      <th>Merkmal</th>
-      <th>Beschreibung</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>Paket-Registry</td>
-      <td>Zentrales Repository für Bioinformatik-Tools und -Pakete</td>
-    </tr>
-    <tr>
-      <td>Datenquellen</td>
-      <td>Unterstützung für verschiedene Datenquellen (UniProt, PDB, etc.)</td>
-    </tr>
-    <tr>
-      <td>CLI-Tool</td>
-      <td>Befehlszeilenschnittstelle für Paketverwaltung mit Audit-Protokollierung</td>
-    </tr>
-    <tr>
-      <td>Audit & Provenienz</td>
-      <td>Lokales Audit-Trail für regulatorische Compliance (FDA, NIH, EMA)</td>
-    </tr>
-    <tr>
-      <td>Integritätsprüfung</td>
-      <td>Hash-Ketten-Manipulationserkennung und Prüfsummenvalidierung</td>
-    </tr>
-    <tr>
-      <td>Weboberfläche</td>
-      <td>Durchsuchen und Suchen von Paketen über eine benutzerfreundliche Oberfläche</td>
-    </tr>
-    <tr>
-      <td>Versionskontrolle</td>
-      <td>Verfolgen verschiedener Versionen von Tools und Datenquellen</td>
-    </tr>
-    <tr>
-      <td>Organisationen</td>
-      <td>Organisieren von Paketen unter Organisationen oder Forschungsgruppen</td>
-    </tr>
-  </tbody>
-</table>
+<style>{`
+  .reference-item {
+    font-size: 0.85em;
+    opacity: 0.6;
+    line-height: 1.6;
+    margin-bottom: 0.5em;
+    transition: opacity 0.2s ease;
+    color: inherit;
+    text-decoration: none;
+    display: block;
+  }
+  .reference-item:hover {
+    opacity: 1;
+  }
+  .reference-item a {
+    color: inherit;
+    text-decoration: none;
+  }
+`}</style>
 
-## Schnellstart
+<a href="https://academic.oup.com/bib/article/24/6/bbad375/7326135" target="_blank" rel="noopener noreferrer" id="ref1" className="reference-item">
+  [1] Leipzig, J. et al. (2021). The five pillars of computational reproducibility: bioinformatics and beyond. <em>Briefings in Bioinformatics</em>, 24(6).
+</a>
 
-Starten Sie mit BDP in nur wenigen Schritten:
+<a href="https://link.springer.com/article/10.1186/s13062-015-0071-8" target="_blank" rel="noopener noreferrer" id="ref2" className="reference-item">
+  [2] Perkel, J. M. (2015). Experiences with workflows for automating data-intensive bioinformatics. <em>Biology Direct</em>, 10(1).
+</a>
 
-1. **BDP CLI installieren** - Folgen Sie der [Installationsanleitung](/docs/installation)
-2. **Projekt initialisieren** (erstellt automatisch Audit-Trail)
-   ```bash
-   bdp init --name mein-projekt
-   ```
-3. **Datenquelle hinzufügen**
-   ```bash
-   bdp source add uniprot:P01308-fasta@1.0
-   ```
-4. **Daten abrufen** (alle Operationen werden protokolliert)
-   ```bash
-   bdp pull
-   ```
-5. **Integrität überprüfen**
-   ```bash
-   bdp audit
-   ```
-6. **Audit-Bericht exportieren** (für Publikationen)
-   ```bash
-   bdp audit export --format das --output data-availability.md
-   ```
+import { WorkflowTabs, WorkflowTabsList, WorkflowTabsTrigger, WorkflowTabsContent } from '@/components/docs/workflow-tabs';
+import { CtaCard } from '@/components/docs/cta-card';
+import { FileExample } from '@/components/docs/file-example';
+import { TimeEstimateNote } from '@/components/docs/time-estimate-note';
 
-## Hilfe erhalten
+---
 
-Benötigen Sie Hilfe oder haben Sie Fragen? Hier sind einige Ressourcen:
+<div style={{ marginTop: '2rem' }}>
 
-- **Dokumentation** - Durchsuchen Sie diese Dokumentation
-- **GitHub Issues** - Melden Sie Fehler oder fordern Sie Funktionen auf [GitHub](https://github.com/bdp-dev/bdp) an
-- **Community** - Treten Sie unseren Community-Diskussionen bei
+Hier sind einige Workflow-Beispiele, die BDP in Aktion zeigen (Beispiele verwenden [Git](https://git-scm.com/) für Versionskontrolle, was empfohlen aber nicht erforderlich ist—siehe [Best Practices](/docs/best-practices) für Details):
 
-## Nächste Schritte
+</div>
 
-Bereit einzutauchen? Schauen Sie sich diese Anleitungen an:
+<WorkflowTabs defaultValue="protein-analysis">
+  <WorkflowTabsList>
+    <WorkflowTabsTrigger value="protein-analysis">Protein-Analyse</WorkflowTabsTrigger>
+    <WorkflowTabsTrigger value="team-cache">Team-Cache</WorkflowTabsTrigger>
+    <WorkflowTabsTrigger value="onboarding">Neues Mitglied</WorkflowTabsTrigger>
+    <WorkflowTabsTrigger value="compliance">Compliance</WorkflowTabsTrigger>
+  </WorkflowTabsList>
 
-- [Installationsanleitung](/docs/installation) - BDP CLI installieren
-- [Schnellstart](/docs/quick-start) - Schnell loslegen
-- [Architektur](/docs/concepts/architecture) - Verstehen, wie BDP funktioniert
-- [CLI-Befehle](/docs/cli/commands) - Alle CLI-Befehle lernen
+  <WorkflowTabsContent value="protein-analysis">
+
+<div className="workflow-content">
+
+## Beispiel-Workflow: Protein-Analyse-Projekt
+
+Ein typisches Projekt zur Analyse von Insulin-Varianten über Spezies hinweg.
+
+
+
+### Schritt 1: Die richtigen Daten finden <span className="workflow-time">~15-20 Min → 5 Sek</span>
+
+**Vorher:**
+
+UniProt-Website durchsuchen, nach "Insulin" suchen, Accession-IDs manuell identifizieren, Version und Release-Datum notieren
+
+**Mit BDP:**
+
+```bash
+bdp search "insulin homo sapiens"
+# uniprot:P01308-fasta@1.1.0 - http://localhost:3000/sources/uniprot/P01308
+```
+
+
+
+
+
+### Schritt 2: Spezifische Proteine herunterladen <span className="workflow-time">~30-45 Min → 30 Sek</span>
+
+**Vorher:**
+
+UniProt-FTP navigieren, korrekte Verzeichnisstruktur finden, wget-Skript schreiben, Dateien herunterladen, manuell verifizieren
+
+**Mit BDP:**
+
+```bash
+bdp source add uniprot:P01308-fasta@1.1.0
+bdp pull
+```
+
+
+
+
+
+### Schritt 3: Datenintegrität überprüfen <span className="workflow-time">~10-15 Min → 2 Sek</span>
+
+**Vorher:**
+
+Prüfsummen separat herunterladen, `shasum` ausführen, manuell vergleichen, bei Fehler wiederholen
+
+**Mit BDP:**
+
+```bash
+bdp audit
+# ✓ Alle Quellen verifiziert
+```
+
+
+
+
+
+### Schritt 4: Mit Kollegen teilen <span className="workflow-time">~1-3 Std → 1 Min</span>
+
+**Vorher:**
+
+Dateien auf gemeinsamen Server hochladen, Download-Link per E-Mail senden, erklären welche Version/Release, Kollege lädt herunter, bestätigt die richtige Version
+
+**Mit BDP:**
+
+```bash
+# Sie: bdp.yml und bdl.lock in Git-Repository committen
+git add bdp.yml bdl.lock
+git commit -m "Insulin-Datenquellen hinzufügen"
+git push
+
+# Kollege: Repository klonen und Daten mit einem Befehl abrufen
+git clone <repo>
+bdp pull
+```
+
+
+
+
+
+### Schritt 5: Sechs Monate später - Analyse reproduzieren <span className="workflow-time">~2-6 Std → 10 Sek</span>
+
+**Vorher:**
+
+E-Mails und Chat-Verläufe durchsuchen um zu rekonstruieren welche Datenbankversionen verwendet wurden, prüfen ob Dateien noch im gemeinsamen Speicher existieren, defekte Download-Links finden und versuchen archivierte Versionen von vor Monaten zu lokalisieren
+
+**Mit BDP:**
+
+```bash
+git checkout <commit-von-vor-6-monaten>
+bdp pull
+# Exakt dieselben Daten, garantiert
+```
+
+
+
+
+
+### Schritt 6: Das Paper schreiben <span className="workflow-time">~45-90 Min → 5 Sek</span>
+
+**Vorher:**
+
+Datenverfügbarkeitserklärung manuell schreiben, korrekte Zitationen für UniProt nachschlagen, BibTeX-Einträge formatieren, Versionsnummern und Daten einschließen
+
+**Mit BDP:**
+
+```bash
+bdp audit export --format das > datenverfuegbarkeit.md
+bdp cite --format bibtex > literatur.bib
+```
+
+<FileExample filename="datenverfuegbarkeit.md" language="markdown">
+{`## Datenverfügbarkeitserklärung
+
+Proteinsequenzdaten wurden von UniProt Release 2024_01 (abgerufen am
+15. Januar 2024) mittels bdp (Bioinformatics Dependencies Platform - ${baseUrl})
+bezogen. Konkret wurde humanes Insulin-Vorläuferprotein (UniProt ID: P01308) via
+\`bdp pull\` mit Paket-Identifier uniprot:P01308-fasta@1.1.0 bezogen. Alle
+Datenquellen sind im Projekt-Repository versioniert und mit kryptographischen
+Prüfsummen dokumentiert um Reproduzierbarkeit sicherzustellen
+(https://github.com/lab/project).`}
+</FileExample>
+
+<FileExample filename="literatur.bib" language="bibtex">
+{`@misc{uniprot_P01308_2024,
+  author = {{The UniProt Consortium}},
+  title = {UniProt: P01308 - Insulin (INS)},
+  year = {2024},
+  note = {UniProt Release 2024\\_01, abgerufen am 15. Januar 2024},
+  url = {https://www.uniprot.org/uniprotkb/P01308},
+  version = {2024\\_01}
+}`}
+</FileExample>
+
+
+
+<div className="workflow-summary">
+
+**Gesamtzeit:** ~4-12 Stunden → ~15 Minuten
+
+<TimeEstimateNote />
+
+</div>
+
+</div>
+
+
+
+
+  </WorkflowTabsContent>
+
+  <WorkflowTabsContent value="team-cache">
+
+<div className="workflow-content">
+
+## Team-Cache-Setup: Doppelte Downloads vermeiden
+
+Labor-Umgebungen haben oft mehrere Forscher, die die gleichen Datenquellen herunterladen und damit Bandbreite, Speicherplatz und Zeit verschwenden.
+
+
+
+### Das Problem <span className="workflow-time">~12,5 Stunden Verschwendung pro Team</span>
+
+**Vorher:**
+
+Jeder von 5 Doktoranden lädt UniProt SwissProt herunter (570k geprüfte Proteine, ~5GB mit Annotationen):
+
+<ul className="my-4 ml-6 list-disc space-y-2">
+  <li className="leading-7"><strong>Gesamte Downloads:</strong> 5 × 5GB = 25GB</li>
+  <li className="leading-7"><strong>Gesamtzeit:</strong> 5 × 2,5 Stunden = 12,5 Stunden</li>
+  <li className="leading-7"><strong>Verschwendete Bandbreite:</strong> 20GB (redundante Downloads)</li>
+</ul>
+
+**Gedankenexperiment - Skalierung auf Abteilungsebene:**
+
+Eine Bioinformatik-Abteilung mit 50 Forschern über 10 Projekte:
+
+<ul className="my-4 ml-6 list-disc space-y-2">
+  <li className="leading-7"><strong>Gesamte Downloads:</strong> 50 × 5GB = 250GB</li>
+  <li className="leading-7"><strong>Gesamtzeit:</strong> 50 × 2,5 Stunden = 125 Stunden</li>
+  <li className="leading-7"><strong>Verschwendete Bandbreite:</strong> 245GB (redundante Downloads)</li>
+  <li className="leading-7"><strong>Mit Shared-Cache:</strong> 5GB einmal heruntergeladen = <strong>98% Bandbreiten-Einsparung</strong></li>
+</ul>
+
+<small style={{opacity: 0.6, fontSize: '0.85em', marginTop: '0.5em', display: 'block'}}>
+*UniProt SwissProt Größe: ~5GB beinhaltet FASTA, XML und Annotations-Dateien. Quelle: [UniProt FTP](https://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/). Download-Zeit basiert auf ~20 Mbps typischer institutioneller Verbindung (5GB ÷ 20 Mbps ≈ 2,5 Stunden inkl. Dekomprimierung und Verifizierung).*
+</small>
+
+
+
+
+
+### Die Lösung <span className="workflow-time">~2 Stunden für ersten Download</span>
+
+**Mit BDP:**
+
+```bash
+# Lab-Admin richtet Shared-Cache auf NAS ein
+bdp config cache set /mnt/lab-nas/bdp-cache
+
+# Erste Person lädt herunter
+bdp pull
+# Heruntergeladen zum geteilten Speicherort: /mnt/lab-nas/bdp-cache/
+
+# Alle anderen haben sofortigen Zugriff
+bdp pull
+# ✓ Cache-Treffer! Verwende vorhandene Dateien
+```
+
+
+
+<div className="workflow-summary">
+
+**Team-Vorteile:**
+
+- Einmal herunterladen, mit allen teilen
+- Automatische Deduplizierung über Projekte hinweg
+- 80% Reduzierung des Speicherbedarfs
+- Sofortige Einrichtung für neue Teammitglieder
+
+**Gesamtzeit:** 12,5 Stunden → 2,5 Stunden (nur erster Download)
+
+<TimeEstimateNote />
+
+</div>
+
+</div>
+
+
+
+
+  </WorkflowTabsContent>
+
+  <WorkflowTabsContent value="onboarding">
+
+<div className="workflow-content">
+
+## Onboarding neuer Teammitglieder: Von Null auf Forschung in 5 Minuten
+
+Doktorand kommt mitten im Projekt ins Labor, muss bestehende Analyse reproduzieren.
+
+
+
+### Der alte Weg <span className="workflow-time">~2-4 Stunden</span>
+
+**Vorher:**
+
+- Verschiedene Tools manuell installieren (30-60 Min)
+- Senior-Student fragen "welche UniProt-Version haben wir verwendet?" (1-2 Std hin und her)
+- Daten von URLs im Labor-Wiki herunterladen (45 Min)
+- Prüfsummen manuell verifizieren (15 Min)
+- Hoffen, dass alles korrekt ist
+
+
+
+
+
+### Mit BDP <span className="workflow-time">~5 Minuten</span>
+
+```bash
+# 1. Labor-Repository klonen
+git clone https://github.com/lab/project
+cd project
+
+# 2. BDP installieren
+curl -fsSL https://bdp.dev/install.sh | sh
+
+# 3. Alle Daten abrufen (liest bdp.yml + bdl.lock automatisch)
+bdp pull
+# ✓ uniprot:P01308-fasta@1.1.0 heruntergeladen
+# ✓ ncbi:GRCh38-genome@109 heruntergeladen
+# ✓ Alle Prüfsummen verifiziert
+
+# 4. Alles verifizieren
+bdp status
+# ✓ Alle Quellen bereit
+```
+
+Bereit, Analyseskripte sofort auszuführen—exakt die gleichen Datenversionen wie der Rest des Teams.
+
+
+
+<div className="workflow-summary">
+
+**Gesamtzeit:** 2-4 Stunden → 5 Minuten
+
+<TimeEstimateNote />
+
+</div>
+
+</div>
+
+
+
+  </WorkflowTabsContent>
+
+  <WorkflowTabsContent value="compliance">
+
+<div className="workflow-content">
+
+## Regulatorische Compliance: FDA/NIH/EMA-Dokumentation
+
+Vorbereitung einer Publikation oder regulatorischen Einreichung, die Daten-Provenienz erfordert.
+
+
+
+### Manuelle Dokumentation <span className="workflow-time">~6-8 Stunden</span>
+
+**Vorher:**
+
+- Alle Datenquellen manuell dokumentieren (2 Std)
+- Korrekte Zitationen und Versionsnummern nachschlagen (1 Std)
+- Datenverfügbarkeitserklärung formatieren (30 Min)
+- Audit-Trail-Tabelle erstellen (3 Std)
+- Hoffen, dass nichts übersehen wurde
+
+
+
+
+
+### Automatisierte Berichte <span className="workflow-time">~2 Minuten</span>
+
+**Mit BDP:**
+
+```bash
+# Audit-Trail-Integrität verifizieren
+bdp audit verify
+# ✓ Audit-Trail verifiziert: Keine Manipulation erkannt
+# ✓ 47 Ereignisse verifiziert
+
+# FDA 21 CFR Part 11 Compliance-Bericht generieren
+bdp audit export --format fda > regulatory-audit.json
+
+# NIH Data Management Bericht generieren
+bdp audit export --format nih > datenmanagement.md
+
+# Publikationsfertige Datenverfügbarkeitserklärung generieren
+bdp audit export --format das > datenverfuegbarkeit.md
+
+# Zitationen für Literaturverzeichnis generieren
+bdp cite --format bibtex > literatur.bib
+```
+
+Alle Dokumentation in Sekunden generiert, mit vollständiger Provenienz-Kette vom Download bis zur Publikation.
+
+
+
+<div className="workflow-summary">
+
+**Gesamtzeit:** 6-8 Stunden → 2 Minuten
+
+<TimeEstimateNote />
+
+</div>
+
+</div>
+
+
+
+  </WorkflowTabsContent>
+
+</WorkflowTabs>
+
+<CtaCard
+  heading="Noch ein Tool? Wir wissen."
+  text="Tool-Müdigkeit ist real. Aber das dauert 30 Sekunden zum Ausprobieren—sehen Sie, ob es Ihre Probleme tatsächlich löst."
+  linkText="Installationsanleitung anzeigen"
+  linkHref="/docs/installation"
+/>

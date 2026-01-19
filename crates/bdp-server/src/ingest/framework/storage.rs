@@ -68,7 +68,7 @@ impl StorageOrchestrator {
                 source_file, source_offset, parsed_at, status,
                 stored_at, error_message
             FROM ingestion_staged_records
-            WHERE job_id = $1 AND status = 'staged'
+            WHERE job_id = $1 AND status = 'parsed'
             ORDER BY parsed_at
             LIMIT $2
             FOR UPDATE SKIP LOCKED
@@ -254,7 +254,7 @@ struct StagedRecordRow {
     record_identifier: String,
     record_name: Option<String>,
     record_data: serde_json::Value,
-    content_md5: String,
+    content_md5: Option<String>,
     sequence_md5: Option<String>,
     source_file: Option<String>,
     source_offset: Option<i64>,

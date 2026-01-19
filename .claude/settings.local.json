@@ -98,7 +98,19 @@
       "Bash(powershell -Command \"yarn pagefind\")",
       "Bash(Select-String -Pattern \"\\(Running|Indexed|Finished\\)\")",
       "Bash(docker ps:*)",
-      "Bash(git mv:*)"
+      "Bash(git mv:*)",
+      "Bash(DATABASE_URL=\"postgresql://bdp:bdp_dev_password@localhost:5432/bdp\" cargo run:*)",
+      "Bash(powershell:*)",
+      "WebFetch(domain:pagefind.app)",
+      "WebFetch(domain:dee.underscore.world)",
+      "Bash(docker rm:*)",
+      "Bash(docker restart:*)",
+      "Bash(RUST_LOG=info,sqlx=warn cargo run:*)",
+      "Bash(RUST_LOG=info,sqlx=warn timeout 60 cargo run:*)",
+      "Bash(RUST_LOG=info,sqlx=warn timeout 120 cargo run:*)",
+      "Bash(RUST_LOG=debug,sqlx=warn cargo run:*)",
+      "Bash(cargo sqlx database:*)",
+      "Bash(cargo sqlx migrate:*)"
     ]
   }
 }

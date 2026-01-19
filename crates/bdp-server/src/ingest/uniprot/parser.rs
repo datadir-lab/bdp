@@ -1,13 +1,14 @@
 //! UniProt DAT file parser
 //!
-//! Parses UniProt flat file format (DAT) with support for gzip compression.
+//! Parses UniProt flat file format (DAT) with support for gzip and tar.gz compression.
 //! See: https://web.expasy.org/docs/userman.html
 
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use chrono::NaiveDate;
 use flate2::read::GzDecoder;
 use std::io::{BufRead, BufReader, Read};
 use std::path::Path;
+use tar::Archive;
 
 use super::models::UniProtEntry;
 
@@ -44,21 +45,330 @@ impl DatParser {
     }
 
     /// Parse DAT data from bytes
+    ///
+    /// Handles:
+    /// - Plain DAT files
+    /// - Gzipped DAT files (.dat.gz)
+    /// - Tar-gzipped archives (.tar.gz) containing DAT files
     pub fn parse_bytes(&self, data: &[u8]) -> Result<Vec<UniProtEntry>> {
-        // Try to decompress as gzip first
-        if let Ok(decoder) = GzDecoder::new(data).read_to_end(&mut Vec::new()) {
-            // Successfully decompressed as gzip
-            let decompressed = {
-                let mut decoder = GzDecoder::new(data);
-                let mut decompressed = Vec::new();
-                decoder.read_to_end(&mut decompressed)?;
-                decompressed
-            };
-            self.parse_reader(&decompressed[..])
-        } else {
-            // Not gzipped, parse as-is
-            self.parse_reader(data)
+        // Try to decompress as gzip
+        let mut decoder = GzDecoder::new(data);
+        let mut decompressed = Vec::new();
+
+        match decoder.read_to_end(&mut decompressed) {
+            Ok(size) => {
+                tracing::info!(
+                    compressed_size = data.len(),
+                    decompressed_size = size,
+                    "Decompressed gzip data"
+                );
+
+                // Try to parse as tar archive first
+                match self.parse_tar_archive(&decompressed) {
+                    Ok(entries) => {
+                        tracing::info!("Successfully extracted and parsed DAT from tar archive");
+                        Ok(entries)
+                    }
+                    Err(tar_err) => {
+                        // Not a valid tar archive, try parsing as plain DAT file
+                        tracing::info!(
+                            error = %tar_err,
+                            "Failed to parse as tar, trying as plain DAT file"
+                        );
+                        self.parse_reader(&decompressed[..])
+                    }
+                }
+            }
+            Err(e) => {
+                tracing::warn!(error = %e, "Failed to decompress as gzip, trying plain DAT");
+                // Not gzipped, try parsing as plain DAT
+                self.parse_reader(data)
+            }
         }
+    }
+
+    /// Check if data is a tar archive by looking for tar magic number
+    fn is_tar_archive(&self, data: &[u8]) -> bool {
+        if data.len() < 512 {
+            tracing::debug!(size = data.len(), "Data too small to be tar archive");
+            return false;
+        }
+
+        // Tar files have "ustar" magic at offset 257 (with null terminator at 262, version at 263-264)
+        // Check both old tar (ustar\0) and new tar (ustar  00)
+        let has_ustar = &data[257..262] == b"ustar";
+
+        if has_ustar {
+            tracing::debug!("Found ustar magic number at offset 257");
+        } else {
+            // Show what we actually found for debugging
+            if data.len() >= 262 {
+                let magic = String::from_utf8_lossy(&data[257..262]);
+                tracing::debug!(
+                    found_magic = %magic,
+                    "No ustar magic found, showing first 20 bytes as hex: {:02x?}",
+                    &data[0..20.min(data.len())]
+                );
+            }
+        }
+
+        has_ustar
+    }
+
+    /// Extract and parse the first .dat file from a tar archive
+    fn parse_tar_archive(&self, tar_data: &[u8]) -> Result<Vec<UniProtEntry>> {
+        let mut archive = Archive::new(tar_data);
+
+        for entry in archive.entries()? {
+            let mut entry = entry?;
+            let path = entry.path()?;
+
+            // Look for .dat files (not .dat.gz, we already decompressed)
+            if path.extension().and_then(|s| s.to_str()) == Some("dat") {
+                tracing::info!("Extracting DAT file from tar: {}", path.display());
+                let mut dat_content = Vec::new();
+                entry.read_to_end(&mut dat_content)?;
+                return self.parse_reader(&dat_content[..]);
+            }
+        }
+
+        Err(anyhow!("No .dat file found in tar archive"))
+    }
+
+    /// Parse a specific range of entries (for streaming/parallel processing)
+    ///
+    /// # Arguments
+    /// * `data` - Raw DAT file data (will be decompressed if needed)
+    /// * `start_offset` - Start parsing from this entry index (0-based)
+    /// * `end_offset` - Stop parsing at this entry index (inclusive)
+    pub fn parse_range(&self, data: &[u8], start_offset: usize, end_offset: usize) -> Result<Vec<UniProtEntry>> {
+        tracing::info!(
+            start_offset,
+            end_offset,
+            input_size = data.len(),
+            "parse_range called"
+        );
+
+        // First decompress/extract if needed (same as parse_bytes)
+        let dat_data = self.extract_dat_data(data)?;
+
+        tracing::info!(
+            extracted_size = dat_data.len(),
+            starts_with_id = dat_data.starts_with(b"ID   "),
+            "Extracted DAT data"
+        );
+
+        // Now parse only the requested range
+        let buf_reader = BufReader::new(&dat_data[..]);
+        let mut entries = Vec::new();
+        let mut current_entry = EntryBuilder::new();
+        let mut in_sequence = false;
+        let mut entry_index = 0;
+        let mut lines_processed = 0;
+        let mut entries_skipped_no_build = 0;
+
+        for line in buf_reader.lines() {
+            let line = line.context("Failed to read line")?;
+
+            // End of entry
+            if line.starts_with("//") {
+                // Check if the entry we just finished is in our range
+                if entry_index >= start_offset && entry_index <= end_offset {
+                    if entry_index == start_offset {
+                        tracing::info!(
+                            entry_index,
+                            lines_processed,
+                            "Processing first entry in range"
+                        );
+                    }
+
+                    match current_entry.build()? {
+                        Some(entry) => {
+                            entries.push(entry);
+                            if entries.len() == 1 {
+                                tracing::info!(entry_index, "Successfully built first entry!");
+                            }
+                        }
+                        None => {
+                            entries_skipped_no_build += 1;
+                            if entries_skipped_no_build <= 3 || entry_index == start_offset {
+                                tracing::warn!(
+                                    entry_index,
+                                    lines_processed_for_entry = lines_processed,
+                                    "Entry skipped - build() returned None (missing required fields)"
+                                );
+                            }
+                        }
+                    }
+                }
+
+                entry_index += 1;
+
+                // Stop if we've passed the end offset
+                if entry_index > end_offset {
+                    break;
+                }
+
+                current_entry = EntryBuilder::new();
+                in_sequence = false;
+                lines_processed = 0;
+                continue;
+            }
+
+            // Only process lines for entries we care about
+            if entry_index >= start_offset && entry_index <= end_offset {
+                self.process_line(&line, &mut current_entry, &mut in_sequence)?;
+                lines_processed += 1;
+            }
+        }
+
+        if entries.is_empty() && entries_skipped_no_build > 0 {
+            tracing::warn!(
+                start_offset,
+                end_offset,
+                entries_skipped_no_build,
+                "No entries parsed - all entries skipped due to missing required fields"
+            );
+        }
+
+        Ok(entries)
+    }
+
+    /// Count total entries without full parsing (for efficiency)
+    pub fn count_entries(&self, data: &[u8]) -> Result<usize> {
+        let dat_data = self.extract_dat_data(data)?;
+        let buf_reader = BufReader::new(&dat_data[..]);
+        let mut count = 0;
+
+        for line in buf_reader.lines() {
+            let line = line.context("Failed to read line")?;
+            if line.starts_with("//") {
+                count += 1;
+            }
+        }
+
+        Ok(count)
+    }
+
+    /// Extract DAT data from compressed/archived formats
+    fn extract_dat_data(&self, data: &[u8]) -> Result<Vec<u8>> {
+        // Try to decompress as gzip first
+        let mut decoder = GzDecoder::new(data);
+        let mut decompressed = Vec::new();
+
+        match decoder.read_to_end(&mut decompressed) {
+            Ok(_) => {
+                tracing::debug!(size = decompressed.len(), "Successfully decompressed gzip");
+                // Try to extract from tar if it's an archive
+                match self.extract_from_tar(&decompressed) {
+                    Ok(dat_content) => {
+                        tracing::debug!(size = dat_content.len(), "Successfully extracted DAT from tar");
+                        Ok(dat_content)
+                    },
+                    Err(e) => {
+                        tracing::warn!(error = %e, "Failed to extract from tar, trying as plain DAT");
+                        // Check if decompressed data looks like DAT (starts with "ID   ")
+                        if decompressed.starts_with(b"ID   ") {
+                            Ok(decompressed)
+                        } else {
+                            Err(anyhow!("Decompressed data is not DAT format and tar extraction failed: {}", e))
+                        }
+                    }
+                }
+            }
+            Err(e) => {
+                tracing::warn!(error = %e, "Not gzipped, trying tar extraction on raw data");
+                // Data is not gzipped - might be already decompressed tar archive
+                match self.extract_from_tar(data) {
+                    Ok(dat_content) => {
+                        tracing::debug!(size = dat_content.len(), "Successfully extracted DAT from tar (raw)");
+                        Ok(dat_content)
+                    }
+                    Err(tar_err) => {
+                        tracing::warn!(error = %tar_err, "Failed to extract from tar, trying as plain DAT");
+                        // Check if raw data looks like DAT
+                        if data.starts_with(b"ID   ") {
+                            Ok(data.to_vec())
+                        } else {
+                            Err(anyhow!("Data is not gzipped, not a tar archive, and does not look like DAT format. Gzip error: {}, Tar error: {}", e, tar_err))
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Extract first .dat or .dat.gz file from tar archive
+    fn extract_from_tar(&self, tar_data: &[u8]) -> Result<Vec<u8>> {
+        let mut archive = Archive::new(tar_data);
+        let mut found_files = Vec::new();
+
+        for entry in archive.entries()? {
+            let mut entry = entry?;
+            let path = entry.path()?;
+            let path_str = path.to_string_lossy().to_string();
+            found_files.push(path_str.clone());
+
+            tracing::debug!(file = %path_str, "Found file in tar archive");
+
+            // Check for .dat.gz files (need to decompress after extraction)
+            if path_str.ends_with(".dat.gz") {
+                tracing::info!(file = %path_str, "Extracting and decompressing .dat.gz file from tar");
+                let mut compressed_content = Vec::new();
+                entry.read_to_end(&mut compressed_content)?;
+
+                // Decompress the .dat.gz content
+                let mut decoder = GzDecoder::new(&compressed_content[..]);
+                let mut dat_content = Vec::new();
+                decoder.read_to_end(&mut dat_content)
+                    .context(format!("Failed to decompress {} from tar", path_str))?;
+
+                tracing::debug!(size = dat_content.len(), "Decompressed DAT content");
+                return Ok(dat_content);
+            }
+
+            // Also check for plain .dat files
+            if path.extension().and_then(|s| s.to_str()) == Some("dat") {
+                tracing::info!(file = %path_str, "Extracting plain DAT file from tar");
+                let mut dat_content = Vec::new();
+                entry.read_to_end(&mut dat_content)?;
+                return Ok(dat_content);
+            }
+        }
+
+        tracing::warn!(files = ?found_files, "Files found in tar archive (none with .dat or .dat.gz extension)");
+        Err(anyhow!("No .dat or .dat.gz file found in tar archive. Found {} files: {:?}", found_files.len(), found_files))
+    }
+
+    /// Process a single line during parsing
+    fn process_line(&self, line: &str, current_entry: &mut EntryBuilder, in_sequence: &mut bool) -> Result<()> {
+        // Skip empty lines
+        if line.trim().is_empty() {
+            return Ok(());
+        }
+
+        // Parse line based on type (matching parse_reader logic)
+        if line.starts_with("ID   ") {
+            current_entry.parse_id_line(line)?;
+        } else if line.starts_with("AC   ") {
+            current_entry.parse_ac_line(line)?;
+        } else if line.starts_with("DT   ") && line.contains("integrated into") {
+            current_entry.parse_dt_line(line)?;
+        } else if line.starts_with("DE   ") && line.contains("RecName: Full=") {
+            current_entry.parse_de_line(line)?;
+        } else if line.starts_with("GN   ") && line.contains("Name=") {
+            current_entry.parse_gn_line(line)?;
+        } else if line.starts_with("OS   ") {
+            current_entry.parse_os_line(line)?;
+        } else if line.starts_with("OX   ") && line.contains("NCBI_TaxID=") {
+            current_entry.parse_ox_line(line)?;
+        } else if line.starts_with("SQ   ") {
+            current_entry.parse_sq_line(line)?;
+            *in_sequence = true;
+        } else if *in_sequence && line.starts_with("     ") {
+            current_entry.parse_sequence_line(line);
+        }
+        Ok(())
     }
 
     /// Parse DAT data from a reader

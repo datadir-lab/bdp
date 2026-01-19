@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "pagefind": "pagefind --site .next/server/app --output-path public/_pagefind",
-    "start": "next start",
+    "start": "node .next/standalone/server.js",
+    "start:dev": "next start",
     "lint": "next lint",
     "type-check": "tsc --noEmit"
   },

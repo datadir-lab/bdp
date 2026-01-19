@@ -162,15 +162,27 @@ dev: db-up
     @Write-Host "🚀 Starting backend server..."
     @cargo run --bin bdp-server
 
-# Start frontend development server (quick dev mode)
-web-dev:
+# Start frontend development server with hot reload (default)
+web:
     @Write-Host "🌐 Starting frontend (dev mode)..."
     @cd web; yarn dev
 
-# Build frontend with Pagefind indexing and start production server
-web:
+# Build frontend (without Pagefind, without starting server)
+web-build:
     @Write-Host "🌐 Building frontend..."
     @cd web; $env:NEXT_PRIVATE_DISABLE_TURBO="1"; yarn build
+    @Write-Host "📦 Copying static files to standalone..."
+    @cd web; Copy-Item -Recurse -Force public .next/standalone/
+    @cd web; Copy-Item -Recurse -Force .next/static .next/standalone/.next/
+    @Write-Host "✓ Build complete"
+
+# Build frontend with Pagefind indexing and start production server
+web-prod:
+    @Write-Host "🌐 Building frontend..."
+    @cd web; $env:NEXT_PRIVATE_DISABLE_TURBO="1"; yarn build
+    @Write-Host "📦 Copying static files to standalone..."
+    @cd web; Copy-Item -Recurse -Force public .next/standalone/
+    @cd web; Copy-Item -Recurse -Force .next/static .next/standalone/.next/
     @Write-Host "🔍 Indexing documentation with Pagefind..."
     @cd web; yarn pagefind
     @Write-Host "✓ Build complete with Pagefind index"
@@ -182,7 +194,7 @@ dev-all: db-up
     @echo "🚀 Starting all services..."
     @echo "Backend: http://localhost:8000"
     @echo "Frontend: http://localhost:3000"
-    @just dev & just web-dev
+    @just dev & just web
 
 # Watch and rebuild on changes
 watch:
@@ -223,13 +235,8 @@ build-release:
     @echo "🔨 Building release version..."
     cargo build --workspace --release
 
-# Build frontend
-build-web:
-    @Write-Host "🔨 Building frontend..."
-    @cd web; $env:NEXT_PRIVATE_DISABLE_TURBO="1"; yarn build
-
 # Build all (backend + frontend)
-build-all: build build-web
+build-all: build web-build
     @echo "✓ All builds complete"
 
 # Build Docker images
@@ -377,7 +384,7 @@ docker-up:
     @Write-Host "  📦 MinIO Console: http://localhost:9001 (minioadmin/minioadmin)"
     @Write-Host ""
     @Write-Host "💡 Run migrations: just docker-migrate"
-    @Write-Host "💡 Start frontend: just web"
+    @Write-Host "💡 Start frontend: just web (dev) or just web-prod (production)"
 
 # Stop all Docker Compose services
 docker-down:
@@ -412,7 +419,7 @@ docker-setup: docker-up
     @just docker-migrate
     @Write-Host ""
     @Write-Host "✅ Full stack ready!"
-    @Write-Host "  🌐 Start frontend: cd web && yarn dev"
+    @Write-Host "  🌐 Start frontend: just web"
     @Write-Host "  🌐 Frontend URL:   http://localhost:3000"
 
 # ============================================================================
@@ -482,14 +489,14 @@ docs:
 # Serve frontend docs
 docs-web:
     @echo "📚 Starting documentation server..."
-    cd web && yarn dev
+    just web
 
 # ============================================================================
 # Deployment
 # ============================================================================
 
 # Build for production
-prod-build: build-release build-web docker-build
+prod-build: build-release web-build docker-build
     @echo "✓ Production build complete"
 
 # Deploy to production (placeholder)

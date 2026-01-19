@@ -94,8 +94,11 @@ pub enum Commands {
     /// Show status of cached sources
     Status,
 
-    /// Audit integrity of cached sources
-    Audit,
+    /// Audit trail management
+    Audit {
+        #[command(subcommand)]
+        command: AuditCommand,
+    },
 
     /// Clean cache
     Clean {
@@ -161,4 +164,49 @@ pub enum ConfigCommand {
 
     /// Show all configuration
     Show,
+}
+
+/// Audit trail subcommands
+#[derive(Subcommand, Debug)]
+pub enum AuditCommand {
+    /// List audit events
+    List {
+        /// Limit number of events to show
+        #[arg(short, long, default_value = "20")]
+        limit: usize,
+
+        /// Show events from specific source
+        #[arg(short, long)]
+        source: Option<String>,
+    },
+
+    /// Verify audit trail integrity
+    Verify,
+
+    /// Export audit trail to regulatory format
+    Export {
+        /// Export format (fda, nih, ema, das, json)
+        #[arg(short, long, default_value = "fda")]
+        format: String,
+
+        /// Output file path (optional, defaults to audit-{format}.{ext})
+        #[arg(short, long)]
+        output: Option<String>,
+
+        /// Filter events from date (ISO 8601)
+        #[arg(long)]
+        from: Option<String>,
+
+        /// Filter events to date (ISO 8601)
+        #[arg(long)]
+        to: Option<String>,
+
+        /// Project name for report
+        #[arg(short = 'n', long)]
+        project_name: Option<String>,
+
+        /// Project version for report
+        #[arg(short = 'v', long)]
+        project_version: Option<String>,
+    },
 }

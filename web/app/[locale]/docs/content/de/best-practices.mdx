@@ -1,0 +1,242 @@
+import { siteConfig } from '@/lib/site-config';
+
+# Best Practices
+
+Richtlinien für die effektive Nutzung von BDP in Forschungs-Workflows.
+
+## Versionskontrolle mit Git
+
+BDP ist darauf ausgelegt, nahtlos mit Git für maximale Reproduzierbarkeit zu arbeiten. Obwohl nicht zwingend erforderlich, bietet die Kombination von BDP mit Git die stärksten Garantien für reproduzierbare Forschung.
+
+### Warum Git mit BDP verwenden?
+
+- **Datenabhängigkeiten tracken** zusammen mit Code-Änderungen
+- **Exakte Konfigurationen teilen** mit Kollegen via `bdp.yml` und `bdl.lock`
+- **Zeitreisen** zu jedem Punkt in der Projekthistorie mit passenden Datenversionen
+- **Änderungen dokumentieren** mit Commit-Nachrichten die erklären warum Datenquellen geändert wurden
+
+### Empfohlener Workflow
+
+1. **Git im Projekt initialisieren:**
+   ```bash
+   git init
+   git add .
+   git commit -m "Initial commit"
+   ```
+
+2. **Datenquellen mit BDP hinzufügen:**
+   ```bash
+   bdp source add uniprot:P01308-fasta@1.1.0
+   bdp pull
+   ```
+
+3. **Lockfile committen:**
+   ```bash
+   git add bdp.yml bdl.lock
+   git commit -m "UniProt Insulin-Datenquelle hinzufügen"
+   ```
+
+4. **Kollegen erhalten exakt die gleichen Daten:**
+   ```bash
+   git clone <dein-repo>
+   bdp pull  # Lädt exakte Versionen aus bdl.lock herunter
+   ```
+
+### Was committen
+
+**Immer committen:**
+- `bdp.yml` - Ihre Datenquellen-Spezifikationen
+- `bdl.lock` - Exakte Versionen und Prüfsummen
+- Analyse-Skripte und Code
+- Dokumentation
+
+**Niemals committen:**
+- Tatsächliche Datendateien (zu groß für Git)
+- Cache-Verzeichnisse
+- Temporäre Dateien
+
+### Git lernen
+
+Falls Sie neu bei Git sind, empfehlen wir:
+- [Git Dokumentation](https://git-scm.com/doc)
+- [GitHub Git Handbook](https://guides.github.com/introduction/git-handbook/)
+- [Pro Git Buch](https://git-scm.com/book/de/v2) (kostenlos online)
+
+## Datenverwaltung
+
+### Datenquellen organisieren
+
+Verwenden Sie klare, beschreibende Namen in Ihrer `bdp.yml`:
+
+```yaml
+sources:
+  # Gut: Spezifisch und versioniert
+  - source: uniprot:P01308-fasta@1.1.0
+    name: human-insulin
+
+  # Vermeiden: Zu generisch
+  - source: uniprot:Q9Y6K9@latest
+    name: data
+```
+
+### Versionen für Produktion fixieren
+
+Verwenden Sie immer spezifische Versionen in Produktions-Workflows:
+
+```bash
+# Gut: Explizite Version
+bdp source add uniprot:P01308-fasta@1.1.0
+
+# Riskant: Kann sich über Zeit ändern
+bdp source add uniprot:P01308-fasta@latest
+```
+
+### Shared Caches für Teams verwenden
+
+Konfigurieren Sie ein geteiltes Cache-Verzeichnis auf Netzwerkspeicher:
+
+```bash
+# Laborweiter geteilter Cache
+bdp config cache set /mnt/lab-nas/bdp-cache
+```
+
+Vorteile:
+- Einmal herunterladen, mit allen teilen
+- Automatische Deduplizierung
+- Schnelleres Onboarding für neue Teammitglieder
+
+## Dokumentation
+
+### Datenquellen dokumentieren
+
+Führen Sie eine `DATA.md` Datei die Ihre Daten-Entscheidungen erklärt:
+
+```markdown
+# Datenquellen
+
+## UniProt Human Insulin (P01308)
+- **Warum:** Referenzsequenz für Insulin-Varianten-Analyse
+- **Version:** 1.1.0 (UniProt Release 2024_01)
+- **Hinzugefügt:** 2024-01-15
+- **Verwendet in:** scripts/analyze_variants.py
+```
+
+### Datenverfügbarkeitserklärungen generieren
+
+Verwenden Sie BDPs Audit-Features für Publikationen:
+
+```bash
+# Publikationsfertige Datenverfügbarkeitserklärung generieren
+bdp audit export --format das > datenverfuegbarkeit.md
+
+# BibTeX-Zitationen generieren
+bdp cite --format bibtex > literatur.bib
+```
+
+## Reproduzierbarkeits-Checkliste
+
+Vor Veröffentlichung oder Teilen von Forschung:
+
+- [ ] Alle Datenquellen in `bdp.yml` spezifiziert
+- [ ] Lockfile (`bdl.lock`) in Versionskontrolle committed
+- [ ] Audit-Trail verifiziert: `bdp audit verify`
+- [ ] Dokumentation beinhaltet Datenquellen-Begründung
+- [ ] Analyse-Skripte referenzieren BDP-Datenpfade
+- [ ] README beinhaltet `bdp pull` in Setup-Anweisungen
+- [ ] Datenverfügbarkeitserklärung generiert
+
+## Performance-Tipps
+
+### Downloads optimieren
+
+Für große Datensätze:
+
+```bash
+# Parallele Downloads verwenden (wenn verfügbar)
+bdp pull --parallel
+
+# Prüfsummen separat verifizieren falls nötig
+bdp audit --checksums-only
+```
+
+### Cache-Verwaltung
+
+Cache-Größe überwachen:
+
+```bash
+# Cache-Nutzung prüfen
+bdp config cache info
+
+# Ungenutzte gecachte Daten bereinigen
+bdp cache clean --unused
+```
+
+## Sicherheit
+
+### Datenintegrität validieren
+
+Prüfsummen immer verifizieren:
+
+```bash
+# Alle Quellen prüfen
+bdp audit
+
+# Spezifische Quelle verifizieren
+bdp audit uniprot:P01308-fasta@1.1.0
+```
+
+### Audit-Trail überprüfen
+
+Vor kritischen Analysen:
+
+```bash
+# Alle Datenverwaltungs-Operationen überprüfen
+bdp audit log
+
+# Verifizieren dass keine Manipulation erkannt wurde
+bdp audit verify
+```
+
+## Zusammenarbeit
+
+### Neue Teammitglieder onboarden
+
+Machen Sie es Neulingen einfach:
+
+1. BDP-Setup in README einschließen:
+   ```markdown
+   ## Setup
+
+   1. BDP installieren: `curl -fsSL https://bdp.dev/install.sh | sh`
+   2. Daten pullen: `bdp pull`
+   3. Analyse ausführen: `python scripts/analyze.py`
+   ```
+
+2. Alle manuellen Schritte dokumentieren
+3. Den vollständigen Setup-Prozess regelmäßig testen
+
+### Workflows teilen
+
+Beim Teilen von Methoden:
+
+```bash
+# Exakte Konfiguration exportieren
+bdp export --format=yaml > workflow-config.yml
+
+# Mit Paper-Ergänzungsmaterial teilen
+```
+
+## Hilfe erhalten
+
+- **Dokumentation:** Lesen Sie die vollständige Dokumentation in Ihrer BDP-Installation
+- **Issues:** Bugs im GitHub-Repository melden
+- **Diskussionen:** Fragen in GitHub Discussions stellen
+- **E-Mail:** Kontaktieren Sie die Maintainer für sensible Fragen
+
+## Beitragen
+
+Helfen Sie diese Best Practices zu verbessern:
+- Teilen Sie Ihre Workflows und Muster
+- Schlagen Sie Verbesserungen via GitHub Discussions vor
+- Tragen Sie Dokumentationsverbesserungen bei
+- Berichten Sie was funktioniert (und was nicht) in Ihrem Labor

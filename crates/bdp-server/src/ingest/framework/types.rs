@@ -176,7 +176,7 @@ pub struct StagedRecord {
     pub record_identifier: String,
     pub record_name: Option<String>,
     pub record_data: serde_json::Value,
-    pub content_md5: String,
+    pub content_md5: Option<String>,
     pub sequence_md5: Option<String>,
     pub source_file: Option<String>,
     pub source_offset: Option<i64>,

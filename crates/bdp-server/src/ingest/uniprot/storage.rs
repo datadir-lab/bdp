@@ -3,7 +3,7 @@
 //! Creates individual data sources for each protein with proper schema structure.
 
 use anyhow::{Context, Result};
-use sha2::Digest;
+use sha2::{Digest, Sha256};
 use sqlx::PgPool;
 use tracing::{debug, info};
 use uuid::Uuid;
@@ -88,10 +88,10 @@ impl UniProtStorage {
         // 3. Create data source
         self.create_data_source(entry_id, entry, organism_id).await?;
 
-        // 4. Create protein metadata
-        self.create_protein_metadata(entry_id, entry).await?;
+        // 4. Create protein metadata (with sequence deduplication and organism reference)
+        self.create_protein_metadata(entry_id, entry, organism_id).await?;
 
-        // 5. Create version
+        // 5. Create version with semantic versioning
         let version_id = self.create_version(entry_id).await?;
 
         // 6. Create version files for multiple formats (DAT, FASTA, JSON)
@@ -101,13 +101,15 @@ impl UniProtStorage {
         Ok(())
     }
 
-    /// Get or create organism record
+    /// Get or create organism as a data source
+    ///
+    /// Organisms are now data sources with organism_metadata, not a separate organisms table
     async fn get_or_create_organism(&self, entry: &UniProtEntry) -> Result<Uuid> {
         let ncbi_taxonomy_id = entry.taxonomy_id;
 
         // Check if organism exists
         let existing = sqlx::query_scalar::<_, Uuid>(
-            "SELECT id FROM organisms WHERE ncbi_taxonomy_id = $1"
+            "SELECT data_source_id FROM organism_metadata WHERE taxonomy_id = $1"
         )
         .bind(ncbi_taxonomy_id)
         .fetch_optional(&self.db)
@@ -117,24 +119,53 @@ impl UniProtStorage {
             return Ok(id);
         }
 
-        // Create new organism
-        let organism_id = Uuid::new_v4();
+        // Create new organism as a data source
         let scientific_name = &entry.organism_name;
+        let slug = format!("organism-{}", ncbi_taxonomy_id);
 
-        sqlx::query(
+        // 1. Create registry entry
+        let entry_id = sqlx::query_scalar::<_, Uuid>(
             r#"
-            INSERT INTO organisms (id, ncbi_taxonomy_id, scientific_name)
-            VALUES ($1, $2, $3)
-            ON CONFLICT (ncbi_taxonomy_id) DO NOTHING
+            INSERT INTO registry_entries (organization_id, slug, name, description, entry_type)
+            VALUES ($1, $2, $3, $4, 'data_source')
+            ON CONFLICT (slug) DO UPDATE SET updated_at = NOW()
+            RETURNING id
             "#
         )
-        .bind(organism_id)
+        .bind(self.organization_id)
+        .bind(&slug)
+        .bind(scientific_name)
+        .bind(format!("Organism: {}", scientific_name))
+        .fetch_one(&self.db)
+        .await?;
+
+        // 2. Create data source
+        sqlx::query(
+            r#"
+            INSERT INTO data_sources (id, source_type)
+            VALUES ($1, 'organism')
+            ON CONFLICT (id) DO NOTHING
+            "#
+        )
+        .bind(entry_id)
+        .execute(&self.db)
+        .await?;
+
+        // 3. Create organism metadata
+        sqlx::query(
+            r#"
+            INSERT INTO organism_metadata (data_source_id, taxonomy_id, scientific_name)
+            VALUES ($1, $2, $3)
+            ON CONFLICT (taxonomy_id) DO NOTHING
+            "#
+        )
+        .bind(entry_id)
         .bind(ncbi_taxonomy_id)
         .bind(scientific_name)
         .execute(&self.db)
         .await?;
 
-        Ok(organism_id)
+        Ok(entry_id)
     }
 
     /// Create registry entry for the protein
@@ -186,24 +217,32 @@ impl UniProtStorage {
         Ok(())
     }
 
-    /// Create protein_metadata record (extends data_source)
-    async fn create_protein_metadata(&self, data_source_id: Uuid, entry: &UniProtEntry) -> Result<()> {
-        // Compute sequence checksum
-        let mut hasher = sha2::Sha256::new();
+    /// Create protein_metadata record with deduplicated sequence
+    async fn create_protein_metadata(&self, data_source_id: Uuid, entry: &UniProtEntry, organism_id: Uuid) -> Result<()> {
+        // 1. Get or create deduplicated sequence
+        let sequence_id = self.get_or_create_sequence(entry).await?;
+
+        // 2. Compute sequence checksum for metadata
+        let mut hasher = Sha256::new();
         hasher.update(entry.sequence.as_bytes());
         let sequence_checksum = format!("{:x}", hasher.finalize());
 
+        // 3. Insert protein metadata
         sqlx::query(
             r#"
             INSERT INTO protein_metadata (
                 data_source_id, accession, entry_name, protein_name, gene_name,
-                sequence_length, mass_da, sequence_checksum
+                sequence_length, mass_da, sequence_checksum,
+                sequence_id, organism_id, uniprot_version
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
             ON CONFLICT (accession) DO UPDATE SET
                 entry_name = EXCLUDED.entry_name,
                 protein_name = EXCLUDED.protein_name,
-                gene_name = EXCLUDED.gene_name
+                gene_name = EXCLUDED.gene_name,
+                sequence_id = EXCLUDED.sequence_id,
+                organism_id = EXCLUDED.organism_id,
+                uniprot_version = EXCLUDED.uniprot_version
             "#
         )
         .bind(data_source_id)
@@ -214,6 +253,9 @@ impl UniProtStorage {
         .bind(entry.sequence_length)
         .bind(entry.mass_da)
         .bind(&sequence_checksum)
+        .bind(sequence_id)
+        .bind(organism_id)
+        .bind(&self.external_version)
         .execute(&self.db)
         .await
         .context("Failed to create protein_metadata")?;
@@ -221,19 +263,80 @@ impl UniProtStorage {
         Ok(())
     }
 
-    /// Create version record
+    /// Get or create deduplicated protein sequence
+    async fn get_or_create_sequence(&self, entry: &UniProtEntry) -> Result<Uuid> {
+        // Compute sequence hash (SHA256)
+        let mut hasher = Sha256::new();
+        hasher.update(entry.sequence.as_bytes());
+        let sequence_hash = format!("{:x}", hasher.finalize());
+
+        // Check if sequence already exists
+        let existing = sqlx::query_scalar::<_, Uuid>(
+            "SELECT id FROM protein_sequences WHERE sequence_hash = $1"
+        )
+        .bind(&sequence_hash)
+        .fetch_optional(&self.db)
+        .await?;
+
+        if let Some(id) = existing {
+            debug!("Reusing existing sequence (hash: {})", &sequence_hash[..16]);
+            return Ok(id);
+        }
+
+        // Compute MD5 for backward compatibility
+        let sequence_md5 = format!("{:x}", md5::compute(entry.sequence.as_bytes()));
+
+        // Create new sequence
+        let sequence_id = sqlx::query_scalar::<_, Uuid>(
+            r#"
+            INSERT INTO protein_sequences (sequence, sequence_hash, sequence_length, sequence_md5)
+            VALUES ($1, $2, $3, $4)
+            ON CONFLICT (sequence_hash) DO UPDATE SET sequence_hash = EXCLUDED.sequence_hash
+            RETURNING id
+            "#
+        )
+        .bind(&entry.sequence)
+        .bind(&sequence_hash)
+        .bind(entry.sequence_length)
+        .bind(&sequence_md5)
+        .fetch_one(&self.db)
+        .await
+        .context("Failed to create protein_sequence")?;
+
+        debug!("Created new deduplicated sequence (hash: {})", &sequence_hash[..16]);
+        Ok(sequence_id)
+    }
+
+    /// Create version record with semantic versioning
     async fn create_version(&self, entry_id: Uuid) -> Result<Uuid> {
+        // Parse internal version (e.g., "1.0" → major=1, minor=0, patch=0)
+        let version_parts: Vec<&str> = self.internal_version.split('.').collect();
+        let version_major = version_parts.first().and_then(|v| v.parse::<i32>().ok()).unwrap_or(1);
+        let version_minor = version_parts.get(1).and_then(|v| v.parse::<i32>().ok()).unwrap_or(0);
+        let version_patch = version_parts.get(2).and_then(|v| v.parse::<i32>().ok()).unwrap_or(0);
+
         let version_id = sqlx::query_scalar::<_, Uuid>(
             r#"
-            INSERT INTO versions (entry_id, version, external_version)
-            VALUES ($1, $2, $3)
-            ON CONFLICT (entry_id, version) DO UPDATE SET updated_at = NOW()
+            INSERT INTO versions (
+                entry_id, version, external_version,
+                version_major, version_minor, version_patch
+            )
+            VALUES ($1, $2, $3, $4, $5, $6)
+            ON CONFLICT (entry_id, version) DO UPDATE
+            SET external_version = EXCLUDED.external_version,
+                version_major = EXCLUDED.version_major,
+                version_minor = EXCLUDED.version_minor,
+                version_patch = EXCLUDED.version_patch,
+                updated_at = NOW()
             RETURNING id
             "#
         )
         .bind(entry_id)
         .bind(&self.internal_version)
         .bind(&self.external_version)
+        .bind(version_major)
+        .bind(version_minor)
+        .bind(version_patch)
         .fetch_one(&self.db)
         .await
         .context("Failed to create version")?;
@@ -345,7 +448,7 @@ impl UniProtStorage {
 
     /// Compute SHA-256 checksum
     fn compute_checksum(&self, data: &[u8]) -> String {
-        let mut hasher = sha2::Sha256::new();
+        let mut hasher = Sha256::new();
         hasher.update(data);
         format!("{:x}", hasher.finalize())
     }
@@ -386,11 +489,11 @@ impl UniProtStorage {
 
         debug!("Created aggregate registry entry: {}", entry_id);
 
-        // 2. Create data source
+        // 2. Create data source with 'bundle' type
         sqlx::query(
             r#"
             INSERT INTO data_sources (id, source_type)
-            VALUES ($1, 'protein')
+            VALUES ($1, 'bundle')
             ON CONFLICT (id) DO NOTHING
             "#
         )
@@ -399,14 +502,25 @@ impl UniProtStorage {
         .await
         .context("Failed to create aggregate data_source")?;
 
-        // 3. Create version
+        // 3. Create version with semantic versioning
+        let version_parts: Vec<&str> = self.internal_version.split('.').collect();
+        let version_major = version_parts.first().and_then(|v| v.parse::<i32>().ok()).unwrap_or(1);
+        let version_minor = version_parts.get(1).and_then(|v| v.parse::<i32>().ok()).unwrap_or(0);
+        let version_patch = version_parts.get(2).and_then(|v| v.parse::<i32>().ok()).unwrap_or(0);
+
         let version_id = sqlx::query_scalar::<_, Uuid>(
             r#"
-            INSERT INTO versions (entry_id, version, external_version, dependency_count)
-            VALUES ($1, $2, $3, $4)
+            INSERT INTO versions (
+                entry_id, version, external_version, dependency_count,
+                version_major, version_minor, version_patch
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
             ON CONFLICT (entry_id, version) DO UPDATE
             SET external_version = EXCLUDED.external_version,
                 dependency_count = EXCLUDED.dependency_count,
+                version_major = EXCLUDED.version_major,
+                version_minor = EXCLUDED.version_minor,
+                version_patch = EXCLUDED.version_patch,
                 updated_at = NOW()
             RETURNING id
             "#
@@ -415,6 +529,9 @@ impl UniProtStorage {
         .bind(&self.internal_version)
         .bind(&self.external_version)
         .bind(protein_count as i32)
+        .bind(version_major)
+        .bind(version_minor)
+        .bind(version_patch)
         .fetch_one(&self.db)
         .await
         .context("Failed to create aggregate version")?;

@@ -16,6 +16,7 @@ const docsNavigation: NavItem[] = [
       { title: 'Introduction', href: '/docs' },
       { title: 'Installation', href: '/docs/installation' },
       { title: 'Quick Start', href: '/docs/quick-start' },
+      { title: 'Best Practices', href: '/docs/best-practices' },
     ],
   },
   {
@@ -25,6 +26,16 @@ const docsNavigation: NavItem[] = [
       { title: 'Architecture', href: '/docs/concepts/architecture' },
       { title: 'Data Sources', href: '/docs/concepts/sources' },
       { title: 'Tools & Packages', href: '/docs/concepts/tools' },
+    ],
+  },
+  {
+    title: 'Features',
+    href: '/docs/features',
+    items: [
+      { title: 'Audit & Compliance', href: '/docs/features/audit' },
+      { title: 'Post-Pull Hooks', href: '/docs/features/hooks' },
+      { title: 'Cache Management', href: '/docs/features/cache' },
+      { title: 'Lockfiles', href: '/docs/features/lockfiles' },
     ],
   },
   {
@@ -45,7 +56,11 @@ const docsNavigation: NavItem[] = [
   },
 ];
 
-export function DocsSidebar() {
+interface DocsSidebarProps {
+  onLinkClick?: () => void;
+}
+
+export function DocsSidebar({ onLinkClick }: DocsSidebarProps = {}) {
   const pathname = usePathname();
 
   return (
@@ -63,6 +78,11 @@ export function DocsSidebar() {
                   <li key={item.href}>
                     <Link
                       href={item.href}
+                      onClick={() => {
+                        if (onLinkClick) {
+                          onLinkClick();
+                        }
+                      }}
                       className={`block text-sm transition-colors hover:text-foreground ${
                         isActive
                           ? 'text-foreground font-medium'

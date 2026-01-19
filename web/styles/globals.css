@@ -12,16 +12,16 @@
     --popover-foreground: 222.2 84% 4.9%;
     --primary: 221.2 83.2% 53.3%;
     --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
+    --secondary: 210 40% 93%;
     --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
+    --muted: 210 40% 94%;
+    --muted-foreground: 215.4 25% 35%;
+    --accent: 210 40% 93%;
     --accent-foreground: 222.2 47.4% 11.2%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
+    --border: 214.3 31.8% 85%;
+    --input: 214.3 31.8% 85%;
     --ring: 221.2 83.2% 53.3%;
     --radius: 0.5rem;
 
@@ -112,7 +112,7 @@
 
 /* Code blocks */
 pre {
-  @apply rounded-lg border bg-muted p-4 overflow-x-auto;
+  @apply rounded-lg border bg-muted p-4 overflow-x-auto mb-6;
 }
 
 code {
@@ -120,7 +120,52 @@ code {
 }
 
 pre code {
-  @apply bg-transparent p-0;
+  @apply bg-transparent p-0 rounded-none;
+}
+
+/* Override for custom code blocks - remove default pre styling */
+.code-block-wrapper pre {
+  @apply p-0 border-0 bg-transparent mb-0 rounded-none;
+}
+
+.code-block-wrapper code {
+  @apply p-0 bg-transparent rounded-none;
+}
+
+/* Code comments */
+.code-comment {
+  opacity: 0.5;
+  font-style: italic;
+}
+
+.code-comment-success {
+  @apply text-green-600 dark:text-green-400;
+  font-weight: 500;
+}
+
+/* Enhanced code block animations */
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(0.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.code-line-highlight {
+  animation: pulse 0.3s ease-in-out;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    background-color: transparent;
+  }
+  50% {
+    background-color: hsl(var(--primary) / 0.1);
+  }
 }
 
 /* Tables */
@@ -156,6 +201,59 @@ h3 {
 
 h4 {
   @apply scroll-m-20 text-xl font-semibold tracking-tight;
+}
+
+/* Remove borders/underlines from prose headings */
+.prose h1,
+.prose h2,
+.prose h3,
+.prose h4,
+.prose h5,
+.prose h6 {
+  border: none !important;
+  border-bottom: none !important;
+  padding-bottom: 0 !important;
+}
+
+/* Workflow styling */
+.workflow-content {
+  /* Spacing controlled per element for better hierarchy */
+}
+
+.workflow-content h3 {
+  @apply text-xl font-semibold mb-2 text-foreground;
+  @apply mt-16; /* Big gap between steps */
+}
+
+.workflow-content h3:first-child {
+  @apply mt-0; /* First step has no top margin */
+}
+
+.workflow-content h3 + p,
+.workflow-content h3 + ul {
+  @apply mt-3; /* Spacing after step heading */
+}
+
+.workflow-content p + pre,
+.workflow-content ul + pre {
+  @apply mt-2; /* Spacing before code blocks */
+}
+
+.workflow-content p + p,
+.workflow-content p + ul {
+  @apply mt-3; /* Spacing between paragraphs */
+}
+
+.workflow-time {
+  @apply text-xs text-muted-foreground ml-2 font-normal;
+}
+
+.workflow-summary {
+  @apply mt-12 pt-6 border-t border-border;
+}
+
+.workflow-summary strong {
+  @apply text-foreground;
 }
 
 /* Container max widths */

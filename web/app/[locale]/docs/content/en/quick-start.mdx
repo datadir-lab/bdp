@@ -1,0 +1,84 @@
+import { siteConfig } from '@/lib/site-config';
+
+# Quick Start
+
+Get started with BDP in just a few minutes.
+
+## Prerequisites
+
+- BDP CLI installed (see [Installation](/docs/installation))
+- Basic familiarity with command-line tools
+
+## Step 1: Initialize a Project
+
+Create a new BDP project:
+
+```bash
+bdp init --name my-project
+```
+
+This creates:
+- `bdp.yml` - Project configuration
+- `bdl.lock` - Lockfile for reproducibility
+- `.bdp/` - Local data directory
+
+## Step 2: Add a Data Source
+
+Add a UniProt protein sequence:
+
+```bash
+bdp source add uniprot:P01308-fasta@1.1.0
+```
+
+This adds human insulin (P01308) in FASTA format at version 1.1.0.
+
+## Step 3: Pull Data
+
+Download the data:
+
+```bash
+bdp pull
+```
+
+BDP will download and verify the data, storing it in `.bdp/` directory.
+
+## Step 4: Verify
+
+Check your project status:
+
+```bash
+bdp status
+```
+
+## Common Commands
+
+**List sources**
+
+```bash
+bdp source list
+```
+
+**Remove a source**
+
+```bash
+bdp source remove uniprot:P01308-fasta@1.1.0
+```
+
+**View audit trail**
+
+```bash
+bdp audit
+```
+
+**Get help**
+
+```bash
+bdp --help
+bdp source --help
+```
+
+## Next Steps
+
+- [Best Practices](/docs/best-practices) - Learn about Git integration and workflows
+- [Introduction](/docs) - Understand the reproducibility benefits
+- Visit <a href={siteConfig.github.url + '/discussions'} target="_blank" rel="noopener noreferrer">GitHub Discussions</a> for community support

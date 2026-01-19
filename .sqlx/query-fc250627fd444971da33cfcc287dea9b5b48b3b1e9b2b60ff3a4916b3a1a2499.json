@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE ingestion_work_units\n            SET status = $1,\n                completed_at = NOW()\n            WHERE id = $2\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "fc250627fd444971da33cfcc287dea9b5b48b3b1e9b2b60ff3a4916b3a1a2499"
+}

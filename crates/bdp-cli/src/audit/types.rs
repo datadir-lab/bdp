@@ -140,6 +140,23 @@ impl AuditEvent {
     }
 }
 
+impl Default for AuditEvent {
+    fn default() -> Self {
+        Self {
+            id: None,
+            timestamp: Utc::now(),
+            event_type: EventType::InitStart,
+            source_spec: None,
+            details: serde_json::json!({}),
+            machine_id: String::new(),
+            event_hash: None,
+            previous_hash: None,
+            notes: None,
+            archived: false,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -25,6 +25,9 @@ export const metadata: Metadata = {
   keywords: ['bioinformatics', 'dependencies', 'software', 'tools', 'packages', 'registry', 'genomics', 'research'],
   authors: [{ name: 'BDP Team' }],
   creator: 'BDP Team',
+  icons: {
+    icon: '/favicon.svg',
+  },
   openGraph: {
     type: 'website',
     locale: 'en_US',

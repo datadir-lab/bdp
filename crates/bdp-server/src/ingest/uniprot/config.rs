@@ -45,7 +45,7 @@ impl Default for UniProtFtpConfig {
             ftp_password: "anonymous".to_string(),
             ftp_base_path: "/pub/databases/uniprot".to_string(),
             connection_timeout_secs: 30,
-            read_timeout_secs: 300, // 5 minutes for large files
+            read_timeout_secs: 1800, // 30 minutes for large files (multi-GB tar.gz archives)
             parse_limit: None,
             release_type: ReleaseType::Current,
         }
@@ -93,17 +93,26 @@ impl UniProtFtpConfig {
     /// Returns:
     /// - Current: `/pub/databases/uniprot/current_release`
     /// - Previous: `/pub/databases/uniprot/previous_releases/release-{version}`
+    ///
+    /// NOTE: If version is provided, automatically uses Previous path type.
+    /// This allows downloading historical versions without changing release_type config.
     pub fn release_base_path(&self, version: Option<&str>) -> String {
+        // If version is explicitly provided, use Previous release path
+        // This allows downloading historical versions regardless of config
+        if let Some(ver) = version {
+            return format!(
+                "{}/previous_releases/release-{}",
+                self.ftp_base_path, ver
+            );
+        }
+
+        // Otherwise, use the configured release type
         match self.release_type {
             ReleaseType::Current => {
                 format!("{}/current_release", self.ftp_base_path)
             }
             ReleaseType::Previous => {
-                let version = version.expect("Version required for previous releases");
-                format!(
-                    "{}/previous_releases/release-{}",
-                    self.ftp_base_path, version
-                )
+                panic!("release_type=Previous requires version to be specified");
             }
         }
     }
@@ -122,13 +131,27 @@ impl UniProtFtpConfig {
     /// # Arguments
     /// * `version` - Optional for current release, required for previous (e.g., "2024_01")
     /// * `dataset` - "sprot" for Swiss-Prot or "trembl" for TrEMBL (default: "sprot")
+    ///
+    /// # File Format Differences
+    /// - Current release: `/current_release/knowledgebase/complete/uniprot_sprot.dat.gz`
+    /// - Historical release: `/previous_releases/release-2024_05/knowledgebase/uniprot_sprot-only2024_05.tar.gz`
     pub fn dat_file_path(&self, version: Option<&str>, dataset: Option<&str>) -> String {
         let base = self.release_base_path(version);
         let dataset = dataset.unwrap_or("sprot");
-        format!(
-            "{}/knowledgebase/complete/uniprot_{}.dat.gz",
-            base, dataset
-        )
+
+        if let Some(ver) = version {
+            // Historical releases use tar.gz with different naming
+            format!(
+                "{}/knowledgebase/uniprot_{}-only{}.tar.gz",
+                base, dataset, ver
+            )
+        } else {
+            // Current release uses dat.gz in complete subdirectory
+            format!(
+                "{}/knowledgebase/complete/uniprot_{}.dat.gz",
+                base, dataset
+            )
+        }
     }
 
     /// Get the full FTP path for FASTA file
@@ -199,9 +222,10 @@ mod tests {
     fn test_dat_file_path_previous() {
         let config = UniProtFtpConfig::default().with_release_type(ReleaseType::Previous);
         let path = config.dat_file_path(Some("2024_01"), None);
+        // Historical releases use tar.gz format
         assert_eq!(
             path,
-            "/pub/databases/uniprot/previous_releases/release-2024_01/knowledgebase/complete/uniprot_sprot.dat.gz"
+            "/pub/databases/uniprot/previous_releases/release-2024_01/knowledgebase/uniprot_sprot-only2024_01.tar.gz"
         );
     }
 

@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { Link } from '@/i18n/navigation';
 import { siteConfig } from '@/lib/site-config';
 import { DocsSidebar } from './components/DocsSidebar';
+import { MobileDocsNav } from './components/MobileDocsNav';
 
 export const dynamic = 'force-static';
 
@@ -11,19 +12,27 @@ export const dynamic = 'force-static';
 // Header and Footer come from the main [locale] layout
 export default function DocsLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="container flex-1">
-      <div className="flex gap-8 py-8">
-        {/* Left Sidebar - Navigation */}
-        <aside className="hidden md:block w-64 shrink-0">
+    <div className="container flex-1 px-4 md:px-8">
+      {/* Mobile Navigation Header */}
+      <div className="md:hidden sticky top-16 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b -mx-4 px-4 py-3 mb-4">
+        <div className="flex items-center gap-3">
+          <MobileDocsNav />
+          <h2 className="font-semibold text-lg">Documentation</h2>
+        </div>
+      </div>
+
+      <div className="flex gap-6 lg:gap-8 py-4 md:py-8">
+        {/* Left Sidebar - Navigation (Desktop) */}
+        <aside className="hidden md:block w-56 lg:w-64 shrink-0">
           <div className="sticky top-24">
             <DocsSidebar />
           </div>
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 min-w-0">
+        <main className="flex-1 min-w-0 max-w-3xl">
           <article
-            className="max-w-none"
+            className="prose prose-slate dark:prose-invert max-w-none prose-headings:scroll-mt-20 prose-a:text-primary prose-a:no-underline hover:prose-a:underline prose-img:rounded-lg"
             data-pagefind-body
           >
             {children}

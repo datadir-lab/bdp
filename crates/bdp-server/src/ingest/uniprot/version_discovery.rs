@@ -118,31 +118,58 @@ impl VersionDiscovery {
         })
     }
 
+    /// Discover only previous releases (skip current release)
+    ///
+    /// This is useful when FTP passive mode issues prevent accessing current_release
+    pub async fn discover_previous_versions_only(&self) -> Result<Vec<DiscoveredVersion>> {
+        self.discover_previous_versions().await
+    }
+
     /// Discover all previous release versions
     async fn discover_previous_versions(&self) -> Result<Vec<DiscoveredVersion>> {
         // List directories in previous_releases/
         let listing = self.list_previous_releases().await?;
+
+        tracing::info!(
+            count = listing.len(),
+            "Found {} previous release directories",
+            listing.len()
+        );
 
         let mut versions = Vec::new();
         let release_pattern = Regex::new(r"release-(\d{4})_(\d{2})")?;
 
         for dir_name in listing {
             if let Some(captures) = release_pattern.captures(&dir_name) {
+                let year: i32 = captures[1].parse()?;
+                let month: u32 = captures[2].parse()?;
                 let version = format!("{}_{}", &captures[1], &captures[2]);
 
-                // Try to get release notes for this version
-                if let Ok(release_notes) = self.ftp.download_release_notes(Some(&version)).await {
-                    if let Ok(release_info) = self.ftp.parse_release_notes(&release_notes) {
-                        versions.push(DiscoveredVersion {
-                            external_version: release_info.external_version,
-                            release_date: release_info.release_date,
-                            is_current: false,
-                            ftp_path: format!("previous_releases/{}", dir_name),
-                        });
-                    }
-                }
+                // Construct estimated release date from YYYY_MM (first day of month)
+                // This is MUCH faster than downloading release notes for each version
+                let release_date = chrono::NaiveDate::from_ymd_opt(year, month, 1)
+                    .ok_or_else(|| anyhow::anyhow!("Invalid date: {}-{}", year, month))?;
+
+                versions.push(DiscoveredVersion {
+                    external_version: version,
+                    release_date,
+                    is_current: false,
+                    ftp_path: format!("previous_releases/{}", dir_name),
+                });
+
+                tracing::debug!(
+                    version = %dir_name,
+                    date = %release_date,
+                    "Discovered historical version"
+                );
             }
         }
+
+        tracing::info!(
+            count = versions.len(),
+            "Parsed {} valid release versions from directory names",
+            versions.len()
+        );
 
         Ok(versions)
     }

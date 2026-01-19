@@ -1,0 +1,291 @@
+# Audit & Compliance
+
+BDP bietet ein umfassendes Audit-Trail-System für regulatorische Compliance und Forschungsdokumentation. Verfolgen Sie jede Operation an Ihren Daten mit automatischer Protokollierung.
+
+## Warum Audit-Trails wichtig sind
+
+Regulierungsbehörden wie FDA, NIH und EMA erfordern detaillierte Daten-Provenienz-Aufzeichnungen. BDP automatisiert diese Dokumentation und spart Stunden manueller Arbeit bei der Vorbereitung von Publikationen oder Antworten auf Reviewer-Anfragen.
+
+## Kernfunktionen
+
+### Automatische Ereignisprotokollierung
+
+Jeder BDP-Befehl protokolliert automatisch Ereignisse in eine lokale SQLite-Datenbank:
+
+```bash
+bdp pull
+# Protokolliert automatisch: Download, Verifizierung, Cache-Operationen
+```
+
+Erfasste Ereignisse umfassen:
+- **Downloads** - Welche Quellen, Versionen, Prüfsummen
+- **Verifizierungen** - Integritätsprüfungen, Validierungsergebnisse
+- **Cache-Operationen** - Datei-Hinzufügungen, Entfernungen, Updates
+- **Post-Pull-Verarbeitung** - Hook-Ausführungen, generierte Dateien
+- **Konfigurationsänderungen** - Einstellungsmodifikationen
+
+### Manipulationserkennung
+
+BDP verwendet Hash-Ketten zur Erkennung von Änderungen am Audit-Trail:
+
+```bash
+bdp audit verify
+# ✓ Audit-Trail verifiziert: Keine Manipulation erkannt
+# ✓ Hash-Kette intakt: 47 Ereignisse verifiziert
+```
+
+### Maschinenidentifikation
+
+Jedes Audit-Ereignis enthält:
+- **Maschinen-ID** - Stabile Hostname-basierte Kennung
+- **Benutzer** - System-Benutzername
+- **Zeitstempel** - UTC-Zeit mit Mikrosekundenpräzision
+- **Befehl** - Vollständig ausgeführter Befehl
+- **Ergebnis** - Erfolg/Fehler-Status
+
+## Audit-Befehle
+
+### Audit-Log anzeigen
+
+```bash
+# Aktuelle Ereignisse anzeigen
+bdp audit list
+
+# Letzte 50 Ereignisse anzeigen
+bdp audit list --limit 50
+
+# Nach Ereignistyp filtern
+bdp audit list --type download
+
+# Als JSON exportieren
+bdp audit list --format json > audit.json
+```
+
+### Integrität verifizieren
+
+```bash
+# Audit-Trail-Integrität verifizieren
+bdp audit verify
+
+# Spezifischen Zeitraum verifizieren
+bdp audit verify --from 2024-01-01 --to 2024-12-31
+```
+
+### Berichte exportieren
+
+Compliance-Berichte in verschiedenen Formaten generieren:
+
+```bash
+# FDA 21 CFR Part 11 Bericht
+bdp audit export --format fda > fda-bericht.json
+
+# NIH Data Management and Sharing (DMS) Bericht
+bdp audit export --format nih > nih-bericht.md
+
+# EMA ALCOA++ Compliance-Bericht
+bdp audit export --format ema > ema-bericht.yaml
+
+# Datenverfügbarkeitserklärung für Publikationen
+bdp audit export --format das > datenverfuegbarkeit.md
+```
+
+## Export-Formate
+
+### FDA 21 CFR Part 11
+
+JSON-Bericht zur Demonstration der Compliance mit elektronischen Aufzeichnungsvorschriften:
+
+```json
+{
+  "report_type": "FDA_21_CFR_Part_11",
+  "generated_at": "2024-01-18T10:30:00Z",
+  "machine_id": "lab-workstation-01",
+  "events": [
+    {
+      "timestamp": "2024-01-15T09:20:15Z",
+      "event_type": "download",
+      "source": "uniprot:P01308-fasta@1.1.0",
+      "checksum": "sha256:abc123...",
+      "user": "researcher01"
+    }
+  ],
+  "verification": {
+    "hash_chain_valid": true,
+    "events_verified": 47
+  }
+}
+```
+
+### NIH Data Management
+
+Markdown-Bericht für NIH DMS-Compliance:
+
+```markdown
+# Datenverfügbarkeitserklärung
+
+## Datenquellen
+
+- **UniProt** (P01308-fasta@1.1.0)
+  - Heruntergeladen: 2024-01-15
+  - Prüfsumme: sha256:abc123...
+  - URL: https://bdp.dev/sources/uniprot/P01308
+
+## Reproduzierbarkeit
+
+Alle Datenquellen werden über BDP-Lockfile (bdl.lock)
+verwaltet, committed im Repository bei Commit abc123.
+```
+
+### EMA ALCOA++
+
+YAML-Bericht zur Demonstration der ALCOA++-Prinzipien (Attributable, Legible, Contemporaneous, Original, Accurate, Complete, Consistent, Enduring, Available):
+
+```yaml
+alcoa_compliance:
+  attributable: true  # Alle Ereignisse enthalten Benutzer und Maschinen-ID
+  legible: true  # Menschenlesbarer Audit-Trail
+  contemporaneous: true  # Ereignisse in Echtzeit protokolliert
+  original: true  # Primärquellen-Tracking
+  accurate: true  # Prüfsummenverifizierung
+  complete: true  # Alle Operationen protokolliert
+  consistent: true  # Hash-Ketten-Verifizierung
+  enduring: true  # Permanenter Audit-Trail
+  available: true  # Einfach exportierbar
+```
+
+### Datenverfügbarkeitserklärung
+
+Publikationsfertiger Text für wissenschaftliche Arbeiten:
+
+```markdown
+## Datenverfügbarkeit
+
+Alle Proteinsequenzen wurden von UniProt (Release 2024_01,
+Version 1.1.0, Accession P01308) am 2024-01-15 bezogen. Daten-Prüfsummen
+und exakte Versionen sind im BDP-Lockfile (bdl.lock) aufgezeichnet,
+verfügbar im Projekt-Repository unter https://github.com/lab/project/tree/v1.0.
+
+Der vollständige Audit-Trail mit Daten-Provenienz und Integritätsverifizierung
+ist in den Zusatzmaterialien verfügbar.
+```
+
+## Wichtige Hinweise
+
+### Editierbarer Audit-Trail
+
+**Der Audit-Trail ist editierbar und für Forschungsdokumentation gedacht, nicht für rechtliche Beweise.**
+
+- Audit-Ereignisse können zur Klarheit in Berichten modifiziert werden
+- Hauptzweck: Berichte für Publikationen und Compliance generieren
+- Verwenden Sie `bdp audit verify` zur Erkennung von Modifikationen
+- Nicht geeignet für Gerichtsverfahren
+
+### Lokale Speicherung
+
+Audit-Daten werden lokal in `.bdp/audit.db` (SQLite) gespeichert:
+
+```bash
+~/.bdp/audit.db  # Benutzerspezifischer Audit-Trail
+```
+
+Diese Datenbank bewegt sich mit Ihrem lokalen Cache und kann:
+- In verschiedene Formate exportiert werden
+- Zur Archivierung gesichert werden
+- Mit Kollegen geteilt werden (optional)
+
+### Post-MVP: Backend-Integration
+
+Zukünftige Versionen werden das Synchronisieren von Audit-Trails zum BDP-Backend unterstützen für:
+- Zentralisierte Team-Audit-Logs
+- Unveränderliche serverseitige Aufzeichnungen
+- Bessere Compliance für regulierte Umgebungen
+
+## Best Practices
+
+1. **Regelmäßig exportieren** - Compliance-Berichte bei Projekt-Meilensteinen generieren
+2. **In Publikationen einbeziehen** - Datenverfügbarkeitserklärungen für Paper exportieren
+3. **Vor Export verifizieren** - Immer `bdp audit verify` vor Berichtsgenerierung ausführen
+4. **Lockfiles committen** - `bdl.lock` zusammen mit Audit-Exporten in Versionskontrolle speichern
+5. **Post-Pull-Hooks dokumentieren** - Alle Datenverarbeitungsschritte im Audit-Trail aufzeichnen
+
+## Beispiel-Workflow
+
+```bash
+# 1. Daten herunterladen und verarbeiten
+bdp pull
+# ✓ uniprot:P01308-fasta@1.1.0 heruntergeladen
+# ✓ Prüfsummen verifiziert
+# ✓ Post-Pull-Hooks ausgeführt
+
+# 2. Audit-Integrität verifizieren
+bdp audit verify
+# ✓ Audit-Trail verifiziert: Keine Manipulation erkannt
+
+# 3. Compliance-Bericht für Publikation generieren
+bdp audit export --format das > datenverfuegbarkeit.md
+bdp audit export --format fda > zusatzmaterial-audit.json
+
+# 4. In Paper-Einreichung einbeziehen
+# - datenverfuegbarkeit.md zum Manuskript hinzufügen
+# - zusatzmaterial-audit.json als Zusatzmaterial einreichen
+```
+
+## Technische Details
+
+### Datenbankschema
+
+```sql
+-- Audit-Ereignisse (editierbar, für Berichte)
+CREATE TABLE audit_events (
+    id INTEGER PRIMARY KEY,
+    timestamp TEXT NOT NULL,
+    event_type TEXT NOT NULL,
+    machine_id TEXT NOT NULL,
+    user TEXT NOT NULL,
+    command TEXT,
+    metadata TEXT,  -- JSON
+    hash_prev TEXT,
+    hash_current TEXT
+);
+
+-- Cache-Dateien-Tracking
+CREATE TABLE files (
+    id INTEGER PRIMARY KEY,
+    source_spec TEXT NOT NULL,
+    file_path TEXT NOT NULL,
+    checksum TEXT NOT NULL,
+    size_bytes INTEGER,
+    downloaded_at TEXT
+);
+
+-- Post-Pull generierte Dateien
+CREATE TABLE generated_files (
+    id INTEGER PRIMARY KEY,
+    source_spec TEXT NOT NULL,
+    tool_name TEXT NOT NULL,
+    file_path TEXT NOT NULL,
+    checksum TEXT,
+    generated_at TEXT
+);
+```
+
+### Hash-Kette
+
+Der Hash jedes Ereignisses wird berechnet aus:
+- Hash des vorherigen Ereignisses
+- Daten des aktuellen Ereignisses (Zeitstempel, Typ, Benutzer, Befehl, Metadaten)
+
+Dies erzeugt eine manipulationssichere Kette:
+```
+Ereignis 1: hash(daten1) = H1
+Ereignis 2: hash(H1 + daten2) = H2
+Ereignis 3: hash(H2 + daten3) = H3
+```
+
+Das Modifizieren eines Ereignisses bricht die Kette, erkannt durch `bdp audit verify`.
+
+## Verwandte Dokumentation
+
+- [Post-Pull-Hooks](/docs/features/hooks) - Automatische Datenverarbeitung
+- [Lockfiles](/docs/features/lockfiles) - Versions-Pinning für Reproduzierbarkeit
+- [CLI-Befehle](/docs/cli/commands) - Vollständige Befehlsreferenz

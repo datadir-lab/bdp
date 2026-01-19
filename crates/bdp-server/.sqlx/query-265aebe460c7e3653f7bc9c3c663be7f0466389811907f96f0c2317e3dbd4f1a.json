@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE ingestion_work_units\n            SET heartbeat_at = NOW()\n            WHERE id = $1\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "265aebe460c7e3653f7bc9c3c663be7f0466389811907f96f0c2317e3dbd4f1a"
+}

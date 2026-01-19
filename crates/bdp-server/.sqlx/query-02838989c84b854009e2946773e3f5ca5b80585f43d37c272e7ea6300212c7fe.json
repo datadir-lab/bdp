@@ -1,0 +1,60 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            d.id,\n            d.depends_on_version as required_version,\n            COALESCE(d.dependency_type, 'required') as \"dependency_type!\",\n            re.slug as entry_slug,\n            re.name as entry_name,\n            re.entry_type,\n            o.slug as organization_slug\n        FROM dependencies d\n        JOIN registry_entries re ON d.depends_on_entry_id = re.id\n        JOIN organizations o ON re.organization_id = o.id\n        WHERE d.version_id = $1\n        ORDER BY re.slug\n        LIMIT $2\n        OFFSET $3\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "required_version",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "dependency_type!",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "entry_slug",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "entry_name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 5,
+        "name": "entry_type",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 6,
+        "name": "organization_slug",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      null,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "02838989c84b854009e2946773e3f5ca5b80585f43d37c272e7ea6300212c7fe"
+}

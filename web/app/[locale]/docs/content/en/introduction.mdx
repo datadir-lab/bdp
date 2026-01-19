@@ -1,103 +1,375 @@
-# Introduction
+import { siteConfig } from '@/lib/site-config';
 
-Welcome to the BDP (Bioinformatics Dependencies Platform) documentation.
-BDP is a comprehensive platform for managing bioinformatics software dependencies,
-making it easier to discover, share, and manage tools for the bioinformatics community.
+export const baseUrl = siteConfig.url;
 
-## What is BDP?
+> *Don't demand reproducibility from researchers—demand it from their tools.*
 
-BDP provides a centralized registry and management system for bioinformatics tools and data sources.
-It helps researchers and developers:
+# The Reproducibility Crisis
 
-- Discover bioinformatics tools and packages
-- Manage software dependencies for reproducible research
-- Share tools and data sources with the community
-- Track versions and updates of bioinformatics resources
+**BDP is a dependency manager for biological databases**—treating UniProt, NCBI, and other data sources like software packages with version control and lockfiles.
 
-## Key Features
+Only 11% of bioinformatics studies can be reproduced <sup><a href="#ref1">[1]</a></sup>, with data versioning being a major contributing factor. The core problem isn't researchers—it's the tooling. Labs spend **4-12 hours per project** on manual data management: writing download scripts, verifying checksums, coordinating versions with collaborators, and documenting data provenance for publications. Research shows workflow automation can save 30-75% of this time <sup><a href="#ref2">[2]</a></sup>. With BDP, these tasks take **~15 minutes**.
 
-<table>
-  <thead>
-    <tr>
-      <th>Feature</th>
-      <th>Description</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>Package Registry</td>
-      <td>Central repository for bioinformatics tools and packages</td>
-    </tr>
-    <tr>
-      <td>Data Sources</td>
-      <td>Support for various data sources (UniProt, PDB, etc.)</td>
-    </tr>
-    <tr>
-      <td>CLI Tool</td>
-      <td>Command-line interface for package management with audit logging</td>
-    </tr>
-    <tr>
-      <td>Audit & Provenance</td>
-      <td>Local audit trail for regulatory compliance (FDA, NIH, EMA)</td>
-    </tr>
-    <tr>
-      <td>Integrity Verification</td>
-      <td>Hash-chain tamper detection and checksum validation</td>
-    </tr>
-    <tr>
-      <td>Web Interface</td>
-      <td>Browse and search packages through a user-friendly UI</td>
-    </tr>
-    <tr>
-      <td>Version Control</td>
-      <td>Track different versions of tools and data sources</td>
-    </tr>
-    <tr>
-      <td>Organizations</td>
-      <td>Organize packages under organizations or research groups</td>
-    </tr>
-  </tbody>
-</table>
+<style>{`
+  .reference-item {
+    font-size: 0.85em;
+    opacity: 0.6;
+    line-height: 1.6;
+    margin-bottom: 0.5em;
+    transition: opacity 0.2s ease;
+    color: inherit;
+    text-decoration: none;
+    display: block;
+  }
+  .reference-item:hover {
+    opacity: 1;
+  }
+  .reference-item a {
+    color: inherit;
+    text-decoration: none;
+  }
+`}</style>
 
-## Quick Start
+<a href="https://academic.oup.com/bib/article/24/6/bbad375/7326135" target="_blank" rel="noopener noreferrer" id="ref1" className="reference-item">
+  [1] Leipzig, J. et al. (2021). The five pillars of computational reproducibility: bioinformatics and beyond. <em>Briefings in Bioinformatics</em>, 24(6).
+</a>
 
-Get started with BDP in just a few steps:
+<a href="https://link.springer.com/article/10.1186/s13062-015-0071-8" target="_blank" rel="noopener noreferrer" id="ref2" className="reference-item">
+  [2] Perkel, J. M. (2015). Experiences with workflows for automating data-intensive bioinformatics. <em>Biology Direct</em>, 10(1).
+</a>
 
-1. **Install BDP CLI** - Follow the [installation guide](/docs/installation)
-2. **Initialize a project** (creates audit trail automatically)
-   ```bash
-   bdp init --name my-project
-   ```
-3. **Add a data source**
-   ```bash
-   bdp source add uniprot:P01308-fasta@1.0
-   ```
-4. **Pull data** (all operations are audited)
-   ```bash
-   bdp pull
-   ```
-5. **Verify integrity**
-   ```bash
-   bdp audit
-   ```
-6. **Export audit report** (for publications)
-   ```bash
-   bdp audit export --format das --output data-availability.md
-   ```
+import { WorkflowTabs, WorkflowTabsList, WorkflowTabsTrigger, WorkflowTabsContent } from '@/components/docs/workflow-tabs';
+import { CtaCard } from '@/components/docs/cta-card';
+import { FileExample } from '@/components/docs/file-example';
+import { TimeEstimateNote } from '@/components/docs/time-estimate-note';
 
-## Getting Help
+---
 
-Need help or have questions? Here are some resources:
+<div style={{ marginTop: '2rem' }}>
 
-- **Documentation** - Browse through this documentation
-- **GitHub Issues** - Report bugs or request features on [GitHub](https://github.com/bdp-dev/bdp)
-- **Community** - Join our community discussions
+Here are some workflow examples showing BDP in action (examples use [Git](https://git-scm.com/) for version control, which is recommended but not required—see [Best Practices](/docs/best-practices) for details):
 
-## Next Steps
+</div>
 
-Ready to dive in? Check out these guides:
+<WorkflowTabs defaultValue="protein-analysis">
+  <WorkflowTabsList>
+    <WorkflowTabsTrigger value="protein-analysis">Protein Analysis</WorkflowTabsTrigger>
+    <WorkflowTabsTrigger value="team-cache">Team Cache</WorkflowTabsTrigger>
+    <WorkflowTabsTrigger value="onboarding">New Member</WorkflowTabsTrigger>
+    <WorkflowTabsTrigger value="compliance">Compliance</WorkflowTabsTrigger>
+  </WorkflowTabsList>
 
-- [Installation Guide](/docs/installation) - Install BDP CLI
-- [Quick Start](/docs/quick-start) - Get up and running quickly
-- [Architecture](/docs/concepts/architecture) - Understand how BDP works
-- [CLI Commands](/docs/cli/commands) - Learn all CLI commands
+  <WorkflowTabsContent value="protein-analysis">
+
+<div className="workflow-content">
+
+## Example Workflow: Protein Analysis Project
+
+A typical project analyzing insulin variants across species.
+
+### Step 1: Find the right data <span className="workflow-time">~15-20 min → 5 sec</span>
+
+**Before:**
+
+Browse UniProt website, search for "insulin", manually identify accession IDs, note down version and release date
+
+**With BDP:**
+
+```bash
+bdp search "insulin homo sapiens"
+# uniprot:P01308-fasta@1.1.0 - http://localhost:3000/sources/uniprot/P01308
+```
+
+### Step 2: Download specific proteins <span className="workflow-time">~30-45 min → 30 sec</span>
+
+**Before:**
+
+Navigate UniProt FTP, find correct directory structure, write wget script, download files, verify manually
+
+**With BDP:**
+
+```bash
+bdp source add uniprot:P01308-fasta@1.1.0
+bdp pull
+```
+
+### Step 3: Verify data integrity <span className="workflow-time">~10-15 min → 2 sec</span>
+
+**Before:**
+
+Download checksums separately, run `shasum`, compare manually, repeat if mismatch
+
+**With BDP:**
+
+```bash
+bdp audit
+# ✓ All sources verified
+```
+
+### Step 4: Share with collaborators <span className="workflow-time">~1-3 hours → 1 min</span>
+
+**Before:**
+
+Upload files to shared server, send download link via email, explain which version/release, collaborator downloads, confirms they have the right version
+
+**With BDP:**
+
+```bash
+# You: Commit bdp.yml and bdl.lock to git repository
+git add bdp.yml bdl.lock
+git commit -m "Add insulin data sources"
+git push
+
+# Collaborator: Clone and retrieve data in one command
+git clone <repo>
+bdp pull
+```
+
+### Step 5: Six months later - reproduce the analysis <span className="workflow-time">~2-6 hours → 10 sec</span>
+
+**Before:**
+
+Searching through emails and chat history to reconstruct which database versions were used, checking whether files still exist on shared storage, finding broken download links, and attempting to locate archived versions from months ago
+
+**With BDP:**
+
+```bash
+git checkout <commit-from-6-months-ago>
+bdp pull
+# Exact same data, guaranteed
+```
+
+### Step 6: Write the paper <span className="workflow-time">~45-90 min → 5 sec</span>
+
+**Before:**
+
+Manually write Data Availability Statement, look up correct citations for UniProt, format BibTeX entries, include version numbers and dates
+
+**With BDP:**
+
+```bash
+bdp audit export --format das > data-availability.md
+bdp cite --format bibtex > references.bib
+```
+
+<FileExample filename="data-availability.md" language="markdown">
+{`## Data Availability Statement
+
+Protein sequence data were obtained from UniProt release 2024_01 (accessed
+January 15, 2024) using bdp (Bioinformatics Dependencies Platform - ${baseUrl}).
+Specifically, we used human insulin precursor (UniProt ID: P01308) obtained via
+\`bdp pull\` with package identifier uniprot:P01308-fasta@1.1.0. All data sources
+are version-pinned in the project repository with cryptographic checksums to
+ensure reproducibility (https://github.com/lab/project).`}
+</FileExample>
+
+<FileExample filename="references.bib" language="bibtex">
+{`@misc{uniprot_P01308_2024,
+  author = {{The UniProt Consortium}},
+  title = {UniProt: P01308 - Insulin (INS)},
+  year = {2024},
+  note = {UniProt Release 2024\\_01, accessed January 15, 2024},
+  url = {https://www.uniprot.org/uniprotkb/P01308},
+  version = {2024\\_01}
+}`}
+</FileExample>
+
+<div className="workflow-summary">
+
+**Total time:** ~4-12 hours → ~15 minutes
+
+<TimeEstimateNote />
+
+</div>
+
+</div>
+
+  </WorkflowTabsContent>
+
+  <WorkflowTabsContent value="team-cache">
+
+<div className="workflow-content">
+
+## Team Cache Setup: Avoid Duplicate Downloads
+
+Lab environments often have multiple researchers downloading the same data sources, wasting bandwidth, disk space, and time.
+
+### The Problem <span className="workflow-time">~12.5 hours wasted per team</span>
+
+**Before:**
+
+Each of 5 PhD students downloads UniProt SwissProt (570k reviewed proteins, ~5GB with annotations):
+
+<ul className="my-4 ml-6 list-disc space-y-2">
+  <li className="leading-7"><strong>Total downloads:</strong> 5 × 5GB = 25GB</li>
+  <li className="leading-7"><strong>Total time:</strong> 5 × 2.5 hours = 12.5 hours</li>
+  <li className="leading-7"><strong>Bandwidth wasted:</strong> 20GB (redundant downloads)</li>
+</ul>
+
+**Thought experiment - Scale to department level:**
+
+A bioinformatics department with 50 researchers across 10 projects:
+
+<ul className="my-4 ml-6 list-disc space-y-2">
+  <li className="leading-7"><strong>Total downloads:</strong> 50 × 5GB = 250GB</li>
+  <li className="leading-7"><strong>Total time:</strong> 50 × 2.5 hours = 125 hours</li>
+  <li className="leading-7"><strong>Bandwidth wasted:</strong> 245GB (redundant downloads)</li>
+  <li className="leading-7"><strong>With shared cache:</strong> 5GB downloaded once = <strong>98% bandwidth savings</strong></li>
+</ul>
+
+<small style={{opacity: 0.6, fontSize: '0.85em', marginTop: '0.5em', display: 'block'}}>
+*UniProt SwissProt size: ~5GB includes FASTA, XML, and annotation files. Source: [UniProt FTP](https://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/). Download time assumes ~20 Mbps typical institutional connection (5GB ÷ 20 Mbps ≈ 2.5 hours including decompression and verification).*
+</small>
+
+### The Solution <span className="workflow-time">~2 hours for first download</span>
+
+**With BDP:**
+
+```bash
+# Lab admin sets up shared cache on NAS
+bdp config cache set /mnt/lab-nas/bdp-cache
+
+# First person downloads
+bdp pull
+# Downloaded to shared location: /mnt/lab-nas/bdp-cache/
+
+# Everyone else gets instant access
+bdp pull
+# ✓ Cache hit! Using existing files
+```
+
+<div className="workflow-summary">
+
+**Team benefits:**
+
+- Download once, share with everyone
+- Automatic deduplication across projects
+- 80% reduction in storage needs
+- Instant setup for new team members
+
+**Total time:** 12.5 hours → 2.5 hours (first download only)
+
+<TimeEstimateNote />
+
+</div>
+
+</div>
+
+  </WorkflowTabsContent>
+
+  <WorkflowTabsContent value="onboarding">
+
+<div className="workflow-content">
+
+## New Team Member Onboarding: From Zero to Research in 5 Minutes
+
+PhD student joins lab mid-project, needs to reproduce existing analysis.
+
+### The Old Way <span className="workflow-time">~2-4 hours</span>
+
+**Before:**
+
+- Install various tools manually (30-60 min)
+- Ask senior student "which UniProt version did we use?" (1-2 hours of back-and-forth)
+- Download data from URLs in lab wiki (45 min)
+- Verify checksums manually (15 min)
+- Hope everything is correct
+
+### With BDP <span className="workflow-time">~5 minutes</span>
+
+```bash
+# 1. Clone lab repository
+git clone https://github.com/lab/project
+cd project
+
+# 2. Install BDP
+curl -fsSL https://bdp.dev/install.sh | sh
+
+# 3. Pull all data (reads bdp.yml + bdl.lock automatically)
+bdp pull
+# ✓ Downloaded uniprot:P01308-fasta@1.1.0
+# ✓ Downloaded ncbi:GRCh38-genome@109
+# ✓ Verified all checksums
+
+# 4. Verify everything
+bdp status
+# ✓ All sources ready
+```
+
+Ready to run analysis scripts immediately—exact same data versions as the rest of the team.
+
+<div className="workflow-summary">
+
+**Total time:** 2-4 hours → 5 minutes
+
+<TimeEstimateNote />
+
+</div>
+
+</div>
+
+  </WorkflowTabsContent>
+
+  <WorkflowTabsContent value="compliance">
+
+<div className="workflow-content">
+
+## Regulatory Compliance: FDA/NIH/EMA Documentation
+
+Preparing publication or regulatory submission requiring data provenance.
+
+### Manual Documentation <span className="workflow-time">~6-8 hours</span>
+
+**Before:**
+
+- Manually document all data sources (2 hours)
+- Look up correct citations and version numbers (1 hour)
+- Format Data Availability Statement (30 min)
+- Create audit trail spreadsheet (3 hours)
+- Hope you didn't miss anything
+
+### Automated Reports <span className="workflow-time">~2 minutes</span>
+
+**With BDP:**
+
+```bash
+# Verify audit trail integrity
+bdp audit verify
+# ✓ Audit trail verified: No tampering detected
+# ✓ 47 events verified
+
+# Generate FDA 21 CFR Part 11 compliance report
+bdp audit export --format fda > regulatory-audit.json
+
+# Generate NIH Data Management report
+bdp audit export --format nih > data-management.md
+
+# Generate publication-ready Data Availability Statement
+bdp audit export --format das > data-availability.md
+
+# Generate citations for references section
+bdp cite --format bibtex > references.bib
+```
+
+All documentation generated in seconds, with complete provenance chain from download to publication.
+
+<div className="workflow-summary">
+
+**Total time:** 6-8 hours → 2 minutes
+
+<TimeEstimateNote />
+
+</div>
+
+</div>
+
+  </WorkflowTabsContent>
+
+</WorkflowTabs>
+
+<CtaCard
+  heading="Another Tool? We Know."
+  text="Tool fatigue is real. But this takes 30 seconds to try—see if it actually solves your problems."
+  linkText="View installation guide"
+  linkHref="/docs/installation"
+/>

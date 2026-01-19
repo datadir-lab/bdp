@@ -81,7 +81,7 @@ async fn execute_command(cli: &Cli) -> bdp_cli::Result<()> {
 
         Commands::Status => bdp_cli::commands::status::run().await,
 
-        Commands::Audit => bdp_cli::commands::audit::run().await,
+        Commands::Audit { command } => bdp_cli::commands::audit::run(command).await,
 
         Commands::Clean { all } => bdp_cli::commands::clean::run(*all).await,
 

@@ -5,7 +5,7 @@ use crate::audit::logger::AuditLogger;
 use crate::audit::types::AuditEvent;
 use crate::error::{CliError, Result};
 use chrono::Utc;
-use rusqlite::{Connection, OptionalExtension};
+use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;

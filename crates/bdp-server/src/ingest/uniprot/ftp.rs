@@ -191,6 +191,11 @@ impl UniProtFtp {
         let mut ftp_stream = FtpStream::connect(format!("{}:{}", config.ftp_host, config.ftp_port))
             .context("Failed to connect to FTP server")?;
 
+        // Use Extended Passive Mode (EPSV) - better for NAT/Docker environments
+        // EPSV is defined in RFC 2428 and works better through firewalls/NAT than standard PASV
+        ftp_stream.set_mode(suppaftp::Mode::ExtendedPassive);
+
+        debug!("FTP connection established with Extended Passive Mode (EPSV)");
         debug!("Logging in as: {}", config.ftp_username);
 
         // Login
@@ -284,6 +289,10 @@ impl UniProtFtp {
         let mut ftp_stream = FtpStream::connect(format!("{}:{}", config.ftp_host, config.ftp_port))
             .context("Failed to connect to FTP server")?;
 
+        // Use Extended Passive Mode (EPSV) - better for NAT/Docker environments
+        ftp_stream.set_mode(suppaftp::Mode::ExtendedPassive);
+
+        debug!("FTP connection established with Extended Passive Mode (EPSV)");
         debug!("Logging in as: {}", config.ftp_username);
 
         // Login

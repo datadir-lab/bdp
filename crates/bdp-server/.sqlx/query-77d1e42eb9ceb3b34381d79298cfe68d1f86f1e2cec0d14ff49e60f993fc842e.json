@@ -1,0 +1,47 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            id,\n            slug,\n            name,\n            description,\n            ts_rank(\n                to_tsvector('english', name || ' ' || COALESCE(description, '')),\n                plainto_tsquery('english', $1)\n            ) as \"rank!\"\n        FROM organizations\n        WHERE to_tsvector('english', name || ' ' || COALESCE(description, ''))\n            @@ plainto_tsquery('english', $1)\n        ORDER BY 5 DESC, created_at DESC\n        LIMIT $2\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "slug",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "description",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "rank!",
+        "type_info": "Float4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      null
+    ]
+  },
+  "hash": "77d1e42eb9ceb3b34381d79298cfe68d1f86f1e2cec0d14ff49e60f993fc842e"
+}

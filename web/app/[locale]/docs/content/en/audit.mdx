@@ -1,0 +1,291 @@
+# Audit & Compliance
+
+BDP provides a comprehensive audit trail system for regulatory compliance and research documentation. Track every operation on your data with automatic logging.
+
+## Why Audit Trails Matter
+
+Regulatory bodies like FDA, NIH, and EMA require detailed data provenance records. BDP automates this documentation, saving hours of manual work when preparing publications or responding to reviewer requests.
+
+## Core Features
+
+### Automatic Event Logging
+
+Every BDP command automatically logs events to a local SQLite database:
+
+```bash
+bdp pull
+# Automatically logs: download, verification, cache operations
+```
+
+Events captured include:
+- **Downloads** - Which sources, versions, checksums
+- **Verifications** - Integrity checks, validation results
+- **Cache operations** - File additions, removals, updates
+- **Post-pull processing** - Hook executions, generated files
+- **Configuration changes** - Settings modifications
+
+### Tamper Detection
+
+BDP uses hash chains to detect any modifications to the audit trail:
+
+```bash
+bdp audit verify
+# ✓ Audit trail verified: No tampering detected
+# ✓ Hash chain intact: 47 events verified
+```
+
+### Machine Identification
+
+Each audit event includes:
+- **Machine ID** - Stable hostname-based identifier
+- **User** - System username
+- **Timestamp** - UTC time with microsecond precision
+- **Command** - Full command executed
+- **Result** - Success/failure status
+
+## Audit Commands
+
+### View Audit Log
+
+```bash
+# View recent events
+bdp audit list
+
+# View last 50 events
+bdp audit list --limit 50
+
+# Filter by event type
+bdp audit list --type download
+
+# Export as JSON
+bdp audit list --format json > audit.json
+```
+
+### Verify Integrity
+
+```bash
+# Verify audit trail integrity
+bdp audit verify
+
+# Verify specific time range
+bdp audit verify --from 2024-01-01 --to 2024-12-31
+```
+
+### Export Reports
+
+Generate compliance reports in various formats:
+
+```bash
+# FDA 21 CFR Part 11 report
+bdp audit export --format fda > fda-report.json
+
+# NIH Data Management and Sharing (DMS) report
+bdp audit export --format nih > nih-report.md
+
+# EMA ALCOA++ compliance report
+bdp audit export --format ema > ema-report.yaml
+
+# Data Availability Statement for publications
+bdp audit export --format das > data-availability.md
+```
+
+## Export Formats
+
+### FDA 21 CFR Part 11
+
+JSON report demonstrating compliance with electronic records regulations:
+
+```json
+{
+  "report_type": "FDA_21_CFR_Part_11",
+  "generated_at": "2024-01-18T10:30:00Z",
+  "machine_id": "lab-workstation-01",
+  "events": [
+    {
+      "timestamp": "2024-01-15T09:20:15Z",
+      "event_type": "download",
+      "source": "uniprot:P01308-fasta@1.1.0",
+      "checksum": "sha256:abc123...",
+      "user": "researcher01"
+    }
+  ],
+  "verification": {
+    "hash_chain_valid": true,
+    "events_verified": 47
+  }
+}
+```
+
+### NIH Data Management
+
+Markdown report for NIH DMS compliance:
+
+```markdown
+# Data Availability Statement
+
+## Data Sources
+
+- **UniProt** (P01308-fasta@1.1.0)
+  - Downloaded: 2024-01-15
+  - Checksum: sha256:abc123...
+  - URL: https://bdp.dev/sources/uniprot/P01308
+
+## Reproducibility
+
+All data sources are managed via BDP lockfile (bdl.lock)
+committed to repository at commit abc123.
+```
+
+### EMA ALCOA++
+
+YAML report demonstrating ALCOA++ principles (Attributable, Legible, Contemporaneous, Original, Accurate, Complete, Consistent, Enduring, Available):
+
+```yaml
+alcoa_compliance:
+  attributable: true  # All events include user and machine ID
+  legible: true  # Human-readable audit trail
+  contemporaneous: true  # Events logged in real-time
+  original: true  # Primary source tracking
+  accurate: true  # Checksum verification
+  complete: true  # All operations logged
+  consistent: true  # Hash chain verification
+  enduring: true  # Permanent audit trail
+  available: true  # Easily exportable
+```
+
+### Data Availability Statement
+
+Publication-ready text for scientific papers:
+
+```markdown
+## Data Availability
+
+All protein sequences were obtained from UniProt (release 2024_01,
+version 1.1.0, accession P01308) on 2024-01-15. Data checksums and
+exact versions are recorded in the BDP lockfile (bdl.lock) available
+in the project repository at https://github.com/lab/project/tree/v1.0.
+
+The complete audit trail showing data provenance and integrity
+verification is available in supplementary materials.
+```
+
+## Important Notes
+
+### Editable Audit Trail
+
+**The audit trail is editable and intended for research documentation, not legal evidence.**
+
+- Audit events can be modified for clarity in reports
+- Primary purpose: Generate reports for publications and compliance
+- Use `bdp audit verify` to detect modifications
+- Not suitable for legal proceedings
+
+### Local Storage
+
+Audit data is stored locally in `.bdp/audit.db` (SQLite):
+
+```bash
+~/.bdp/audit.db  # User-specific audit trail
+```
+
+This database travels with your local cache and can be:
+- Exported to various formats
+- Backed up for archival
+- Shared with collaborators (optional)
+
+### Post-MVP: Backend Integration
+
+Future versions will support syncing audit trails to the BDP backend for:
+- Centralized team audit logs
+- Immutable server-side records
+- Better compliance for regulated environments
+
+## Best Practices
+
+1. **Export Regularly** - Generate compliance reports at project milestones
+2. **Include in Publications** - Export Data Availability Statements for papers
+3. **Verify Before Export** - Always run `bdp audit verify` before generating reports
+4. **Commit Lockfiles** - Store `bdl.lock` in version control alongside audit exports
+5. **Document Post-Pull Hooks** - Record any data processing steps in audit trail
+
+## Example Workflow
+
+```bash
+# 1. Download and process data
+bdp pull
+# ✓ Downloaded uniprot:P01308-fasta@1.1.0
+# ✓ Verified checksums
+# ✓ Executed post-pull hooks
+
+# 2. Verify audit integrity
+bdp audit verify
+# ✓ Audit trail verified: No tampering detected
+
+# 3. Generate compliance report for publication
+bdp audit export --format das > data-availability.md
+bdp audit export --format fda > supplementary-audit.json
+
+# 4. Include in paper submission
+# - Add data-availability.md to manuscript
+# - Include supplementary-audit.json as supplementary material
+```
+
+## Technical Details
+
+### Database Schema
+
+```sql
+-- Audit events (editable, for reports)
+CREATE TABLE audit_events (
+    id INTEGER PRIMARY KEY,
+    timestamp TEXT NOT NULL,
+    event_type TEXT NOT NULL,
+    machine_id TEXT NOT NULL,
+    user TEXT NOT NULL,
+    command TEXT,
+    metadata TEXT,  -- JSON
+    hash_prev TEXT,
+    hash_current TEXT
+);
+
+-- Cache files tracking
+CREATE TABLE files (
+    id INTEGER PRIMARY KEY,
+    source_spec TEXT NOT NULL,
+    file_path TEXT NOT NULL,
+    checksum TEXT NOT NULL,
+    size_bytes INTEGER,
+    downloaded_at TEXT
+);
+
+-- Post-pull generated files
+CREATE TABLE generated_files (
+    id INTEGER PRIMARY KEY,
+    source_spec TEXT NOT NULL,
+    tool_name TEXT NOT NULL,
+    file_path TEXT NOT NULL,
+    checksum TEXT,
+    generated_at TEXT
+);
+```
+
+### Hash Chain
+
+Each event's hash is computed from:
+- Previous event hash
+- Current event data (timestamp, type, user, command, metadata)
+
+This creates a tamper-evident chain:
+```
+Event 1: hash(data1) = H1
+Event 2: hash(H1 + data2) = H2
+Event 3: hash(H2 + data3) = H3
+```
+
+Modifying any event breaks the chain, detected by `bdp audit verify`.
+
+## Related Documentation
+
+- [Post-Pull Hooks](/docs/features/hooks) - Automatic data processing
+- [Lockfiles](/docs/features/lockfiles) - Version pinning for reproducibility
+- [CLI Commands](/docs/cli/commands) - Complete command reference

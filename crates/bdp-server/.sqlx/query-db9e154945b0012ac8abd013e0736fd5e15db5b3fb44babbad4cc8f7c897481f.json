@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE ingestion_jobs\n            SET records_processed = $1,\n                records_stored = $2,\n                records_failed = $3\n            WHERE id = $4\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Int8",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "db9e154945b0012ac8abd013e0736fd5e15db5b3fb44babbad4cc8f7c897481f"
+}

@@ -1,41 +1,39 @@
-/**
- * Site configuration that reads from environment variables
- */
-
 export const siteConfig = {
   name: process.env.NEXT_PUBLIC_APP_NAME || 'BDP',
-  description: 'Blockchain Data Platform - Index, query, and analyze blockchain data',
   url: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
-
-  // GitHub configuration
+  apiUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
+  contactEmail: process.env.NEXT_PUBLIC_CONTACT_EMAIL || 'sebastian.stupak@pm.me',
   github: {
     url: process.env.NEXT_PUBLIC_GITHUB_URL || 'https://github.com/datadir-lab/bdp',
     org: process.env.NEXT_PUBLIC_GITHUB_ORG || 'datadir-lab',
     repo: process.env.NEXT_PUBLIC_GITHUB_REPO || 'bdp',
   },
-
-  // Social links
   social: {
-    twitter: process.env.NEXT_PUBLIC_TWITTER_URL || 'https://twitter.com/bdp',
-    discord: process.env.NEXT_PUBLIC_DISCORD_URL || 'https://discord.gg/bdp',
+    twitter: process.env.NEXT_PUBLIC_TWITTER_URL,
+    discord: process.env.NEXT_PUBLIC_DISCORD_URL,
   },
-
-  // API configuration
-  api: {
-    url: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
+  install: {
+    unix: "curl --proto '=https' --tlsv1.2 -LsSf https://github.com/datadir-lab/bdp/releases/latest/download/bdp-installer.sh | sh",
+    windows: 'irm https://github.com/datadir-lab/bdp/releases/latest/download/bdp-installer.ps1 | iex',
   },
+};
 
-  // Feature flags
-  features: {
-    analytics: process.env.NEXT_PUBLIC_ENABLE_ANALYTICS === 'true',
-    docs: process.env.NEXT_PUBLIC_ENABLE_DOCS !== 'false',
-  },
-} as const;
+export function getGithubIssuesUrl(): string {
+  return `${siteConfig.github.url}/issues`;
+}
 
-// Helper functions
-export const getGithubUrl = () => siteConfig.github.url;
-export const getGithubIssuesUrl = () => `${siteConfig.github.url}/issues`;
-export const getGithubDiscussionsUrl = () => `${siteConfig.github.url}/discussions`;
-export const getGithubTreeUrl = (path: string = '') => `${siteConfig.github.url}/tree/main/${path}`;
-export const getGithubContributingUrl = () => `${siteConfig.github.url}/blob/main/CONTRIBUTING.md`;
-export const getGithubLicenseUrl = () => `${siteConfig.github.url}/blob/main/LICENSE`;
+export function getGithubDiscussionsUrl(): string {
+  return `${siteConfig.github.url}/discussions`;
+}
+
+export function getGithubContributingUrl(): string {
+  return `${siteConfig.github.url}/blob/main/CONTRIBUTING.md`;
+}
+
+export function getGithubLicenseUrl(): string {
+  return `${siteConfig.github.url}/blob/main/LICENSE`;
+}
+
+export function getGithubTranslationUrl(): string {
+  return `${siteConfig.github.url}/tree/main/web/app/[locale]/docs/content`;
+}

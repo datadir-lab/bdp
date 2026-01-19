@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Copy, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { siteConfig } from '@/lib/site-config';
 
 interface TerminalLineProps {
   command: string;
@@ -122,7 +123,7 @@ export function GettingStarted() {
         {activeTab === 'unix' ? (
           <>
             <TerminalLine
-              command="curl --proto '=https' --tlsv1.2 -LsSf https://github.com/datadir-lab/bdp/releases/latest/download/bdp-installer.sh | sh"
+              command={siteConfig.install.unix}
               comment="# Install BDP"
             />
             <TerminalLine command="bdp init" comment="# Initialize project" />
@@ -132,7 +133,7 @@ export function GettingStarted() {
         ) : (
           <>
             <TerminalLine
-              command="irm https://github.com/datadir-lab/bdp/releases/latest/download/bdp-installer.ps1 | iex"
+              command={siteConfig.install.windows}
               prompt="PS>"
               comment="# Install BDP"
             />

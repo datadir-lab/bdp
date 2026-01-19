@@ -42,22 +42,25 @@ impl IngestionWorker {
 
     /// Claim a pending work unit atomically
     pub async fn claim_work_unit(&self, job_id: Uuid) -> Result<Option<ClaimedWorkUnit>> {
-        let result: Option<(Option<Uuid>, Option<i32>, Option<i64>, Option<i64>, Option<i32>)> = sqlx::query_as(
-            "SELECT * FROM claim_work_unit($1, $2, $3)"
+        let row = sqlx::query!(
+            r#"
+            SELECT id as "id!", batch_number as "batch_number!", start_offset as "start_offset!", end_offset as "end_offset!", record_count
+            FROM claim_work_unit($1, $2, $3)
+            "#,
+            job_id,
+            self.worker_id,
+            &self.hostname
         )
-        .bind(job_id)
-        .bind(self.worker_id)
-        .bind(&self.hostname)
         .fetch_optional(&*self.pool)
         .await
         .context("Failed to claim work unit")?;
 
-        Ok(result.map(|(id, batch_number, start_offset, end_offset, record_count)| ClaimedWorkUnit {
-            id: id.unwrap(),
-            batch_number: batch_number.unwrap(),
-            start_offset: start_offset.unwrap(),
-            end_offset: end_offset.unwrap(),
-            record_count,
+        Ok(row.map(|r| ClaimedWorkUnit {
+            id: r.id,
+            batch_number: r.batch_number,
+            start_offset: r.start_offset,
+            end_offset: r.end_offset,
+            record_count: r.record_count,
         }))
     }
 
@@ -278,8 +281,7 @@ impl IngestionWorker {
             r#"
             UPDATE ingestion_work_units
             SET status = $1,
-                completed_at = NOW(),
-                processing_duration_ms = EXTRACT(EPOCH FROM (NOW() - started_processing_at)) * 1000
+                completed_at = NOW()
             WHERE id = $2
             "#,
             WorkUnitStatus::Completed.as_str(),
@@ -304,7 +306,6 @@ impl IngestionWorker {
                 retry_count = retry_count + 1,
                 last_error = $1,
                 worker_id = NULL,
-                worker_hostname = NULL,
                 claimed_at = NULL,
                 heartbeat_at = NULL
             WHERE id = $2

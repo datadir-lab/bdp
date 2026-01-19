@@ -1,0 +1,84 @@
+import { siteConfig } from '@/lib/site-config';
+
+# Schnellstart
+
+Starten Sie mit BDP in wenigen Minuten.
+
+## Voraussetzungen
+
+- BDP CLI installiert (siehe [Installation](/docs/installation))
+- Grundlegende Vertrautheit mit Kommandozeilen-Tools
+
+## Schritt 1: Projekt initialisieren
+
+Erstellen Sie ein neues BDP-Projekt:
+
+```bash
+bdp init --name mein-projekt
+```
+
+Dies erstellt:
+- `bdp.yml` - Projektkonfiguration
+- `bdl.lock` - Lockfile für Reproduzierbarkeit
+- `.bdp/` - Lokales Datenverzeichnis
+
+## Schritt 2: Datenquelle hinzufügen
+
+Fügen Sie eine UniProt-Proteinsequenz hinzu:
+
+```bash
+bdp source add uniprot:P01308-fasta@1.1.0
+```
+
+Dies fügt humanes Insulin (P01308) im FASTA-Format in Version 1.1.0 hinzu.
+
+## Schritt 3: Daten pullen
+
+Laden Sie die Daten herunter:
+
+```bash
+bdp pull
+```
+
+BDP lädt die Daten herunter und verifiziert sie, speichert sie im `.bdp/` Verzeichnis.
+
+## Schritt 4: Verifizieren
+
+Überprüfen Sie Ihren Projektstatus:
+
+```bash
+bdp status
+```
+
+## Häufige Befehle
+
+**Quellen auflisten**
+
+```bash
+bdp source list
+```
+
+**Quelle entfernen**
+
+```bash
+bdp source remove uniprot:P01308-fasta@1.1.0
+```
+
+**Audit-Trail anzeigen**
+
+```bash
+bdp audit
+```
+
+**Hilfe erhalten**
+
+```bash
+bdp --help
+bdp source --help
+```
+
+## Nächste Schritte
+
+- [Best Practices](/docs/best-practices) - Erfahren Sie mehr über Git-Integration und Workflows
+- [Einführung](/docs) - Verstehen Sie die Reproduzierbarkeitsvorzüge
+- Besuchen Sie <a href={siteConfig.github.url + '/discussions'} target="_blank" rel="noopener noreferrer">GitHub Discussions</a> für Community-Support

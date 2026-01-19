@@ -18,8 +18,7 @@ use tower_http::compression::CompressionLayer;
 use tracing::info;
 
 use bdp_server::{
-    audit, config::Config, features, ingest,
-    middleware,
+    audit, config::Config, features, ingest, middleware,
     storage::{config::StorageConfig, Storage},
 };
 
