@@ -4,6 +4,52 @@ This directory contains scripts for running and managing BDP tests.
 
 ## Scripts
 
+### test_ncbi_taxonomy.sh / test_ncbi_taxonomy.ps1
+
+Test runner specifically for NCBI Taxonomy ingestion module.
+
+**Usage:**
+```bash
+# Linux/macOS
+./scripts/test/test_ncbi_taxonomy.sh [OPTIONS]
+
+# Windows PowerShell
+.\scripts\test\test_ncbi_taxonomy.ps1 [OPTIONS]
+```
+
+**Options:**
+- `--unit-only`: Run only unit tests (parser, pipeline, version discovery)
+- `--integration`: Run integration tests (requires database)
+- `--all`: Run all tests (default)
+- `--nocapture`: Show test output (useful for debugging)
+
+**Examples:**
+```bash
+# Run only unit tests (no database required)
+./scripts/test/test_ncbi_taxonomy.sh --unit-only
+
+# Run integration tests (requires database)
+export DATABASE_URL=postgresql://localhost/bdp_test
+./scripts/test/test_ncbi_taxonomy.sh --integration
+
+# Run all tests with output
+./scripts/test/test_ncbi_taxonomy.sh --all --nocapture
+```
+
+**Test Coverage:**
+- **Unit Tests (14 tests)**:
+  - Parser tests (12 tests) - rankedlineage, merged, delnodes parsing
+  - Pipeline tests (2 tests) - PipelineResult functionality
+  - Version discovery tests - Smart version bumping logic
+
+- **Integration Tests (8 tests)**:
+  - Storage basic functionality
+  - Idempotency verification
+  - Multiple versions handling
+  - Merged taxa deprecation
+  - Deleted taxa deprecation
+  - Version files creation
+
 ### run-integration-tests.sh
 
 Automated test runner that handles database setup, test execution, and cleanup.

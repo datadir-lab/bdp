@@ -24,7 +24,9 @@
 pub mod config;
 pub mod jobs;
 pub mod models;
+pub mod ncbi_taxonomy;
 pub mod scheduler;
+pub mod orchestrator;
 pub mod uniprot;
 pub mod version_mapping;
 pub mod framework;
@@ -32,6 +34,8 @@ pub mod framework;
 pub use config::{IngestConfig, UniProtConfig};
 pub use jobs::{IngestStats, UniProtIngestJob};
 pub use models::{OrganizationSyncStatus, SyncStatus};
+pub use ncbi_taxonomy::NcbiTaxonomyPipeline;
 pub use scheduler::JobScheduler;
+pub use orchestrator::IngestOrchestrator;
 pub use uniprot::UniProtPipeline;
 pub use version_mapping::VersionMapper;

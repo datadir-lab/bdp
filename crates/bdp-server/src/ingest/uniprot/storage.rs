@@ -5,7 +5,7 @@
 use anyhow::{Context, Result};
 use sha2::{Digest, Sha256};
 use sqlx::PgPool;
-use tracing::{debug, info};
+use tracing::{debug, error, info};
 use uuid::Uuid;
 
 use super::models::UniProtEntry;
@@ -58,53 +58,97 @@ impl UniProtStorage {
     pub async fn store_entries(&self, entries: &[UniProtEntry]) -> Result<usize> {
         info!("Storing {} UniProt entries", entries.len());
 
+        // Begin transaction for atomicity
+        let mut tx = self.db.begin().await.context("Failed to begin transaction")?;
+
         let mut stored_count = 0;
+        let mut error_count = 0;
+        let mut errors = Vec::new();
 
         for entry in entries {
-            if let Err(e) = self.store_entry(entry).await {
-                debug!("Failed to store entry {}: {}", entry.accession, e);
+            if let Err(e) = self.store_entry_tx(&mut tx, entry).await {
+                error_count += 1;
+                error!(
+                    accession = %entry.accession,
+                    error = %e,
+                    "Failed to store entry"
+                );
+
+                // Collect first 5 errors for debugging
+                if errors.len() < 5 {
+                    errors.push((entry.accession.clone(), e.to_string()));
+                }
+
                 // Continue with other entries
                 continue;
             }
             stored_count += 1;
         }
 
+        // Commit transaction
+        tx.commit().await.context("Failed to commit transaction")?;
+
+        // Log error summary
+        if error_count > 0 {
+            error!(
+                stored = stored_count,
+                failed = error_count,
+                total = entries.len(),
+                "Storage completed with errors"
+            );
+
+            for (accession, err) in &errors {
+                error!(
+                    accession = %accession,
+                    error = %err,
+                    "Sample error"
+                );
+            }
+
+            if error_count > 5 {
+                error!(
+                    additional_errors = error_count - 5,
+                    "Additional errors not shown"
+                );
+            }
+        }
+
         info!("Successfully stored {}/{} entries", stored_count, entries.len());
         Ok(stored_count)
     }
 
-    /// Store a single entry
+    /// Store a single entry within a transaction
     ///
     /// Creates: registry_entry -> data_source -> protein_metadata -> version -> version_file
-    async fn store_entry(&self, entry: &UniProtEntry) -> Result<()> {
+    async fn store_entry_tx(&self, tx: &mut sqlx::Transaction<'_, sqlx::Postgres>, entry: &UniProtEntry) -> Result<()> {
         debug!("Storing protein: {}", entry.accession);
 
         // 1. Get or create organism
-        let organism_id = self.get_or_create_organism(entry).await?;
+        let organism_id = self.get_or_create_organism_tx(tx, entry).await?;
 
         // 2. Create registry entry (each protein is its own entry)
-        let entry_id = self.create_registry_entry(entry).await?;
+        let entry_id = self.create_registry_entry_tx(tx, entry).await?;
 
-        // 3. Create data source
-        self.create_data_source(entry_id, entry, organism_id).await?;
+        // 3. Create data source with validation
+        self.create_data_source_tx(tx, entry_id, entry, organism_id).await?;
 
         // 4. Create protein metadata (with sequence deduplication and organism reference)
-        self.create_protein_metadata(entry_id, entry, organism_id).await?;
+        self.create_protein_metadata_tx(tx, entry_id, entry, organism_id).await?;
 
         // 5. Create version with semantic versioning
-        let version_id = self.create_version(entry_id).await?;
+        let version_id = self.create_version_tx(tx, entry_id).await?;
 
         // 6. Create version files for multiple formats (DAT, FASTA, JSON)
-        self.create_version_files(entry, version_id).await?;
+        self.create_version_files_tx(tx, entry, version_id).await?;
 
         debug!("Successfully stored protein: {}", entry.accession);
         Ok(())
     }
 
-    /// Get or create organism as a data source
+    /// Get or create organism as a data source (within transaction)
     ///
     /// Organisms are now data sources with organism_metadata, not a separate organisms table
-    async fn get_or_create_organism(&self, entry: &UniProtEntry) -> Result<Uuid> {
+    async fn get_or_create_organism_tx(&self, tx: &mut sqlx::Transaction<'_, sqlx::Postgres>, entry: &UniProtEntry) -> Result<Uuid> {
         let ncbi_taxonomy_id = entry.taxonomy_id;
 
         // Check if organism exists
@@ -112,7 +156,7 @@ impl UniProtStorage {
             "SELECT data_source_id FROM organism_metadata WHERE taxonomy_id = $1"
         )
         .bind(ncbi_taxonomy_id)
-        .fetch_optional(&self.db)
+        .fetch_optional(&mut **tx)
         .await?;
 
         if let Some(id) = existing {
@@ -136,7 +180,7 @@ impl UniProtStorage {
         .bind(&slug)
         .bind(scientific_name)
         .bind(format!("Organism: {}", scientific_name))
-        .fetch_one(&self.db)
+        .fetch_one(&mut **tx)
         .await?;
 
         // 2. Create data source
@@ -148,7 +192,7 @@ impl UniProtStorage {
             "#
         )
         .bind(entry_id)
-        .execute(&self.db)
+        .execute(&mut **tx)
         .await?;
 
         // 3. Create organism metadata
@@ -162,14 +206,14 @@ impl UniProtStorage {
         .bind(entry_id)
         .bind(ncbi_taxonomy_id)
         .bind(scientific_name)
-        .execute(&self.db)
+        .execute(&mut **tx)
         .await?;
 
         Ok(entry_id)
     }
 
-    /// Create registry entry for the protein
-    async fn create_registry_entry(&self, entry: &UniProtEntry) -> Result<Uuid> {
+    /// Create registry entry for the protein (within transaction)
+    async fn create_registry_entry_tx(&self, tx: &mut sqlx::Transaction<'_, sqlx::Postgres>, entry: &UniProtEntry) -> Result<Uuid> {
         let slug = &entry.accession;
         let name = format!("{} [{}]", entry.protein_name, entry.organism_name);
         let description = format!("UniProt protein: {}", entry.protein_name);
@@ -186,41 +230,49 @@ impl UniProtStorage {
         .bind(slug)
         .bind(&name)
         .bind(&description)
-        .fetch_one(&self.db)
+        .fetch_one(&mut **tx)
         .await
         .context("Failed to create registry_entry")?;
 
         Ok(entry_id)
     }
 
-    /// Create data source record
-    async fn create_data_source(
+    /// Create data source record (within transaction)
+    async fn create_data_source_tx(
         &self,
+        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
         entry_id: Uuid,
         entry: &UniProtEntry,
         organism_id: Uuid,
     ) -> Result<()> {
+        // Validate source_type is not empty
+        let source_type = "protein";
+        if source_type.is_empty() {
+            anyhow::bail!("source_type cannot be empty");
+        }
+
         sqlx::query(
             r#"
             INSERT INTO data_sources (id, source_type, external_id, organism_id)
-            VALUES ($1, 'protein', $2, $3)
+            VALUES ($1, $2, $3, $4)
             ON CONFLICT (id) DO NOTHING
             "#
         )
         .bind(entry_id)
+        .bind(source_type)
         .bind(&entry.accession)
         .bind(organism_id)
-        .execute(&self.db)
+        .execute(&mut **tx)
         .await
         .context("Failed to create data_source")?;
 
         Ok(())
     }
 
-    /// Create protein_metadata record with deduplicated sequence
-    async fn create_protein_metadata(&self, data_source_id: Uuid, entry: &UniProtEntry, organism_id: Uuid) -> Result<()> {
+    /// Create protein_metadata record with deduplicated sequence (within transaction)
+    async fn create_protein_metadata_tx(&self, tx: &mut sqlx::Transaction<'_, sqlx::Postgres>, data_source_id: Uuid, entry: &UniProtEntry, organism_id: Uuid) -> Result<()> {
         // 1. Get or create deduplicated sequence
-        let sequence_id = self.get_or_create_sequence(entry).await?;
+        let sequence_id = self.get_or_create_sequence_tx(tx, entry).await?;
 
         // 2. Compute sequence checksum for metadata
         let mut hasher = Sha256::new();
@@ -256,15 +308,15 @@ impl UniProtStorage {
         .bind(sequence_id)
         .bind(organism_id)
         .bind(&self.external_version)
-        .execute(&self.db)
+        .execute(&mut **tx)
         .await
         .context("Failed to create protein_metadata")?;
 
         Ok(())
     }
 
-    /// Get or create deduplicated protein sequence
-    async fn get_or_create_sequence(&self, entry: &UniProtEntry) -> Result<Uuid> {
+    /// Get or create deduplicated protein sequence (within transaction)
+    async fn get_or_create_sequence_tx(&self, tx: &mut sqlx::Transaction<'_, sqlx::Postgres>, entry: &UniProtEntry) -> Result<Uuid> {
         // Compute sequence hash (SHA256)
         let mut hasher = Sha256::new();
         hasher.update(entry.sequence.as_bytes());
@@ -275,7 +327,7 @@ impl UniProtStorage {
             "SELECT id FROM protein_sequences WHERE sequence_hash = $1"
         )
         .bind(&sequence_hash)
-        .fetch_optional(&self.db)
+        .fetch_optional(&mut **tx)
         .await?;
 
         if let Some(id) = existing {
@@ -299,7 +351,7 @@ impl UniProtStorage {
         .bind(&sequence_hash)
         .bind(entry.sequence_length)
         .bind(&sequence_md5)
-        .fetch_one(&self.db)
+        .fetch_one(&mut **tx)
         .await
         .context("Failed to create protein_sequence")?;
 
@@ -307,8 +359,8 @@ impl UniProtStorage {
         Ok(sequence_id)
     }
 
-    /// Create version record with semantic versioning
-    async fn create_version(&self, entry_id: Uuid) -> Result<Uuid> {
+    /// Create version record with semantic versioning (within transaction)
+    async fn create_version_tx(&self, tx: &mut sqlx::Transaction<'_, sqlx::Postgres>, entry_id: Uuid) -> Result<Uuid> {
         // Parse internal version (e.g., "1.0" → major=1, minor=0, patch=0)
         let version_parts: Vec<&str> = self.internal_version.split('.').collect();
         let version_major = version_parts.first().and_then(|v| v.parse::<i32>().ok()).unwrap_or(1);
@@ -337,17 +389,17 @@ impl UniProtStorage {
         .bind(version_major)
         .bind(version_minor)
         .bind(version_patch)
-        .fetch_one(&self.db)
+        .fetch_one(&mut **tx)
         .await
         .context("Failed to create version")?;
 
         Ok(version_id)
     }
 
-    /// Create version_file records for multiple formats (DAT, FASTA, JSON)
+    /// Create version_file records for multiple formats (DAT, FASTA, JSON) (within transaction)
     ///
     /// If S3 is configured, uploads files to S3 before creating database records.
-    async fn create_version_files(&self, entry: &UniProtEntry, version_id: Uuid) -> Result<()> {
+    async fn create_version_files_tx(&self, tx: &mut sqlx::Transaction<'_, sqlx::Postgres>, entry: &UniProtEntry, version_id: Uuid) -> Result<()> {
         // Base S3 path for this protein version
         let base_path = format!(
             "proteins/uniprot/{}/{}",
@@ -366,7 +418,8 @@ impl UniProtStorage {
                 .context("Failed to upload DAT file to S3")?;
         }
 
-        self.insert_version_file(
+        self.insert_version_file_tx(
+            tx,
             version_id,
             "dat",
             &dat_key,
@@ -386,7 +439,8 @@ impl UniProtStorage {
                 .context("Failed to upload FASTA file to S3")?;
         }
 
-        self.insert_version_file(
+        self.insert_version_file_tx(
+            tx,
             version_id,
             "fasta",
             &fasta_key,
@@ -406,7 +460,8 @@ impl UniProtStorage {
                 .context("Failed to upload JSON file to S3")?;
         }
 
-        self.insert_version_file(
+        self.insert_version_file_tx(
+            tx,
             version_id,
             "json",
             &json_key,
@@ -418,9 +473,10 @@ impl UniProtStorage {
         Ok(())
     }
 
-    /// Insert a single version_file record
-    async fn insert_version_file(
+    /// Insert a single version_file record (within transaction)
+    async fn insert_version_file_tx(
         &self,
+        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
         version_id: Uuid,
         format: &str,
         s3_key: &str,
@@ -439,7 +495,7 @@ impl UniProtStorage {
         .bind(s3_key)
         .bind(checksum)
         .bind(size_bytes)
-        .execute(&self.db)
+        .execute(&mut **tx)
         .await
         .with_context(|| format!("Failed to create version_file for format: {}", format))?;
 
