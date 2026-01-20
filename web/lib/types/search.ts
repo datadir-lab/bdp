@@ -1,5 +1,6 @@
 export interface SearchFilters {
   types?: string[]; // 'datasource' | 'tool'
+  source_types?: string[]; // 'protein', 'genome', 'organism', etc.
   organizations?: string[]; // Organization slugs
   dateRange?: {
     from?: Date;

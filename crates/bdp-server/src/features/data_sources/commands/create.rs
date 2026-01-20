@@ -14,10 +14,8 @@ pub struct CreateDataSourceCommand {
     pub source_type: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub external_id: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub organism_id: Option<Uuid>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub additional_metadata: Option<serde_json::Value>,
+    // NOTE: organism_id and additional_metadata have been removed
+    // Type-specific metadata should go in *_metadata tables
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -31,8 +29,7 @@ pub struct CreateDataSourceResponse {
     pub source_type: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub external_id: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub organism_id: Option<Uuid>,
+    // NOTE: organism_id removed - use *_metadata tables for type-specific fields
     pub created_at: DateTime<Utc>,
 }
 
@@ -114,19 +111,7 @@ pub async fn handle(
         ));
     }
 
-    if let Some(organism_id) = command.organism_id {
-        let organism_exists = sqlx::query_scalar!(
-            "SELECT EXISTS(SELECT 1 FROM organisms WHERE id = $1)",
-            organism_id
-        )
-        .fetch_one(&pool)
-        .await?
-        .unwrap_or(false);
-
-        if !organism_exists {
-            return Err(CreateDataSourceError::OrganismNotFound(organism_id));
-        }
-    }
+    // NOTE: organism_id validation removed - organisms are now referenced in *_metadata tables
 
     let mut tx = pool.begin().await?;
 
@@ -154,14 +139,12 @@ pub async fn handle(
 
     sqlx::query!(
         r#"
-        INSERT INTO data_sources (id, source_type, external_id, organism_id, additional_metadata)
-        VALUES ($1, $2, $3, $4, $5)
+        INSERT INTO data_sources (id, source_type, external_id)
+        VALUES ($1, $2, $3)
         "#,
         entry_id,
         command.source_type,
-        command.external_id,
-        command.organism_id,
-        command.additional_metadata
+        command.external_id
     )
     .execute(&mut *tx)
     .await?;
@@ -171,7 +154,7 @@ pub async fn handle(
         r#"
         SELECT
             re.id, re.organization_id, re.slug, re.name, re.description,
-            ds.source_type, ds.external_id, ds.organism_id,
+            ds.source_type, ds.external_id,
             re.created_at as "created_at!", re.updated_at as "updated_at!"
         FROM registry_entries re
         JOIN data_sources ds ON re.id = ds.id
@@ -192,7 +175,6 @@ pub async fn handle(
         description: result.description,
         source_type: result.source_type,
         external_id: result.external_id,
-        organism_id: result.organism_id,
         created_at: result.created_at,
     })
 }
@@ -206,7 +188,6 @@ struct DataSourceRecord {
     description: Option<String>,
     source_type: String,
     external_id: Option<String>,
-    organism_id: Option<Uuid>,
     created_at: DateTime<Utc>,
     updated_at: DateTime<Utc>,
 }
@@ -224,8 +205,8 @@ mod tests {
             description: Some("Human insulin".to_string()),
             source_type: "protein".to_string(),
             external_id: Some("P01308".to_string()),
-            organism_id: None,
-            additional_metadata: None,
+            // organism_id: None,
+            // additional_metadata: None,
         };
         assert!(cmd.validate().is_ok());
     }
@@ -239,8 +220,8 @@ mod tests {
             description: None,
             source_type: "protein".to_string(),
             external_id: None,
-            organism_id: None,
-            additional_metadata: None,
+            // organism_id: None,
+            // additional_metadata: None,
         };
         assert!(matches!(
             cmd.validate(),
@@ -257,8 +238,8 @@ mod tests {
             description: None,
             source_type: "invalid".to_string(),
             external_id: None,
-            organism_id: None,
-            additional_metadata: None,
+            // organism_id: None,
+            // additional_metadata: None,
         };
         assert!(matches!(
             cmd.validate(),
@@ -286,8 +267,8 @@ mod tests {
             description: Some("Test description".to_string()),
             source_type: "protein".to_string(),
             external_id: Some("P12345".to_string()),
-            organism_id: None,
-            additional_metadata: None,
+            // organism_id: None,
+            // additional_metadata: None,
         };
 
         let result = handle(pool.clone(), cmd).await;
@@ -318,8 +299,8 @@ mod tests {
             description: None,
             source_type: "protein".to_string(),
             external_id: None,
-            organism_id: None,
-            additional_metadata: None,
+            // organism_id: None,
+            // additional_metadata: None,
         };
         let _ = handle(pool.clone(), cmd1).await.unwrap();
 
@@ -330,8 +311,8 @@ mod tests {
             description: None,
             source_type: "genome".to_string(),
             external_id: None,
-            organism_id: None,
-            additional_metadata: None,
+            // organism_id: None,
+            // additional_metadata: None,
         };
         let result = handle(pool.clone(), cmd2).await;
         assert!(matches!(
@@ -350,8 +331,8 @@ mod tests {
             description: None,
             source_type: "protein".to_string(),
             external_id: None,
-            organism_id: None,
-            additional_metadata: None,
+            // organism_id: None,
+            // additional_metadata: None,
         };
 
         let result = handle(pool.clone(), cmd).await;

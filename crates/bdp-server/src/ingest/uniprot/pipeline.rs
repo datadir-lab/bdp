@@ -37,6 +37,7 @@ pub struct UniProtPipeline {
     config: UniProtFtpConfig,
     batch_config: BatchConfig,
     storage: Storage,
+    cache_dir: std::path::PathBuf,
 }
 
 impl UniProtPipeline {
@@ -46,6 +47,7 @@ impl UniProtPipeline {
         config: UniProtFtpConfig,
         batch_config: BatchConfig,
         storage: Storage,
+        cache_dir: std::path::PathBuf,
     ) -> Self {
         Self {
             pool,
@@ -53,7 +55,151 @@ impl UniProtPipeline {
             config,
             batch_config,
             storage,
+            cache_dir,
         }
+    }
+
+    // ========================================================================
+    // Cache Management Methods
+    // ========================================================================
+
+    /// Get the cache file path for a specific version
+    fn get_cache_path(&self, version: &str) -> std::path::PathBuf {
+        self.cache_dir.join("uniprot").join(format!("{}.dat", version))
+    }
+
+    /// Get the lock file path for a specific version
+    fn get_lock_path(&self, version: &str) -> std::path::PathBuf {
+        self.cache_dir.join("uniprot").join(format!("{}.dat.lock", version))
+    }
+
+    /// Check if cached DAT file exists for a version
+    fn is_cached(&self, version: &str) -> bool {
+        let cache_path = self.get_cache_path(version);
+        cache_path.exists() && cache_path.is_file()
+    }
+
+    /// Write decompressed DAT data to cache atomically
+    async fn write_to_cache(&self, version: &str, dat_data: &[u8]) -> Result<()> {
+        use tokio::io::AsyncWriteExt;
+
+        let cache_path = self.get_cache_path(version);
+        let lock_path = self.get_lock_path(version);
+
+        // Create cache directory
+        if let Some(parent) = cache_path.parent() {
+            tokio::fs::create_dir_all(parent).await
+                .context("Failed to create cache directory")?;
+        }
+
+        // Create lock file to prevent race conditions
+        let _lock = tokio::fs::File::create(&lock_path).await
+            .context("Failed to create lock file")?;
+
+        // Write to temporary file
+        let temp_path = cache_path.with_extension("tmp");
+        let mut file = tokio::fs::File::create(&temp_path).await
+            .context("Failed to create temp cache file")?;
+
+        file.write_all(dat_data).await
+            .context("Failed to write to temp cache file")?;
+
+        file.flush().await
+            .context("Failed to flush temp cache file")?;
+
+        // Atomic rename
+        tokio::fs::rename(&temp_path, &cache_path).await
+            .context("Failed to rename temp cache file to final cache file")?;
+
+        // Remove lock file
+        let _ = tokio::fs::remove_file(&lock_path).await;
+
+        tracing::info!(
+            version = version,
+            cache_path = ?cache_path,
+            size_bytes = dat_data.len(),
+            "Successfully wrote decompressed DAT to cache"
+        );
+
+        Ok(())
+    }
+
+    /// Read decompressed DAT data from cache
+    async fn read_from_cache(&self, version: &str) -> Result<Vec<u8>> {
+        let cache_path = self.get_cache_path(version);
+
+        let data = tokio::fs::read(&cache_path).await
+            .with_context(|| format!("Failed to read cache file: {:?}", cache_path))?;
+
+        tracing::info!(
+            version = version,
+            cache_path = ?cache_path,
+            size_bytes = data.len(),
+            "Successfully read decompressed DAT from cache (CACHE HIT)"
+        );
+
+        Ok(data)
+    }
+
+    /// Clean up cache files older than the specified number of days
+    pub async fn cleanup_cache(&self, max_age_days: u64) -> Result<usize> {
+        use std::time::SystemTime;
+
+        let cache_dir = self.cache_dir.join("uniprot");
+        if !cache_dir.exists() {
+            return Ok(0);
+        }
+
+        let mut removed_count = 0;
+        let max_age = std::time::Duration::from_secs(max_age_days * 24 * 60 * 60);
+        let now = SystemTime::now();
+
+        let mut entries = tokio::fs::read_dir(&cache_dir).await
+            .context("Failed to read cache directory")?;
+
+        while let Some(entry) = entries.next_entry().await? {
+            let path = entry.path();
+
+            // Skip lock files and non-DAT files
+            if !path.extension().map_or(false, |ext| ext == "dat") {
+                continue;
+            }
+
+            // Check file age
+            if let Ok(metadata) = tokio::fs::metadata(&path).await {
+                if let Ok(modified) = metadata.modified() {
+                    if let Ok(age) = now.duration_since(modified) {
+                        if age > max_age {
+                            match tokio::fs::remove_file(&path).await {
+                                Ok(_) => {
+                                    tracing::info!(
+                                        path = ?path,
+                                        age_days = age.as_secs() / (24 * 60 * 60),
+                                        "Removed old cache file"
+                                    );
+                                    removed_count += 1;
+                                }
+                                Err(e) => {
+                                    tracing::warn!(
+                                        path = ?path,
+                                        error = %e,
+                                        "Failed to remove old cache file"
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        tracing::info!(
+            removed_count = removed_count,
+            max_age_days = max_age_days,
+            "Cache cleanup completed"
+        );
+
+        Ok(removed_count)
     }
 
     // ========================================================================
@@ -604,7 +750,10 @@ impl UniProtPipeline {
         let total_records = self.parse_phase(coordinator, job_id, &s3_key, &dat_data).await?;
 
         // Phase 3: Process work units in parallel (spawn multiple workers, streaming parse+store)
-        self.storage_phase(coordinator, job_id, &s3_key, total_records, dat_data).await?;
+        self.storage_phase(coordinator, job_id, &s3_key, total_records, dat_data, version).await?;
+
+        // Phase 4: Create bundles after all proteins stored
+        self.bundle_phase(coordinator, job_id, version).await?;
 
         // Complete the job
         coordinator.complete_job(job_id).await?;
@@ -623,55 +772,84 @@ impl UniProtPipeline {
         tracing::info!(job_id = %job_id, "Starting download phase");
         coordinator.start_download(job_id).await?;
 
-        // Download DAT file from UniProt FTP
-        let ftp = UniProtFtp::new(self.config.clone());
-        let dat_data = ftp
-            .download_dat_file(
-                if version.is_current {
-                    None
-                } else {
-                    Some(&version.external_version)
-                },
-                Some("sprot"), // Swiss-Prot filename is "sprot" not "swissprot"
-            )
-            .await
-            .context("Failed to download DAT file from FTP")?;
+        // Run cache cleanup (delete files older than 7 days)
+        if let Err(e) = self.cleanup_cache(7).await {
+            tracing::warn!(error = %e, "Cache cleanup failed, continuing");
+        }
+
+        // Check if we have a cached decompressed DAT file
+        let dat_data = if self.is_cached(&version.external_version) {
+            // CACHE HIT - Read from disk cache
+            tracing::info!(
+                job_id = %job_id,
+                version = %version.external_version,
+                "Cache hit - reading decompressed DAT from cache"
+            );
+            self.read_from_cache(&version.external_version).await?
+        } else {
+            // CACHE MISS - Download from FTP and decompress
+            tracing::info!(
+                job_id = %job_id,
+                version = %version.external_version,
+                "Cache miss - downloading from FTP"
+            );
+
+            let ftp = UniProtFtp::new(self.config.clone());
+            let compressed_data = ftp
+                .download_dat_file(
+                    if version.is_current {
+                        None
+                    } else {
+                        Some(&version.external_version)
+                    },
+                    Some("sprot"), // Swiss-Prot filename is "sprot" not "swissprot"
+                )
+                .await
+                .context("Failed to download DAT file from FTP")?;
+
+            tracing::info!(
+                job_id = %job_id,
+                compressed_size = compressed_data.len(),
+                "Downloaded compressed DAT file from FTP"
+            );
+
+            // Decompress the data
+            let parser = DatParser::new();
+            let decompressed_data = parser.extract_dat_data(&compressed_data)
+                .context("Failed to decompress DAT file")?;
+
+            tracing::info!(
+                job_id = %job_id,
+                decompressed_size = decompressed_data.len(),
+                "Decompressed DAT file"
+            );
+
+            // Write to cache for future use
+            if let Err(e) = self.write_to_cache(&version.external_version, &decompressed_data).await {
+                tracing::warn!(
+                    job_id = %job_id,
+                    error = %e,
+                    "Failed to write to cache, continuing"
+                );
+            }
+
+            decompressed_data
+        };
 
         tracing::info!(
             job_id = %job_id,
             size_bytes = dat_data.len(),
-            "Downloaded DAT file from FTP"
+            "DAT data ready (decompressed)"
         );
 
-        // Upload to S3 ingest bucket (optional - skip if S3 unavailable)
+        // Note: We no longer upload the compressed file to S3 since we're caching the decompressed version
+        // S3 upload is skipped to avoid storing duplicate data
         let s3_key = format!(
             "ingest/uniprot/{}/{}_swissprot.dat.gz",
             job_id, version.external_version
         );
 
-        let (s3_uploaded, file_size, checksum) = match self
-            .storage
-            .upload(&s3_key, dat_data.clone(), Some("application/x-gzip".to_string()))
-            .await
-        {
-            Ok(upload_result) => {
-                tracing::info!(
-                    job_id = %job_id,
-                    s3_key = %s3_key,
-                    checksum = %upload_result.checksum,
-                    "Uploaded DAT file to S3"
-                );
-                (true, upload_result.size, Some(upload_result.checksum))
-            }
-            Err(e) => {
-                tracing::warn!(
-                    job_id = %job_id,
-                    error = %e,
-                    "S3 upload failed, continuing without S3 storage"
-                );
-                (false, dat_data.len() as i64, None)
-            }
-        };
+        let (s3_uploaded, file_size, checksum): (bool, i64, Option<String>) = (false, dat_data.len() as i64, None);
 
         // Register the raw file in database (only if S3 upload succeeded)
         if s3_uploaded {
@@ -711,8 +889,9 @@ impl UniProtPipeline {
         );
 
         // Count total records efficiently (just count "//" markers)
+        // Use count_entries_predecompressed since dat_data is already decompressed from cache
         let parser = DatParser::new();
-        let total_records = parser.count_entries(dat_data)?;
+        let total_records = parser.count_entries_predecompressed(dat_data)?;
 
         tracing::info!(
             job_id = %job_id,
@@ -747,6 +926,7 @@ impl UniProtPipeline {
         s3_key: &str,
         total_records: usize,
         dat_data: Vec<u8>,
+        version: &DiscoveredVersion,
     ) -> Result<()> {
         tracing::info!(
             job_id = %job_id,
@@ -776,8 +956,8 @@ impl UniProtPipeline {
             "Prepared data for streaming parallel parse+store"
         );
 
-        // Determine number of parallel workers (max 4 for now)
-        let num_workers = std::cmp::min(4, total_records / self.batch_config.parse_batch_size + 1);
+        // Determine number of parallel workers (max 16 for improved throughput)
+        let num_workers = std::cmp::min(16, total_records / self.batch_config.parse_batch_size + 1);
 
         tracing::info!(
             job_id = %job_id,
@@ -793,8 +973,7 @@ impl UniProtPipeline {
             let dat_data_clone = dat_data.clone();
             let org_id = self.organization_id;
             let storage = self.storage.clone();
-            // TODO: Get actual external version from job metadata
-            let external_version = "unknown".to_string();
+            let external_version = version.external_version.clone();
 
             let handle = tokio::spawn(async move {
                 Self::worker_task(
@@ -867,6 +1046,92 @@ impl UniProtPipeline {
         .context("Failed to update job record counts")?;
 
         tracing::info!(job_id = %job_id, "Storage phase completed");
+        Ok(())
+    }
+
+    /// Phase 4: Create bundles from stored proteins
+    ///
+    /// Queries database for all proteins in this version and creates:
+    /// - Organism-specific bundles (one per unique organism)
+    /// - Swissprot bundle (all reviewed proteins)
+    async fn bundle_phase(
+        &self,
+        coordinator: &IngestionCoordinator,
+        job_id: Uuid,
+        version: &DiscoveredVersion,
+    ) -> Result<()> {
+        tracing::info!(
+            job_id = %job_id,
+            version = %version.external_version,
+            "Starting bundle creation phase"
+        );
+
+        // Query all protein metadata for this version to get organism groupings
+        let proteins = sqlx::query!(
+            r#"
+            SELECT
+                pm.accession,
+                pm.protein_name,
+                om.taxonomy_id,
+                om.scientific_name as organism_name
+            FROM protein_metadata pm
+            JOIN taxonomy_metadata om ON om.data_source_id = pm.taxonomy_id
+            WHERE pm.uniprot_version = $1
+            "#,
+            version.external_version
+        )
+        .fetch_all(&*self.pool)
+        .await
+        .context("Failed to fetch protein metadata for bundle creation")?;
+
+        tracing::info!(
+            job_id = %job_id,
+            protein_count = proteins.len(),
+            "Fetched protein metadata for bundle creation"
+        );
+
+        // Convert to UniProtEntry-like structure (minimal fields needed for bundling)
+        let entries: Vec<UniProtEntry> = proteins
+            .into_iter()
+            .map(|p| UniProtEntry {
+                accession: p.accession,
+                entry_name: String::new(), // Not needed for bundling
+                protein_name: p.protein_name.unwrap_or_default(),
+                gene_name: None,
+                organism_name: p.organism_name,
+                taxonomy_id: p.taxonomy_id,
+                taxonomy_lineage: Vec::new(), // Not needed for bundling
+                sequence: String::new(), // Not needed for bundling
+                sequence_length: 0,
+                mass_da: 0,
+                release_date: chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                alternative_names: Vec::new(),
+                ec_numbers: Vec::new(),
+                features: Vec::new(),
+                cross_references: Vec::new(),
+                comments: Vec::new(),
+                protein_existence: None,
+                keywords: Vec::new(),
+                organelle: None,
+                organism_hosts: Vec::new(),
+            })
+            .collect();
+
+        // Create storage handler for bundle creation
+        let storage = UniProtStorage::new(
+            (*self.pool).clone(),
+            self.organization_id,
+            "1.0".to_string(), // Internal version
+            version.external_version.clone(),
+        );
+
+        // Create all bundles (organism + swissprot)
+        storage
+            .create_bundles(&entries)
+            .await
+            .context("Failed to create bundles")?;
+
+        tracing::info!(job_id = %job_id, "Bundle creation phase completed");
         Ok(())
     }
 
@@ -1005,7 +1270,8 @@ impl UniProtPipeline {
         );
 
         // Parse only this worker's range (streaming parse)
-        let entries = parser.parse_range(dat_data, start, end)?;
+        // Use parse_range_predecompressed since dat_data is already decompressed from cache
+        let entries = parser.parse_range_predecompressed(dat_data, start, end)?;
 
         if entries.is_empty() {
             tracing::warn!(

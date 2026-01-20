@@ -74,6 +74,7 @@
       "description": "Refine your search with filters",
       "active": "active",
       "type": "Type",
+      "sourceType": "Source Type",
       "organizations": "Organizations",
       "dateRange": "Date Range",
       "clearSection": "Clear",

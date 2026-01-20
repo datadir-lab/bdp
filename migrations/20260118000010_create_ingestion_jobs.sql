@@ -31,8 +31,8 @@ CREATE TABLE IF NOT EXISTS ingestion_jobs (
     UNIQUE(organization_id, job_type, external_version)
 );
 
-CREATE INDEX idx_ingestion_jobs_status ON ingestion_jobs(status);
-CREATE INDEX idx_ingestion_jobs_org ON ingestion_jobs(organization_id);
+CREATE INDEX IF NOT EXISTS idx_ingestion_jobs_status ON ingestion_jobs(status);
+CREATE INDEX IF NOT EXISTS idx_ingestion_jobs_org ON ingestion_jobs(organization_id);
 
 -- Raw file downloads (ingest/ folder tracking)
 CREATE TABLE IF NOT EXISTS ingestion_raw_files (
@@ -64,8 +64,8 @@ CREATE TABLE IF NOT EXISTS ingestion_raw_files (
     UNIQUE(job_id, file_type)
 );
 
-CREATE INDEX idx_ingestion_raw_files_job ON ingestion_raw_files(job_id);
-CREATE INDEX idx_ingestion_raw_files_status ON ingestion_raw_files(status);
+CREATE INDEX IF NOT EXISTS idx_ingestion_raw_files_job ON ingestion_raw_files(job_id);
+CREATE INDEX IF NOT EXISTS idx_ingestion_raw_files_status ON ingestion_raw_files(status);
 
 -- Work units for parallel processing
 CREATE TABLE IF NOT EXISTS ingestion_work_units (
@@ -103,9 +103,9 @@ CREATE TABLE IF NOT EXISTS ingestion_work_units (
     UNIQUE(job_id, unit_type, batch_number)
 );
 
-CREATE INDEX idx_ingestion_work_units_job ON ingestion_work_units(job_id);
-CREATE INDEX idx_ingestion_work_units_status ON ingestion_work_units(status);
-CREATE INDEX idx_ingestion_work_units_pending ON ingestion_work_units(job_id, status)
+CREATE INDEX IF NOT EXISTS idx_ingestion_work_units_job ON ingestion_work_units(job_id);
+CREATE INDEX IF NOT EXISTS idx_ingestion_work_units_status ON ingestion_work_units(status);
+CREATE INDEX IF NOT EXISTS idx_ingestion_work_units_pending ON ingestion_work_units(job_id, status)
     WHERE status = 'pending';
 
 -- Parsed data staging (before committing to main tables)
@@ -142,9 +142,9 @@ CREATE TABLE IF NOT EXISTS ingestion_parsed_proteins (
     UNIQUE(job_id, accession)
 );
 
-CREATE INDEX idx_ingestion_parsed_proteins_job ON ingestion_parsed_proteins(job_id);
-CREATE INDEX idx_ingestion_parsed_proteins_status ON ingestion_parsed_proteins(status);
-CREATE INDEX idx_ingestion_parsed_proteins_accession ON ingestion_parsed_proteins(accession);
+CREATE INDEX IF NOT EXISTS idx_ingestion_parsed_proteins_job ON ingestion_parsed_proteins(job_id);
+CREATE INDEX IF NOT EXISTS idx_ingestion_parsed_proteins_status ON ingestion_parsed_proteins(status);
+CREATE INDEX IF NOT EXISTS idx_ingestion_parsed_proteins_accession ON ingestion_parsed_proteins(accession);
 
 -- File uploads tracking (for S3 uploads to final location)
 CREATE TABLE IF NOT EXISTS ingestion_file_uploads (
@@ -174,8 +174,8 @@ CREATE TABLE IF NOT EXISTS ingestion_file_uploads (
     UNIQUE(job_id, parsed_protein_id, format)
 );
 
-CREATE INDEX idx_ingestion_file_uploads_job ON ingestion_file_uploads(job_id);
-CREATE INDEX idx_ingestion_file_uploads_status ON ingestion_file_uploads(status);
+CREATE INDEX IF NOT EXISTS idx_ingestion_file_uploads_job ON ingestion_file_uploads(job_id);
+CREATE INDEX IF NOT EXISTS idx_ingestion_file_uploads_status ON ingestion_file_uploads(status);
 
 -- Add trigger for updated_at
 CREATE OR REPLACE FUNCTION update_ingestion_updated_at()
@@ -186,11 +186,13 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trigger_ingestion_jobs_updated_at ON ingestion_jobs;
 CREATE TRIGGER trigger_ingestion_jobs_updated_at
     BEFORE UPDATE ON ingestion_jobs
     FOR EACH ROW
     EXECUTE FUNCTION update_ingestion_updated_at();
 
+DROP TRIGGER IF EXISTS trigger_ingestion_work_units_updated_at ON ingestion_work_units;
 CREATE TRIGGER trigger_ingestion_work_units_updated_at
     BEFORE UPDATE ON ingestion_work_units
     FOR EACH ROW

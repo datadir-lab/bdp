@@ -90,8 +90,29 @@ export function SearchBar({
           q: debouncedQuery,
           limit: 10,
           type_filter: filters?.types,
+          source_type_filter: filters?.source_types,
         });
-        setSuggestions(data);
+
+        // Filter out suggestions with missing required fields
+        const validSuggestions = data.filter(suggestion => {
+          // Check for valid slug
+          if (!suggestion.slug || suggestion.slug === 'undefined' || suggestion.slug === '') {
+            console.warn('Filtering out suggestion with invalid slug:', suggestion);
+            return false;
+          }
+
+          // For non-organizations, check for valid organization_slug
+          if (suggestion.entry_type !== 'organization' &&
+              (!suggestion.organization_slug || suggestion.organization_slug === 'undefined' || suggestion.organization_slug === '')) {
+            console.warn('Filtering out suggestion with invalid organization_slug:', suggestion);
+            return false;
+          }
+
+          return true;
+        });
+
+        console.log(`Fetched ${data.length} suggestions, ${validSuggestions.length} valid`);
+        setSuggestions(validSuggestions);
         setSelectedIndex(0); // Reset selection when new suggestions arrive
       } catch (error) {
         console.error('Failed to fetch suggestions:', error);
@@ -143,6 +164,9 @@ export function SearchBar({
       if (filters?.types?.length) {
         params.set('types', filters.types.join(','));
       }
+      if (filters?.source_types?.length) {
+        params.set('source_types', filters.source_types.join(','));
+      }
       if (filters?.organizations?.length) {
         params.set('organizations', filters.organizations.join(','));
       }
@@ -165,12 +189,28 @@ export function SearchBar({
 
   const handleSuggestionClick = React.useCallback(
     (suggestion: SearchSuggestion) => {
+      console.log('Suggestion clicked:', suggestion);
+
+      // Skip if required fields are missing or are undefined/null
+      if (!suggestion.slug || suggestion.slug === 'undefined') {
+        console.error('Cannot navigate: missing or invalid slug', suggestion);
+        return;
+      }
+      if (suggestion.entry_type !== 'organization' && (!suggestion.organization_slug || suggestion.organization_slug === 'undefined')) {
+        console.error('Cannot navigate: missing or invalid organization_slug', suggestion);
+        return;
+      }
+
       let url: string;
       if (suggestion.entry_type === 'organization') {
         url = `/organizations/${suggestion.slug}`;
       } else {
-        url = `/sources/${suggestion.organization_slug}/${suggestion.slug}`;
+        // Include version in URL to avoid redirect issues
+        const version = suggestion.latest_version || 'latest';
+        url = `/sources/${suggestion.organization_slug}/${suggestion.slug}/${version}`;
       }
+
+      console.log('Navigating to:', url);
       router.push(url);
       setIsOpen(false);
       setQuery('');
@@ -281,6 +321,7 @@ export function SearchBar({
       case 'genome':
         return <Binary className={iconClass} />;
       case 'organism':
+      case 'taxonomy':
         return <Activity className={iconClass} />;
       case 'transcript':
         return <FileCode className={iconClass} />;
@@ -467,11 +508,16 @@ export function SearchBar({
                     {getIcon(suggestion.entry_type, suggestion.source_type)}
                   </div>
                   <div className="flex flex-1 flex-col gap-0.5 min-w-0">
-                    <span className="font-medium text-sm leading-tight truncate">
-                      {suggestion.name}
-                    </span>
+                    <div className="flex items-baseline gap-2 truncate">
+                      <span className="text-xs font-mono text-muted-foreground shrink-0">
+                        {suggestion.slug}
+                      </span>
+                      <span className="font-medium text-sm leading-tight truncate">
+                        {suggestion.name}
+                      </span>
+                    </div>
                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground leading-tight">
-                      {suggestion.entry_type !== 'organization' && (
+                      {suggestion.entry_type !== 'organization' && suggestion.organization_slug && (
                         <>
                           <span className="truncate">
                             {suggestion.organization_slug.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}

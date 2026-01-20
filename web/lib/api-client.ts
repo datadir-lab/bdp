@@ -20,7 +20,8 @@ class ApiClient {
 
   private async request<T>(
     endpoint: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
+    retries = 3
   ): Promise<ApiResponse<T>> {
     const url = `${this.baseUrl}${endpoint}`;
     const config: RequestInit = {
@@ -31,37 +32,60 @@ class ApiClient {
       },
     };
 
-    try {
-      const response = await fetch(url, config);
-      const data = await response.json();
+    let lastError: any;
 
-      if (!response.ok) {
-        const error: ApiError = {
-          message: data.message || 'An error occurred',
-          code: data.code || 'UNKNOWN_ERROR',
+    for (let i = 0; i < retries; i++) {
+      try {
+        const response = await fetch(url, config);
+
+        // Check if response is JSON
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          throw new Error(`Expected JSON response, got ${contentType || 'unknown'}`);
+        }
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          const error: ApiError = {
+            message: data.message || 'An error occurred',
+            code: data.code || 'UNKNOWN_ERROR',
+            status: response.status,
+            details: data.details,
+          };
+          throw error;
+        }
+
+        return {
+          data,
           status: response.status,
-          details: data.details,
+          success: true,
         };
-        throw error;
-      }
+      } catch (error) {
+        lastError = error;
 
-      return {
-        data,
-        status: response.status,
-        success: true,
-      };
-    } catch (error) {
-      if ((error as ApiError).status) {
-        throw error;
-      }
+        // Don't retry on client errors (4xx) - these won't get better with retries
+        if ((error as ApiError).status && (error as ApiError).status >= 400 && (error as ApiError).status < 500) {
+          throw error;
+        }
 
-      const apiError: ApiError = {
-        message: error instanceof Error ? error.message : 'Network error',
-        code: 'NETWORK_ERROR',
-        status: 0,
-      };
-      throw apiError;
+        // Retry on network errors and 5xx server errors
+        if (i < retries - 1) {
+          // Exponential backoff: 1s, 2s, 3s
+          await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
+          console.log(`Retrying API request (${i + 1}/${retries}): ${url}`);
+          continue;
+        }
+      }
     }
+
+    // All retries failed
+    const apiError: ApiError = {
+      message: lastError instanceof Error ? lastError.message : 'Network error after retries',
+      code: 'NETWORK_ERROR',
+      status: 0,
+    };
+    throw apiError;
   }
 
   async get<T>(endpoint: string, params?: QueryParams): Promise<ApiResponse<T>> {

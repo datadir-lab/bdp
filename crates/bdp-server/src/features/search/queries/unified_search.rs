@@ -9,6 +9,8 @@ pub struct UnifiedSearchQuery {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub type_filter: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_type_filter: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub organism: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub format: Option<String>,
@@ -79,6 +81,8 @@ pub enum UnifiedSearchError {
     InvalidPage,
     #[error("Invalid type filter: {0}. Must be 'data_source', 'tool', or 'organization'")]
     InvalidTypeFilter(String),
+    #[error("Invalid source type filter: {0}. Must be one of: protein, genome, organism, taxonomy, bundle, transcript, annotation, structure, pathway, other")]
+    InvalidSourceTypeFilter(String),
     #[error("Database error: {0}")]
     Database(#[from] sqlx::Error),
 }
@@ -107,6 +111,14 @@ impl UnifiedSearchQuery {
             for t in types {
                 if t != "data_source" && t != "tool" && t != "organization" {
                     return Err(UnifiedSearchError::InvalidTypeFilter(t.clone()));
+                }
+            }
+        }
+
+        if let Some(ref source_types) = self.source_type_filter {
+            for st in source_types {
+                if !matches!(st.as_str(), "protein" | "genome" | "organism" | "taxonomy" | "bundle" | "transcript" | "annotation" | "structure" | "pathway" | "other") {
+                    return Err(UnifiedSearchError::InvalidSourceTypeFilter(st.clone()));
                 }
             }
         }
@@ -261,9 +273,9 @@ async fn search_registry_entries(
             re.entry_type,
             ds.source_type as "source_type?",
             t.tool_type as "tool_type?",
-            org.scientific_name as "scientific_name?",
-            org.common_name as "common_name?",
-            org.ncbi_taxonomy_id as "ncbi_taxonomy_id?",
+            COALESCE(org_ref.scientific_name, org_direct.scientific_name) as "scientific_name?",
+            COALESCE(org_ref.common_name, org_direct.common_name) as "common_name?",
+            COALESCE(org_ref.taxonomy_id, org_direct.taxonomy_id) as "ncbi_taxonomy_id?",
             ds.external_id as "external_id?",
             (
                 SELECT v.version
@@ -304,17 +316,22 @@ async fn search_registry_entries(
         JOIN organizations o ON o.id = re.organization_id
         LEFT JOIN data_sources ds ON ds.id = re.id
         LEFT JOIN tools t ON t.id = re.id
-        LEFT JOIN organisms org ON org.id = ds.organism_id
+        LEFT JOIN protein_metadata pm ON pm.data_source_id = ds.id
+        LEFT JOIN taxonomy_metadata org_ref ON org_ref.data_source_id = pm.taxonomy_id
+        LEFT JOIN taxonomy_metadata org_direct ON org_direct.data_source_id = ds.id AND ds.source_type = 'organism'
         WHERE to_tsvector('english', re.name || ' ' || COALESCE(re.description, ''))
             @@ plainto_tsquery('english', $1)
           AND ($2::VARCHAR[] IS NULL OR re.entry_type = ANY($2))
-          AND ($3::TEXT IS NULL OR org.scientific_name ILIKE $3 OR org.common_name ILIKE $3)
+          AND ($3::TEXT IS NULL OR org_ref.scientific_name ILIKE $3 OR org_ref.common_name ILIKE $3 OR org_direct.scientific_name ILIKE $3 OR org_direct.common_name ILIKE $3)
           AND ($4::TEXT IS NULL OR EXISTS (
               SELECT 1
               FROM versions v
               JOIN version_files vf ON vf.version_id = v.id
               WHERE v.entry_id = re.id AND vf.format = $4
           ))
+          AND ($6::VARCHAR[] IS NULL OR ds.source_type = ANY($6))
+          AND re.slug IS NOT NULL
+          AND o.slug IS NOT NULL
         ORDER BY 17 DESC, 16 DESC, re.created_at DESC
         LIMIT $5
         "#,
@@ -322,7 +339,8 @@ async fn search_registry_entries(
         entry_types.as_deref(),
         organism_pattern.as_deref(),
         query.format,
-        query.per_page() + query.offset()
+        query.per_page() + query.offset(),
+        query.source_type_filter.as_deref()
     )
     .fetch_all(pool)
     .await?;
@@ -407,22 +425,26 @@ async fn count_search_results(
             JOIN organizations o ON o.id = re.organization_id
             LEFT JOIN data_sources ds ON ds.id = re.id
             LEFT JOIN tools t ON t.id = re.id
-            LEFT JOIN organisms org ON org.id = ds.organism_id
+            LEFT JOIN protein_metadata pm ON pm.data_source_id = ds.id
+            LEFT JOIN taxonomy_metadata org_ref ON org_ref.data_source_id = pm.taxonomy_id
+            LEFT JOIN taxonomy_metadata org_direct ON org_direct.data_source_id = ds.id AND ds.source_type = 'organism'
             WHERE to_tsvector('english', re.name || ' ' || COALESCE(re.description, ''))
                 @@ plainto_tsquery('english', $1)
               AND ($2::VARCHAR[] IS NULL OR re.entry_type = ANY($2))
-              AND ($3::TEXT IS NULL OR org.scientific_name ILIKE $3 OR org.common_name ILIKE $3)
+              AND ($3::TEXT IS NULL OR org_ref.scientific_name ILIKE $3 OR org_ref.common_name ILIKE $3 OR org_direct.scientific_name ILIKE $3 OR org_direct.common_name ILIKE $3)
               AND ($4::TEXT IS NULL OR EXISTS (
                   SELECT 1
                   FROM versions v
                   JOIN version_files vf ON vf.version_id = v.id
                   WHERE v.entry_id = re.id AND vf.format = $4
               ))
+              AND ($5::VARCHAR[] IS NULL OR ds.source_type = ANY($5))
             "#,
             query.query,
             entry_types.as_deref(),
             organism_pattern.as_deref(),
-            query.format
+            query.format,
+            query.source_type_filter.as_deref()
         )
         .fetch_one(pool)
         .await?;
@@ -471,6 +493,7 @@ mod tests {
         let query = UnifiedSearchQuery {
             query: "insulin".to_string(),
             type_filter: Some(vec!["data_source".to_string()]),
+            source_type_filter: None,
             organism: None,
             format: None,
             page: Some(1),
@@ -484,6 +507,7 @@ mod tests {
         let query = UnifiedSearchQuery {
             query: "".to_string(),
             type_filter: None,
+            source_type_filter: None,
             organism: None,
             format: None,
             page: None,
@@ -500,6 +524,7 @@ mod tests {
         let query = UnifiedSearchQuery {
             query: "test".to_string(),
             type_filter: None,
+            source_type_filter: None,
             organism: None,
             format: None,
             page: Some(1),
@@ -516,6 +541,7 @@ mod tests {
         let query = UnifiedSearchQuery {
             query: "test".to_string(),
             type_filter: None,
+            source_type_filter: None,
             organism: None,
             format: None,
             page: Some(0),
@@ -532,6 +558,7 @@ mod tests {
         let query = UnifiedSearchQuery {
             query: "test".to_string(),
             type_filter: Some(vec!["invalid".to_string()]),
+            source_type_filter: None,
             organism: None,
             format: None,
             page: None,
@@ -541,6 +568,37 @@ mod tests {
             query.validate(),
             Err(UnifiedSearchError::InvalidTypeFilter(_))
         ));
+    }
+
+    #[test]
+    fn test_validation_invalid_source_type_filter() {
+        let query = UnifiedSearchQuery {
+            query: "test".to_string(),
+            type_filter: Some(vec!["data_source".to_string()]),
+            source_type_filter: Some(vec!["invalid_type".to_string()]),
+            organism: None,
+            format: None,
+            page: None,
+            per_page: None,
+        };
+        assert!(matches!(
+            query.validate(),
+            Err(UnifiedSearchError::InvalidSourceTypeFilter(_))
+        ));
+    }
+
+    #[test]
+    fn test_validation_valid_source_type_filter() {
+        let query = UnifiedSearchQuery {
+            query: "test".to_string(),
+            type_filter: Some(vec!["data_source".to_string()]),
+            source_type_filter: Some(vec!["protein".to_string(), "organism".to_string()]),
+            organism: None,
+            format: None,
+            page: None,
+            per_page: None,
+        };
+        assert!(query.validate().is_ok());
     }
 
     #[sqlx::test]
@@ -558,6 +616,7 @@ mod tests {
         let query = UnifiedSearchQuery {
             query: "protein".to_string(),
             type_filter: Some(vec!["organization".to_string()]),
+            source_type_filter: None,
             organism: None,
             format: None,
             page: Some(1),
@@ -598,6 +657,7 @@ mod tests {
         let query = UnifiedSearchQuery {
             query: "insulin".to_string(),
             type_filter: Some(vec!["data_source".to_string()]),
+            source_type_filter: None,
             organism: None,
             format: None,
             page: Some(1),
@@ -642,6 +702,7 @@ mod tests {
         let query = UnifiedSearchQuery {
             query: "test".to_string(),
             type_filter: None,
+            source_type_filter: None,
             organism: None,
             format: None,
             page: Some(1),
@@ -685,6 +746,7 @@ mod tests {
         let query = UnifiedSearchQuery {
             query: "test".to_string(),
             type_filter: Some(vec!["data_source".to_string()]),
+            source_type_filter: None,
             organism: None,
             format: None,
             page: Some(1),

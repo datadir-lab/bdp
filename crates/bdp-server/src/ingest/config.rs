@@ -118,6 +118,13 @@ pub struct UniProtConfig {
     pub ftp_timeout_secs: u64,
     /// Ingestion mode (latest or historical)
     pub ingestion_mode: IngestionMode,
+    /// Simple start-from version - ingest all versions >= this (SIMPLIFIED API)
+    /// Format: YYYY_MM (e.g., "2018_01")
+    /// If set, this takes precedence over mode configuration
+    pub start_from_version: String,
+    /// Cache directory for decompressed DAT files
+    /// Default: /tmp/bdp-ingest-cache (Linux/macOS) or %TEMP%\bdp-ingest-cache (Windows)
+    pub cache_dir: std::path::PathBuf,
 }
 
 impl IngestConfig {
@@ -224,6 +231,18 @@ impl UniProtConfig {
             }
         };
 
+        // Get cache directory from env or use platform-specific default
+        let cache_dir = std::env::var("INGEST_CACHE_DIR")
+            .ok()
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|| {
+                if cfg!(windows) {
+                    std::env::temp_dir().join("bdp-ingest-cache")
+                } else {
+                    std::path::PathBuf::from("/tmp/bdp-ingest-cache")
+                }
+            });
+
         let config = Self {
             ftp_host: std::env::var("INGEST_UNIPROT_FTP_HOST")
                 .unwrap_or_else(|_| "ftp.uniprot.org".to_string()),
@@ -238,14 +257,17 @@ impl UniProtConfig {
                 .parse()
                 .unwrap_or(false),
             batch_size: std::env::var("INGEST_UNIPROT_BATCH_SIZE")
-                .unwrap_or_else(|_| "1000".to_string())
+                .unwrap_or_else(|_| "5000".to_string())
                 .parse()
-                .unwrap_or(1000),
+                .unwrap_or(5000),
             ftp_timeout_secs: std::env::var("INGEST_UNIPROT_FTP_TIMEOUT_SECS")
                 .unwrap_or_else(|_| "300".to_string())
                 .parse()
                 .unwrap_or(300),
             ingestion_mode,
+            start_from_version: std::env::var("INGEST_START_FROM_VERSION")
+                .unwrap_or_else(|_| "".to_string()),
+            cache_dir,
         };
 
         config.validate()?;
@@ -299,15 +321,23 @@ impl Default for IngestConfig {
 
 impl Default for UniProtConfig {
     fn default() -> Self {
+        let cache_dir = if cfg!(windows) {
+            std::env::temp_dir().join("bdp-ingest-cache")
+        } else {
+            std::path::PathBuf::from("/tmp/bdp-ingest-cache")
+        };
+
         Self {
             ftp_host: "ftp.uniprot.org".to_string(),
             ftp_path: "/pub/databases/uniprot/current_release/knowledgebase/complete".to_string(),
             oldest_version: "2020_01".to_string(),
             ingestion_schedule: "0 2 * * *".to_string(),
             auto_ingest_enabled: false,
-            batch_size: 1000,
+            batch_size: 5000,
             ftp_timeout_secs: 300,
             ingestion_mode: IngestionMode::default(),
+            start_from_version: "".to_string(),
+            cache_dir,
         }
     }
 }

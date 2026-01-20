@@ -15,12 +15,21 @@ path = "src/lib.rs"
 name = "bdp-server"
 path = "src/main.rs"
 
+[[bin]]
+name = "ncbi_taxonomy_test_small"
+path = "src/bin/ncbi_taxonomy_test_small.rs"
+
+[[bin]]
+name = "genbank_test_phage"
+path = "src/bin/genbank_test_phage.rs"
+
 [dependencies]
 # ============================================================================
 # Workspace Dependencies
 # ============================================================================
 bdp-common = { workspace = true }
 tokio = { workspace = true }
+futures = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 anyhow = { workspace = true }
@@ -72,6 +81,7 @@ apalis-cron = { workspace = true }
 suppaftp = { workspace = true }
 flate2 = { workspace = true }
 tar = { workspace = true }
+zip = "2.1"
 
 # ============================================================================
 # AWS SDK / S3 Storage

@@ -1,0 +1,53 @@
+LOCUS       NC_001416               5386 bp    DNA     linear   PHG 01-JAN-2026
+DEFINITION  Enterobacteria phage lambda, complete genome.
+ACCESSION   NC_001416
+VERSION     NC_001416.1
+KEYWORDS    RefSeq.
+SOURCE      Enterobacteria phage lambda
+  ORGANISM  Enterobacteria phage lambda
+            Viruses; Duplodnaviria; Heunggongvirae; Uroviricota; Caudoviricetes;
+            Caudovirales; Siphoviridae; Lambda-like viruses.
+FEATURES             Location/Qualifiers
+     source          1..5386
+                     /organism="Enterobacteria phage lambda"
+                     /mol_type="genomic DNA"
+                     /db_xref="taxon:10710"
+     gene            190..255
+                     /locus_tag="LAMBDA_00001"
+                     /gene="cI"
+     CDS             190..255
+                     /locus_tag="LAMBDA_00001"
+                     /gene="cI"
+                     /product="lambda repressor CI"
+                     /protein_id="NP_040606.1"
+                     /translation="MKRISTTITTTITITTGNGAG"
+     gene            300..500
+                     /locus_tag="LAMBDA_00002"
+                     /gene="cro"
+     CDS             300..500
+                     /locus_tag="LAMBDA_00002"
+                     /gene="cro"
+                     /product="Cro protein"
+                     /protein_id="NP_040607.1"
+                     /translation="MQTQSHPSHPSHPSHPSHPSHPSHPSHPSHPSHPS"
+ORIGIN
+        1 agcttttcat tctgactgca acgggcaata tgtctctgtg tggattaaaa aaagagtgtc
+       61 tgatagcagc ttctgaactg gttacctgcc gtgagtaaat taaaatttta ttgacttagg
+      121 tcactaaata ctttaaccaa tataggcata gcgcacagac agataaaaaa ttacagagta
+      181 cacaacatcc atgaaaagat atttcgtacc acccatccct tcgcggtaga taatacattg
+      241 atgagtttgg acaaaccaca actagaatgc agtgaaaaaa atgctttatc atatgccatt
+      301 tctttctttc tcgttcactt ctttctttct ttctttcttt ctttctttct ttctttctga
+      361 aaaaaactca acttttcgct acgttaccgg ataatagcat tttcgggacg gtatataatc
+      421 agaaaaaaaa aaggctggcg gctccggagc cggcggcccg actcggcggc tggcggcgcc
+      481 gactcggcgg ctggcggccc gactcggcgg ctggcggccc gactcggcgg ctggcggcgg
+      541 aattcaggcc taaaaaagcc accctaccga cccggccatc cgcccgccct cctcctcctc
+      601 gccggatcag cggcggcggc ggcggcggcg gcggcggcgg cggcggcggc ggcggcggcg
+      661 gcggcggcgg cggcggcggc ggcggcggcg gcggcggcgg cggcggcggc ggcggcggcg
+      721 gcggcggcgg cggcggcggc ggcggcggcg gcggcggcgg cggcggcggc ggcggcggcg
+      781 gcggcggcgg cggcggcggc ggcggcggcg gcggcggcgg cggcggcggc ggcggcggcg
+      841 gcggcggcgg cggcggcggc ggcggcggcg gcggcggcgg cggcggcggc ggcggcggcg
+      901 gcggcggcgg cggcggcggc ggcggcggcg gcggcggcgg cggcggcggc ggcggcggcg
+      961 gcggcggcgg cggcggcggc ggcggcggcg gcggcggcgg cggcggcggc ggcggcggcg
+     1021 gcggcggcgg cggcggcggc ggcggcggcg gcggcggcgg cggcggcggc ggcggcggcg
+     1081 gcggcggcgg cggcggcggc ggcggcggcg gcggcggcgg cggcggcggc ggcggcggcg
+//

@@ -10,6 +10,8 @@ pub struct SearchSuggestionsQuery {
     pub limit: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub type_filter: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_type_filter: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -39,6 +41,8 @@ pub enum SearchSuggestionsError {
     InvalidLimit,
     #[error("Invalid type filter: {0}. Must be 'data_source', 'tool', or 'organization'")]
     InvalidTypeFilter(String),
+    #[error("Invalid source type filter: {0}. Must be one of: protein, genome, organism, taxonomy, bundle, transcript, annotation, structure, pathway, other")]
+    InvalidSourceTypeFilter(String),
     #[error("Database error: {0}")]
     Database(#[from] sqlx::Error),
 }
@@ -62,6 +66,14 @@ impl SearchSuggestionsQuery {
             for t in types {
                 if t != "data_source" && t != "tool" && t != "organization" {
                     return Err(SearchSuggestionsError::InvalidTypeFilter(t.clone()));
+                }
+            }
+        }
+
+        if let Some(ref source_types) = self.source_type_filter {
+            for st in source_types {
+                if !matches!(st.as_str(), "protein" | "genome" | "organism" | "taxonomy" | "bundle" | "transcript" | "annotation" | "structure" | "pathway" | "other") {
+                    return Err(SearchSuggestionsError::InvalidSourceTypeFilter(st.clone()));
                 }
             }
         }
@@ -113,7 +125,7 @@ pub async fn handle(
             }
         });
 
-        let entry_suggestions = search_entries_autocomplete(&pool, search_term, entry_types, limit).await?;
+        let entry_suggestions = search_entries_autocomplete(&pool, search_term, entry_types, query.source_type_filter.clone(), limit).await?;
         all_suggestions.extend(entry_suggestions);
     }
 
@@ -172,6 +184,7 @@ async fn search_entries_autocomplete(
     pool: &PgPool,
     search_term: &str,
     entry_types: Option<Vec<String>>,
+    source_type_filter: Option<Vec<String>>,
     limit: i64,
 ) -> Result<Vec<SearchSuggestionItem>, sqlx::Error> {
     let records: Vec<RegistryEntrySuggestionRow> = sqlx::query_as(
@@ -194,8 +207,11 @@ async fn search_entries_autocomplete(
         FROM registry_entries re
         JOIN organizations o ON o.id = re.organization_id
         LEFT JOIN data_sources ds ON ds.id = re.id
-        WHERE $1 <% re.name OR re.name ILIKE '%' || $1 || '%'
+        WHERE ($1 <% re.name OR re.name ILIKE '%' || $1 || '%')
           AND ($2::VARCHAR[] IS NULL OR re.entry_type = ANY($2))
+          AND ($4::VARCHAR[] IS NULL OR ds.source_type = ANY($4))
+          AND re.slug IS NOT NULL
+          AND o.slug IS NOT NULL
         ORDER BY match_score DESC, re.name
         LIMIT $3
         "#,
@@ -203,6 +219,7 @@ async fn search_entries_autocomplete(
     .bind(search_term)
     .bind(entry_types.as_deref())
     .bind(limit)
+    .bind(source_type_filter.as_deref())
     .fetch_all(pool)
     .await?;
 
@@ -251,6 +268,7 @@ mod tests {
             q: "protein".to_string(),
             limit: Some(10),
             type_filter: Some(vec!["data_source".to_string()]),
+            source_type_filter: None,
         };
         assert!(query.validate().is_ok());
     }
@@ -261,6 +279,7 @@ mod tests {
             q: "a".to_string(),
             limit: None,
             type_filter: None,
+            source_type_filter: None,
         };
         assert!(matches!(
             query.validate(),
@@ -274,6 +293,7 @@ mod tests {
             q: "protein".to_string(),
             limit: Some(25),
             type_filter: None,
+            source_type_filter: None,
         };
         assert!(matches!(
             query.validate(),
@@ -287,6 +307,7 @@ mod tests {
             q: "protein".to_string(),
             limit: None,
             type_filter: Some(vec!["invalid".to_string()]),
+            source_type_filter: None,
         };
         assert!(matches!(
             query.validate(),
@@ -310,6 +331,7 @@ mod tests {
             q: "uni".to_string(),
             limit: Some(10),
             type_filter: Some(vec!["organization".to_string()]),
+            source_type_filter: None,
         };
 
         let result = handle(pool.clone(), query).await;
@@ -347,6 +369,7 @@ mod tests {
             q: "insu".to_string(),
             limit: Some(10),
             type_filter: Some(vec!["data_source".to_string()]),
+            source_type_filter: None,
         };
 
         let result = handle(pool.clone(), query).await;
@@ -387,12 +410,279 @@ mod tests {
             q: "test".to_string(),
             limit: Some(5),
             type_filter: None,
+            source_type_filter: None,
         };
 
         let result = handle(pool.clone(), query).await;
         assert!(result.is_ok());
         let response = result.unwrap();
         assert!(response.suggestions.len() <= 5);
+        Ok(())
+    }
+
+    #[test]
+    fn test_validation_invalid_source_type_filter() {
+        let query = SearchSuggestionsQuery {
+            q: "test".to_string(),
+            limit: None,
+            type_filter: Some(vec!["data_source".to_string()]),
+            source_type_filter: Some(vec!["invalid_type".to_string()]),
+        };
+        assert!(matches!(
+            query.validate(),
+            Err(SearchSuggestionsError::InvalidSourceTypeFilter(_))
+        ));
+    }
+
+    #[test]
+    fn test_validation_valid_source_type_filter() {
+        let query = SearchSuggestionsQuery {
+            q: "test".to_string(),
+            limit: None,
+            type_filter: Some(vec!["data_source".to_string()]),
+            source_type_filter: Some(vec!["protein".to_string(), "organism".to_string()]),
+        };
+        assert!(query.validate().is_ok());
+    }
+
+    #[sqlx::test]
+    async fn test_source_type_filter_protein_only(pool: PgPool) -> sqlx::Result<()> {
+        let org_id = sqlx::query_scalar!(
+            r#"
+            INSERT INTO organizations (slug, name, is_system)
+            VALUES ('test-org', 'Test Org', true)
+            RETURNING id
+            "#
+        )
+        .fetch_one(&pool)
+        .await?;
+
+        // Create protein data source
+        let protein_id = sqlx::query_scalar!(
+            r#"
+            INSERT INTO registry_entries (organization_id, slug, name, entry_type)
+            VALUES ($1, 'protein-data', 'Protein Dataset', 'data_source')
+            RETURNING id
+            "#,
+            org_id
+        )
+        .fetch_one(&pool)
+        .await?;
+
+        sqlx::query!(
+            r#"
+            INSERT INTO data_sources (id, source_type)
+            VALUES ($1, 'protein')
+            "#,
+            protein_id
+        )
+        .execute(&pool)
+        .await?;
+
+        // Create organism data source
+        let organism_id = sqlx::query_scalar!(
+            r#"
+            INSERT INTO registry_entries (organization_id, slug, name, entry_type)
+            VALUES ($1, 'organism-data', 'Organism Dataset', 'data_source')
+            RETURNING id
+            "#,
+            org_id
+        )
+        .fetch_one(&pool)
+        .await?;
+
+        sqlx::query!(
+            r#"
+            INSERT INTO data_sources (id, source_type)
+            VALUES ($1, 'organism')
+            "#,
+            organism_id
+        )
+        .execute(&pool)
+        .await?;
+
+        // Test filter for protein only
+        let query = SearchSuggestionsQuery {
+            q: "data".to_string(),
+            limit: Some(10),
+            type_filter: Some(vec!["data_source".to_string()]),
+            source_type_filter: Some(vec!["protein".to_string()]),
+        };
+
+        let result = handle(pool.clone(), query).await;
+        assert!(result.is_ok());
+        let response = result.unwrap();
+        assert!(response.suggestions.len() > 0);
+        assert!(response.suggestions.iter().all(|s| s.source_type.as_deref() == Some("protein")));
+        assert!(!response.suggestions.iter().any(|s| s.slug == "organism-data"));
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn test_source_type_filter_organism_only(pool: PgPool) -> sqlx::Result<()> {
+        let org_id = sqlx::query_scalar!(
+            r#"
+            INSERT INTO organizations (slug, name, is_system)
+            VALUES ('test-org', 'Test Org', true)
+            RETURNING id
+            "#
+        )
+        .fetch_one(&pool)
+        .await?;
+
+        // Create protein data source
+        let protein_id = sqlx::query_scalar!(
+            r#"
+            INSERT INTO registry_entries (organization_id, slug, name, entry_type)
+            VALUES ($1, 'protein-data', 'Protein Dataset', 'data_source')
+            RETURNING id
+            "#,
+            org_id
+        )
+        .fetch_one(&pool)
+        .await?;
+
+        sqlx::query!(
+            r#"
+            INSERT INTO data_sources (id, source_type)
+            VALUES ($1, 'protein')
+            "#,
+            protein_id
+        )
+        .execute(&pool)
+        .await?;
+
+        // Create organism data source
+        let organism_id = sqlx::query_scalar!(
+            r#"
+            INSERT INTO registry_entries (organization_id, slug, name, entry_type)
+            VALUES ($1, 'organism-data', 'Organism Dataset', 'data_source')
+            RETURNING id
+            "#,
+            org_id
+        )
+        .fetch_one(&pool)
+        .await?;
+
+        sqlx::query!(
+            r#"
+            INSERT INTO data_sources (id, source_type)
+            VALUES ($1, 'organism')
+            "#,
+            organism_id
+        )
+        .execute(&pool)
+        .await?;
+
+        // Test filter for organism only
+        let query = SearchSuggestionsQuery {
+            q: "data".to_string(),
+            limit: Some(10),
+            type_filter: Some(vec!["data_source".to_string()]),
+            source_type_filter: Some(vec!["organism".to_string()]),
+        };
+
+        let result = handle(pool.clone(), query).await;
+        assert!(result.is_ok());
+        let response = result.unwrap();
+        assert!(response.suggestions.len() > 0);
+        assert!(response.suggestions.iter().all(|s| s.source_type.as_deref() == Some("organism")));
+        assert!(!response.suggestions.iter().any(|s| s.slug == "protein-data"));
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn test_source_type_filter_multiple_types(pool: PgPool) -> sqlx::Result<()> {
+        let org_id = sqlx::query_scalar!(
+            r#"
+            INSERT INTO organizations (slug, name, is_system)
+            VALUES ('test-org', 'Test Org', true)
+            RETURNING id
+            "#
+        )
+        .fetch_one(&pool)
+        .await?;
+
+        // Create protein, organism, and genome data sources
+        let protein_id = sqlx::query_scalar!(
+            r#"
+            INSERT INTO registry_entries (organization_id, slug, name, entry_type)
+            VALUES ($1, 'protein-data', 'Protein Dataset', 'data_source')
+            RETURNING id
+            "#,
+            org_id
+        )
+        .fetch_one(&pool)
+        .await?;
+
+        sqlx::query!(
+            r#"
+            INSERT INTO data_sources (id, source_type)
+            VALUES ($1, 'protein')
+            "#,
+            protein_id
+        )
+        .execute(&pool)
+        .await?;
+
+        let organism_id = sqlx::query_scalar!(
+            r#"
+            INSERT INTO registry_entries (organization_id, slug, name, entry_type)
+            VALUES ($1, 'organism-data', 'Organism Dataset', 'data_source')
+            RETURNING id
+            "#,
+            org_id
+        )
+        .fetch_one(&pool)
+        .await?;
+
+        sqlx::query!(
+            r#"
+            INSERT INTO data_sources (id, source_type)
+            VALUES ($1, 'organism')
+            "#,
+            organism_id
+        )
+        .execute(&pool)
+        .await?;
+
+        let genome_id = sqlx::query_scalar!(
+            r#"
+            INSERT INTO registry_entries (organization_id, slug, name, entry_type)
+            VALUES ($1, 'genome-data', 'Genome Dataset', 'data_source')
+            RETURNING id
+            "#,
+            org_id
+        )
+        .fetch_one(&pool)
+        .await?;
+
+        sqlx::query!(
+            r#"
+            INSERT INTO data_sources (id, source_type)
+            VALUES ($1, 'genome')
+            "#,
+            genome_id
+        )
+        .execute(&pool)
+        .await?;
+
+        // Test filter for protein and organism only (should exclude genome)
+        let query = SearchSuggestionsQuery {
+            q: "data".to_string(),
+            limit: Some(10),
+            type_filter: Some(vec!["data_source".to_string()]),
+            source_type_filter: Some(vec!["protein".to_string(), "organism".to_string()]),
+        };
+
+        let result = handle(pool.clone(), query).await;
+        assert!(result.is_ok());
+        let response = result.unwrap();
+        assert!(response.suggestions.len() >= 2);
+        assert!(response.suggestions.iter().all(|s|
+            s.source_type.as_deref() == Some("protein") || s.source_type.as_deref() == Some("organism")
+        ));
+        assert!(!response.suggestions.iter().any(|s| s.slug == "genome-data"));
         Ok(())
     }
 }

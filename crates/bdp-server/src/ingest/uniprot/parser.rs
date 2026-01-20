@@ -3,6 +3,43 @@
 //! Parses UniProt flat file format (DAT) with support for gzip and tar.gz compression.
 //! See: https://web.expasy.org/docs/userman.html
 
+// TODO: Parse additional UniProt DAT fields for comprehensive protein metadata
+//
+// CRITICAL ARCHITECTURE DECISION:
+// - Organism data should be stored under 'ncbi' organization (not 'uniprot')
+//   because NCBI Taxonomy is the canonical source
+// - UniProt proteins should REFERENCE organisms from ncbi:org/{taxonomy_id}
+// - This enables proper versioning: NCBI taxonomy updates independently from UniProt releases
+//
+// HIGH PRIORITY (Phase 2):
+// - FT (Feature Table) - Protein domains, active sites, binding sites, PTMs, variants
+//   Storage: New table protein_features (feature_type, start_pos, end_pos, description)
+// - DR (Database Cross-References) - Links to PDB, GO, InterPro, KEGG, Pfam, RefSeq
+//   Storage: New table protein_cross_references (database_name, database_id, metadata JSONB)
+//   IMPORTANT: RefSeq and Gene IDs should link to future NCBI data sources
+// - CC (Comments) - Structured annotations (FUNCTION, SUBCELLULAR LOCATION, DISEASE, etc.)
+//   Storage: Add comments JSONB field to protein_metadata OR new protein_annotations table
+// - PE (Protein Existence) - Evidence level 1-5
+//   Storage: Add protein_existence INT field to protein_metadata
+// - KW (Keywords) - Controlled vocabulary terms for functional classification
+//   Storage: Many-to-many relationship with keywords table
+// - DE Alternative Names - AltName, SubName, Short names, EC numbers
+//   Storage: Add alternative_names TEXT[] and ec_numbers TEXT[] to protein_metadata
+// - ALL REMAINING FIELDS - Capture everything in additional_metadata JSONB for now
+//   This preserves all data even if we haven't structured it yet
+//
+// MEDIUM PRIORITY (Phase 3):
+// - OG (Organelle) - Mitochondrion, Plastid, Plasmid origin
+// - OH (Organism Host) - Viral host organisms
+// - DT (Date) - Entry history (created, last sequence update, last annotation update)
+//
+// LOWER PRIORITY (Phase 4):
+// - References (RN, RP, RC, RX, RG, RA, RT, RL) - Publication metadata
+//   Consider linking to PubMed IDs from future NCBI PubMed data source
+//
+// See docs/uniprot-ingestion-optimization-plan.md for detailed specifications
+// and SQL schema suggestions for each field type.
+
 use anyhow::{anyhow, Context, Result};
 use chrono::NaiveDate;
 use flate2::read::GzDecoder;
@@ -10,7 +47,7 @@ use std::io::{BufRead, BufReader, Read};
 use std::path::Path;
 use tar::Archive;
 
-use super::models::UniProtEntry;
+use super::models::{Comment, CrossReference, ProteinFeature, UniProtEntry};
 
 /// Parser for UniProt DAT files
 pub struct DatParser {
@@ -234,6 +271,122 @@ impl DatParser {
         Ok(entries)
     }
 
+    /// Parse a specific range of entries from pre-decompressed DAT data
+    ///
+    /// This method skips the decompression step and assumes data is already in plain DAT format.
+    /// Use this when reading from the cache to avoid redundant decompression.
+    ///
+    /// # Arguments
+    /// * `dat_data` - Already decompressed DAT file data (plain text format)
+    /// * `start_offset` - Start parsing from this entry index (0-based)
+    /// * `end_offset` - Stop parsing at this entry index (inclusive)
+    pub fn parse_range_predecompressed(&self, dat_data: &[u8], start_offset: usize, end_offset: usize) -> Result<Vec<UniProtEntry>> {
+        tracing::info!(
+            start_offset,
+            end_offset,
+            input_size = dat_data.len(),
+            "parse_range_predecompressed called (skipping extraction)"
+        );
+
+        // Validate that this is actually DAT format
+        if !dat_data.starts_with(b"ID   ") {
+            anyhow::bail!("Data does not appear to be decompressed DAT format (should start with 'ID   ')");
+        }
+
+        // Parse the requested range directly (no extraction needed)
+        let buf_reader = BufReader::new(&dat_data[..]);
+        let mut entries = Vec::new();
+        let mut current_entry = EntryBuilder::new();
+        let mut in_sequence = false;
+        let mut entry_index = 0;
+        let mut lines_processed = 0;
+        let mut entries_skipped_no_build = 0;
+
+        for line in buf_reader.lines() {
+            let line = line.context("Failed to read line")?;
+
+            // End of entry
+            if line.starts_with("//") {
+                // Check if the entry we just finished is in our range
+                if entry_index >= start_offset && entry_index <= end_offset {
+                    if entry_index == start_offset {
+                        tracing::info!(
+                            entry_index,
+                            lines_processed,
+                            "Processing first entry in range"
+                        );
+                    }
+
+                    match current_entry.build()? {
+                        Some(entry) => {
+                            entries.push(entry);
+                            if entries.len() == 1 {
+                                tracing::info!(entry_index, "Successfully built first entry!");
+                            }
+                        }
+                        None => {
+                            entries_skipped_no_build += 1;
+                            if entries_skipped_no_build <= 3 || entry_index == start_offset {
+                                tracing::warn!(
+                                    entry_index,
+                                    lines_processed_for_entry = lines_processed,
+                                    "Entry skipped - build() returned None (missing required fields)"
+                                );
+                            }
+                        }
+                    }
+                }
+
+                entry_index += 1;
+
+                // Stop if we've passed the end offset
+                if entry_index > end_offset {
+                    break;
+                }
+
+                current_entry = EntryBuilder::new();
+                in_sequence = false;
+                lines_processed = 0;
+                continue;
+            }
+
+            // Only process lines for entries we care about
+            if entry_index >= start_offset && entry_index <= end_offset {
+                self.process_line(&line, &mut current_entry, &mut in_sequence)?;
+                lines_processed += 1;
+            }
+        }
+
+        if entries.is_empty() && entries_skipped_no_build > 0 {
+            tracing::warn!(
+                start_offset,
+                end_offset,
+                entries_skipped_no_build,
+                "No entries parsed - all entries skipped due to missing required fields"
+            );
+        }
+
+        Ok(entries)
+    }
+
+    /// Count total entries from pre-decompressed DAT data (for efficiency)
+    ///
+    /// This method assumes the data is already decompressed DAT format.
+    /// Use this when reading from cache to avoid redundant decompression.
+    pub fn count_entries_predecompressed(&self, dat_data: &[u8]) -> Result<usize> {
+        let buf_reader = BufReader::new(&dat_data[..]);
+        let mut count = 0;
+
+        for line in buf_reader.lines() {
+            let line = line.context("Failed to read line")?;
+            if line.starts_with("//") {
+                count += 1;
+            }
+        }
+
+        Ok(count)
+    }
+
     /// Count total entries without full parsing (for efficiency)
     pub fn count_entries(&self, data: &[u8]) -> Result<usize> {
         let dat_data = self.extract_dat_data(data)?;
@@ -251,7 +404,7 @@ impl DatParser {
     }
 
     /// Extract DAT data from compressed/archived formats
-    fn extract_dat_data(&self, data: &[u8]) -> Result<Vec<u8>> {
+    pub fn extract_dat_data(&self, data: &[u8]) -> Result<Vec<u8>> {
         // Try to decompress as gzip first
         let mut decoder = GzDecoder::new(data);
         let mut decompressed = Vec::new();
@@ -354,7 +507,7 @@ impl DatParser {
             current_entry.parse_ac_line(line)?;
         } else if line.starts_with("DT   ") && line.contains("integrated into") {
             current_entry.parse_dt_line(line)?;
-        } else if line.starts_with("DE   ") && line.contains("RecName: Full=") {
+        } else if line.starts_with("DE   ") {
             current_entry.parse_de_line(line)?;
         } else if line.starts_with("GN   ") && line.contains("Name=") {
             current_entry.parse_gn_line(line)?;
@@ -362,6 +515,22 @@ impl DatParser {
             current_entry.parse_os_line(line)?;
         } else if line.starts_with("OX   ") && line.contains("NCBI_TaxID=") {
             current_entry.parse_ox_line(line)?;
+        } else if line.starts_with("OC   ") {
+            current_entry.parse_oc_line(line)?;
+        } else if line.starts_with("FT   ") {
+            current_entry.parse_ft_line(line)?;
+        } else if line.starts_with("DR   ") {
+            current_entry.parse_dr_line(line)?;
+        } else if line.starts_with("CC   ") {
+            current_entry.parse_cc_line(line)?;
+        } else if line.starts_with("PE   ") {
+            current_entry.parse_pe_line(line)?;
+        } else if line.starts_with("KW   ") {
+            current_entry.parse_kw_line(line)?;
+        } else if line.starts_with("OG   ") {
+            current_entry.parse_og_line(line)?;
+        } else if line.starts_with("OH   ") {
+            current_entry.parse_oh_line(line)?;
         } else if line.starts_with("SQ   ") {
             current_entry.parse_sq_line(line)?;
             *in_sequence = true;
@@ -410,7 +579,7 @@ impl DatParser {
                 current_entry.parse_ac_line(&line)?;
             } else if line.starts_with("DT   ") && line.contains("integrated into") {
                 current_entry.parse_dt_line(&line)?;
-            } else if line.starts_with("DE   ") && line.contains("RecName: Full=") {
+            } else if line.starts_with("DE   ") {
                 current_entry.parse_de_line(&line)?;
             } else if line.starts_with("GN   ") && line.contains("Name=") {
                 current_entry.parse_gn_line(&line)?;
@@ -418,6 +587,22 @@ impl DatParser {
                 current_entry.parse_os_line(&line)?;
             } else if line.starts_with("OX   ") && line.contains("NCBI_TaxID=") {
                 current_entry.parse_ox_line(&line)?;
+            } else if line.starts_with("OC   ") {
+                current_entry.parse_oc_line(&line)?;
+            } else if line.starts_with("FT   ") {
+                current_entry.parse_ft_line(&line)?;
+            } else if line.starts_with("DR   ") {
+                current_entry.parse_dr_line(&line)?;
+            } else if line.starts_with("CC   ") {
+                current_entry.parse_cc_line(&line)?;
+            } else if line.starts_with("PE   ") {
+                current_entry.parse_pe_line(&line)?;
+            } else if line.starts_with("KW   ") {
+                current_entry.parse_kw_line(&line)?;
+            } else if line.starts_with("OG   ") {
+                current_entry.parse_og_line(&line)?;
+            } else if line.starts_with("OH   ") {
+                current_entry.parse_oh_line(&line)?;
             } else if line.starts_with("SQ   ") {
                 current_entry.parse_sq_line(&line)?;
                 in_sequence = true;
@@ -439,16 +624,33 @@ impl Default for DatParser {
 /// Builder for constructing UniProtEntry from DAT lines
 #[derive(Default)]
 struct EntryBuilder {
+    // Core fields
     accession: Option<String>,
     entry_name: Option<String>,
     protein_name: Option<String>,
     gene_name: Option<String>,
     organism_name: Option<String>,
     taxonomy_id: Option<i32>,
+    taxonomy_lineage: Vec<String>,
     sequence_length: Option<i32>,
     mass_da: Option<i64>,
     release_date: Option<NaiveDate>,
     sequence: String,
+
+    // Extended metadata
+    alternative_names: Vec<String>,
+    ec_numbers: Vec<String>,
+    features: Vec<ProteinFeature>,
+    cross_references: Vec<CrossReference>,
+    comments: Vec<Comment>,
+    protein_existence: Option<i32>,
+    keywords: Vec<String>,
+    organelle: Option<String>,
+    organism_hosts: Vec<String>,
+
+    // Parser state
+    current_comment_topic: Option<String>,
+    current_comment_text: String,
 }
 
 impl EntryBuilder {
@@ -488,7 +690,15 @@ impl EntryBuilder {
     }
 
     /// Parse DE line: DE   RecName: Full=Protein name;
+    ///
+    /// Parses:
+    /// - RecName: Full (primary protein name)
+    /// - AltName: Full (alternative names)
+    /// - SubName: Full (submitted names for TrEMBL)
+    /// - Short names
+    /// - EC numbers
     fn parse_de_line(&mut self, line: &str) -> Result<()> {
+        // Parse RecName: Full
         if self.protein_name.is_none() {
             if let Some(start) = line.find("RecName: Full=") {
                 let name_part = &line[start + 14..];
@@ -499,6 +709,37 @@ impl EntryBuilder {
                 }
             }
         }
+
+        // Parse AltName: Full
+        if let Some(start) = line.find("AltName: Full=") {
+            let name_part = &line[start + 14..];
+            if let Some(end) = name_part.find([';', '{']) {
+                self.alternative_names.push(name_part[..end].trim().to_string());
+            } else {
+                self.alternative_names.push(name_part.trim().to_string());
+            }
+        }
+
+        // Parse SubName: Full
+        if let Some(start) = line.find("SubName: Full=") {
+            let name_part = &line[start + 14..];
+            if let Some(end) = name_part.find([';', '{']) {
+                self.alternative_names.push(name_part[..end].trim().to_string());
+            } else {
+                self.alternative_names.push(name_part.trim().to_string());
+            }
+        }
+
+        // Parse EC numbers
+        if let Some(start) = line.find("EC=") {
+            let ec_part = &line[start + 3..];
+            if let Some(end) = ec_part.find([';', ' ', '{']) {
+                self.ec_numbers.push(ec_part[..end].trim().to_string());
+            } else {
+                self.ec_numbers.push(ec_part.trim().to_string());
+            }
+        }
+
         Ok(())
     }
 
@@ -543,6 +784,33 @@ impl EntryBuilder {
         Ok(())
     }
 
+    /// Parse OC line: OC   Viruses; Riboviria; Orthornavirae; ...
+    ///
+    /// OC lines contain the taxonomic lineage, which can span multiple lines.
+    /// Each taxon is separated by semicolons, and the last taxon ends with a period.
+    ///
+    /// Example:
+    /// ```
+    /// OC   Viruses; Riboviria; Orthornavirae; Kitrinoviricota;
+    /// OC   Flasuviricetes; Amarillovirales; Flaviviridae; Flavivirus.
+    /// ```
+    ///
+    /// This produces: ["Viruses", "Riboviria", "Orthornavirae", "Kitrinoviricota",
+    ///                 "Flasuviricetes", "Amarillovirales", "Flaviviridae", "Flavivirus"]
+    fn parse_oc_line(&mut self, line: &str) -> Result<()> {
+        let oc_part = line.trim_start_matches("OC   ");
+
+        // Split by semicolons and process each taxon
+        for taxon in oc_part.split(';') {
+            let trimmed = taxon.trim().trim_end_matches('.');
+            if !trimmed.is_empty() {
+                self.taxonomy_lineage.push(trimmed.to_string());
+            }
+        }
+
+        Ok(())
+    }
+
     /// Parse SQ line: SQ   SEQUENCE   123 AA;  14078 MW;  ...
     fn parse_sq_line(&mut self, line: &str) -> Result<()> {
         let parts: Vec<&str> = line.split_whitespace().collect();
@@ -572,8 +840,172 @@ impl EntryBuilder {
         }
     }
 
+    /// Parse FT line: FT   DOMAIN          50..150; Kinase domain.
+    fn parse_ft_line(&mut self, line: &str) -> Result<()> {
+        // Format: "FT   FEATURE_TYPE    START..END; Description."
+        let ft_part = line.trim_start_matches("FT   ");
+
+        // Parse feature type (first word)
+        let parts: Vec<&str> = ft_part.split_whitespace().collect();
+        if parts.is_empty() {
+            return Ok(());
+        }
+
+        let feature_type = parts[0].to_string();
+
+        // Parse position and description
+        let rest = ft_part.trim_start_matches(&feature_type).trim();
+
+        // Look for position range (e.g., "50..150" or "50")
+        let mut start_pos = None;
+        let mut end_pos = None;
+        let mut description = String::new();
+
+        if let Some(semicolon_pos) = rest.find(';') {
+            let pos_part = &rest[..semicolon_pos].trim();
+            description = rest[semicolon_pos + 1..].trim().to_string();
+
+            // Parse position
+            if let Some(range_pos) = pos_part.find("..") {
+                // Range like "50..150"
+                if let Ok(start) = pos_part[..range_pos].trim().parse::<i32>() {
+                    start_pos = Some(start);
+                }
+                if let Ok(end) = pos_part[range_pos + 2..].trim().parse::<i32>() {
+                    end_pos = Some(end);
+                }
+            } else {
+                // Single position like "50"
+                if let Ok(pos) = pos_part.trim().parse::<i32>() {
+                    start_pos = Some(pos);
+                    end_pos = Some(pos);
+                }
+            }
+        } else {
+            // No semicolon, might just be a position or description
+            description = rest.to_string();
+        }
+
+        self.features.push(ProteinFeature {
+            feature_type,
+            start_pos,
+            end_pos,
+            description,
+        });
+
+        Ok(())
+    }
+
+    /// Parse DR line: DR   PDB; 1A2B; X-ray; 2.50 A; A/B=1-120.
+    fn parse_dr_line(&mut self, line: &str) -> Result<()> {
+        let dr_part = line.trim_start_matches("DR   ");
+        let parts: Vec<&str> = dr_part.split(';').map(|s| s.trim()).collect();
+
+        if parts.len() < 2 {
+            return Ok(());
+        }
+
+        let database = parts[0].to_string();
+        let database_id = parts[1].to_string();
+        let metadata = parts[2..].iter().map(|s| s.to_string()).collect();
+
+        self.cross_references.push(CrossReference {
+            database,
+            database_id,
+            metadata,
+        });
+
+        Ok(())
+    }
+
+    /// Parse CC line: CC   -!- FUNCTION: Catalyzes the phosphorylation of proteins.
+    fn parse_cc_line(&mut self, line: &str) -> Result<()> {
+        let cc_part = line.trim_start_matches("CC   ");
+
+        // Check for topic marker "-!- TOPIC:"
+        if let Some(topic_start) = cc_part.find("-!- ") {
+            // Finish previous comment if any
+            self.finish_comment();
+
+            let after_marker = &cc_part[topic_start + 4..];
+            if let Some(colon_pos) = after_marker.find(':') {
+                self.current_comment_topic = Some(after_marker[..colon_pos].trim().to_string());
+                self.current_comment_text = after_marker[colon_pos + 1..].trim().to_string();
+            }
+        } else {
+            // Continuation of previous comment
+            if !cc_part.is_empty() {
+                if !self.current_comment_text.is_empty() {
+                    self.current_comment_text.push(' ');
+                }
+                self.current_comment_text.push_str(cc_part.trim());
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Finish the current comment and add it to the list
+    fn finish_comment(&mut self) {
+        if let Some(topic) = self.current_comment_topic.take() {
+            if !self.current_comment_text.is_empty() {
+                self.comments.push(Comment {
+                    topic,
+                    text: std::mem::take(&mut self.current_comment_text),
+                });
+            }
+        }
+    }
+
+    /// Parse PE line: PE   1: Evidence at protein level;
+    fn parse_pe_line(&mut self, line: &str) -> Result<()> {
+        let pe_part = line.trim_start_matches("PE   ");
+        if let Some(colon_pos) = pe_part.find(':') {
+            if let Ok(level) = pe_part[..colon_pos].trim().parse::<i32>() {
+                self.protein_existence = Some(level);
+            }
+        }
+        Ok(())
+    }
+
+    /// Parse KW line: KW   ATP-binding; Kinase; Transferase.
+    fn parse_kw_line(&mut self, line: &str) -> Result<()> {
+        let kw_part = line.trim_start_matches("KW   ");
+        for keyword in kw_part.split(';') {
+            let kw = keyword.trim().trim_end_matches('.');
+            if !kw.is_empty() {
+                self.keywords.push(kw.to_string());
+            }
+        }
+        Ok(())
+    }
+
+    /// Parse OG line: OG   Mitochondrion.
+    fn parse_og_line(&mut self, line: &str) -> Result<()> {
+        let og_part = line.trim_start_matches("OG   ").trim().trim_end_matches('.');
+        if !og_part.is_empty() && self.organelle.is_none() {
+            self.organelle = Some(og_part.to_string());
+        }
+        Ok(())
+    }
+
+    /// Parse OH line: OH   NCBI_TaxID=9606; Homo sapiens (Human).
+    fn parse_oh_line(&mut self, line: &str) -> Result<()> {
+        let oh_part = line.trim_start_matches("OH   ");
+        // Extract organism name after semicolon
+        if let Some(semicolon_pos) = oh_part.find(';') {
+            let host = oh_part[semicolon_pos + 1..].trim().trim_end_matches('.').to_string();
+            if !host.is_empty() {
+                self.organism_hosts.push(host);
+            }
+        }
+        Ok(())
+    }
+
     /// Build the final UniProtEntry
-    fn build(self) -> Result<Option<UniProtEntry>> {
+    fn build(mut self) -> Result<Option<UniProtEntry>> {
+        // Finish any pending comment
+        self.finish_comment();
         // Skip entries with missing required fields
         let accession = match self.accession {
             Some(a) => a,
@@ -619,10 +1051,20 @@ impl EntryBuilder {
             gene_name: self.gene_name,
             organism_name,
             taxonomy_id,
+            taxonomy_lineage: self.taxonomy_lineage,
             sequence: self.sequence,
             sequence_length,
             mass_da,
             release_date,
+            alternative_names: self.alternative_names,
+            ec_numbers: self.ec_numbers,
+            features: self.features,
+            cross_references: self.cross_references,
+            comments: self.comments,
+            protein_existence: self.protein_existence,
+            keywords: self.keywords,
+            organelle: self.organelle,
+            organism_hosts: self.organism_hosts,
         }))
     }
 }
@@ -659,6 +1101,7 @@ fn parse_date(date_str: &str) -> Result<NaiveDate> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::Datelike;
 
     #[test]
     fn test_parse_date() {
@@ -753,5 +1196,52 @@ mod tests {
         let mut builder = EntryBuilder::new();
         builder.parse_sequence_line("     MKTAYIAKQR QISFVKSHFS RQLEERLGLI");
         assert_eq!(builder.sequence, "MKTAYIAKQRQISFVKSHFSRQLEERLGLI");
+    }
+
+    #[test]
+    fn test_entry_builder_oc_line_single() {
+        let mut builder = EntryBuilder::new();
+        builder.parse_oc_line("OC   Eukaryota; Metazoa; Chordata.").unwrap();
+        assert_eq!(builder.taxonomy_lineage, vec!["Eukaryota", "Metazoa", "Chordata"]);
+    }
+
+    #[test]
+    fn test_entry_builder_oc_line_multiline() {
+        let mut builder = EntryBuilder::new();
+        builder.parse_oc_line("OC   Viruses; Riboviria; Orthornavirae; Kitrinoviricota;").unwrap();
+        builder.parse_oc_line("OC   Flasuviricetes; Amarillovirales; Flaviviridae; Flavivirus.").unwrap();
+        assert_eq!(
+            builder.taxonomy_lineage,
+            vec![
+                "Viruses",
+                "Riboviria",
+                "Orthornavirae",
+                "Kitrinoviricota",
+                "Flasuviricetes",
+                "Amarillovirales",
+                "Flaviviridae",
+                "Flavivirus"
+            ]
+        );
+    }
+
+    #[test]
+    fn test_entry_builder_oc_line_trailing_period() {
+        let mut builder = EntryBuilder::new();
+        builder.parse_oc_line("OC   Bacteria; Proteobacteria; Gammaproteobacteria.").unwrap();
+        assert_eq!(
+            builder.taxonomy_lineage,
+            vec!["Bacteria", "Proteobacteria", "Gammaproteobacteria"]
+        );
+    }
+
+    #[test]
+    fn test_entry_builder_oc_line_archaea() {
+        let mut builder = EntryBuilder::new();
+        builder.parse_oc_line("OC   Archaea; Euryarchaeota; Methanomicrobia.").unwrap();
+        assert_eq!(
+            builder.taxonomy_lineage,
+            vec!["Archaea", "Euryarchaeota", "Methanomicrobia"]
+        );
     }
 }

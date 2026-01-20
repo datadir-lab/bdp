@@ -5,9 +5,10 @@ use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-/// A UniProt protein entry with essential fields
+/// A UniProt protein entry with comprehensive metadata
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct UniProtEntry {
+    // === Core Fields ===
     /// Primary accession number (e.g., "P12345")
     pub accession: String,
     /// Entry name / ID (e.g., "ALBU_HUMAN")
@@ -20,6 +21,8 @@ pub struct UniProtEntry {
     pub organism_name: String,
     /// NCBI Taxonomy ID
     pub taxonomy_id: i32,
+    /// Taxonomic lineage from OC line (e.g., ["Viruses", "Riboviria", ...])
+    pub taxonomy_lineage: Vec<String>,
     /// Protein sequence (amino acids)
     pub sequence: String,
     /// Sequence length (number of amino acids)
@@ -28,6 +31,67 @@ pub struct UniProtEntry {
     pub mass_da: i64,
     /// Release date (last updated)
     pub release_date: NaiveDate,
+
+    // === Extended Metadata (Phase 2) ===
+    /// Alternative protein names (AltName, SubName)
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub alternative_names: Vec<String>,
+    /// EC numbers (enzyme classification)
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub ec_numbers: Vec<String>,
+    /// Protein features (domains, sites, modifications, variants)
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub features: Vec<ProteinFeature>,
+    /// Database cross-references (PDB, GO, InterPro, KEGG, Pfam, RefSeq)
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub cross_references: Vec<CrossReference>,
+    /// Comments (function, location, disease, etc.)
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub comments: Vec<Comment>,
+    /// Protein existence level (1-5)
+    pub protein_existence: Option<i32>,
+    /// Keywords for functional classification
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub keywords: Vec<String>,
+    /// Organelle origin (mitochondrion, plastid, plasmid)
+    pub organelle: Option<String>,
+    /// Host organisms (for viruses)
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub organism_hosts: Vec<String>,
+}
+
+/// Protein feature from FT line (domain, site, modification, variant)
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProteinFeature {
+    /// Feature type (e.g., "DOMAIN", "BINDING", "MOD_RES", "VARIANT")
+    pub feature_type: String,
+    /// Start position in sequence (1-based)
+    pub start_pos: Option<i32>,
+    /// End position in sequence (1-based)
+    pub end_pos: Option<i32>,
+    /// Feature description
+    pub description: String,
+}
+
+/// Database cross-reference from DR line
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct CrossReference {
+    /// Database name (e.g., "PDB", "GO", "InterPro", "KEGG", "Pfam", "RefSeq")
+    pub database: String,
+    /// Database ID
+    pub database_id: String,
+    /// Additional metadata (varies by database)
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub metadata: Vec<String>,
+}
+
+/// Comment from CC line (function, location, disease, etc.)
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct Comment {
+    /// Comment topic (e.g., "FUNCTION", "SUBCELLULAR LOCATION", "DISEASE")
+    pub topic: String,
+    /// Comment text
+    pub text: String,
 }
 
 impl UniProtEntry {
@@ -208,10 +272,20 @@ mod tests {
             gene_name: Some("TEST".to_string()),
             organism_name: "Homo sapiens".to_string(),
             taxonomy_id: 9606,
+            taxonomy_lineage: vec!["Eukaryota".to_string(), "Metazoa".to_string()],
             sequence: "MKTIIALSYIFCLVFADYKDDDDK".to_string(),
             sequence_length: 25,
             mass_da: 2897,
             release_date: NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
+            alternative_names: vec![],
+            ec_numbers: vec![],
+            features: vec![],
+            cross_references: vec![],
+            comments: vec![],
+            protein_existence: None,
+            keywords: vec![],
+            organelle: None,
+            organism_hosts: vec![],
         }
     }
 

@@ -24,6 +24,7 @@ pub fn data_sources_routes() -> Router<PgPool> {
     Router::new()
         .route("/", post(create_data_source))
         .route("/", get(list_data_sources))
+        .route("/source-types", get(get_source_types))
         .route("/:org/:slug", get(get_data_source))
         .route("/:org/:slug", put(update_data_source))
         .route("/:org/:slug", delete(delete_data_source))
@@ -123,6 +124,29 @@ async fn get_data_source(
     );
 
     Ok((StatusCode::OK, Json(ApiResponse::success(response))).into_response())
+}
+
+#[tracing::instrument(skip(pool))]
+async fn get_source_types(
+    State(pool): State<PgPool>,
+) -> Result<Response, DataSourceApiError> {
+    let source_types = sqlx::query_scalar!(
+        r#"
+        SELECT DISTINCT source_type
+        FROM data_sources
+        ORDER BY source_type
+        "#
+    )
+    .fetch_all(&pool)
+    .await
+    .map_err(|e| DataSourceApiError::ListError(super::queries::ListDataSourcesError::Database(e)))?;
+
+    tracing::debug!(
+        count = source_types.len(),
+        "Source types retrieved via API"
+    );
+
+    Ok((StatusCode::OK, Json(ApiResponse::success(source_types))).into_response())
 }
 
 #[tracing::instrument(skip(pool, query), fields(page = ?query.page, per_page = ?query.per_page))]

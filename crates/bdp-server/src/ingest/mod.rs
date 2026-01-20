@@ -22,6 +22,7 @@
 //! These endpoints are read-only and require NO authentication.
 
 pub mod config;
+pub mod genbank;
 pub mod jobs;
 pub mod models;
 pub mod ncbi_taxonomy;
@@ -32,9 +33,10 @@ pub mod version_mapping;
 pub mod framework;
 
 pub use config::{IngestConfig, UniProtConfig};
+pub use genbank::{GenbankFtpConfig, GenbankOrchestrator, GenbankPipeline};
 pub use jobs::{IngestStats, UniProtIngestJob};
 pub use models::{OrganizationSyncStatus, SyncStatus};
-pub use ncbi_taxonomy::NcbiTaxonomyPipeline;
+pub use ncbi_taxonomy::{NcbiTaxonomyFtpConfig, NcbiTaxonomyOrchestrator, NcbiTaxonomyPipeline};
 pub use scheduler::JobScheduler;
 pub use orchestrator::IngestOrchestrator;
 pub use uniprot::UniProtPipeline;

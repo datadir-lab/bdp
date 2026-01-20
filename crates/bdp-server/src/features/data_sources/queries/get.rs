@@ -111,16 +111,18 @@ pub async fn handle(
             re.description,
             ds.source_type,
             ds.external_id,
-            ds.organism_id,
-            org.ncbi_taxonomy_id,
-            org.scientific_name,
-            org.common_name,
+            COALESCE(pm.taxonomy_id, CASE WHEN ds.source_type = 'organism' THEN ds.id ELSE NULL END) as organism_id,
+            COALESCE(om_ref.taxonomy_id, om_direct.taxonomy_id) as ncbi_taxonomy_id,
+            COALESCE(om_ref.scientific_name, om_direct.scientific_name) as scientific_name,
+            COALESCE(om_ref.common_name, om_direct.common_name) as common_name,
             re.created_at as "created_at!",
             re.updated_at as "updated_at!"
         FROM registry_entries re
         JOIN data_sources ds ON re.id = ds.id
         JOIN organizations o ON re.organization_id = o.id
-        LEFT JOIN organisms org ON ds.organism_id = org.id
+        LEFT JOIN protein_metadata pm ON ds.id = pm.data_source_id
+        LEFT JOIN taxonomy_metadata om_ref ON pm.taxonomy_id = om_ref.data_source_id
+        LEFT JOIN taxonomy_metadata om_direct ON ds.id = om_direct.data_source_id AND ds.source_type = 'organism'
         WHERE o.slug = $1 AND re.slug = $2
         "#,
         query.organization_slug,

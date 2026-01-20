@@ -42,6 +42,10 @@ export function DataSourceDetail({
 
   const handleVersionChange = (newVersion: string) => {
     // Use Next.js router to navigate without full page refresh
+    if (!dataSource.organization?.slug || !dataSource.slug) {
+      console.error('Cannot change version: missing organization or data source slug');
+      return;
+    }
     router.push(
       `/${locale}/sources/${dataSource.organization.slug}/${dataSource.slug}/${newVersion}`
     );

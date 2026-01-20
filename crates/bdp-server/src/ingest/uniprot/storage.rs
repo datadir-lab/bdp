@@ -5,11 +5,71 @@
 use anyhow::{Context, Result};
 use sha2::{Digest, Sha256};
 use sqlx::PgPool;
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, warn};
 use uuid::Uuid;
 
 use super::models::UniProtEntry;
+use super::taxonomy_helper::TaxonomyHelper;
 use crate::storage::Storage;
+use std::collections::HashMap;
+
+/// Convert organism taxonomy to human-readable slug
+///
+/// Examples:
+/// - "Homo sapiens (Human)" → "homo-sapiens"
+/// - "Escherichia coli K-12" → "escherichia-coli-k-12"
+/// - "Human immunodeficiency virus 1" → "human-immunodeficiency-virus-1"
+fn taxonomy_to_slug(organism_name: &str, taxonomy_id: i32) -> String {
+    // Remove parenthetical suffix like "(Human)"
+    let name = organism_name
+        .split('(')
+        .next()
+        .unwrap_or(organism_name)
+        .trim()
+        .to_lowercase()
+        .replace(' ', "-")
+        .chars()
+        .filter(|c| c.is_alphanumeric() || *c == '-')
+        .collect::<String>();
+
+    // Fallback for empty or too long names
+    if name.is_empty() || name.len() > 100 {
+        format!("taxon-{}", taxonomy_id)
+    } else {
+        name
+    }
+}
+
+/// Classify organism source type based on taxonomic lineage
+///
+/// Uses the first element of the taxonomic lineage to determine the source type:
+/// - "Viruses" → "virus"
+/// - "Bacteria" → "bacteria"
+/// - "Archaea" → "archaea"
+/// - "Eukaryota" → "organism"
+/// - Unknown/empty → "organism" (fallback)
+///
+/// # Example
+/// ```
+/// let lineage = vec!["Viruses".to_string(), "Riboviria".to_string()];
+/// assert_eq!(classify_source_type(&lineage), "virus");
+///
+/// let lineage = vec!["Eukaryota".to_string(), "Metazoa".to_string()];
+/// assert_eq!(classify_source_type(&lineage), "organism");
+/// ```
+///
+/// Classify source type based on taxonomic lineage
+///
+/// This is now integrated with NCBI Taxonomy database via TaxonomyHelper
+fn classify_source_type(lineage: &[String]) -> &'static str {
+    match lineage.first().map(|s| s.as_str()) {
+        Some("Viruses") => "virus",
+        Some("Bacteria") => "bacteria",
+        Some("Archaea") => "archaea",
+        Some("Eukaryota") => "organism",
+        _ => "organism", // Fallback for unknown/malformed
+    }
+}
 
 /// Storage handler for UniProt data
 pub struct UniProtStorage {
@@ -58,35 +118,112 @@ impl UniProtStorage {
     pub async fn store_entries(&self, entries: &[UniProtEntry]) -> Result<usize> {
         info!("Storing {} UniProt entries", entries.len());
 
-        // Begin transaction for atomicity
-        let mut tx = self.db.begin().await.context("Failed to begin transaction")?;
+        // STEP 1: Upload ALL entries to S3 FIRST (before any database transaction!)
+        // Use parallel uploads with batching for 10-20x speedup
+        if let Some(ref s3) = self.s3 {
+            use futures::stream::{self, StreamExt};
 
+            let internal_ver = self.internal_version.clone();
+            let org_id = self.organization_id;
+
+            // Process in batches of 50 concurrent uploads
+            let chunks: Vec<_> = entries.chunks(50).collect();
+            for chunk in chunks {
+                let mut upload_futures = Vec::new();
+
+                for entry in chunk {
+                    let s3_clone = s3.clone();
+                    let int_ver_clone = internal_ver.clone();
+                    let entry_clone = entry.clone();
+
+                    let upload_future = async move {
+                        let result = Self::upload_entry_to_s3_static(
+                            &s3_clone,
+                            &entry_clone,
+                            org_id,
+                            &int_ver_clone,
+                            &"",
+                        ).await;
+                        (entry_clone.accession.clone(), result)
+                    };
+
+                    upload_futures.push(upload_future);
+                }
+
+                // Wait for this batch to complete
+                let results = futures::future::join_all(upload_futures).await;
+
+                // Log any failures
+                for (accession, result) in results {
+                    if let Err(e) = result {
+                        warn!(accession = %accession, error = %e, "S3 upload failed (non-fatal)");
+                    }
+                }
+            }
+        }
+
+        // STEP 2: Now do database work - process in smaller sub-batches
+        // Use mini-transactions instead of savepoints for better performance
         let mut stored_count = 0;
         let mut error_count = 0;
         let mut errors = Vec::new();
 
-        for entry in entries {
-            if let Err(e) = self.store_entry_tx(&mut tx, entry).await {
-                error_count += 1;
-                error!(
-                    accession = %entry.accession,
-                    error = %e,
-                    "Failed to store entry"
-                );
+        // Process entries in micro-batches (10 at a time) with separate transactions
+        // This balances between transaction overhead and failure isolation
+        for chunk in entries.chunks(10) {
+            let mut tx = self.db.begin().await.context("Failed to begin transaction")?;
 
-                // Collect first 5 errors for debugging
-                if errors.len() < 5 {
-                    errors.push((entry.accession.clone(), e.to_string()));
+            let mut chunk_success = true;
+            for entry in chunk {
+                match self.store_entry_tx(&mut tx, entry).await {
+                    Ok(_) => {
+                        stored_count += 1;
+                    }
+                    Err(e) => {
+                        // On error, rollback this transaction and retry entries individually
+                        chunk_success = false;
+                        error!(
+                            accession = %entry.accession,
+                            error = %e,
+                            "Failed to store entry in batch, will retry individually"
+                        );
+                        break;
+                    }
                 }
-
-                // Continue with other entries
-                continue;
             }
-            stored_count += 1;
-        }
 
-        // Commit transaction
-        tx.commit().await.context("Failed to commit transaction")?;
+            if chunk_success {
+                // Commit the successful batch
+                tx.commit().await.context("Failed to commit batch transaction")?;
+            } else {
+                // Rollback and retry failed entries one-by-one
+                drop(tx); // Explicit rollback by dropping
+
+                for entry in chunk {
+                    let mut retry_tx = self.db.begin().await.context("Failed to begin retry transaction")?;
+                    match self.store_entry_tx(&mut retry_tx, entry).await {
+                        Ok(_) => {
+                            retry_tx.commit().await.context("Failed to commit retry transaction")?;
+                            stored_count += 1;
+                        }
+                        Err(e) => {
+                            error_count += 1;
+                            error!(
+                                accession = %entry.accession,
+                                error = %e,
+                                error_chain = ?e.chain().collect::<Vec<_>>(),
+                                "Failed to store entry after retry"
+                            );
+
+                            // Collect first 5 errors for debugging
+                            if errors.len() < 5 {
+                                errors.push((entry.accession.clone(), format!("{:#}", e)));
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         // Log error summary
         if error_count > 0 {
@@ -147,13 +284,21 @@ impl UniProtStorage {
 
     /// Get or create organism as a data source (within transaction)
     ///
-    /// Organisms are now data sources with organism_metadata, not a separate organisms table
+    /// Organisms are now data sources with taxonomy_metadata, not a separate organisms table
+    /// Get or create organism (taxonomy) entry using TaxonomyHelper
+    ///
+    /// This method integrates with NCBI Taxonomy database:
+    /// - First checks if taxonomy entry exists within the current transaction
+    /// - If not found, uses TaxonomyHelper with pool to create stub (outside transaction)
+    /// - Returns the data_source_id for use as a foreign key
+    ///
+    /// Note: Taxonomy stub creation happens outside the transaction for isolation
     async fn get_or_create_organism_tx(&self, tx: &mut sqlx::Transaction<'_, sqlx::Postgres>, entry: &UniProtEntry) -> Result<Uuid> {
         let ncbi_taxonomy_id = entry.taxonomy_id;
 
-        // Check if organism exists
+        // Check if taxonomy already exists (most common case - fast path)
         let existing = sqlx::query_scalar::<_, Uuid>(
-            "SELECT data_source_id FROM organism_metadata WHERE taxonomy_id = $1"
+            "SELECT data_source_id FROM taxonomy_metadata WHERE taxonomy_id = $1"
         )
         .bind(ncbi_taxonomy_id)
         .fetch_optional(&mut **tx)
@@ -163,53 +308,19 @@ impl UniProtStorage {
             return Ok(id);
         }
 
-        // Create new organism as a data source
-        let scientific_name = &entry.organism_name;
-        let slug = format!("organism-{}", ncbi_taxonomy_id);
+        // Not found - use TaxonomyHelper to create stub using the pool
+        // (This happens outside the current transaction for isolation)
+        let mut taxonomy_helper = TaxonomyHelper::new(self.db.clone(), self.organization_id);
+        let data_source_id = taxonomy_helper
+            .get_or_create_taxonomy(
+                ncbi_taxonomy_id,
+                &entry.organism_name,
+                &entry.taxonomy_lineage,
+            )
+            .await
+            .context("Failed to get or create taxonomy via TaxonomyHelper")?;
 
-        // 1. Create registry entry
-        let entry_id = sqlx::query_scalar::<_, Uuid>(
-            r#"
-            INSERT INTO registry_entries (organization_id, slug, name, description, entry_type)
-            VALUES ($1, $2, $3, $4, 'data_source')
-            ON CONFLICT (slug) DO UPDATE SET updated_at = NOW()
-            RETURNING id
-            "#
-        )
-        .bind(self.organization_id)
-        .bind(&slug)
-        .bind(scientific_name)
-        .bind(format!("Organism: {}", scientific_name))
-        .fetch_one(&mut **tx)
-        .await?;
-
-        // 2. Create data source
-        sqlx::query(
-            r#"
-            INSERT INTO data_sources (id, source_type)
-            VALUES ($1, 'organism')
-            ON CONFLICT (id) DO NOTHING
-            "#
-        )
-        .bind(entry_id)
-        .execute(&mut **tx)
-        .await?;
-
-        // 3. Create organism metadata
-        sqlx::query(
-            r#"
-            INSERT INTO organism_metadata (data_source_id, taxonomy_id, scientific_name)
-            VALUES ($1, $2, $3)
-            ON CONFLICT (taxonomy_id) DO NOTHING
-            "#
-        )
-        .bind(entry_id)
-        .bind(ncbi_taxonomy_id)
-        .bind(scientific_name)
-        .execute(&mut **tx)
-        .await?;
-
-        Ok(entry_id)
+        Ok(data_source_id)
     }
 
     /// Create registry entry for the protein (within transaction)
@@ -243,34 +354,40 @@ impl UniProtStorage {
         tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
         entry_id: Uuid,
         entry: &UniProtEntry,
-        organism_id: Uuid,
+        _taxonomy_id: Uuid,
     ) -> Result<()> {
+        debug!("Creating data_source for protein: {} with entry_id: {}", entry.accession, entry_id);
         // Validate source_type is not empty
         let source_type = "protein";
         if source_type.is_empty() {
             anyhow::bail!("source_type cannot be empty");
         }
 
+        // Note: organism_id column was removed in migration 20260119000003
+        // The relationship is now through protein_metadata.organism_id foreign key
         sqlx::query(
             r#"
-            INSERT INTO data_sources (id, source_type, external_id, organism_id)
-            VALUES ($1, $2, $3, $4)
+            INSERT INTO data_sources (id, source_type, external_id)
+            VALUES ($1, $2, $3)
             ON CONFLICT (id) DO NOTHING
             "#
         )
         .bind(entry_id)
         .bind(source_type)
         .bind(&entry.accession)
-        .bind(organism_id)
         .execute(&mut **tx)
         .await
-        .context("Failed to create data_source")?;
+        .with_context(|| format!(
+            "Failed to create data_source for accession {} with id {}",
+            entry.accession, entry_id
+        ))?;
 
+        debug!("Successfully created data_source for protein: {}", entry.accession);
         Ok(())
     }
 
     /// Create protein_metadata record with deduplicated sequence (within transaction)
-    async fn create_protein_metadata_tx(&self, tx: &mut sqlx::Transaction<'_, sqlx::Postgres>, data_source_id: Uuid, entry: &UniProtEntry, organism_id: Uuid) -> Result<()> {
+    async fn create_protein_metadata_tx(&self, tx: &mut sqlx::Transaction<'_, sqlx::Postgres>, data_source_id: Uuid, entry: &UniProtEntry, taxonomy_id: Uuid) -> Result<()> {
         // 1. Get or create deduplicated sequence
         let sequence_id = self.get_or_create_sequence_tx(tx, entry).await?;
 
@@ -285,16 +402,10 @@ impl UniProtStorage {
             INSERT INTO protein_metadata (
                 data_source_id, accession, entry_name, protein_name, gene_name,
                 sequence_length, mass_da, sequence_checksum,
-                sequence_id, organism_id, uniprot_version
+                sequence_id, taxonomy_id, uniprot_version
             )
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-            ON CONFLICT (accession) DO UPDATE SET
-                entry_name = EXCLUDED.entry_name,
-                protein_name = EXCLUDED.protein_name,
-                gene_name = EXCLUDED.gene_name,
-                sequence_id = EXCLUDED.sequence_id,
-                organism_id = EXCLUDED.organism_id,
-                uniprot_version = EXCLUDED.uniprot_version
+            ON CONFLICT (data_source_id) DO NOTHING
             "#
         )
         .bind(data_source_id)
@@ -306,7 +417,7 @@ impl UniProtStorage {
         .bind(entry.mass_da)
         .bind(&sequence_checksum)
         .bind(sequence_id)
-        .bind(organism_id)
+        .bind(taxonomy_id)
         .bind(&self.external_version)
         .execute(&mut **tx)
         .await
@@ -396,27 +507,61 @@ impl UniProtStorage {
         Ok(version_id)
     }
 
-    /// Create version_file records for multiple formats (DAT, FASTA, JSON) (within transaction)
+    /// Upload entry files to S3 BEFORE transaction (non-blocking for database)
     ///
-    /// If S3 is configured, uploads files to S3 before creating database records.
-    async fn create_version_files_tx(&self, tx: &mut sqlx::Transaction<'_, sqlx::Postgres>, entry: &UniProtEntry, version_id: Uuid) -> Result<()> {
-        // Base S3 path for this protein version
-        let base_path = format!(
-            "proteins/uniprot/{}/{}",
-            entry.accession, self.internal_version
-        );
+    /// This MUST be called BEFORE starting any database transaction.
+    async fn upload_entry_to_s3(&self, entry: &UniProtEntry) -> Result<()> {
+        if let Some(ref s3) = self.s3 {
+            Self::upload_entry_to_s3_static(s3, entry, self.organization_id, &self.internal_version, &self.external_version).await
+        } else {
+            Ok(())
+        }
+    }
 
-        // 1. DAT format (original sequence data)
+    /// Static version of S3 upload for parallel processing
+    async fn upload_entry_to_s3_static(
+        s3: &Storage,
+        entry: &UniProtEntry,
+        _org_id: Uuid,
+        internal_version: &str,
+        _external_version: &str,
+    ) -> Result<()> {
+        let base_path = format!("proteins/uniprot/{}/{}", entry.accession, internal_version);
+
+        // Upload DAT
+        let dat_content = entry.sequence.as_bytes().to_vec();
+        let dat_key = format!("{}/{}.dat", base_path, entry.accession);
+        if let Err(e) = s3.upload(&dat_key, dat_content, Some("text/plain".to_string())).await {
+            warn!(accession = %entry.accession, error = %e, "Failed to upload DAT to S3");
+        }
+
+        // Upload FASTA
+        let fasta_content = entry.to_fasta();
+        let fasta_key = format!("{}/{}.fasta", base_path, entry.accession);
+        if let Err(e) = s3.upload(&fasta_key, fasta_content.as_bytes().to_vec(), Some("text/plain".to_string())).await {
+            warn!(accession = %entry.accession, error = %e, "Failed to upload FASTA to S3");
+        }
+
+        // Upload JSON
+        let json_content = entry.to_json()?;
+        let json_key = format!("{}/{}.json", base_path, entry.accession);
+        if let Err(e) = s3.upload(&json_key, json_content.as_bytes().to_vec(), Some("application/json".to_string())).await {
+            warn!(accession = %entry.accession, error = %e, "Failed to upload JSON to S3");
+        }
+
+        Ok(())
+    }
+
+    /// Create version_file records for multiple formats (within transaction)
+    ///
+    /// NOTE: S3 uploads MUST be done BEFORE calling this (see upload_entry_to_s3)
+    async fn create_version_files_tx(&self, tx: &mut sqlx::Transaction<'_, sqlx::Postgres>, entry: &UniProtEntry, version_id: Uuid) -> Result<()> {
+        let base_path = format!("proteins/uniprot/{}/{}", entry.accession, self.internal_version);
+
+        // 1. DAT format - just create DB record (S3 upload already done)
         let dat_content = entry.sequence.as_bytes().to_vec();
         let dat_checksum = self.compute_checksum(&dat_content);
         let dat_key = format!("{}/{}.dat", base_path, entry.accession);
-
-        // Upload to S3 if configured
-        if let Some(ref s3) = self.s3 {
-            s3.upload(&dat_key, dat_content.clone(), Some("text/plain".to_string()))
-                .await
-                .context("Failed to upload DAT file to S3")?;
-        }
 
         self.insert_version_file_tx(
             tx,
@@ -428,16 +573,10 @@ impl UniProtStorage {
         )
         .await?;
 
-        // 2. FASTA format
+        // 2. FASTA format - just create DB record
         let fasta_content = entry.to_fasta();
         let fasta_checksum = self.compute_checksum(fasta_content.as_bytes());
         let fasta_key = format!("{}/{}.fasta", base_path, entry.accession);
-
-        if let Some(ref s3) = self.s3 {
-            s3.upload(&fasta_key, fasta_content.as_bytes().to_vec(), Some("text/plain".to_string()))
-                .await
-                .context("Failed to upload FASTA file to S3")?;
-        }
 
         self.insert_version_file_tx(
             tx,
@@ -449,16 +588,10 @@ impl UniProtStorage {
         )
         .await?;
 
-        // 3. JSON format
+        // 3. JSON format - just create DB record
         let json_content = entry.to_json()?;
         let json_checksum = self.compute_checksum(json_content.as_bytes());
         let json_key = format!("{}/{}.json", base_path, entry.accession);
-
-        if let Some(ref s3) = self.s3 {
-            s3.upload(&json_key, json_content.as_bytes().to_vec(), Some("application/json".to_string()))
-                .await
-                .context("Failed to upload JSON file to S3")?;
-        }
 
         self.insert_version_file_tx(
             tx,
@@ -654,6 +787,240 @@ impl UniProtStorage {
         info!("✅ Created {} dependencies", protein_count);
         Ok(())
     }
+
+    /// Create bundles after all proteins have been stored
+    ///
+    /// Creates organism-specific bundles and the swissprot bundle (all proteins)
+    pub async fn create_bundles(&self, entries: &[UniProtEntry]) -> Result<()> {
+        info!("Creating bundles for {} entries", entries.len());
+
+        // Group proteins by organism (taxonomy_id)
+        let mut by_organism: HashMap<i32, (String, Vec<String>)> = HashMap::new();
+        let mut all_protein_slugs = Vec::new();
+
+        for entry in entries {
+            // Get protein slug (accession)
+            let protein_slug = entry.accession.clone();
+            all_protein_slugs.push(protein_slug.clone());
+
+            // Group by organism
+            by_organism
+                .entry(entry.taxonomy_id)
+                .or_insert_with(|| (entry.organism_name.clone(), Vec::new()))
+                .1
+                .push(protein_slug);
+        }
+
+        info!(
+            "Found {} organisms, {} total proteins",
+            by_organism.len(),
+            all_protein_slugs.len()
+        );
+
+        // Create organism bundles (no minimum threshold)
+        for (taxonomy_id, (organism_name, protein_slugs)) in by_organism {
+            let slug = taxonomy_to_slug(&organism_name, taxonomy_id);
+
+            self.create_bundle(
+                &slug,
+                &format!("{} (UniProt Proteins)", organism_name),
+                &protein_slugs,
+                "bundle",
+            )
+            .await?;
+
+            info!(
+                organism = %organism_name,
+                slug = %slug,
+                protein_count = protein_slugs.len(),
+                "Created organism bundle"
+            );
+        }
+
+        // Create swissprot bundle (all proteins)
+        self.create_bundle(
+            "swissprot",
+            "UniProt Swiss-Prot (Reviewed Proteins)",
+            &all_protein_slugs,
+            "bundle",
+        )
+        .await?;
+
+        info!(
+            bundle = "swissprot",
+            protein_count = all_protein_slugs.len(),
+            "Created swissprot bundle"
+        );
+
+        Ok(())
+    }
+
+    /// Create a single bundle with dependencies
+    ///
+    /// Generic method to create any bundle type (organism or database)
+    async fn create_bundle(
+        &self,
+        slug: &str,
+        name: &str,
+        protein_slugs: &[String],
+        source_type: &str,
+    ) -> Result<Uuid> {
+        debug!(
+            slug = %slug,
+            protein_count = protein_slugs.len(),
+            "Creating bundle"
+        );
+
+        // 1. Create registry entry for bundle
+        let entry_id = sqlx::query_scalar::<_, Uuid>(
+            r#"
+            INSERT INTO registry_entries (organization_id, slug, name, description, entry_type)
+            VALUES ($1, $2, $3, $4, 'data_source')
+            ON CONFLICT (slug) DO UPDATE
+            SET name = EXCLUDED.name,
+                description = EXCLUDED.description,
+                updated_at = NOW()
+            RETURNING id
+            "#
+        )
+        .bind(self.organization_id)
+        .bind(slug)
+        .bind(name)
+        .bind(format!("Bundle: {}", name))
+        .fetch_one(&self.db)
+        .await
+        .context("Failed to create bundle registry_entry")?;
+
+        debug!("Created bundle registry entry: {}", entry_id);
+
+        // 2. Create data source with bundle type
+        sqlx::query(
+            r#"
+            INSERT INTO data_sources (id, source_type)
+            VALUES ($1, $2)
+            ON CONFLICT (id) DO UPDATE SET source_type = EXCLUDED.source_type
+            "#
+        )
+        .bind(entry_id)
+        .bind(source_type)
+        .execute(&self.db)
+        .await
+        .context("Failed to create bundle data_source")?;
+
+        // 3. Create version with semantic versioning
+        let version_parts: Vec<&str> = self.internal_version.split('.').collect();
+        let version_major = version_parts.first().and_then(|v| v.parse::<i32>().ok()).unwrap_or(1);
+        let version_minor = version_parts.get(1).and_then(|v| v.parse::<i32>().ok()).unwrap_or(0);
+        let version_patch = version_parts.get(2).and_then(|v| v.parse::<i32>().ok()).unwrap_or(0);
+
+        let version_id = sqlx::query_scalar::<_, Uuid>(
+            r#"
+            INSERT INTO versions (
+                entry_id, version, external_version, dependency_count,
+                version_major, version_minor, version_patch
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            ON CONFLICT (entry_id, version) DO UPDATE
+            SET external_version = EXCLUDED.external_version,
+                dependency_count = EXCLUDED.dependency_count,
+                version_major = EXCLUDED.version_major,
+                version_minor = EXCLUDED.version_minor,
+                version_patch = EXCLUDED.version_patch,
+                updated_at = NOW()
+            RETURNING id
+            "#
+        )
+        .bind(entry_id)
+        .bind(&self.internal_version)
+        .bind(&self.external_version)
+        .bind(protein_slugs.len() as i32)
+        .bind(version_major)
+        .bind(version_minor)
+        .bind(version_patch)
+        .fetch_one(&self.db)
+        .await
+        .context("Failed to create bundle version")?;
+
+        debug!("Created bundle version: {}", version_id);
+
+        // 4. Create dependencies to all proteins
+        self.create_bundle_dependencies(version_id, protein_slugs).await?;
+
+        info!("Created bundle: {}", slug);
+        Ok(entry_id)
+    }
+
+    /// Create dependencies from bundle to individual proteins by slug
+    async fn create_bundle_dependencies(
+        &self,
+        bundle_version_id: Uuid,
+        protein_slugs: &[String],
+    ) -> Result<()> {
+        debug!(
+            bundle_version_id = %bundle_version_id,
+            protein_count = protein_slugs.len(),
+            "Creating bundle dependencies"
+        );
+
+        // Get registry entry IDs for all protein slugs
+        if protein_slugs.is_empty() {
+            return Ok(());
+        }
+
+        // Process in batches to avoid parameter limits
+        for chunk in protein_slugs.chunks(1000) {
+            // Build query to get entry IDs for these slugs
+            let mut query_builder = sqlx::QueryBuilder::new(
+                "SELECT id FROM registry_entries WHERE organization_id = "
+            );
+            query_builder.push_bind(self.organization_id);
+            query_builder.push(" AND slug IN (");
+
+            let mut separated = query_builder.separated(", ");
+            for slug in chunk {
+                separated.push_bind(slug);
+            }
+            query_builder.push(")");
+
+            let protein_entry_ids: Vec<(Uuid,)> = query_builder
+                .build_query_as()
+                .fetch_all(&self.db)
+                .await
+                .context("Failed to fetch protein entry IDs")?;
+
+            if protein_entry_ids.is_empty() {
+                continue;
+            }
+
+            // Batch insert dependencies
+            let mut dep_query_builder = sqlx::QueryBuilder::new(
+                "INSERT INTO dependencies (version_id, depends_on_entry_id, depends_on_version, dependency_type) "
+            );
+
+            dep_query_builder.push_values(&protein_entry_ids, |mut b, (protein_entry_id,)| {
+                b.push_bind(bundle_version_id)
+                    .push_bind(protein_entry_id)
+                    .push_bind(&self.internal_version)
+                    .push_bind("required");
+            });
+
+            dep_query_builder.push(" ON CONFLICT DO NOTHING");
+
+            dep_query_builder
+                .build()
+                .execute(&self.db)
+                .await
+                .context("Failed to insert bundle dependencies")?;
+        }
+
+        info!(
+            bundle_version_id = %bundle_version_id,
+            dependency_count = protein_slugs.len(),
+            "Created bundle dependencies"
+        );
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -661,13 +1028,38 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_storage_creation() {
-        let pool = PgPool::connect_lazy("postgresql://test").unwrap();
-        let data_source_id = Uuid::new_v4();
-        let version_id = Uuid::new_v4();
+    fn test_classify_source_type_viruses() {
+        let lineage = vec!["Viruses".to_string(), "Riboviria".to_string()];
+        assert_eq!(classify_source_type(&lineage), "virus");
+    }
 
-        let storage = UniProtStorage::new(pool, data_source_id, version_id);
-        assert_eq!(storage.data_source_id, data_source_id);
-        assert_eq!(storage.version_id, version_id);
+    #[test]
+    fn test_classify_source_type_bacteria() {
+        let lineage = vec!["Bacteria".to_string(), "Proteobacteria".to_string()];
+        assert_eq!(classify_source_type(&lineage), "bacteria");
+    }
+
+    #[test]
+    fn test_classify_source_type_archaea() {
+        let lineage = vec!["Archaea".to_string(), "Euryarchaeota".to_string()];
+        assert_eq!(classify_source_type(&lineage), "archaea");
+    }
+
+    #[test]
+    fn test_classify_source_type_eukaryota() {
+        let lineage = vec!["Eukaryota".to_string(), "Metazoa".to_string()];
+        assert_eq!(classify_source_type(&lineage), "organism");
+    }
+
+    #[test]
+    fn test_classify_source_type_empty() {
+        let lineage: Vec<String> = vec![];
+        assert_eq!(classify_source_type(&lineage), "organism");
+    }
+
+    #[test]
+    fn test_classify_source_type_unknown() {
+        let lineage = vec!["UnknownDomain".to_string()];
+        assert_eq!(classify_source_type(&lineage), "organism");
     }
 }

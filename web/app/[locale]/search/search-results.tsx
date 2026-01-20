@@ -16,7 +16,7 @@ import {
 } from '@/lib/types/search';
 import { searchFullText } from '@/lib/api/search';
 import { Loader2, X } from 'lucide-react';
-import { Link } from '@/i18n/navigation';
+import { SafeLink as Link } from '@/components/shared/safe-link';
 
 export function SearchResults() {
   const t = useTranslations('search');
@@ -31,6 +31,7 @@ export function SearchResults() {
   // Parse filters from URL
   const [filters, setFilters] = React.useState<SearchFiltersType>(() => {
     const types = searchParams.get('types')?.split(',').filter(Boolean);
+    const source_types = searchParams.get('source_types')?.split(',').filter(Boolean);
     const organizations = searchParams.get('organizations')?.split(',').filter(Boolean);
     const tags = searchParams.get('tags')?.split(',').filter(Boolean);
     const from = searchParams.get('from');
@@ -38,6 +39,7 @@ export function SearchResults() {
 
     return {
       types: types?.length ? types : undefined,
+      source_types: source_types?.length ? source_types : undefined,
       organizations: organizations?.length ? organizations : undefined,
       tags: tags?.length ? tags : undefined,
       dateRange:
@@ -70,6 +72,7 @@ export function SearchResults() {
         const data = await searchFullText({
           query,
           type_filter: filters.types,
+          source_type_filter: filters.source_types,
           organism: filters.tags?.[0], // Using tags as organism filter for now
           format: undefined, // No format filter in current UI
           page: currentPage,
@@ -98,6 +101,7 @@ export function SearchResults() {
     params.set('q', query);
     params.set('page', '1'); // Reset to page 1 when filters change
     if (newFilters.types?.length) params.set('types', newFilters.types.join(','));
+    if (newFilters.source_types?.length) params.set('source_types', newFilters.source_types.join(','));
     if (newFilters.organizations?.length) params.set('organizations', newFilters.organizations.join(','));
     if (newFilters.tags?.length) params.set('tags', newFilters.tags.join(','));
     if (newFilters.dateRange?.from)
@@ -120,6 +124,9 @@ export function SearchResults() {
     if (filterType === 'types' && value) {
       newFilters.types = newFilters.types?.filter((t) => t !== value);
       if (newFilters.types?.length === 0) newFilters.types = undefined;
+    } else if (filterType === 'source_types' && value) {
+      newFilters.source_types = newFilters.source_types?.filter((t) => t !== value);
+      if (newFilters.source_types?.length === 0) newFilters.source_types = undefined;
     } else if (filterType === 'organizations' && value) {
       newFilters.organizations = newFilters.organizations?.filter((o) => o !== value);
       if (newFilters.organizations?.length === 0) newFilters.organizations = undefined;
@@ -145,12 +152,18 @@ export function SearchResults() {
       active.push({ type: 'types', value: type, label: type === 'datasource' ? 'Data Source' : 'Tool' });
     });
 
+    filters.source_types?.forEach((sourceType) => {
+      const label = sourceType.charAt(0).toUpperCase() + sourceType.slice(1);
+      active.push({ type: 'source_types', value: sourceType, label });
+    });
+
     filters.organizations?.forEach((org) => {
       active.push({ type: 'organizations', value: org, label: org.toUpperCase() });
     });
 
     filters.tags?.forEach((tag) => {
-      active.push({ type: 'tags', value: tag, label: tag });
+      const label = tag.charAt(0).toUpperCase() + tag.slice(1);
+      active.push({ type: 'tags', value: tag, label });
     });
 
     if (filters.dateRange) {
@@ -239,9 +252,50 @@ export function SearchResults() {
         <>
           <div className="space-y-4">
             {results.map((result) => {
-              const href = result.entry_type === 'organization'
-                ? `/organizations/${result.slug}`
-                : `/sources/${result.organization_slug}/${result.slug}`;
+              // Check if data is missing
+              const hasMissingData = !result.slug || (result.entry_type !== 'organization' && !result.organization_slug);
+
+              // Skip rendering if critical data is missing
+              if (hasMissingData) {
+                console.warn('Skipping result with missing data:', result);
+                return null;
+              }
+
+              // Construct proper href with version for data sources
+              let href: string;
+              if (result.entry_type === 'organization') {
+                href = `/organizations/${result.slug}`;
+              } else {
+                // Include version in URL to avoid redirect issues
+                const version = result.latest_version || 'latest';
+                href = `/sources/${result.organization_slug}/${result.slug}/${version}`;
+              }
+
+              // Get badge styling based on source_type
+              const getSourceTypeBadgeClass = (sourceType: string) => {
+                const baseClasses = 'text-xs capitalize';
+                switch (sourceType.toLowerCase()) {
+                  case 'protein':
+                    return `${baseClasses} bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 hover:bg-purple-100`;
+                  case 'genome':
+                    return `${baseClasses} bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 hover:bg-green-100`;
+                  case 'organism':
+                  case 'taxonomy':
+                    return `${baseClasses} bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 hover:bg-blue-100`;
+                  case 'transcript':
+                    return `${baseClasses} bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200 hover:bg-teal-100`;
+                  case 'annotation':
+                    return `${baseClasses} bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 hover:bg-amber-100`;
+                  case 'structure':
+                    return `${baseClasses} bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200 hover:bg-pink-100`;
+                  case 'pathway':
+                    return `${baseClasses} bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200 hover:bg-indigo-100`;
+                  case 'bundle':
+                    return `${baseClasses} bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200 hover:bg-cyan-100`;
+                  default:
+                    return `${baseClasses} bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200 hover:bg-gray-100`;
+                }
+              };
 
               return (
                 <Link
@@ -266,13 +320,8 @@ export function SearchResults() {
                         <p className="text-sm text-muted-foreground">{result.description}</p>
                       )}
                       <div className="flex flex-wrap gap-2 pt-2">
-                        {result.organism && (
-                          <Badge variant="secondary" className="text-xs">
-                            {result.organism.scientific_name}
-                          </Badge>
-                        )}
                         {result.source_type && (
-                          <Badge variant="secondary" className="text-xs">
+                          <Badge className={getSourceTypeBadgeClass(result.source_type)}>
                             {result.source_type}
                           </Badge>
                         )}

@@ -13,10 +13,8 @@ pub struct UpdateDataSourceCommand {
     pub description: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub external_id: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub organism_id: Option<Uuid>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub additional_metadata: Option<serde_json::Value>,
+    // NOTE: organism_id and additional_metadata have been removed
+    // Type-specific metadata should go in *_metadata tables
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -30,8 +28,7 @@ pub struct UpdateDataSourceResponse {
     pub source_type: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub external_id: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub organism_id: Option<Uuid>,
+    // NOTE: organism_id removed - use *_metadata tables for type-specific fields
     pub updated_at: DateTime<Utc>,
 }
 
@@ -60,8 +57,6 @@ impl UpdateDataSourceCommand {
         if self.name.is_none()
             && self.description.is_none()
             && self.external_id.is_none()
-            && self.organism_id.is_none()
-            && self.additional_metadata.is_none()
         {
             return Err(UpdateDataSourceError::NoFieldsToUpdate);
         }
@@ -84,19 +79,7 @@ pub async fn handle(
 ) -> Result<UpdateDataSourceResponse, UpdateDataSourceError> {
     command.validate()?;
 
-    if let Some(organism_id) = command.organism_id {
-        let organism_exists = sqlx::query_scalar!(
-            "SELECT EXISTS(SELECT 1 FROM organisms WHERE id = $1)",
-            organism_id
-        )
-        .fetch_one(&pool)
-        .await?
-        .unwrap_or(false);
-
-        if !organism_exists {
-            return Err(UpdateDataSourceError::OrganismNotFound(organism_id));
-        }
-    }
+    // NOTE: organism_id validation removed - organisms are now referenced in *_metadata tables
 
     let mut tx = pool.begin().await?;
 
@@ -105,7 +88,7 @@ pub async fn handle(
         r#"
         SELECT
             re.id, re.organization_id, re.slug, re.name, re.description,
-            ds.source_type, ds.external_id, ds.organism_id,
+            ds.source_type, ds.external_id,
             re.created_at as "created_at!", re.updated_at as "updated_at!"
         FROM registry_entries re
         JOIN data_sources ds ON re.id = ds.id
@@ -134,43 +117,25 @@ pub async fn handle(
     .await?;
 
     let new_external_id = command.external_id.as_ref().or(current.external_id.as_ref());
-    let new_organism_id = command.organism_id.or(current.organism_id);
 
-    if command.additional_metadata.is_some() {
-        sqlx::query!(
-            r#"
-            UPDATE data_sources
-            SET external_id = $2, organism_id = $3, additional_metadata = $4
-            WHERE id = $1
-            "#,
-            command.id,
-            new_external_id,
-            new_organism_id,
-            command.additional_metadata
-        )
-        .execute(&mut *tx)
-        .await?;
-    } else {
-        sqlx::query!(
-            r#"
-            UPDATE data_sources
-            SET external_id = $2, organism_id = $3
-            WHERE id = $1
-            "#,
-            command.id,
-            new_external_id,
-            new_organism_id
-        )
-        .execute(&mut *tx)
-        .await?;
-    }
+    sqlx::query!(
+        r#"
+        UPDATE data_sources
+        SET external_id = $2
+        WHERE id = $1
+        "#,
+        command.id,
+        new_external_id
+    )
+    .execute(&mut *tx)
+    .await?;
 
     let result = sqlx::query_as!(
         DataSourceRecord,
         r#"
         SELECT
             re.id, re.organization_id, re.slug, re.name, re.description,
-            ds.source_type, ds.external_id, ds.organism_id,
+            ds.source_type, ds.external_id,
             re.created_at as "created_at!", re.updated_at as "updated_at!"
         FROM registry_entries re
         JOIN data_sources ds ON re.id = ds.id
@@ -191,7 +156,6 @@ pub async fn handle(
         description: result.description,
         source_type: result.source_type,
         external_id: result.external_id,
-        organism_id: result.organism_id,
         updated_at: result.updated_at,
     })
 }
@@ -205,7 +169,6 @@ struct DataSourceRecord {
     description: Option<String>,
     source_type: String,
     external_id: Option<String>,
-    organism_id: Option<Uuid>,
     created_at: DateTime<Utc>,
     updated_at: DateTime<Utc>,
 }
@@ -221,8 +184,8 @@ mod tests {
             name: Some("Updated Name".to_string()),
             description: Some("Updated description".to_string()),
             external_id: None,
-            organism_id: None,
-            additional_metadata: None,
+            // organism_id: None,
+            // additional_metadata: None,
         };
         assert!(cmd.validate().is_ok());
     }
@@ -234,8 +197,8 @@ mod tests {
             name: None,
             description: None,
             external_id: None,
-            organism_id: None,
-            additional_metadata: None,
+            // organism_id: None,
+            // additional_metadata: None,
         };
         assert!(matches!(
             cmd.validate(),
@@ -250,8 +213,8 @@ mod tests {
             name: Some("   ".to_string()),
             description: None,
             external_id: None,
-            organism_id: None,
-            additional_metadata: None,
+            // organism_id: None,
+            // additional_metadata: None,
         };
         assert!(matches!(
             cmd.validate(),
@@ -298,8 +261,8 @@ mod tests {
             name: Some("Updated Name".to_string()),
             description: Some("Updated description".to_string()),
             external_id: Some("P12345".to_string()),
-            organism_id: None,
-            additional_metadata: None,
+            // organism_id: None,
+            // additional_metadata: None,
         };
 
         let result = handle(pool.clone(), cmd).await;
@@ -321,8 +284,8 @@ mod tests {
             name: Some("Name".to_string()),
             description: None,
             external_id: None,
-            organism_id: None,
-            additional_metadata: None,
+            // organism_id: None,
+            // additional_metadata: None,
         };
 
         let result = handle(pool.clone(), cmd).await;

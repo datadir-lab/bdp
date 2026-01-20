@@ -43,6 +43,7 @@ pub mod pipeline;
 pub mod storage;
 pub mod parser_adapter;
 pub mod storage_adapter;
+pub mod taxonomy_helper;
 pub mod version_discovery;
 
 // Re-export commonly used types

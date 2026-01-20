@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Package, Download, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
-import { Link } from '@/i18n/navigation';
+import { SafeLink as Link } from '@/components/shared/safe-link';
 import { listDataSources } from '@/lib/api/data-sources';
 import type { DataSource } from '@/lib/types/data-source';
 
@@ -159,10 +159,21 @@ export function SourcesList({ searchParams }: SourcesListProps) {
       {!isLoading && !error && dataSources.length > 0 && (
         <>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {dataSources.map((dataSource) => (
+            {dataSources.map((dataSource) => {
+              // Skip data sources with missing required fields
+              if (!dataSource.slug || !dataSource.organization?.slug) {
+                console.warn('Skipping data source with missing slug:', dataSource);
+                return null;
+              }
+
+              // Include version in URL to avoid redirect issues
+              const version = dataSource.latest_version || 'latest';
+              const href = `/sources/${dataSource.organization.slug}/${dataSource.slug}/${version}`;
+
+              return (
               <Link
                 key={dataSource.id}
-                href={`/sources/${dataSource.organization.slug}/${dataSource.slug}`}
+                href={href}
                 className="group rounded-lg border bg-card p-5 transition-all hover:border-primary hover:shadow-md"
               >
                 <div className="space-y-3">
@@ -211,7 +222,8 @@ export function SourcesList({ searchParams }: SourcesListProps) {
                   )}
                 </div>
               </Link>
-            ))}
+              );
+            })}
           </div>
 
           {/* Pagination */}

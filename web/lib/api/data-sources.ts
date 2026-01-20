@@ -28,21 +28,21 @@ export interface GetDependenciesParams {
 
 /**
  * Get a data source with all versions
- * GET /api/v1/sources/:org/:name
+ * GET /api/v1/data-sources/:org/:name
  */
 export async function getDataSource(
   org: string,
   name: string
 ): Promise<DataSource> {
   const response = await apiClient.get<DataSourceResponse>(
-    `/api/v1/sources/${org}/${name}`
+    `/api/v1/data-sources/${org}/${name}`
   );
   return response.data.data;
 }
 
 /**
  * Get a specific version of a data source
- * GET /api/v1/sources/:org/:name/:version
+ * GET /api/v1/data-sources/:org/:name/:version
  */
 export async function getDataSourceVersion(
   org: string,
@@ -50,14 +50,14 @@ export async function getDataSourceVersion(
   version: string
 ): Promise<DataSourceVersion & { organization: string; name: string }> {
   const response = await apiClient.get<DataSourceVersionResponse>(
-    `/api/v1/sources/${org}/${name}/${version}`
+    `/api/v1/data-sources/${org}/${name}/${version}`
   );
   return response.data.data;
 }
 
 /**
  * Get dependencies for a data source version
- * GET /api/v1/sources/:org/:name/:version/dependencies
+ * GET /api/v1/data-sources/:org/:name/:version/dependencies
  */
 export async function getDependencies(
   org: string,
@@ -73,7 +73,7 @@ export async function getDependencies(
   if (params.search) queryParams.search = params.search;
 
   const response = await apiClient.get<DependenciesApiResponse>(
-    `/api/v1/sources/${org}/${name}/${version}/dependencies`,
+    `/api/v1/data-sources/${org}/${name}/${version}/dependencies`,
     queryParams
   );
   return response.data.data;
@@ -81,7 +81,7 @@ export async function getDependencies(
 
 /**
  * List data sources with filters
- * GET /api/v1/sources
+ * GET /api/v1/data-sources
  */
 export async function listDataSources(
   params: ListDataSourcesParams = {}
@@ -106,7 +106,7 @@ export async function listDataSources(
         per_page: number;
       };
     };
-  }>('/api/v1/sources', queryParams);
+  }>('/api/v1/data-sources', queryParams);
 
   return {
     data: response.data.data,

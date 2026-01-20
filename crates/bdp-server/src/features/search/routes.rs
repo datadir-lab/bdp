@@ -100,9 +100,11 @@ impl IntoResponse for SearchApiError {
             | SearchApiError::SearchError(UnifiedSearchError::InvalidPerPage)
             | SearchApiError::SearchError(UnifiedSearchError::InvalidPage)
             | SearchApiError::SearchError(UnifiedSearchError::InvalidTypeFilter(_))
+            | SearchApiError::SearchError(UnifiedSearchError::InvalidSourceTypeFilter(_))
             | SearchApiError::SuggestionsError(SearchSuggestionsError::QueryTooShort)
             | SearchApiError::SuggestionsError(SearchSuggestionsError::InvalidLimit)
-            | SearchApiError::SuggestionsError(SearchSuggestionsError::InvalidTypeFilter(_)) => {
+            | SearchApiError::SuggestionsError(SearchSuggestionsError::InvalidTypeFilter(_))
+            | SearchApiError::SuggestionsError(SearchSuggestionsError::InvalidSourceTypeFilter(_)) => {
                 let error = ErrorResponse::new("VALIDATION_ERROR", self.to_string());
                 (StatusCode::BAD_REQUEST, Json(error)).into_response()
             }

@@ -16,6 +16,7 @@ import { apiClient } from '@/lib/api-client';
 import { useDebounce } from '@/hooks/use-debounce';
 import { listOrganizations } from '@/lib/api/organizations';
 import type { OrganizationListItem } from '@/lib/types/organization';
+import { getAvailableSourceTypes } from '@/lib/api/search';
 
 interface SearchFiltersProps {
   open: boolean;
@@ -48,6 +49,8 @@ export function SearchFilters({
   const orgDropdownRef = React.useRef<HTMLDivElement>(null);
   // Cache selected organizations for display
   const [selectedOrgsCache, setSelectedOrgsCache] = React.useState<Map<string, OrganizationListItem>>(new Map());
+  // Available source types fetched from API
+  const [availableSourceTypes, setAvailableSourceTypes] = React.useState<string[]>([]);
 
   const handleOpenChangeInternal = (newOpen: boolean) => {
     onOpenChange(newOpen);
@@ -82,6 +85,18 @@ export function SearchFilters({
       };
 
       fetchMissingOrgs();
+
+      // Fetch available source types
+      const fetchSourceTypes = async () => {
+        try {
+          const sourceTypes = await getAvailableSourceTypes();
+          setAvailableSourceTypes(sourceTypes);
+        } catch (error) {
+          console.error('Failed to fetch source types:', error);
+        }
+      };
+
+      fetchSourceTypes();
     }
   }, [open, filters]);
 
@@ -135,7 +150,25 @@ export function SearchFilters({
       const newTypes = types.includes(type)
         ? types.filter((t) => t !== type)
         : [...types, type];
-      return { ...prev, types: newTypes.length > 0 ? newTypes : undefined };
+
+      // Clear source_types if switching away from datasource
+      const shouldClearSourceTypes = newTypes.length > 0 && !newTypes.includes('datasource');
+
+      return {
+        ...prev,
+        types: newTypes.length > 0 ? newTypes : undefined,
+        source_types: shouldClearSourceTypes ? undefined : prev.source_types
+      };
+    });
+  };
+
+  const handleSourceTypeToggle = (sourceType: string) => {
+    setLocalFilters((prev) => {
+      const sourceTypes = prev.source_types || [];
+      const newSourceTypes = sourceTypes.includes(sourceType)
+        ? sourceTypes.filter((t) => t !== sourceType)
+        : [...sourceTypes, sourceType];
+      return { ...prev, source_types: newSourceTypes.length > 0 ? newSourceTypes : undefined };
     });
   };
 
@@ -184,10 +217,19 @@ export function SearchFilters({
   const getActiveFilterCount = () => {
     let count = 0;
     if (localFilters.types?.length) count += localFilters.types.length;
+    if (localFilters.source_types?.length) count += localFilters.source_types.length;
     if (localFilters.organizations?.length) count += localFilters.organizations.length;
     if (localFilters.dateRange?.from || localFilters.dateRange?.to) count += 1;
     if (localFilters.tags?.length) count += localFilters.tags.length;
     return count;
+  };
+
+  // Show source type filter if datasource is ticked or nothing is ticked
+  const showSourceTypeFilter = !localFilters.types?.length || localFilters.types?.includes('datasource');
+
+  // Capitalize source type labels for display
+  const capitalizeSourceType = (sourceType: string) => {
+    return sourceType.charAt(0).toUpperCase() + sourceType.slice(1);
   };
 
   const activeCount = getActiveFilterCount();
@@ -268,6 +310,52 @@ export function SearchFilters({
           </div>
 
           <Separator />
+
+          {/* Source Type Filters - Dynamic based on type selection */}
+          {showSourceTypeFilter && (
+            <>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium">{t('sourceType')}</Label>
+                  {localFilters.source_types && localFilters.source_types.length > 0 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() =>
+                        setLocalFilters((prev) => ({ ...prev, source_types: undefined }))
+                      }
+                      className="h-auto p-0 text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      <CloseIcon className="mr-1 h-3 w-3" />
+                      {t('clearSection')}
+                    </Button>
+                  )}
+                </div>
+                <div className="flex flex-col gap-3">
+                  {availableSourceTypes.length === 0 ? (
+                    <div className="text-sm text-muted-foreground">Loading source types...</div>
+                  ) : (
+                    availableSourceTypes.map((sourceType) => (
+                      <div key={sourceType} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`source-type-${sourceType}`}
+                          checked={localFilters.source_types?.includes(sourceType) || false}
+                          onCheckedChange={() => handleSourceTypeToggle(sourceType)}
+                        />
+                        <Label
+                          htmlFor={`source-type-${sourceType}`}
+                          className="text-sm font-normal cursor-pointer"
+                        >
+                          {capitalizeSourceType(sourceType)}
+                        </Label>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+              <Separator />
+            </>
+          )}
 
           {/* Organization Filters */}
           <div className="space-y-3">

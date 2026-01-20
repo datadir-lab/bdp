@@ -75,27 +75,31 @@ async fn main() -> Result<()> {
 
     info!("Database migrations completed");
 
-    // Start job scheduler if ingestion is enabled
-    let _scheduler_handle = if let Ok(ingest_config) = ingest::IngestConfig::from_env() {
+    // Start ingestion orchestrator if enabled
+    let _orchestrator_handle = if let Ok(ingest_config) = ingest::IngestConfig::from_env() {
         if ingest_config.enabled {
-            info!("Ingestion is enabled, starting job scheduler");
-            let scheduler = ingest::JobScheduler::new(ingest_config, db_pool.clone());
-            match scheduler.start().await {
-                Ok(handle) => {
-                    info!("Job scheduler started successfully");
-                    Some(handle)
-                }
-                Err(e) => {
-                    tracing::error!("Failed to start job scheduler: {:?}", e);
-                    None
-                }
-            }
+            info!("Ingestion is enabled, starting orchestrator");
+
+            // Get or create UniProt organization
+            let org_id = get_or_create_uniprot_org(&db_pool).await?;
+            info!("Using UniProt organization: {}", org_id);
+
+            // Start orchestrator
+            let orchestrator = ingest::IngestOrchestrator::new(
+                ingest_config,
+                std::sync::Arc::new(db_pool.clone()),
+                storage.clone(),
+                org_id,
+            );
+            let handle = orchestrator.start();
+            info!("Ingestion orchestrator started successfully");
+            Some(handle)
         } else {
             info!("Ingestion is disabled (INGEST_ENABLED=false)");
             None
         }
     } else {
-        info!("Ingestion configuration not found or invalid, scheduler not started");
+        info!("Ingestion configuration not found or invalid, orchestrator not started");
         None
     };
 
@@ -306,4 +310,48 @@ async fn shutdown_signal(timeout_secs: u64) {
     // Give ongoing requests time to complete
     info!("Waiting up to {} seconds for connections to close", timeout_secs);
     tokio::time::sleep(Duration::from_secs(timeout_secs.min(5))).await;
+}
+
+/// Get or create UniProt organization
+async fn get_or_create_uniprot_org(pool: &sqlx::PgPool) -> Result<uuid::Uuid> {
+    const UNIPROT_SLUG: &str = "uniprot";
+
+    // Check for existing UniProt organization by slug
+    let result = sqlx::query!(
+        r#"SELECT id FROM organizations WHERE slug = $1"#,
+        UNIPROT_SLUG
+    )
+    .fetch_optional(pool)
+    .await?;
+
+    if let Some(record) = result {
+        Ok(record.id)
+    } else {
+        // Create organization
+        let id = uuid::Uuid::new_v4();
+        sqlx::query!(
+            r#"
+            INSERT INTO organizations (id, name, slug, description, is_system)
+            VALUES ($1, $2, $3, $4, $5)
+            ON CONFLICT (slug) DO NOTHING
+            "#,
+            id,
+            "Universal Protein Resource",
+            UNIPROT_SLUG,
+            "UniProt Knowledgebase - Protein sequences and functional information",
+            true
+        )
+        .execute(pool)
+        .await?;
+
+        // Fetch the ID in case another process created it concurrently
+        let record = sqlx::query!(
+            r#"SELECT id FROM organizations WHERE slug = $1"#,
+            UNIPROT_SLUG
+        )
+        .fetch_one(pool)
+        .await?;
+
+        Ok(record.id)
+    }
 }

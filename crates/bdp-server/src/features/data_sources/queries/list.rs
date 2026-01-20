@@ -106,9 +106,11 @@ pub async fn handle(
         SELECT COUNT(*)
         FROM registry_entries re
         JOIN data_sources ds ON re.id = ds.id
+        LEFT JOIN protein_metadata pm ON ds.id = pm.data_source_id
+        LEFT JOIN taxonomy_metadata om_direct ON ds.id = om_direct.data_source_id AND ds.source_type = 'organism'
         WHERE ($1::UUID IS NULL OR re.organization_id = $1)
           AND ($2::TEXT IS NULL OR ds.source_type = $2)
-          AND ($3::UUID IS NULL OR ds.organism_id = $3)
+          AND ($3::UUID IS NULL OR pm.taxonomy_id = $3 OR (ds.source_type = 'organism' AND ds.id = $3))
         "#,
         query.organization_id,
         query.source_type.as_deref(),
@@ -129,7 +131,7 @@ pub async fn handle(
             re.name,
             ds.source_type,
             ds.external_id,
-            org.scientific_name as organism_scientific_name,
+            COALESCE(om_ref.scientific_name, om_direct.scientific_name) as organism_scientific_name,
             (
                 SELECT v.version
                 FROM versions v
@@ -150,10 +152,12 @@ pub async fn handle(
         FROM registry_entries re
         JOIN data_sources ds ON re.id = ds.id
         JOIN organizations o ON re.organization_id = o.id
-        LEFT JOIN organisms org ON ds.organism_id = org.id
+        LEFT JOIN protein_metadata pm ON ds.id = pm.data_source_id
+        LEFT JOIN taxonomy_metadata om_ref ON pm.taxonomy_id = om_ref.data_source_id
+        LEFT JOIN taxonomy_metadata om_direct ON ds.id = om_direct.data_source_id AND ds.source_type = 'organism'
         WHERE ($1::UUID IS NULL OR re.organization_id = $1)
           AND ($2::TEXT IS NULL OR ds.source_type = $2)
-          AND ($3::UUID IS NULL OR ds.organism_id = $3)
+          AND ($3::UUID IS NULL OR pm.taxonomy_id = $3 OR (ds.source_type = 'organism' AND ds.id = $3))
         ORDER BY re.created_at DESC
         LIMIT $4
         OFFSET $5

@@ -11,11 +11,13 @@ export interface SearchSuggestionsParams {
   q: string;
   limit?: number;
   type_filter?: string[];
+  source_type_filter?: string[];
 }
 
 export interface SearchParams {
   query: string;
   type_filter?: string[];
+  source_type_filter?: string[];
   organism?: string;
   format?: string;
   page?: number;
@@ -41,6 +43,10 @@ export async function getSuggestions(
     queryParams.type_filter = params.type_filter.join(',');
   }
 
+  if (params.source_type_filter && params.source_type_filter.length > 0) {
+    queryParams.source_type_filter = params.source_type_filter.join(',');
+  }
+
   const response = await apiClient.get<{
     success: boolean;
     data: SearchSuggestion[];
@@ -63,6 +69,10 @@ export async function searchFullText(params: SearchParams): Promise<{
 
   if (params.type_filter && params.type_filter.length > 0) {
     queryParams.type_filter = params.type_filter.join(',');
+  }
+
+  if (params.source_type_filter && params.source_type_filter.length > 0) {
+    queryParams.source_type_filter = params.source_type_filter.join(',');
   }
 
   if (params.organism) {
@@ -93,4 +103,42 @@ export async function searchFullText(params: SearchParams): Promise<{
     items: response.data.data,
     pagination: response.data.meta.pagination,
   };
+}
+
+/**
+ * Get available source types for data sources
+ * GET /api/v1/data-sources/source-types
+ */
+export async function getAvailableSourceTypes(): Promise<string[]> {
+  // Fallback list
+  const fallbackTypes = [
+    'annotation',
+    'bundle',
+    'genome',
+    'organism',
+    'other',
+    'pathway',
+    'protein',
+    'structure',
+    'taxonomy',
+    'transcript',
+  ];
+
+  try {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: string[];
+    }>('/api/v1/data-sources/source-types');
+
+    // Validate response
+    if (response.data.data && Array.isArray(response.data.data) && response.data.data.length > 0) {
+      return response.data.data.sort();
+    }
+
+    console.warn('API returned empty or invalid source types, using fallback');
+    return fallbackTypes;
+  } catch (error) {
+    console.warn('Failed to fetch source types from API, using fallback:', error);
+    return fallbackTypes;
+  }
 }
