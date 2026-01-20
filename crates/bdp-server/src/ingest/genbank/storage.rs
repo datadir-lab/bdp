@@ -13,6 +13,7 @@ use tracing::{debug, info, warn};
 use uuid::Uuid;
 
 use super::models::GenbankRecord;
+use crate::ingest::citations::{ncbi_refseq_policy, setup_citation_policy};
 use crate::storage::Storage;
 
 /// Storage statistics
@@ -54,6 +55,17 @@ impl GenbankStorage {
             external_version,
             release,
         }
+    }
+
+    /// Set up citation policy for NCBI RefSeq organization (idempotent)
+    ///
+    /// This should be called once during pipeline initialization to ensure
+    /// citation policy is properly configured for the organization.
+    pub async fn setup_citations(&self) -> Result<()> {
+        let policy_config = ncbi_refseq_policy(self.organization_id, None);
+        setup_citation_policy(&self.db, &policy_config).await?;
+        info!("NCBI RefSeq citation policy configured");
+        Ok(())
     }
 
     /// Store GenBank records using batch operations

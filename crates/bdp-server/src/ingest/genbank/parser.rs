@@ -464,7 +464,7 @@ impl GenbankParser {
     }
 
     /// Calculate GC content percentage
-    fn calculate_gc_content(sequence: &str) -> f32 {
+    pub fn calculate_gc_content(sequence: &str) -> f32 {
         if sequence.is_empty() {
             return 0.0;
         }
@@ -478,7 +478,7 @@ impl GenbankParser {
     }
 
     /// Calculate SHA256 hash of sequence
-    fn calculate_hash(sequence: &str) -> String {
+    pub fn calculate_hash(sequence: &str) -> String {
         let mut hasher = Sha256::new();
         hasher.update(sequence.as_bytes());
         format!("{:x}", hasher.finalize())

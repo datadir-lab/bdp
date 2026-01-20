@@ -104,6 +104,9 @@ impl GenbankPipeline {
             release.to_string(),
         );
 
+        // Set up citation policy (idempotent)
+        storage.setup_citations().await.context("Failed to setup citation policy")?;
+
         let stats = storage
             .store_records(&all_records)
             .await
@@ -175,6 +178,9 @@ impl GenbankPipeline {
             release.to_string(),
             release.to_string(),
         );
+
+        // Set up citation policy (idempotent)
+        storage.setup_citations().await.context("Failed to setup citation policy")?;
 
         let stats = storage
             .store_records(&records)

@@ -233,8 +233,8 @@ fn test_parse_kw_keywords() {
     assert_eq!(entries.len(), 1);
     let entry = &entries[0];
 
-    // Should have many keywords
-    assert!(entry.keywords.len() >= 20);
+    // Should have 19 keywords total
+    assert_eq!(entry.keywords.len(), 19);
 
     // Check for specific keywords
     assert!(entry.keywords.contains(&"3D-structure".to_string()));

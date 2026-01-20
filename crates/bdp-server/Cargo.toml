@@ -23,6 +23,22 @@ path = "src/bin/ncbi_taxonomy_test_small.rs"
 name = "genbank_test_phage"
 path = "src/bin/genbank_test_phage.rs"
 
+[[bin]]
+name = "go_test_sample"
+path = "src/bin/go_test_sample.rs"
+
+[[bin]]
+name = "go_test_ftp"
+path = "src/bin/go_test_ftp.rs"
+
+[[bin]]
+name = "go_test_human"
+path = "src/bin/go_test_human.rs"
+
+[[bin]]
+name = "go_test_local_ontology"
+path = "src/bin/go_test_local_ontology.rs"
+
 [dependencies]
 # ============================================================================
 # Workspace Dependencies
@@ -61,6 +77,7 @@ dotenvy = { workspace = true }
 chrono = { workspace = true }
 uuid = { workspace = true }
 sha2 = { workspace = true }
+reqwest = { workspace = true }
 
 # ============================================================================
 # CQRS / Mediator

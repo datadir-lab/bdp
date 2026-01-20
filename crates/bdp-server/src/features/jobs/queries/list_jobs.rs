@@ -30,13 +30,13 @@ pub struct JobListItem {
     pub id: String,
     pub job_type: String,
     pub status: String,
-    pub attempts: i32,
-    pub max_attempts: i32,
-    pub run_at: DateTime<Utc>,
-    pub done_at: Option<DateTime<Utc>>,
-    pub lock_at: Option<DateTime<Utc>>,
-    pub lock_by: Option<String>,
-    pub last_error: Option<String>,
+    pub started_at: Option<DateTime<Utc>>,
+    pub completed_at: Option<DateTime<Utc>>,
+    pub created_at: DateTime<Utc>,
+    pub total_records: Option<i64>,
+    pub records_processed: i64,
+    pub records_stored: i64,
+    pub records_failed: i64,
 }
 
 /// Response for list jobs query
@@ -65,9 +65,9 @@ pub async fn handle(
     // Build query based on filters
     let mut sql_query = String::from(
         r#"
-        SELECT id, job_type, status, attempts, max_attempts,
-               run_at, done_at, lock_at, lock_by, last_error
-        FROM apalis.jobs
+        SELECT id::text, job_type, status, started_at, completed_at, created_at,
+               total_records, records_processed, records_stored, records_failed
+        FROM ingestion_jobs
         WHERE 1=1
         "#,
     );
@@ -80,11 +80,11 @@ pub async fn handle(
         sql_query.push_str(&format!(" AND status = '{}'", status));
     }
 
-    sql_query.push_str(" ORDER BY run_at DESC");
+    sql_query.push_str(" ORDER BY created_at DESC");
     sql_query.push_str(&format!(" LIMIT {} OFFSET {}", limit, offset));
 
     // Get total count
-    let mut count_query = String::from("SELECT COUNT(*) FROM apalis.jobs WHERE 1=1");
+    let mut count_query = String::from("SELECT COUNT(*) FROM ingestion_jobs WHERE 1=1");
 
     if let Some(ref job_type) = query.job_type {
         count_query.push_str(&format!(" AND job_type = '{}'", job_type));

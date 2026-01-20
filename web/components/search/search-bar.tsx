@@ -29,6 +29,7 @@ import { Badge } from '@/components/ui/badge';
 import { useDebounce } from '@/hooks/use-debounce';
 import { SearchFilters as SearchFiltersType, SearchSuggestion } from '@/lib/types/search';
 import { getSuggestions } from '@/lib/api/search';
+import { parseSearchQuery, parsedQueryToFilters, formatParsedQuery, isSpecialFormat } from '@/lib/utils/query-parser';
 
 interface SearchBarProps {
   className?: string;
@@ -59,6 +60,7 @@ export function SearchBar({
   const inputRef = React.useRef<HTMLInputElement>(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = React.useState(false);
+  const [parsedQueryInfo, setParsedQueryInfo] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     setMounted(true);
@@ -152,23 +154,52 @@ export function SearchBar({
     }
   }, [query]);
 
+  // Detect and parse special format queries
+  React.useEffect(() => {
+    if (query.trim() && isSpecialFormat(query.trim())) {
+      const parsed = parseSearchQuery(query.trim());
+      const formatted = formatParsedQuery(parsed);
+      setParsedQueryInfo(formatted);
+    } else {
+      setParsedQueryInfo(null);
+    }
+  }, [query]);
+
   const handleSearch = React.useCallback(
     (e?: React.FormEvent) => {
       e?.preventDefault();
       if (!query.trim()) return;
 
+      // Parse query for special formats
+      const parsed = parseSearchQuery(query.trim());
+      const parsedFilters = parsedQueryToFilters(parsed);
+
       // Build query params
       const params = new URLSearchParams();
-      params.set('q', query.trim());
+
+      // Use parsed query or original query
+      params.set('q', parsedFilters.query || query.trim());
+
+      // Merge parsed filters with existing filters
+      // Parsed filters take precedence for organization and format
+      const mergedOrganizations = parsedFilters.organizations || filters?.organizations || [];
+      const mergedFormats = parsedFilters.formats || [];
+      const mergedSourceTypes = filters?.source_types || [];
 
       if (filters?.types?.length) {
         params.set('types', filters.types.join(','));
       }
-      if (filters?.source_types?.length) {
-        params.set('source_types', filters.source_types.join(','));
+      if (mergedSourceTypes.length) {
+        params.set('source_types', mergedSourceTypes.join(','));
       }
-      if (filters?.organizations?.length) {
-        params.set('organizations', filters.organizations.join(','));
+      if (mergedOrganizations.length) {
+        params.set('organizations', mergedOrganizations.join(','));
+      }
+      if (mergedFormats.length) {
+        params.set('formats', mergedFormats.join(','));
+      }
+      if (parsedFilters.version) {
+        params.set('version', parsedFilters.version);
       }
       if (filters?.tags?.length) {
         params.set('tags', filters.tags.join(','));
@@ -183,6 +214,7 @@ export function SearchBar({
       // Navigate to search results page
       router.push(`/search?${params.toString()}`);
       setIsOpen(false);
+      setParsedQueryInfo(null);
     },
     [query, filters, router]
   );
@@ -384,23 +416,32 @@ export function SearchBar({
               )}
             />
 
-            {/* Input */}
-            <input
-              ref={inputRef}
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={handleKeyDown}
-              onFocus={handleFocus}
-              placeholder={placeholder || t('placeholder')}
-              className={cn(
-                'flex-1 bg-transparent outline-none placeholder:text-muted-foreground',
-                'focus:outline-none focus:ring-0 focus:border-none focus-visible:outline-none',
-                'border-0 focus:border-0 active:border-0',
-                isHero ? 'text-base' : 'text-sm'
+            {/* Input with parsed query indicator */}
+            <div className="flex-1 flex flex-col gap-1">
+              <input
+                ref={inputRef}
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={handleKeyDown}
+                onFocus={handleFocus}
+                placeholder={placeholder || t('placeholder')}
+                className={cn(
+                  'w-full bg-transparent outline-none placeholder:text-muted-foreground',
+                  'focus:outline-none focus:ring-0 focus:border-none focus-visible:outline-none',
+                  'border-0 focus:border-0 active:border-0',
+                  isHero ? 'text-base' : 'text-sm'
+                )}
+                style={{ outline: 'none', boxShadow: 'none', border: 'none' }}
+              />
+              {parsedQueryInfo && (
+                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Badge variant="secondary" className="h-5 px-2 text-xs font-normal">
+                    {parsedQueryInfo}
+                  </Badge>
+                </div>
               )}
-              style={{ outline: 'none', boxShadow: 'none', border: 'none' }}
-            />
+            </div>
 
             {/* Keyboard Hint - Only show when empty */}
             {!query && !isLoading && (

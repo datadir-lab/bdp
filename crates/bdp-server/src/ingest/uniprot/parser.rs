@@ -124,6 +124,15 @@ impl DatParser {
         }
     }
 
+    /// Parse UniProt DAT format from a string
+    ///
+    /// Convenience method for testing and small datasets.
+    /// Handles uncompressed DAT format text.
+    pub fn parse_dat_string(&self, data: &str) -> Result<Vec<UniProtEntry>> {
+        // For string input, parse directly as DAT (no decompression)
+        self.parse_reader(data.as_bytes())
+    }
+
     /// Check if data is a tar archive by looking for tar magic number
     fn is_tar_archive(&self, data: &[u8]) -> bool {
         if data.len() < 512 {

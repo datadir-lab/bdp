@@ -10,6 +10,7 @@ use uuid::Uuid;
 
 use super::models::UniProtEntry;
 use super::taxonomy_helper::TaxonomyHelper;
+use crate::ingest::citations::{setup_citation_policy, uniprot_policy};
 use crate::storage::Storage;
 use std::collections::HashMap;
 
@@ -112,6 +113,17 @@ impl UniProtStorage {
             internal_version,
             external_version,
         }
+    }
+
+    /// Set up citation policy for UniProt organization (idempotent)
+    ///
+    /// This should be called once during pipeline initialization to ensure
+    /// citation policy is properly configured for the organization.
+    pub async fn setup_citations(&self) -> Result<()> {
+        let policy_config = uniprot_policy(self.organization_id, None);
+        setup_citation_policy(&self.db, &policy_config).await?;
+        info!("UniProt citation policy configured");
+        Ok(())
     }
 
     /// Store a batch of parsed entries
@@ -396,16 +408,24 @@ impl UniProtStorage {
         hasher.update(entry.sequence.as_bytes());
         let sequence_checksum = format!("{:x}", hasher.finalize());
 
-        // 3. Insert protein metadata
+        // 3. Insert protein metadata (with extended metadata)
         sqlx::query(
             r#"
             INSERT INTO protein_metadata (
                 data_source_id, accession, entry_name, protein_name, gene_name,
                 sequence_length, mass_da, sequence_checksum,
-                sequence_id, taxonomy_id, uniprot_version
+                sequence_id, taxonomy_id, uniprot_version,
+                alternative_names, ec_numbers, protein_existence, keywords,
+                organelle, organism_hosts
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-            ON CONFLICT (data_source_id) DO NOTHING
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+            ON CONFLICT (data_source_id) DO UPDATE SET
+                alternative_names = EXCLUDED.alternative_names,
+                ec_numbers = EXCLUDED.ec_numbers,
+                protein_existence = EXCLUDED.protein_existence,
+                keywords = EXCLUDED.keywords,
+                organelle = EXCLUDED.organelle,
+                organism_hosts = EXCLUDED.organism_hosts
             "#
         )
         .bind(data_source_id)
@@ -419,9 +439,133 @@ impl UniProtStorage {
         .bind(sequence_id)
         .bind(taxonomy_id)
         .bind(&self.external_version)
+        .bind(&entry.alternative_names)
+        .bind(&entry.ec_numbers)
+        .bind(entry.protein_existence)
+        .bind(&entry.keywords)
+        .bind(&entry.organelle)
+        .bind(&entry.organism_hosts)
         .execute(&mut **tx)
         .await
         .context("Failed to create protein_metadata")?;
+
+        // 4. Insert protein features
+        self.store_features_tx(tx, data_source_id, entry).await?;
+
+        // 5. Insert cross-references
+        self.store_cross_references_tx(tx, data_source_id, entry).await?;
+
+        // 6. Insert comments
+        self.store_comments_tx(tx, data_source_id, entry).await?;
+
+        Ok(())
+    }
+
+    /// Store protein features (within transaction)
+    async fn store_features_tx(
+        &self,
+        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+        protein_id: Uuid,
+        entry: &UniProtEntry,
+    ) -> Result<()> {
+        if entry.features.is_empty() {
+            return Ok(());
+        }
+
+        // Delete existing features for this protein (for updates)
+        sqlx::query("DELETE FROM protein_features WHERE protein_id = $1")
+            .bind(protein_id)
+            .execute(&mut **tx)
+            .await?;
+
+        // Batch insert features (max 100 at a time to avoid parameter limit)
+        for chunk in entry.features.chunks(100) {
+            let mut query_builder = sqlx::QueryBuilder::new(
+                "INSERT INTO protein_features (protein_id, feature_type, start_pos, end_pos, description) "
+            );
+
+            query_builder.push_values(chunk, |mut b, feature| {
+                b.push_bind(protein_id)
+                    .push_bind(&feature.feature_type)
+                    .push_bind(feature.start_pos)
+                    .push_bind(feature.end_pos)
+                    .push_bind(&feature.description);
+            });
+
+            query_builder.build().execute(&mut **tx).await?;
+        }
+
+        Ok(())
+    }
+
+    /// Store protein cross-references (within transaction)
+    async fn store_cross_references_tx(
+        &self,
+        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+        protein_id: Uuid,
+        entry: &UniProtEntry,
+    ) -> Result<()> {
+        if entry.cross_references.is_empty() {
+            return Ok(());
+        }
+
+        // Delete existing cross-references for this protein
+        sqlx::query("DELETE FROM protein_cross_references WHERE protein_id = $1")
+            .bind(protein_id)
+            .execute(&mut **tx)
+            .await?;
+
+        // Batch insert cross-references (max 100 at a time)
+        for chunk in entry.cross_references.chunks(100) {
+            let mut query_builder = sqlx::QueryBuilder::new(
+                "INSERT INTO protein_cross_references (protein_id, database, database_id, metadata) "
+            );
+
+            query_builder.push_values(chunk, |mut b, xref| {
+                let metadata_json = serde_json::to_value(&xref.metadata).unwrap_or(serde_json::json!([]));
+                b.push_bind(protein_id)
+                    .push_bind(&xref.database)
+                    .push_bind(&xref.database_id)
+                    .push_bind(metadata_json);
+            });
+
+            query_builder.build().execute(&mut **tx).await?;
+        }
+
+        Ok(())
+    }
+
+    /// Store protein comments (within transaction)
+    async fn store_comments_tx(
+        &self,
+        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+        protein_id: Uuid,
+        entry: &UniProtEntry,
+    ) -> Result<()> {
+        if entry.comments.is_empty() {
+            return Ok(());
+        }
+
+        // Delete existing comments for this protein
+        sqlx::query("DELETE FROM protein_comments WHERE protein_id = $1")
+            .bind(protein_id)
+            .execute(&mut **tx)
+            .await?;
+
+        // Batch insert comments (max 100 at a time)
+        for chunk in entry.comments.chunks(100) {
+            let mut query_builder = sqlx::QueryBuilder::new(
+                "INSERT INTO protein_comments (protein_id, topic, text) "
+            );
+
+            query_builder.push_values(chunk, |mut b, comment| {
+                b.push_bind(protein_id)
+                    .push_bind(&comment.topic)
+                    .push_bind(&comment.text);
+            });
+
+            query_builder.build().execute(&mut **tx).await?;
+        }
 
         Ok(())
     }

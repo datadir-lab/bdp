@@ -24,15 +24,20 @@ use super::queries::{
 /// Create job routes
 pub fn jobs_routes() -> Router<PgPool> {
     Router::new()
-        .route("/jobs", get(list_jobs))
-        .route("/jobs/:job_id", get(get_job))
-        .route("/sync-status", get(list_sync_status))
-        .route("/sync-status/:organization_id", get(get_sync_status))
+        .route("/", get(list_jobs))
+        .route("/:job_id", get(get_job))
+}
+
+/// Create sync status routes
+pub fn sync_status_routes() -> Router<PgPool> {
+    Router::new()
+        .route("/", get(list_sync_status))
+        .route("/:organization_id", get(get_sync_status))
 }
 
 /// List all jobs
 ///
-/// GET /jobs?job_type=UniProtIngestJob&status=Running&limit=50&offset=0
+/// GET /?job_type=UniProtIngestJob&status=Running&limit=50&offset=0
 async fn list_jobs(
     State(db): State<PgPool>,
     Query(query): Query<ListJobsQuery>,
@@ -48,7 +53,7 @@ async fn list_jobs(
 
 /// Get a specific job by ID
 ///
-/// GET /jobs/:job_id
+/// GET /:job_id
 async fn get_job(
     State(db): State<PgPool>,
     Path(job_id): Path<String>,

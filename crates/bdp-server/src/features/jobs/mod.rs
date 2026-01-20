@@ -9,4 +9,4 @@ pub mod routes;
 #[cfg(test)]
 mod routes_test;
 
-pub use routes::jobs_routes;
+pub use routes::{jobs_routes, sync_status_routes};

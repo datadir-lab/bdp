@@ -1,71 +1,62 @@
-import { Suspense } from 'react';
+'use client';
+
+import { Suspense, useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
 import { notFound } from 'next/navigation';
 import { getDataSource, getDataSourceVersion } from '@/lib/api/data-sources';
 import { DataSourceDetail } from './data-source-detail';
+import type { DataSource, DataSourceVersion } from '@/lib/types/data-source';
 
-interface PageProps {
-  params: Promise<{
-    locale: string;
-    org: string;
-    name: string;
-    version: string;
-  }>;
-}
+export default function DataSourceVersionPage() {
+  const params = useParams();
+  const { locale, org, name, version } = params as { locale: string; org: string; name: string; version: string };
 
-// Generate static params for static export
-// For API-driven pages, we return empty array - these will be rendered on-demand
-export function generateStaticParams() {
-  return [] as Array<{ org: string; name: string; version: string }>;
-}
+  const [dataSource, setDataSource] = useState<DataSource | null>(null);
+  const [versionDetails, setVersionDetails] = useState<(DataSourceVersion & { organization: string; name: string }) | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<any>(null);
 
-export default async function DataSourceVersionPage({ params }: PageProps) {
-  const { locale, org, name, version } = await params;
+  useEffect(() => {
+    async function fetchData() {
+      setIsLoading(true);
+      setError(null);
 
-  try {
-    // Fetch data source first
-    const dataSource = await getDataSource(org, name);
+      try {
+        console.log('Fetching data source:', { org, name, version });
 
-    // Handle 'latest' version for data sources with no versions
-    if (version === 'latest' && dataSource.versions.length === 0) {
-      // Return minimal view for data sources without versions
-      return (
-        <div className="container py-8">
-          <div className="space-y-6">
-            <div>
-              <h1 className="text-3xl font-bold">{dataSource.name}</h1>
-              <p className="text-muted-foreground mt-2">{dataSource.slug}</p>
-            </div>
-            {dataSource.description && (
-              <p className="text-lg">{dataSource.description}</p>
-            )}
-            <div className="rounded-lg border bg-muted/50 p-6 text-center">
-              <p className="text-muted-foreground">No versions available yet for this data source.</p>
-            </div>
-          </div>
-        </div>
-      );
+        // Fetch data source first
+        const ds = await getDataSource(org, name);
+        setDataSource(ds);
+
+        // Handle 'latest' version for data sources with no versions
+        if (version === 'latest' && ds.versions.length === 0) {
+          setIsLoading(false);
+          return;
+        }
+
+        // Fetch specific version details
+        const vd = await getDataSourceVersion(org, name, version);
+        setVersionDetails(vd);
+        setIsLoading(false);
+      } catch (err) {
+        console.error('Error fetching data:', err);
+        setError(err);
+        setIsLoading(false);
+      }
     }
 
-    // Fetch specific version details
-    const versionDetails = await getDataSourceVersion(org, name, version);
+    fetchData();
+  }, [org, name, version]);
 
+  if (isLoading) {
     return (
       <div className="container py-8">
-        <Suspense fallback={<DataSourceDetailSkeleton />}>
-          <DataSourceDetail
-            dataSource={dataSource}
-            currentVersion={versionDetails}
-            locale={locale}
-          />
-        </Suspense>
+        <DataSourceDetailSkeleton />
       </div>
     );
-  } catch (error) {
-    console.error('Error fetching data source version:', error);
-    console.error('API URL:', process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000');
-    console.error('Params:', { org, name, version });
+  }
 
-    // Check if it's a network error vs actual 404
+  if (error) {
     const isNetworkError = error && typeof error === 'object' &&
       ('code' in error && error.code === 'NETWORK_ERROR');
 
@@ -122,9 +113,77 @@ export default async function DataSourceVersionPage({ params }: PageProps) {
       );
     }
 
-    // Only show 404 for actual not-found errors
-    notFound();
+    // Show 404 for actual not-found errors
+    if (is404) {
+      return (
+        <div className="container py-8">
+          <div className="space-y-6">
+            <div className="rounded-lg border bg-muted p-6 text-center">
+              <h2 className="text-lg font-semibold mb-2">Data Source Not Found</h2>
+              <p className="text-sm text-muted-foreground">
+                The data source version you're looking for doesn't exist.
+              </p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Generic error
+    return (
+      <div className="container py-8">
+        <div className="rounded-lg border border-destructive bg-destructive/10 p-6">
+          <h2 className="text-lg font-semibold mb-2">Error</h2>
+          <p className="text-sm text-muted-foreground mb-4">
+            An unexpected error occurred.
+          </p>
+          <details className="text-xs">
+            <summary className="cursor-pointer font-medium">Technical Details</summary>
+            <pre className="mt-2 p-2 bg-black/5 rounded overflow-auto">
+              {JSON.stringify({ org, name, version, error: String(error) }, null, 2)}
+            </pre>
+          </details>
+        </div>
+      </div>
+    );
   }
+
+  // Handle no versions
+  if (dataSource && version === 'latest' && dataSource.versions.length === 0) {
+    return (
+      <div className="container py-8">
+        <div className="space-y-6">
+          <div>
+            <h1 className="text-3xl font-bold">{dataSource.name}</h1>
+            <p className="text-muted-foreground mt-2">{dataSource.slug}</p>
+          </div>
+          {dataSource.description && (
+            <p className="text-lg">{dataSource.description}</p>
+          )}
+          <div className="rounded-lg border bg-muted/50 p-6 text-center">
+            <p className="text-muted-foreground">No versions available yet for this data source.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Render the detail page
+  if (dataSource && versionDetails) {
+    return (
+      <div className="container py-8">
+        <Suspense fallback={<DataSourceDetailSkeleton />}>
+          <DataSourceDetail
+            dataSource={dataSource}
+            currentVersion={versionDetails}
+            locale={locale}
+          />
+        </Suspense>
+      </div>
+    );
+  }
+
+  return null;
 }
 
 function DataSourceDetailSkeleton() {

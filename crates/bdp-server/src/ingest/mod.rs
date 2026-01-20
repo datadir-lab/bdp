@@ -21,8 +21,10 @@
 //!
 //! These endpoints are read-only and require NO authentication.
 
+pub mod citations;
 pub mod config;
 pub mod genbank;
+pub mod gene_ontology;
 pub mod jobs;
 pub mod models;
 pub mod ncbi_taxonomy;
@@ -34,6 +36,7 @@ pub mod framework;
 
 pub use config::{IngestConfig, UniProtConfig};
 pub use genbank::{GenbankFtpConfig, GenbankOrchestrator, GenbankPipeline};
+pub use gene_ontology::{GoHttpConfig, GoPipeline, GoStorage};
 pub use jobs::{IngestStats, UniProtIngestJob};
 pub use models::{OrganizationSyncStatus, SyncStatus};
 pub use ncbi_taxonomy::{NcbiTaxonomyFtpConfig, NcbiTaxonomyOrchestrator, NcbiTaxonomyPipeline};

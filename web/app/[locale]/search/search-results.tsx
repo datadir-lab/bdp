@@ -34,6 +34,7 @@ export function SearchResults() {
     const source_types = searchParams.get('source_types')?.split(',').filter(Boolean);
     const organizations = searchParams.get('organizations')?.split(',').filter(Boolean);
     const tags = searchParams.get('tags')?.split(',').filter(Boolean);
+    const formats = searchParams.get('formats')?.split(',').filter(Boolean);
     const from = searchParams.get('from');
     const to = searchParams.get('to');
 
@@ -42,6 +43,7 @@ export function SearchResults() {
       source_types: source_types?.length ? source_types : undefined,
       organizations: organizations?.length ? organizations : undefined,
       tags: tags?.length ? tags : undefined,
+      formats: formats?.length ? formats : undefined,
       dateRange:
         from || to
           ? {
@@ -53,6 +55,7 @@ export function SearchResults() {
   });
 
   const query = searchParams.get('q') || '';
+  const version = searchParams.get('version') || undefined;
   const currentPage = parseInt(searchParams.get('page') || '1', 10);
 
   // Fetch search results
@@ -74,7 +77,8 @@ export function SearchResults() {
           type_filter: filters.types,
           source_type_filter: filters.source_types,
           organism: filters.tags?.[0], // Using tags as organism filter for now
-          format: undefined, // No format filter in current UI
+          format: filters.formats?.[0], // Use first format from filters
+          version: version,
           page: currentPage,
           per_page: 20,
         });
@@ -92,7 +96,7 @@ export function SearchResults() {
     };
 
     fetchResults();
-  }, [query, filters, currentPage]);
+  }, [query, filters, version, currentPage]);
 
   const handleFiltersChange = (newFilters: SearchFiltersType) => {
     setFilters(newFilters);
@@ -104,6 +108,8 @@ export function SearchResults() {
     if (newFilters.source_types?.length) params.set('source_types', newFilters.source_types.join(','));
     if (newFilters.organizations?.length) params.set('organizations', newFilters.organizations.join(','));
     if (newFilters.tags?.length) params.set('tags', newFilters.tags.join(','));
+    if (newFilters.formats?.length) params.set('formats', newFilters.formats.join(','));
+    if (version) params.set('version', version);
     if (newFilters.dateRange?.from)
       params.set('from', newFilters.dateRange.from.toISOString());
     if (newFilters.dateRange?.to)
@@ -133,6 +139,9 @@ export function SearchResults() {
     } else if (filterType === 'tags' && value) {
       newFilters.tags = newFilters.tags?.filter((t) => t !== value);
       if (newFilters.tags?.length === 0) newFilters.tags = undefined;
+    } else if (filterType === 'formats' && value) {
+      newFilters.formats = newFilters.formats?.filter((f) => f !== value);
+      if (newFilters.formats?.length === 0) newFilters.formats = undefined;
     } else if (filterType === 'dateRange') {
       newFilters.dateRange = undefined;
     }
@@ -165,6 +174,19 @@ export function SearchResults() {
       const label = tag.charAt(0).toUpperCase() + tag.slice(1);
       active.push({ type: 'tags', value: tag, label });
     });
+
+    filters.formats?.forEach((format) => {
+      const label = `Format: ${format.toUpperCase()}`;
+      active.push({ type: 'formats', value: format, label });
+    });
+
+    if (version) {
+      active.push({
+        type: 'tags', // Use tags as a proxy since version isn't in SearchFiltersType
+        value: 'version',
+        label: `Version: ${version}`,
+      });
+    }
 
     if (filters.dateRange) {
       active.push({

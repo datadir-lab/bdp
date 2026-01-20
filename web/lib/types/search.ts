@@ -2,6 +2,7 @@ export interface SearchFilters {
   types?: string[]; // 'datasource' | 'tool'
   source_types?: string[]; // 'protein', 'genome', 'organism', etc.
   organizations?: string[]; // Organization slugs
+  formats?: string[]; // File formats like 'fasta', 'json', 'gtf', etc.
   dateRange?: {
     from?: Date;
     to?: Date;

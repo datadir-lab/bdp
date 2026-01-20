@@ -20,6 +20,7 @@ export interface SearchParams {
   source_type_filter?: string[];
   organism?: string;
   format?: string;
+  version?: string;
   page?: number;
   per_page?: number;
 }
@@ -81,6 +82,10 @@ export async function searchFullText(params: SearchParams): Promise<{
 
   if (params.format) {
     queryParams.format = params.format;
+  }
+
+  if (params.version) {
+    queryParams.version = params.version;
   }
 
   if (params.page) {

@@ -743,6 +743,15 @@ impl UniProtPipeline {
     ) -> Result<()> {
         tracing::info!(job_id = %job_id, version = %version.external_version, "Starting pipeline execution");
 
+        // Phase 0: Set up citation policy for UniProt (idempotent)
+        let storage_setup = UniProtStorage::new(
+            (*self.pool).clone(),
+            self.organization_id,
+            "1.0".to_string(),
+            version.external_version.clone(),
+        );
+        storage_setup.setup_citations().await.context("Failed to setup citation policy")?;
+
         // Phase 1: Download from FTP and upload to S3
         let (s3_key, dat_data) = self.download_phase(coordinator, job_id, version).await?;
 

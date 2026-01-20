@@ -179,6 +179,9 @@ impl NcbiTaxonomyPipeline {
             )
         };
 
+        // Set up citation policy (idempotent)
+        storage.setup_citations().await.context("Failed to setup citation policy")?;
+
         let storage_stats = storage
             .store(&taxdump_data)
             .await

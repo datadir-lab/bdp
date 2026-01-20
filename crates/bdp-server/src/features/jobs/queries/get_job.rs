@@ -19,13 +19,13 @@ pub struct JobDetails {
     pub id: String,
     pub job_type: String,
     pub status: String,
-    pub attempts: i32,
-    pub max_attempts: i32,
-    pub run_at: DateTime<Utc>,
-    pub done_at: Option<DateTime<Utc>>,
-    pub lock_at: Option<DateTime<Utc>>,
-    pub lock_by: Option<String>,
-    pub last_error: Option<String>,
+    pub started_at: Option<DateTime<Utc>>,
+    pub completed_at: Option<DateTime<Utc>>,
+    pub created_at: DateTime<Utc>,
+    pub total_records: Option<i64>,
+    pub records_processed: i64,
+    pub records_stored: i64,
+    pub records_failed: i64,
 }
 
 /// Error type for get job query
@@ -45,10 +45,10 @@ pub async fn handle(
 ) -> Result<JobDetails, GetJobError> {
     let job = sqlx::query_as::<_, JobDetails>(
         r#"
-        SELECT id, job_type, status, attempts, max_attempts,
-               run_at, done_at, lock_at, lock_by, last_error
-        FROM apalis.jobs
-        WHERE id = $1
+        SELECT id::text, job_type, status, started_at, completed_at, created_at,
+               total_records, records_processed, records_stored, records_failed
+        FROM ingestion_jobs
+        WHERE id::text = $1
         "#,
     )
     .bind(&query.job_id)

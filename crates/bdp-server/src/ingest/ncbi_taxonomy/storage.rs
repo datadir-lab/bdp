@@ -9,6 +9,7 @@ use tracing::{debug, info};
 use uuid::Uuid;
 
 use super::models::{DeletedTaxon, MergedTaxon, TaxdumpData, TaxonomyEntry};
+use crate::ingest::citations::{ncbi_taxonomy_policy, setup_citation_policy};
 use crate::storage::Storage;
 
 /// Storage handler for NCBI Taxonomy data
@@ -138,6 +139,17 @@ impl NcbiTaxonomyStorage {
             chunk_size,
             transaction_batch_size: Some(transaction_batch_size),
         }
+    }
+
+    /// Set up citation policy for NCBI Taxonomy organization (idempotent)
+    ///
+    /// This should be called once during pipeline initialization to ensure
+    /// citation policy is properly configured for the organization.
+    pub async fn setup_citations(&self) -> Result<()> {
+        let policy_config = ncbi_taxonomy_policy(self.organization_id, None);
+        setup_citation_policy(&self.db, &policy_config).await?;
+        info!("NCBI Taxonomy citation policy configured");
+        Ok(())
     }
 
     /// Store taxdump data to database and S3 using batch operations

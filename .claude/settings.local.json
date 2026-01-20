@@ -145,7 +145,12 @@
       "Bash(export DATABASE_URL=\"postgresql://bdp:bdp_dev_password@localhost:5432/bdp\")",
       "Bash(export DATABASE_URL:*)",
       "Bash(cargo sqlx:*)",
-      "Bash(lsof:*)"
+      "Bash(lsof:*)",
+      "Bash(npm run type-check:*)",
+      "Bash(npm run lint)",
+      "WebFetch(domain:geneontology.org)",
+      "Bash(npx tsx:*)",
+      "Bash(node:*)"
     ]
   }
 }
