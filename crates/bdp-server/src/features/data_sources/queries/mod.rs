@@ -1,4 +1,5 @@
 pub mod get;
+pub mod get_protein_metadata;
 pub mod get_version;
 pub mod list;
 pub mod list_dependencies;

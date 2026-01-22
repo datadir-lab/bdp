@@ -8,6 +8,7 @@ import '@/styles/globals.css';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { ThemeProvider } from '@/components/providers';
+import { PortalCleanupFix } from '@/components/portal-cleanup-fix';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 const jetbrainsMono = JetBrains_Mono({
@@ -83,6 +84,7 @@ export default async function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
+          <PortalCleanupFix />
           <NextIntlClientProvider locale={locale} messages={messages}>
             <div className="relative flex min-h-screen flex-col">
               <Header />
@@ -91,7 +93,6 @@ export default async function RootLayout({
             </div>
           </NextIntlClientProvider>
         </ThemeProvider>
-        <div id="portal-root" />
       </body>
     </html>
   );

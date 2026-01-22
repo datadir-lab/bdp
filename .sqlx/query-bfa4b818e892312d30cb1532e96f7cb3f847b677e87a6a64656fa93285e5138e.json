@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT re.id, re.slug\n        FROM registry_entries re\n        JOIN organizations o ON o.id = re.organization_id\n        WHERE o.slug = $1 AND re.slug = $2 AND re.entry_type = 'data_source'\n        ",
+  "query": "\n        SELECT re.id, re.slug\n        FROM registry_entries re\n        JOIN organizations o ON o.id = re.organization_id\n        WHERE LOWER(o.slug) = LOWER($1) AND LOWER(re.slug) = LOWER($2) AND re.entry_type = 'data_source'\n        ",
   "describe": {
     "columns": [
       {
@@ -25,5 +25,5 @@
       false
     ]
   },
-  "hash": "f0203c031554ddff868609421d6fbcbd024d8cc565bdf06f9ff6548d71d3b5c6"
+  "hash": "bfa4b818e892312d30cb1532e96f7cb3f847b677e87a6a64656fa93285e5138e"
 }

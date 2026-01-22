@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT COUNT(DISTINCT re.id) as \"count!\"\n            FROM registry_entries re\n            JOIN organizations o ON o.id = re.organization_id\n            LEFT JOIN data_sources ds ON ds.id = re.id\n            LEFT JOIN tools t ON t.id = re.id\n            LEFT JOIN protein_metadata pm ON pm.data_source_id = ds.id\n            LEFT JOIN taxonomy_metadata org_ref ON org_ref.data_source_id = pm.taxonomy_id\n            LEFT JOIN taxonomy_metadata org_direct ON org_direct.data_source_id = ds.id AND ds.source_type = 'organism'\n            WHERE to_tsvector('english', re.name || ' ' || COALESCE(re.description, ''))\n                @@ plainto_tsquery('english', $1)\n              AND ($2::VARCHAR[] IS NULL OR re.entry_type = ANY($2))\n              AND ($3::TEXT IS NULL OR org_ref.scientific_name ILIKE $3 OR org_ref.common_name ILIKE $3 OR org_direct.scientific_name ILIKE $3 OR org_direct.common_name ILIKE $3)\n              AND ($4::TEXT IS NULL OR EXISTS (\n                  SELECT 1\n                  FROM versions v\n                  JOIN version_files vf ON vf.version_id = v.id\n                  WHERE v.entry_id = re.id AND vf.format = $4\n              ))\n              AND ($5::VARCHAR[] IS NULL OR ds.source_type = ANY($5))\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count!",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "VarcharArray",
+        "Text",
+        "Text",
+        "VarcharArray"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "41a6029fded8e5c186f8d471a92d99a6ef331905bef350774479ca74b0aa3044"
+}

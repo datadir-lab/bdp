@@ -234,11 +234,9 @@ export function SearchFilters({
 
   const activeCount = getActiveFilterCount();
 
-  if (!open) return null;
-
   return (
-    <DialogPrimitive.Root open={true} onOpenChange={handleOpenChangeInternal} modal>
-      <DialogPrimitive.Portal container={typeof document !== 'undefined' ? document.getElementById('portal-root') : null}>
+    <DialogPrimitive.Root open={open} onOpenChange={handleOpenChangeInternal} modal>
+      <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay className="fixed inset-0 z-[100] bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
         <DialogPrimitive.Content
           className={cn(

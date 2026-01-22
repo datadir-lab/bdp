@@ -2,7 +2,6 @@
 
 import * as React from 'react';
 import { useRouter, usePathname } from '@/i18n/navigation';
-import { createPortal } from 'react-dom';
 import {
   Search,
   Filter,
@@ -373,14 +372,27 @@ export function SearchBar({
   const showBackdrop = isFocused || (isOpen && query.length >= 2);
   const popoverOpen = isOpen && query.length >= 2;
 
+  // Properly manage backdrop portal lifecycle
+  React.useEffect(() => {
+    if (!mounted || !showBackdrop) return;
+
+    const backdropEl = document.createElement('div');
+    backdropEl.className = 'fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] pointer-events-none';
+    backdropEl.style.animation = 'fade-in 200ms';
+    document.body.appendChild(backdropEl);
+
+    return () => {
+      backdropEl.style.animation = 'fade-out 200ms';
+      setTimeout(() => {
+        if (backdropEl.parentNode) {
+          document.body.removeChild(backdropEl);
+        }
+      }, 200);
+    };
+  }, [mounted, showBackdrop]);
+
   return (
     <>
-      {/* Backdrop - Rendered in portal to avoid layout shifts */}
-      {mounted && showBackdrop && createPortal(
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] animate-in fade-in duration-200 pointer-events-none" />,
-        document.body
-      )}
-
       <div
         ref={containerRef}
         className={cn('relative w-full', className)}

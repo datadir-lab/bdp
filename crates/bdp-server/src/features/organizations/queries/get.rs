@@ -65,7 +65,7 @@ pub async fn handle(
             SELECT id, slug, name, website, description, logo_url,
                    is_system as "is_system!", created_at as "created_at!", updated_at as "updated_at!"
             FROM organizations
-            WHERE slug = $1
+            WHERE LOWER(slug) = LOWER($1)
             "#,
             slug
         )

@@ -13,19 +13,25 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
-  Package,
-  Calendar,
-  Download,
-  FileCode,
-  HardDrive,
-  ExternalLink,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import {
   Building2,
-  Dna,
+  Info,
+  Database,
 } from 'lucide-react';
 import type { DataSource, DataSourceVersion } from '@/lib/types/data-source';
 import { CliCommands } from './cli-commands';
 import { CitationsSection } from './citations-section';
 import { DependenciesSection } from './dependencies-section';
+import { MetadataSidebar } from '@/components/data-sources/metadata-sidebar';
+import { SourceTypeContent } from '@/components/data-sources/source-type-content';
+import { SourceTypeBadge } from '@/components/shared/source-type-badge';
 
 interface DataSourceDetailProps {
   dataSource: DataSource;
@@ -39,6 +45,7 @@ export function DataSourceDetail({
   locale,
 }: DataSourceDetailProps) {
   const router = useRouter();
+  const [isMetadataOpen, setIsMetadataOpen] = React.useState(false);
 
   const handleVersionChange = (newVersion: string) => {
     // Use Next.js router to navigate without full page refresh
@@ -51,63 +58,40 @@ export function DataSourceDetail({
     );
   };
 
-  const formatBytes = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
-  };
+  const handleMetadataOpenChange = React.useCallback((open: boolean) => {
+    setIsMetadataOpen(open);
+  }, []);
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
+  // Extract clean protein/data source name without organism suffix
+  const getCleanName = (name: string) => {
+    // Remove organism in brackets pattern: [Organism name (Common name)]
+    return name.replace(/\s*\[.*?\]\s*$/g, '').trim();
   };
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="space-y-4">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex-1 space-y-2">
-            <div className="flex items-center gap-3">
-              <h1 className="text-3xl font-bold tracking-tight">
-                {dataSource.name}
-              </h1>
-              <Badge variant="outline" className="capitalize">
-                {dataSource.source_type}
-              </Badge>
-            </div>
+    <div className="space-y-12">
+      {/* Header - Full Width */}
+      <div className="space-y-6">
+        <div className="space-y-3">
+          <div className="space-y-2">
+            <h1 className="text-3xl font-bold tracking-tight">
+              {getCleanName(dataSource.name)}
+            </h1>
 
-            {/* Organization */}
-            <div className="flex items-center gap-2 text-muted-foreground">
+            {/* Organization - simplified, full details in sidebar */}
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Building2 className="h-4 w-4" />
-              <span className="font-medium">{dataSource.organization.name}</span>
-              {dataSource.organization.website && (
-                <a
-                  href={dataSource.organization.website}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-primary hover:underline"
-                >
-                  <ExternalLink className="h-3 w-3" />
-                </a>
-              )}
+              <span>{dataSource.organization.name}</span>
             </div>
 
-            {/* Description */}
-            {dataSource.description && (
-              <p className="text-base text-muted-foreground">
-                {dataSource.description}
-              </p>
-            )}
+            {/* Source Type Badge */}
+            <div>
+              <SourceTypeBadge sourceType={dataSource.source_type} />
+            </div>
           </div>
 
           {/* Version Selector */}
-          <div className="w-48">
+          <div className="w-64">
             <Select value={currentVersion.version} onValueChange={handleVersionChange}>
               <SelectTrigger>
                 <SelectValue placeholder="Select version" />
@@ -116,7 +100,7 @@ export function DataSourceDetail({
                 {dataSource.versions.map((version) => (
                   <SelectItem key={version.id} value={version.version}>
                     v{version.version}
-                    {version.external_version && ` (${version.external_version})`}
+                    {version.external_version && version.external_version !== 'unknown' && ` (${version.external_version})`}
                     {version.version === dataSource.latest_version && (
                       <span className="ml-2 text-xs text-primary">(latest)</span>
                     )}
@@ -125,6 +109,32 @@ export function DataSourceDetail({
               </SelectContent>
             </Select>
           </div>
+
+          {/* Mobile Metadata Button - Only visible on mobile, below version selector */}
+          <Dialog open={isMetadataOpen} onOpenChange={handleMetadataOpenChange} modal={true}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm" className="lg:hidden w-64">
+                <Database className="h-4 w-4 mr-2" />
+                <Info className="h-4 w-4 mr-2" />
+                Data Source Info
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px] max-h-[85vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Data Source Info</DialogTitle>
+                <DialogDescription>
+                  View detailed metadata, statistics, and information about this data source.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="mt-4 w-full overflow-x-hidden">
+                <MetadataSidebar
+                  dataSource={dataSource}
+                  currentVersion={currentVersion}
+                  isInSheet={true}
+                />
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
 
         {/* Tags */}
@@ -139,201 +149,52 @@ export function DataSourceDetail({
         )}
       </div>
 
-      <Separator />
-
-      {/* Version Information */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <InfoCard
-          icon={<Package className="h-5 w-5" />}
-          label="Version"
-          value={
-            <div className="space-y-1">
-              <div className="font-semibold">v{currentVersion.version}</div>
-              {currentVersion.external_version && (
-                <div className="text-xs text-muted-foreground">
-                  {currentVersion.external_version}
-                </div>
-              )}
-            </div>
-          }
-        />
-        <InfoCard
-          icon={<Calendar className="h-5 w-5" />}
-          label="Release Date"
-          value={
-            currentVersion.release_date
-              ? formatDate(currentVersion.release_date)
-              : 'N/A'
-          }
-        />
-        <InfoCard
-          icon={<Download className="h-5 w-5" />}
-          label="Downloads"
-          value={currentVersion.download_count.toLocaleString()}
-        />
-        <InfoCard
-          icon={<HardDrive className="h-5 w-5" />}
-          label="Size"
-          value={
-            currentVersion.size_bytes ? formatBytes(currentVersion.size_bytes) : 'N/A'
-          }
-        />
-      </div>
-
-      {/* Protein Metadata */}
-      {dataSource.protein_metadata && (
-        <>
-          <Separator />
+      {/* Two Column Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr,320px] gap-12">
+        {/* Main Content */}
+        <div className="space-y-12">
+          {/* Install with BDP CLI */}
           <div>
-            <h2 className="mb-4 text-xl font-semibold">Protein Information</h2>
-            <div className="grid gap-4 rounded-lg border bg-card p-6 md:grid-cols-2 lg:grid-cols-3">
-              {dataSource.protein_metadata.accession && (
-                <MetadataField
-                  label="Accession"
-                  value={dataSource.protein_metadata.accession}
-                />
-              )}
-              {dataSource.protein_metadata.entry_name && (
-                <MetadataField
-                  label="Entry Name"
-                  value={dataSource.protein_metadata.entry_name}
-                />
-              )}
-              {dataSource.protein_metadata.gene_name && (
-                <MetadataField
-                  label="Gene"
-                  value={dataSource.protein_metadata.gene_name}
-                />
-              )}
-              {dataSource.organism && (
-                <MetadataField
-                  label="Organism"
-                  value={
-                    dataSource.organism.common_name ||
-                    dataSource.organism.scientific_name
-                  }
-                />
-              )}
-              {dataSource.protein_metadata.sequence_length && (
-                <MetadataField
-                  label="Length"
-                  value={`${dataSource.protein_metadata.sequence_length} aa`}
-                />
-              )}
-              {dataSource.protein_metadata.mass_da && (
-                <MetadataField
-                  label="Mass"
-                  value={`${dataSource.protein_metadata.mass_da.toLocaleString()} Da`}
-                />
-              )}
-            </div>
+            <h2 className="mb-6 text-xl font-semibold">Install with BDP CLI</h2>
+            <CliCommands
+              org={dataSource.organization.slug}
+              name={dataSource.slug}
+              version={currentVersion.version}
+              files={currentVersion.files}
+            />
           </div>
-        </>
-      )}
 
-      {/* Available Formats & CLI Commands */}
-      <Separator />
-      <div>
-        <h2 className="mb-4 text-xl font-semibold">Install with BDP CLI</h2>
-        <CliCommands
-          org={dataSource.organization.slug}
-          name={dataSource.slug}
-          version={currentVersion.version}
-          files={currentVersion.files}
-        />
-      </div>
-
-      {/* File Details */}
-      <Separator />
-      <div>
-        <h2 className="mb-4 text-xl font-semibold">Available Files</h2>
-        <div className="space-y-3">
-          {currentVersion.files.map((file) => (
-            <div
-              key={file.id}
-              className="flex items-center justify-between rounded-lg border bg-card p-4"
-            >
-              <div className="flex items-center gap-3">
-                <FileCode className="h-5 w-5 text-muted-foreground" />
-                <div>
-                  <div className="font-medium uppercase">{file.format}</div>
-                  <div className="text-sm text-muted-foreground">
-                    {formatBytes(file.size_bytes)}
-                    {file.compression && file.compression !== 'none' && (
-                      <span> • {file.compression}</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-              <div className="text-xs text-muted-foreground font-mono">
-                {file.checksum.substring(0, 16)}...
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Dependencies Section */}
-      {currentVersion.has_dependencies && (
-        <>
+          {/* Source-specific content sections */}
           <Separator />
-          <DependenciesSection
-            org={dataSource.organization.slug}
-            name={dataSource.slug}
-            version={currentVersion.version}
-            dependencyCount={currentVersion.dependency_count}
-          />
-        </>
-      )}
+          <SourceTypeContent dataSource={dataSource} currentVersion={currentVersion} />
 
-      {/* Citations */}
-      {currentVersion.citations && currentVersion.citations.length > 0 && (
-        <>
-          <Separator />
-          <CitationsSection citations={currentVersion.citations} />
-        </>
-      )}
+          {/* Dependencies Section */}
+          {currentVersion.has_dependencies && (
+            <>
+              <Separator />
+              <DependenciesSection
+                org={dataSource.organization.slug}
+                name={dataSource.slug}
+                version={currentVersion.version}
+                dependencyCount={currentVersion.dependency_count}
+              />
+            </>
+          )}
 
-      {/* Metadata */}
-      <Separator />
-      <div className="text-sm text-muted-foreground">
-        <div>
-          Created: {formatDate(dataSource.created_at)} • Last updated:{' '}
-          {formatDate(dataSource.updated_at)}
+          {/* Citations */}
+          {currentVersion.citations && currentVersion.citations.length > 0 && (
+            <>
+              <Separator />
+              <CitationsSection citations={currentVersion.citations} />
+            </>
+          )}
         </div>
-        <div className="mt-1">
-          Total downloads across all versions: {dataSource.total_downloads.toLocaleString()}
-        </div>
-      </div>
-    </div>
-  );
-}
 
-function InfoCard({
-  icon,
-  label,
-  value,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: React.ReactNode;
-}) {
-  return (
-    <div className="rounded-lg border bg-card p-4">
-      <div className="flex items-center gap-2 text-muted-foreground mb-2">
-        {icon}
-        <span className="text-sm">{label}</span>
+        {/* Sidebar */}
+        <aside className="lg:block hidden">
+          <MetadataSidebar dataSource={dataSource} currentVersion={currentVersion} />
+        </aside>
       </div>
-      <div className="text-lg">{value}</div>
-    </div>
-  );
-}
-
-function MetadataField({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <div className="text-sm text-muted-foreground">{label}</div>
-      <div className="font-medium">{value}</div>
     </div>
   );
 }

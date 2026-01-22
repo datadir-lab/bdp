@@ -6,6 +6,27 @@ export interface Organism {
   scientific_name: string;
   common_name?: string;
   rank?: string;
+  taxonomy_organization_slug?: string;
+  taxonomy_slug?: string;
+  taxonomy_version?: string;
+}
+
+export interface ProteinComment {
+  topic: string;
+  text: string;
+}
+
+export interface ProteinFeature {
+  feature_type: string;
+  description?: string;
+  start_pos?: number;
+  end_pos?: number;
+}
+
+export interface ProteinCrossReference {
+  database: string;
+  database_id: string;
+  metadata?: any;
 }
 
 export interface ProteinMetadata {
@@ -16,6 +37,11 @@ export interface ProteinMetadata {
   sequence_length?: number;
   mass_da?: number;
   sequence_checksum?: string;
+  alternative_names?: string[];
+  ec_numbers?: string[];
+  protein_existence?: number;
+  keywords?: string[];
+  organelle?: string;
 }
 
 export interface VersionFile {

@@ -23,6 +23,8 @@ pub struct GetDataSourceResponse {
     pub external_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub organism: Option<OrganismInfo>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub protein_metadata: Option<ProteinMetadataInfo>,
     pub versions: Vec<VersionInfo>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub latest_version: Option<String>,
@@ -47,6 +49,44 @@ pub struct OrganismInfo {
     pub scientific_name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub common_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rank: Option<String>,
+    /// Taxonomy data source organization slug (e.g., "ncbi")
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub taxonomy_organization_slug: Option<String>,
+    /// Taxonomy data source slug (e.g., "9606")
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub taxonomy_slug: Option<String>,
+    /// Taxonomy data source version (e.g., "1.0")
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub taxonomy_version: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProteinMetadataInfo {
+    pub accession: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub entry_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub protein_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub gene_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sequence_length: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mass_da: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sequence_checksum: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub alternative_names: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ec_numbers: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub protein_existence: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub keywords: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub organelle: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -115,6 +155,22 @@ pub async fn handle(
             COALESCE(om_ref.taxonomy_id, om_direct.taxonomy_id) as ncbi_taxonomy_id,
             COALESCE(om_ref.scientific_name, om_direct.scientific_name) as scientific_name,
             COALESCE(om_ref.common_name, om_direct.common_name) as common_name,
+            pm.accession as protein_accession,
+            pm.entry_name as protein_entry_name,
+            pm.protein_name,
+            pm.gene_name,
+            pm.sequence_length,
+            pm.mass_da,
+            pm.sequence_checksum,
+            pm.alternative_names,
+            pm.ec_numbers,
+            pm.protein_existence,
+            pm.keywords,
+            pm.organelle,
+            COALESCE(om_ref.rank, om_direct.rank) as organism_rank,
+            tax_org.slug as taxonomy_organization_slug,
+            tax_re.slug as taxonomy_slug,
+            tax_v.version_string as taxonomy_version,
             re.created_at as "created_at!",
             re.updated_at as "updated_at!"
         FROM registry_entries re
@@ -123,7 +179,16 @@ pub async fn handle(
         LEFT JOIN protein_metadata pm ON ds.id = pm.data_source_id
         LEFT JOIN taxonomy_metadata om_ref ON pm.taxonomy_id = om_ref.data_source_id
         LEFT JOIN taxonomy_metadata om_direct ON ds.id = om_direct.data_source_id AND ds.source_type = 'organism'
-        WHERE o.slug = $1 AND re.slug = $2
+        LEFT JOIN registry_entries tax_re ON pm.taxonomy_id = tax_re.id
+        LEFT JOIN organizations tax_org ON tax_re.organization_id = tax_org.id
+        LEFT JOIN LATERAL (
+            SELECT version_string
+            FROM versions
+            WHERE entry_id = pm.taxonomy_id
+            ORDER BY published_at DESC
+            LIMIT 1
+        ) tax_v ON pm.taxonomy_id IS NOT NULL
+        WHERE LOWER(o.slug) = LOWER($1) AND LOWER(re.slug) = LOWER($2)
         "#,
         query.organization_slug,
         query.slug
@@ -175,13 +240,31 @@ pub async fn handle(
         slug: result.slug,
         name: result.name,
         description: result.description,
-        source_type: result.source_type,
+        source_type: result.source_type.clone(),
         external_id: result.external_id,
         organism: result.organism_id.map(|id| OrganismInfo {
             id,
             ncbi_taxonomy_id: result.ncbi_taxonomy_id,
-            scientific_name: result.scientific_name.unwrap_or_default(),
-            common_name: result.common_name,
+            scientific_name: result.scientific_name.clone().unwrap_or_default(),
+            common_name: result.common_name.clone(),
+            rank: result.organism_rank.clone(),
+            taxonomy_organization_slug: result.taxonomy_organization_slug.clone(),
+            taxonomy_slug: result.taxonomy_slug.clone(),
+            taxonomy_version: result.taxonomy_version.clone(),
+        }),
+        protein_metadata: result.protein_accession.as_ref().map(|accession| ProteinMetadataInfo {
+            accession: accession.clone(),
+            entry_name: result.protein_entry_name.clone(),
+            protein_name: result.protein_name.clone(),
+            gene_name: result.gene_name.clone(),
+            sequence_length: result.sequence_length,
+            mass_da: result.mass_da,
+            sequence_checksum: result.sequence_checksum.clone(),
+            alternative_names: result.alternative_names.clone(),
+            ec_numbers: result.ec_numbers.clone(),
+            protein_existence: result.protein_existence,
+            keywords: result.keywords.clone(),
+            organelle: result.organelle.clone(),
         }),
         versions: versions
             .into_iter()
@@ -218,6 +301,22 @@ struct DataSourceRecord {
     ncbi_taxonomy_id: Option<i32>,
     scientific_name: Option<String>,
     common_name: Option<String>,
+    protein_accession: Option<String>,
+    protein_entry_name: Option<String>,
+    protein_name: Option<String>,
+    gene_name: Option<String>,
+    sequence_length: Option<i32>,
+    mass_da: Option<i64>,
+    sequence_checksum: Option<String>,
+    alternative_names: Option<Vec<String>>,
+    ec_numbers: Option<Vec<String>>,
+    protein_existence: Option<i32>,
+    keywords: Option<Vec<String>>,
+    organelle: Option<String>,
+    organism_rank: Option<String>,
+    taxonomy_organization_slug: Option<String>,
+    taxonomy_slug: Option<String>,
+    taxonomy_version: Option<String>,
     created_at: DateTime<Utc>,
     updated_at: DateTime<Utc>,
 }

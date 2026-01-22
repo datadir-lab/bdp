@@ -31,6 +31,10 @@ pub fn data_sources_routes() -> Router<PgPool> {
         .route("/:org/:slug/versions", post(publish_version))
         .route("/:org/:slug/:version", get(get_version))
         .route(
+            "/:org/:slug/:version/protein-metadata",
+            get(super::queries::get_protein_metadata::get_protein_metadata),
+        )
+        .route(
             "/:org/:slug/:version/dependencies",
             get(list_dependencies),
         )

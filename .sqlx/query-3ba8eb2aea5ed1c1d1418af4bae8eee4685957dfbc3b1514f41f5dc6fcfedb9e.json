@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT\n            re.id, re.organization_id, re.slug, re.name, re.description,\n            ds.source_type, ds.external_id, ds.organism_id,\n            re.created_at as \"created_at!\", re.updated_at as \"updated_at!\"\n        FROM registry_entries re\n        JOIN data_sources ds ON re.id = ds.id\n        WHERE re.id = $1\n        ",
+  "query": "\n        SELECT\n            re.id, re.organization_id, re.slug, re.name, re.description,\n            ds.source_type, ds.external_id,\n            re.created_at as \"created_at!\", re.updated_at as \"updated_at!\"\n        FROM registry_entries re\n        JOIN data_sources ds ON re.id = ds.id\n        WHERE re.id = $1\n        ",
   "describe": {
     "columns": [
       {
@@ -40,16 +40,11 @@
       },
       {
         "ordinal": 7,
-        "name": "organism_id",
-        "type_info": "Uuid"
-      },
-      {
-        "ordinal": 8,
         "name": "created_at!",
         "type_info": "Timestamptz"
       },
       {
-        "ordinal": 9,
+        "ordinal": 8,
         "name": "updated_at!",
         "type_info": "Timestamptz"
       }
@@ -68,9 +63,8 @@
       false,
       true,
       true,
-      true,
       true
     ]
   },
-  "hash": "f4021ed5c0af6a8f62003383eb6bd7e44ef56cef841a23ed771944093287f5de"
+  "hash": "3ba8eb2aea5ed1c1d1418af4bae8eee4685957dfbc3b1514f41f5dc6fcfedb9e"
 }

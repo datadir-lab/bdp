@@ -38,19 +38,29 @@ export default async function DataSourceRedirectPage({ params }: PageProps) {
       notFound();
     }
 
+    // Use organization slug from response to ensure correct casing
+    const orgSlug = dataSource.organization?.slug || org;
+    const dataSourceSlug = dataSource.slug || name;
+
     // Redirect to latest version
     if (dataSource.latest_version) {
-      redirect(`/sources/${org}/${name}/${dataSource.latest_version}`);
+      const redirectUrl = `/sources/${orgSlug}/${dataSourceSlug}/${dataSource.latest_version}`;
+      console.log('[Redirect] Redirecting to:', redirectUrl);
+      redirect(redirectUrl);
     }
 
     // Fallback if no latest version (shouldn't happen)
     if (dataSource.versions && dataSource.versions.length > 0) {
-      redirect(`/sources/${org}/${name}/${dataSource.versions[0].version}`);
+      const redirectUrl = `/sources/${orgSlug}/${dataSourceSlug}/${dataSource.versions[0].version}`;
+      console.log('[Redirect] Redirecting to:', redirectUrl);
+      redirect(redirectUrl);
     }
 
     // If no versions at all, redirect to overview page with 'latest' as version
     // This allows viewing metadata for data sources that haven't been versioned yet
-    redirect(`/sources/${org}/${name}/latest`);
+    const redirectUrl = `/sources/${orgSlug}/${dataSourceSlug}/latest`;
+    console.log('[Redirect] Redirecting to:', redirectUrl);
+    redirect(redirectUrl);
   } catch (error) {
     // Re-throw redirect errors (Next.js redirects work by throwing errors)
     if (error && typeof error === 'object' && 'digest' in error &&

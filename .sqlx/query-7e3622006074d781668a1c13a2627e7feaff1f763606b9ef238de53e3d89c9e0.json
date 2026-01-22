@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT\n            v.id,\n            v.version,\n            v.external_version,\n            v.release_date,\n            v.size_bytes,\n            v.download_count as \"download_count!\",\n            v.dependency_count as \"dependency_count!\",\n            v.published_at as \"published_at!\",\n            re.slug as data_source_slug,\n            re.name as data_source_name,\n            o.slug as organization_slug\n        FROM versions v\n        JOIN registry_entries re ON v.entry_id = re.id\n        JOIN organizations o ON re.organization_id = o.id\n        WHERE o.slug = $1 AND re.slug = $2 AND v.version = $3\n        ",
+  "query": "\n        SELECT\n            v.id,\n            v.version,\n            v.external_version,\n            v.release_date,\n            v.size_bytes,\n            v.download_count as \"download_count!\",\n            v.dependency_count as \"dependency_count!\",\n            v.published_at as \"published_at!\",\n            re.slug as data_source_slug,\n            re.name as data_source_name,\n            o.slug as organization_slug\n        FROM versions v\n        JOIN registry_entries re ON v.entry_id = re.id\n        JOIN organizations o ON re.organization_id = o.id\n        WHERE LOWER(o.slug) = LOWER($1) AND LOWER(re.slug) = LOWER($2) AND v.version = $3\n        ",
   "describe": {
     "columns": [
       {
@@ -80,5 +80,5 @@
       false
     ]
   },
-  "hash": "5aea30bff31c33cad368bad781b5a0c475507894a31f4fde9c5aa7a966ebe5ae"
+  "hash": "7e3622006074d781668a1c13a2627e7feaff1f763606b9ef238de53e3d89c9e0"
 }

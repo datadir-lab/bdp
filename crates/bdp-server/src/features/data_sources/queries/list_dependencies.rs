@@ -112,7 +112,7 @@ pub async fn handle(
         FROM versions v
         JOIN registry_entries re ON v.entry_id = re.id
         JOIN organizations o ON re.organization_id = o.id
-        WHERE o.slug = $1 AND re.slug = $2 AND v.version = $3
+        WHERE LOWER(o.slug) = LOWER($1) AND LOWER(re.slug) = LOWER($2) AND v.version = $3
         "#,
         query.organization_slug,
         query.data_source_slug,

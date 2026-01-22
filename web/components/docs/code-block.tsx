@@ -7,9 +7,11 @@ interface CodeBlockProps {
   children: string;
   className?: string;
   showLineNumbers?: boolean;
+  customHeader?: string;
+  hideCopyAll?: boolean;
 }
 
-export function CodeBlock({ children, className, showLineNumbers = false }: CodeBlockProps) {
+export function CodeBlock({ children, className, showLineNumbers = false, customHeader, hideCopyAll = false }: CodeBlockProps) {
   const [copiedLine, setCopiedLine] = useState<number | null>(null);
   const [hoveredLine, setHoveredLine] = useState<number | null>(null);
 
@@ -45,9 +47,13 @@ export function CodeBlock({ children, className, showLineNumbers = false }: Code
       <div className="overflow-hidden rounded-lg border border-border bg-muted/80 dark:bg-muted/60 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-border hover:shadow-md">
         {/* Header */}
         <div className="flex items-center justify-between border-b-2 border-border bg-secondary dark:bg-secondary/90 px-4 py-2.5 backdrop-blur-sm">
-          {/* Language badge */}
+          {/* Language badge or custom header */}
           <div className="flex items-center gap-2">
-            {language ? (
+            {customHeader ? (
+              <span className="text-xs font-bold uppercase tracking-wider text-foreground">
+                {customHeader}
+              </span>
+            ) : language ? (
               <span className="text-xs font-bold uppercase tracking-wider text-foreground">
                 {language}
               </span>
@@ -59,31 +65,33 @@ export function CodeBlock({ children, className, showLineNumbers = false }: Code
           </div>
 
           {/* Copy all button */}
-          <button
-            className="
-              flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium
-              text-muted-foreground transition-all duration-200
-              hover:bg-background/80 hover:text-foreground hover:shadow-sm
-            "
-            onClick={() => {
-              navigator.clipboard.writeText(content);
-              setCopiedLine(-1);
-              setTimeout(() => setCopiedLine(null), 2000);
-            }}
-            aria-label="Copy all code"
-          >
-            {copiedLine === -1 ? (
-              <>
-                <Check className="h-3.5 w-3.5" />
-                <span>Copied</span>
-              </>
-            ) : (
-              <>
-                <Copy className="h-3.5 w-3.5" />
-                <span>Copy all</span>
-              </>
-            )}
-          </button>
+          {!hideCopyAll && (
+            <button
+              className="
+                flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium
+                text-muted-foreground transition-all duration-200
+                hover:bg-background/80 hover:text-foreground hover:shadow-sm
+              "
+              onClick={() => {
+                navigator.clipboard.writeText(content);
+                setCopiedLine(-1);
+                setTimeout(() => setCopiedLine(null), 2000);
+              }}
+              aria-label="Copy all code"
+            >
+              {copiedLine === -1 ? (
+                <>
+                  <Check className="h-3.5 w-3.5" />
+                  <span>Copied</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="h-3.5 w-3.5" />
+                  <span>Copy all</span>
+                </>
+              )}
+            </button>
+          )}
         </div>
 
         {/* Code content */}

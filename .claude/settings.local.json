@@ -150,7 +150,9 @@
       "Bash(npm run lint)",
       "WebFetch(domain:geneontology.org)",
       "Bash(npx tsx:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "WebFetch(domain:www.npmjs.com)",
+      "Bash(npm view:*)"
     ]
   }
 }

@@ -231,7 +231,7 @@ async fn resolve_source(
         SELECT re.id, re.slug
         FROM registry_entries re
         JOIN organizations o ON o.id = re.organization_id
-        WHERE o.slug = $1 AND re.slug = $2 AND re.entry_type = 'data_source'
+        WHERE LOWER(o.slug) = LOWER($1) AND LOWER(re.slug) = LOWER($2) AND re.entry_type = 'data_source'
         "#,
         spec.organization,
         spec.name
@@ -345,7 +345,7 @@ async fn resolve_tool(
         SELECT re.id
         FROM registry_entries re
         JOIN organizations o ON o.id = re.organization_id
-        WHERE o.slug = $1 AND re.slug = $2 AND re.entry_type = 'tool'
+        WHERE LOWER(o.slug) = LOWER($1) AND LOWER(re.slug) = LOWER($2) AND re.entry_type = 'tool'
         "#,
         spec.organization,
         spec.name

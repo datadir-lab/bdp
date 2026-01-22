@@ -148,13 +148,18 @@ export default function DataSourceVersionPage() {
     );
   }
 
+  // Helper to extract clean name without organism suffix
+  const getCleanName = (name: string) => {
+    return name.replace(/\s*\[.*?\]\s*$/g, '').trim();
+  };
+
   // Handle no versions
   if (dataSource && version === 'latest' && dataSource.versions.length === 0) {
     return (
       <div className="container py-8">
         <div className="space-y-6">
           <div>
-            <h1 className="text-3xl font-bold">{dataSource.name}</h1>
+            <h1 className="text-3xl font-bold">{getCleanName(dataSource.name)}</h1>
             <p className="text-muted-foreground mt-2">{dataSource.slug}</p>
           </div>
           {dataSource.description && (

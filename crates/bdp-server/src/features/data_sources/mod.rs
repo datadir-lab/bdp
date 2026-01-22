@@ -1,6 +1,7 @@
 pub mod commands;
 pub mod queries;
 pub mod routes;
+pub mod types;
 
 pub use commands::{
     CreateDataSourceCommand, CreateDataSourceError, CreateDataSourceResponse,
@@ -18,3 +19,5 @@ pub use queries::{
 };
 
 pub use routes::data_sources_routes;
+
+pub use types::{ProteinComment, ProteinCrossReference, ProteinFeature};

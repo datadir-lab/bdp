@@ -80,6 +80,48 @@ export async function getDependencies(
 }
 
 /**
+ * Get protein metadata for a data source
+ * GET /api/v1/data-sources/:org/:name/:version/protein-metadata
+ */
+export async function getProteinMetadata(
+  org: string,
+  name: string,
+  version: string
+): Promise<{
+  comments: Array<{ topic: string; text: string }>;
+  features: Array<{
+    feature_type: string;
+    description?: string;
+    start_pos?: number;
+    end_pos?: number;
+  }>;
+  cross_references: Array<{
+    database: string;
+    database_id: string;
+    metadata?: any;
+  }>;
+}> {
+  const response = await apiClient.get<{
+    success: boolean;
+    data: {
+      comments: Array<{ topic: string; text: string }>;
+      features: Array<{
+        feature_type: string;
+        description?: string;
+        start_pos?: number;
+        end_pos?: number;
+      }>;
+      cross_references: Array<{
+        database: string;
+        database_id: string;
+        metadata?: any;
+      }>;
+    };
+  }>(`/api/v1/data-sources/${org}/${name}/${version}/protein-metadata`);
+  return response.data.data;
+}
+
+/**
  * List data sources with filters
  * GET /api/v1/data-sources
  */

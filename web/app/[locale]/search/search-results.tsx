@@ -9,6 +9,7 @@ import { SearchPagination } from '@/components/search/search-pagination';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { SourceTypeBadge } from '@/components/shared/source-type-badge';
 import {
   SearchFilters as SearchFiltersType,
   SearchResult,
@@ -201,6 +202,11 @@ export function SearchResults() {
 
   const activeFilters = getActiveFilters();
 
+  // Helper to extract clean name without organism suffix
+  const getCleanName = (name: string) => {
+    return name.replace(/\s*\[.*?\]\s*$/g, '').trim();
+  };
+
   return (
     <div className="space-y-6">
       {/* Search Bar */}
@@ -293,32 +299,6 @@ export function SearchResults() {
                 href = `/sources/${result.organization_slug}/${result.slug}/${version}`;
               }
 
-              // Get badge styling based on source_type
-              const getSourceTypeBadgeClass = (sourceType: string) => {
-                const baseClasses = 'text-xs capitalize';
-                switch (sourceType.toLowerCase()) {
-                  case 'protein':
-                    return `${baseClasses} bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 hover:bg-purple-100`;
-                  case 'genome':
-                    return `${baseClasses} bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 hover:bg-green-100`;
-                  case 'organism':
-                  case 'taxonomy':
-                    return `${baseClasses} bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 hover:bg-blue-100`;
-                  case 'transcript':
-                    return `${baseClasses} bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200 hover:bg-teal-100`;
-                  case 'annotation':
-                    return `${baseClasses} bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 hover:bg-amber-100`;
-                  case 'structure':
-                    return `${baseClasses} bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200 hover:bg-pink-100`;
-                  case 'pathway':
-                    return `${baseClasses} bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200 hover:bg-indigo-100`;
-                  case 'bundle':
-                    return `${baseClasses} bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200 hover:bg-cyan-100`;
-                  default:
-                    return `${baseClasses} bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200 hover:bg-gray-100`;
-                }
-              };
-
               return (
                 <Link
                   key={result.id}
@@ -328,7 +308,7 @@ export function SearchResults() {
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 space-y-2">
                       <div className="flex items-center gap-2">
-                        <h3 className="text-lg font-semibold">{result.name}</h3>
+                        <h3 className="text-lg font-semibold">{getCleanName(result.name)}</h3>
                         <Badge variant="outline" className="capitalize">
                           {result.entry_type.replace('_', ' ')}
                         </Badge>
@@ -343,9 +323,7 @@ export function SearchResults() {
                       )}
                       <div className="flex flex-wrap gap-2 pt-2">
                         {result.source_type && (
-                          <Badge className={getSourceTypeBadgeClass(result.source_type)}>
-                            {result.source_type}
-                          </Badge>
+                          <SourceTypeBadge sourceType={result.source_type} />
                         )}
                         {result.available_formats.length > 0 && (
                           <Badge variant="secondary" className="text-xs">

@@ -1,15 +1,9 @@
 import createMiddleware from 'next-intl/middleware';
-import { locales, defaultLocale } from './i18n/config';
+import { routing } from './i18n/routing';
 
 export default createMiddleware({
-  // A list of all locales that are supported
-  locales,
-
-  // Used when no locale matches
-  defaultLocale,
-
-  // Always show locale in URL
-  localePrefix: 'as-needed',
+  ...routing,
+  localeDetection: true,
 });
 
 export const config = {
