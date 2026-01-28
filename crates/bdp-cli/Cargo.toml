@@ -36,6 +36,7 @@ clap-markdown = "0.1"
 # HTTP Client
 # ============================================================================
 reqwest = { workspace = true }
+urlencoding = "2.1"  # URL encoding for query parameters
 
 # ============================================================================
 # Database
@@ -52,6 +53,7 @@ uuid = { workspace = true }
 dotenvy = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
+sqlparser = "0.52"  # SQL parsing and validation
 
 # ============================================================================
 # Additional CLI Dependencies
@@ -78,6 +80,14 @@ hex = "0.4"
 
 # Hostname for machine ID
 hostname = "0.4"
+
+# Interactive CLI
+inquire = "0.7"  # Interactive prompts and selection
+comfy-table = "7.1"  # Table formatting
+strsim = "0.11"  # Fuzzy string matching
+open = "5.3"  # Open URLs in browser
+atty = "0.2"  # TTY detection for interactive mode
+arboard = "3.4"  # Clipboard access
 
 [dev-dependencies]
 # Testing

@@ -100,7 +100,9 @@ async fn execute_command(cli: &Cli) -> bdp_cli::Result<()> {
 
         Commands::Audit { command } => bdp_cli::commands::audit::run(command).await,
 
-        Commands::Clean { all } => bdp_cli::commands::clean::run(*all).await,
+        Commands::Clean { all, search_cache } => {
+            bdp_cli::commands::clean::run(*all, *search_cache).await
+        },
 
         Commands::Config { command } => match command {
             // NOTE: Clone is necessary because we're matching on &command (borrowed)
@@ -112,5 +114,69 @@ async fn execute_command(cli: &Cli) -> bdp_cli::Result<()> {
         },
 
         Commands::Uninstall { yes, purge } => bdp_cli::commands::uninstall::run(*yes, *purge).await,
+
+        Commands::Search {
+            query,
+            entry_type,
+            source_type,
+            format,
+            no_interactive,
+            limit,
+            page,
+        } => {
+            bdp_cli::commands::search::run(
+                query.clone(),
+                entry_type.clone(),
+                source_type.clone(),
+                format.clone(),
+                *no_interactive,
+                *limit,
+                *page,
+                cli.server_url.clone(),
+            )
+            .await
+        },
+
+        Commands::Query {
+            entity,
+            select,
+            where_clause,
+            order_by,
+            limit,
+            offset,
+            group_by,
+            aggregate,
+            having,
+            join,
+            on,
+            sql,
+            format,
+            output,
+            no_header,
+            explain,
+            dry_run,
+        } => {
+            bdp_cli::commands::query::run(
+                entity.clone(),
+                select.clone(),
+                where_clause.clone(),
+                order_by.clone(),
+                *limit,
+                *offset,
+                group_by.clone(),
+                aggregate.clone(),
+                having.clone(),
+                join.clone(),
+                on.clone(),
+                sql.clone(),
+                format.clone(),
+                output.clone(),
+                *no_header,
+                *explain,
+                *dry_run,
+                cli.server_url.clone(),
+            )
+            .await
+        },
     }
 }

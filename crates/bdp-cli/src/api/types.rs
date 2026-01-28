@@ -124,6 +124,19 @@ pub struct SearchResult {
     pub entry_type: String,
 }
 
+/// Query request payload
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QueryRequest {
+    pub sql: String,
+}
+
+/// Query results structure
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QueryResults {
+    pub columns: Vec<String>,
+    pub rows: Vec<Vec<serde_json::Value>>,
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {

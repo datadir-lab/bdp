@@ -2,6 +2,8 @@
 //!
 //! Uses SQLite for tracking cached files and the file system for storage.
 
+pub mod search_cache;
+
 use crate::error::{CliError, Result};
 use sqlx::{sqlite::SqlitePool, Row};
 use std::fs;

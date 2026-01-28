@@ -7,6 +7,8 @@ pub mod clean;
 pub mod config;
 pub mod init;
 pub mod pull;
+pub mod query;
+pub mod search;
 pub mod source;
 pub mod status;
 pub mod uninstall;

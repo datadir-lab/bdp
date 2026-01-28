@@ -33,6 +33,7 @@ pub mod jobs;
 pub mod organisms;
 pub mod organizations;
 pub mod protein_metadata;
+pub mod query;
 pub mod resolve;
 pub mod search;
 pub mod shared;
@@ -63,6 +64,7 @@ pub struct FeatureState {
 /// - `/jobs` - Ingestion job management
 /// - `/sync-status` - Organization sync status
 /// - `/files` - File upload/download
+/// - `/query` - SQL query execution
 ///
 /// # Arguments
 ///
@@ -86,4 +88,5 @@ pub fn router(state: FeatureState) -> Router<()> {
         .nest("/jobs", jobs::jobs_routes().with_state(state.db.clone()))
         .nest("/sync-status", jobs::sync_status_routes().with_state(state.db.clone()))
         .nest("/files", files::files_routes().with_state(state.storage.clone()))
+        .nest("/query", query::query_routes().with_state(state.db.clone()))
 }

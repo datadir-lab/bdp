@@ -135,14 +135,39 @@ impl ApiClient {
         Ok(api_response.data)
     }
 
-    /// Search for data sources
+    /// Search for data sources with filters
     pub async fn search(
         &self,
         query: &str,
         page: Option<i32>,
         page_size: Option<i32>,
     ) -> Result<SearchResponse> {
-        let url = endpoints::search_url(&self.base_url, query, page, page_size);
+        self.search_with_filters(query, None, None, None, None, page, page_size)
+            .await
+    }
+
+    /// Search for data sources with full filter support
+    #[allow(clippy::too_many_arguments)]
+    pub async fn search_with_filters(
+        &self,
+        query: &str,
+        type_filter: Option<Vec<String>>,
+        source_type_filter: Option<Vec<String>>,
+        organism: Option<String>,
+        format: Option<String>,
+        page: Option<i32>,
+        page_size: Option<i32>,
+    ) -> Result<SearchResponse> {
+        let url = endpoints::search_url_with_filters(
+            &self.base_url,
+            query,
+            type_filter.as_deref(),
+            source_type_filter.as_deref(),
+            organism.as_deref(),
+            format.as_deref(),
+            page,
+            page_size,
+        );
 
         let response = self.client.get(&url).send().await?.error_for_status()?;
 
@@ -194,6 +219,33 @@ impl ApiClient {
                         "Organization '{}' not found. Run 'bdp org list' to see available organizations.",
                         name
                     )
+                }),
+            ));
+        }
+
+        Ok(api_response.data)
+    }
+
+    /// Execute a SQL query
+    pub async fn execute_query(&self, sql: String) -> Result<QueryResults> {
+        let url = format!("{}/api/v1/query", self.base_url);
+
+        let request = QueryRequest { sql };
+
+        let response = self
+            .client
+            .post(&url)
+            .json(&request)
+            .send()
+            .await?
+            .error_for_status()?;
+
+        let api_response: ApiResponse<QueryResults> = response.json().await?;
+
+        if !api_response.success {
+            return Err(CliError::api(
+                api_response.error.unwrap_or_else(|| {
+                    "Query execution failed. Check your SQL syntax and try again.".to_string()
                 }),
             ));
         }

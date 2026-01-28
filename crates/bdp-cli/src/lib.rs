@@ -115,6 +115,10 @@ pub enum Commands {
         /// Clean all cached files
         #[arg(short, long)]
         all: bool,
+
+        /// Clean only search cache
+        #[arg(long)]
+        search_cache: bool,
     },
 
     /// Manage configuration
@@ -132,6 +136,109 @@ pub enum Commands {
         /// Also remove cache and configuration files
         #[arg(long)]
         purge: bool,
+    },
+
+    /// Search for data sources and tools in the registry
+    Search {
+        /// Search query (multiple words will be joined)
+        #[arg(required = true)]
+        query: Vec<String>,
+
+        /// Filter by entry type (can be repeated)
+        #[arg(short = 't', long = "type")]
+        entry_type: Vec<String>,
+
+        /// Filter by source type (can be repeated)
+        #[arg(short = 's', long = "source-type")]
+        source_type: Vec<String>,
+
+        /// Output format
+        #[arg(short = 'f', long = "format", default_value = "interactive")]
+        format: String,
+
+        /// Force non-interactive mode
+        #[arg(long = "no-interactive")]
+        no_interactive: bool,
+
+        /// Number of results per page (1-100)
+        #[arg(short = 'l', long = "limit", default_value = "10")]
+        limit: i32,
+
+        /// Page number (for non-interactive pagination)
+        #[arg(short = 'p', long = "page", default_value = "1")]
+        page: i32,
+    },
+
+    /// Advanced SQL-like querying of data sources and metadata
+    Query {
+        /// Entity to query (protein, gene, genome, tools, orgs, etc.) or use --sql for raw SQL
+        entity: Option<String>,
+
+        /// Select specific fields (comma-separated)
+        #[arg(long)]
+        select: Option<String>,
+
+        /// Filter results (can be repeated, AND combined)
+        /// Simple: --where organism=human
+        /// Complex: --where "organism='human' AND downloads>1000"
+        #[arg(short = 'w', long = "where")]
+        where_clause: Vec<String>,
+
+        /// Sort results by field[:asc|desc]
+        #[arg(long)]
+        order_by: Option<String>,
+
+        /// Limit number of results (default: 1000)
+        #[arg(short = 'l', long, default_value = "1000")]
+        limit: i64,
+
+        /// Skip first N results
+        #[arg(long)]
+        offset: Option<i64>,
+
+        /// Group results by field
+        #[arg(long)]
+        group_by: Option<String>,
+
+        /// Aggregation expression (COUNT(*), SUM(field), etc.)
+        #[arg(long)]
+        aggregate: Option<String>,
+
+        /// Filter grouped results
+        #[arg(long)]
+        having: Option<String>,
+
+        /// Join with another entity/table
+        #[arg(long)]
+        join: Option<String>,
+
+        /// Join condition
+        #[arg(long)]
+        on: Option<String>,
+
+        /// Execute raw SQL query directly
+        #[arg(long, conflicts_with_all = &["entity", "select", "where_clause", "order_by", "group_by", "aggregate", "having", "join", "on"])]
+        sql: Option<String>,
+
+        /// Output format
+        #[arg(short = 'f', long = "format")]
+        format: Option<String>,
+
+        /// Write output to file instead of stdout
+        #[arg(short = 'o', long = "output")]
+        output: Option<String>,
+
+        /// Omit header row (for CSV/TSV)
+        #[arg(long)]
+        no_header: bool,
+
+        /// Show query execution plan
+        #[arg(long)]
+        explain: bool,
+
+        /// Show generated SQL without executing
+        #[arg(long)]
+        dry_run: bool,
     },
 }
 

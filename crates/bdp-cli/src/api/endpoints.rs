@@ -33,14 +33,51 @@ pub fn search_url(
     page: Option<i32>,
     page_size: Option<i32>,
 ) -> String {
-    let mut url = format!("{}/api/v1/search?q={}", base_url, query);
+    search_url_with_filters(base_url, query, None, None, None, None, page, page_size)
+}
+
+/// Build search URL with full filter support
+#[allow(clippy::too_many_arguments)]
+pub fn search_url_with_filters(
+    base_url: &str,
+    query: &str,
+    type_filter: Option<&[String]>,
+    source_type_filter: Option<&[String]>,
+    organism: Option<&str>,
+    format: Option<&str>,
+    page: Option<i32>,
+    page_size: Option<i32>,
+) -> String {
+    use urlencoding::encode;
+
+    let mut url = format!("{}/api/v1/search?query={}", base_url, encode(query));
+
+    if let Some(types) = type_filter {
+        for t in types {
+            url.push_str(&format!("&type_filter={}", encode(t)));
+        }
+    }
+
+    if let Some(source_types) = source_type_filter {
+        for st in source_types {
+            url.push_str(&format!("&source_type_filter={}", encode(st)));
+        }
+    }
+
+    if let Some(org) = organism {
+        url.push_str(&format!("&organism={}", encode(org)));
+    }
+
+    if let Some(fmt) = format {
+        url.push_str(&format!("&format={}", encode(fmt)));
+    }
 
     if let Some(p) = page {
         url.push_str(&format!("&page={}", p));
     }
 
     if let Some(ps) = page_size {
-        url.push_str(&format!("&page_size={}", ps));
+        url.push_str(&format!("&per_page={}", ps));
     }
 
     url
@@ -90,12 +127,12 @@ mod tests {
     #[test]
     fn test_search_url() {
         let url = search_url("http://localhost:8000", "insulin", None, None);
-        assert_eq!(url, "http://localhost:8000/api/v1/search?q=insulin");
+        assert_eq!(url, "http://localhost:8000/api/v1/search?query=insulin");
 
         let url_with_pagination = search_url("http://localhost:8000", "insulin", Some(2), Some(20));
         assert_eq!(
             url_with_pagination,
-            "http://localhost:8000/api/v1/search?q=insulin&page=2&page_size=20"
+            "http://localhost:8000/api/v1/search?query=insulin&page=2&per_page=20"
         );
     }
 
