@@ -327,14 +327,10 @@ impl From<super::queries::ListOrganizationsError> for OrganizationApiError {
 impl IntoResponse for OrganizationApiError {
     fn into_response(self) -> Response {
         match self {
-            // Create errors
-            OrganizationApiError::CreateError(CreateOrganizationError::SlugRequired)
-            | OrganizationApiError::CreateError(CreateOrganizationError::SlugLength)
-            | OrganizationApiError::CreateError(CreateOrganizationError::SlugFormat)
-            | OrganizationApiError::CreateError(CreateOrganizationError::NameRequired)
-            | OrganizationApiError::CreateError(CreateOrganizationError::NameLength)
-            | OrganizationApiError::CreateError(CreateOrganizationError::WebsiteInvalid(_))
-            | OrganizationApiError::CreateError(CreateOrganizationError::LogoUrlInvalid(_)) => {
+            // Create errors - validation errors are now wrapped
+            OrganizationApiError::CreateError(CreateOrganizationError::SlugValidation(_))
+            | OrganizationApiError::CreateError(CreateOrganizationError::NameValidation(_))
+            | OrganizationApiError::CreateError(CreateOrganizationError::UrlValidation(_)) => {
                 let error = ErrorResponse::new("VALIDATION_ERROR", self.to_string());
                 (StatusCode::BAD_REQUEST, Json(error)).into_response()
             },
@@ -351,13 +347,11 @@ impl IntoResponse for OrganizationApiError {
                 (StatusCode::INTERNAL_SERVER_ERROR, Json(error)).into_response()
             },
 
-            // Update errors
+            // Update errors - validation errors are now wrapped
             OrganizationApiError::UpdateError(UpdateOrganizationError::SlugRequired)
             | OrganizationApiError::UpdateError(UpdateOrganizationError::NoFieldsToUpdate)
-            | OrganizationApiError::UpdateError(UpdateOrganizationError::NameLength)
-            | OrganizationApiError::UpdateError(UpdateOrganizationError::NameEmpty)
-            | OrganizationApiError::UpdateError(UpdateOrganizationError::WebsiteInvalid(_))
-            | OrganizationApiError::UpdateError(UpdateOrganizationError::LogoUrlInvalid(_)) => {
+            | OrganizationApiError::UpdateError(UpdateOrganizationError::NameValidation(_))
+            | OrganizationApiError::UpdateError(UpdateOrganizationError::UrlValidation(_)) => {
                 let error = ErrorResponse::new("VALIDATION_ERROR", self.to_string());
                 (StatusCode::BAD_REQUEST, Json(error)).into_response()
             },
@@ -456,8 +450,11 @@ mod tests {
 
     #[test]
     fn test_error_display() {
-        let err = OrganizationApiError::CreateError(CreateOrganizationError::SlugRequired);
-        assert!(err.to_string().contains("Slug is required"));
+        use crate::features::shared::validation::SlugValidationError;
+        let err = OrganizationApiError::CreateError(CreateOrganizationError::SlugValidation(
+            SlugValidationError::Required,
+        ));
+        assert!(err.to_string().contains("Slug"));
     }
 
     #[test]

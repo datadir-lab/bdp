@@ -15,6 +15,11 @@ use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use uuid::Uuid;
 
+use crate::features::shared::validation::{
+    validate_name, validate_slug, validate_url, NameValidationError, SlugValidationError,
+    UrlValidationError,
+};
+
 /// Command to create a new organization
 ///
 /// # Examples
@@ -75,26 +80,14 @@ pub struct CreateOrganizationResponse {
 /// Errors that can occur when creating an organization
 #[derive(Debug, thiserror::Error)]
 pub enum CreateOrganizationError {
-    #[error("Slug is required and cannot be empty")]
-    SlugRequired,
+    #[error("Slug validation failed: {0}")]
+    SlugValidation(#[from] SlugValidationError),
 
-    #[error("Slug must be between 1 and 100 characters")]
-    SlugLength,
+    #[error("Name validation failed: {0}")]
+    NameValidation(#[from] NameValidationError),
 
-    #[error("Slug can only contain lowercase letters, numbers, and hyphens")]
-    SlugFormat,
-
-    #[error("Name is required and cannot be empty")]
-    NameRequired,
-
-    #[error("Name must be between 1 and 256 characters")]
-    NameLength,
-
-    #[error("Website URL is invalid: {0}")]
-    WebsiteInvalid(String),
-
-    #[error("Logo URL is invalid: {0}")]
-    LogoUrlInvalid(String),
+    #[error("URL validation failed: {0}")]
+    UrlValidation(#[from] UrlValidationError),
 
     #[error("Organization with slug '{0}' already exists")]
     DuplicateSlug(String),
@@ -124,48 +117,20 @@ impl CreateOrganizationCommand {
     /// - URLs must be valid if provided
     #[tracing::instrument(skip(self), fields(slug = %self.slug, name = %self.name))]
     pub fn validate(&self) -> Result<(), CreateOrganizationError> {
-        // Validate slug
-        if self.slug.is_empty() {
-            return Err(CreateOrganizationError::SlugRequired);
-        }
-        if self.slug.len() > 100 {
-            return Err(CreateOrganizationError::SlugLength);
-        }
+        // Validate slug using shared utility
+        validate_slug(&self.slug, 100)?;
 
-        // Slug must be lowercase alphanumeric with hyphens
-        if !self
-            .slug
-            .chars()
-            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
-        {
-            return Err(CreateOrganizationError::SlugFormat);
-        }
-
-        // Slug should not start or end with hyphen
-        if self.slug.starts_with('-') || self.slug.ends_with('-') {
-            return Err(CreateOrganizationError::SlugFormat);
-        }
-
-        // Validate name
-        if self.name.trim().is_empty() {
-            return Err(CreateOrganizationError::NameRequired);
-        }
-        if self.name.len() > 256 {
-            return Err(CreateOrganizationError::NameLength);
-        }
+        // Validate name using shared utility
+        validate_name(&self.name, 256)?;
 
         // Validate website URL if provided
         if let Some(ref website) = self.website {
-            if !website.is_empty() && !is_valid_url(website) {
-                return Err(CreateOrganizationError::WebsiteInvalid(website.clone()));
-            }
+            validate_url(website, "website")?;
         }
 
         // Validate logo URL if provided
         if let Some(ref logo_url) = self.logo_url {
-            if !logo_url.is_empty() && !is_valid_url(logo_url) {
-                return Err(CreateOrganizationError::LogoUrlInvalid(logo_url.clone()));
-            }
+            validate_url(logo_url, "logo_url")?;
         }
 
         tracing::debug!("Command validation passed");
@@ -269,11 +234,6 @@ struct OrganizationRecord {
     created_at: DateTime<Utc>,
 }
 
-/// Basic URL validation helper
-fn is_valid_url(url: &str) -> bool {
-    url.starts_with("http://") || url.starts_with("https://")
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -303,7 +263,7 @@ mod tests {
         };
         assert!(matches!(
             cmd.validate(),
-            Err(CreateOrganizationError::SlugRequired)
+            Err(CreateOrganizationError::SlugValidation(_))
         ));
     }
 
@@ -319,7 +279,7 @@ mod tests {
         };
         assert!(matches!(
             cmd.validate(),
-            Err(CreateOrganizationError::SlugLength)
+            Err(CreateOrganizationError::SlugValidation(_))
         ));
     }
 
@@ -344,7 +304,7 @@ mod tests {
                 is_system: false,
             };
             assert!(
-                matches!(cmd.validate(), Err(CreateOrganizationError::SlugFormat)),
+                matches!(cmd.validate(), Err(CreateOrganizationError::SlugValidation(_))),
                 "Slug '{}' should be invalid",
                 slug
             );
@@ -380,7 +340,7 @@ mod tests {
         };
         assert!(matches!(
             cmd.validate(),
-            Err(CreateOrganizationError::NameRequired)
+            Err(CreateOrganizationError::NameValidation(_))
         ));
     }
 
@@ -396,7 +356,7 @@ mod tests {
         };
         assert!(matches!(
             cmd.validate(),
-            Err(CreateOrganizationError::NameLength)
+            Err(CreateOrganizationError::NameValidation(_))
         ));
     }
 
@@ -412,7 +372,7 @@ mod tests {
         };
         assert!(matches!(
             cmd.validate(),
-            Err(CreateOrganizationError::WebsiteInvalid(_))
+            Err(CreateOrganizationError::UrlValidation(_))
         ));
     }
 
@@ -428,19 +388,8 @@ mod tests {
         };
         assert!(matches!(
             cmd.validate(),
-            Err(CreateOrganizationError::LogoUrlInvalid(_))
+            Err(CreateOrganizationError::UrlValidation(_))
         ));
-    }
-
-    #[test]
-    fn test_is_valid_url() {
-        assert!(is_valid_url("https://example.com"));
-        assert!(is_valid_url("http://example.com"));
-        assert!(is_valid_url("https://example.com/path?query=1"));
-
-        assert!(!is_valid_url("ftp://example.com"));
-        assert!(!is_valid_url("example.com"));
-        assert!(!is_valid_url("not a url"));
     }
 
     #[sqlx::test]

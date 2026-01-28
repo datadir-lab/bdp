@@ -169,7 +169,13 @@ impl GoDownloader {
 
         // last_error is guaranteed to be Some since we always set it on failure
         // and exit early on success. This is safe because max_retries >= 1.
-        Err(last_error.expect("last_error must be set after retry loop exhaustion"))
+        match last_error {
+            Some(err) => Err(err),
+            None => Err(crate::ingest::gene_ontology::GoError::Validation(format!(
+                "Download failed after {} retries with no error captured (this should never happen)",
+                self.config.max_retries
+            ))),
+        }
     }
 
     /// Download URL without retry

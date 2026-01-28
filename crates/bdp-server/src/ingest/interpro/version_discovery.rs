@@ -97,7 +97,11 @@ impl DiscoveredVersion {
         let month = (month as u32).max(1).min(12);
 
         NaiveDate::from_ymd_opt(year, month, 1)
-            .unwrap_or_else(|| NaiveDate::from_ymd_opt(2024, 1, 1).unwrap())
+            .unwrap_or_else(|| {
+                // SAFETY: 2024-01-01 is a valid date, so this will never panic
+                NaiveDate::from_ymd_opt(2024, 1, 1)
+                    .expect("Hardcoded fallback date 2024-01-01 is always valid")
+            })
     }
 }
 

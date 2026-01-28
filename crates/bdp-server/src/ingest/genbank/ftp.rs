@@ -9,12 +9,7 @@ use tracing::{debug, info, warn};
 
 use super::config::GenbankFtpConfig;
 use super::models::Division;
-
-/// Maximum number of retry attempts for FTP operations
-const MAX_RETRIES: u32 = 3;
-
-/// Delay between retry attempts (in seconds)
-const RETRY_DELAY_SECS: u64 = 5;
+use crate::ingest::common::ftp::{MAX_RETRIES, RETRY_DELAY_SECS};
 
 /// FTP client for downloading GenBank/RefSeq data
 pub struct GenbankFtp {

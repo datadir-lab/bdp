@@ -1,5 +1,6 @@
 //! BDP Server Library
 #![recursion_limit = "256"]
+#![deny(clippy::unwrap_used, clippy::expect_used)]
 //!
 //! HTTP server for managing biological datasets.
 //!

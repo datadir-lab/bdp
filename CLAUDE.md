@@ -1,26 +1,26 @@
 # Claude Code Instructions for BDP
 
-This document provides comprehensive instructions for AI agents (Claude Code) working on the BDP project.
+Instructions for AI agents (Claude Code) working on the Bioinformatics Dependencies Platform.
 
-## Quick Start
+## Documentation Index
 
-1. **Read the Agent Guide**: Start with [AGENTS.md](./AGENTS.md) for complete development guidelines
-2. **Check the Roadmap**: Review [ROADMAP.md](./ROADMAP.md) for project status and priorities
-3. **Follow Commit Conventions**: Use conventional commits and link to Linear issues - see [Commit Conventions](./docs/development/COMMIT_CONVENTIONS.md)
+**📖 Start here**: [docs/INDEX.md](./docs/INDEX.md)
+
+The documentation index contains all guides organized by topic. **ALWAYS refer to this index** when working on the project.
 
 ## Critical Rules
 
-### Logging
+### Logging (MANDATORY)
 - **NEVER** use `println!`, `eprintln!`, or `dbg!` in Rust code
 - **ALWAYS** use structured logging: `info!`, `warn!`, `error!`
 - See [Logging Best Practices](./docs/agents/logging.md)
 
-### Error Handling
+### Error Handling (MANDATORY)
 - **NEVER** use `.unwrap()` or `.expect()` in production code
 - **ALWAYS** use `?` operator or proper error handling
 - See [Error Handling Policy](./docs/agents/error-handling.md)
 
-### Backend Architecture
+### Backend Architecture (MANDATORY)
 - **MUST** follow CQRS pattern for all backend features
 - Commands (write) → Use transactions, add audit logging
 - Queries (read) → No transactions, no audit logging
@@ -35,88 +35,6 @@ This document provides comprehensive instructions for AI agents (Claude Code) wo
 - **NEVER** test CLI commands in main repository directory
 - **ALWAYS** use `D:\dev\datadir\bdp-example\` for CLI testing
 - Use `just test-cli-*` commands for testing
-
-## Commit Conventions (MANDATORY)
-
-BDP uses **Conventional Commits** with **Linear integration**:
-
-### Format
-```
-<type>(<scope>): <subject>
-
-[optional body]
-```
-
-### Types
-- `feat`: New feature
-- `fix`: Bug fix
-- `chore`: Maintenance, dependencies, tooling
-- `docs`: Documentation only
-- `refactor`: Code restructuring
-- `perf`: Performance improvement
-- `test`: Tests
-- `ci`/`build`: CI/CD changes
-
-### Examples
-```bash
-feat(cli): implement bdp query command
-
-Adds SQL-like query syntax with JOIN and WHERE support.
-
----
-
-fix(api): prevent database connection timeout
-
-Adds retry logic and connection pooling.
-
----
-
-chore(deps): update Rust dependencies
-
-Updates sqlx, tokio, axum to latest versions.
-```
-
-### Linear Integration
-- Use branch naming: `<type>/bdp-<id>-<description>` to auto-link commits
-- Update Linear task status when starting/completing work
-- Reference Linear issues in PR descriptions (e.g., "Resolves BDP-17")
-- Keep commit messages clean (no issue IDs in commits)
-
-**Full documentation**: [docs/development/COMMIT_CONVENTIONS.md](./docs/development/COMMIT_CONVENTIONS.md)
-
-## Documentation Structure
-
-```
-docs/
-├── agents/                          # Agent reference documentation
-│   ├── architecture.md              # System design, database schema
-│   ├── backend-architecture.md      # CQRS pattern (MANDATORY)
-│   ├── cli-development.md           # CLI patterns
-│   ├── error-handling.md            # Error handling policy
-│   ├── logging.md                   # Logging best practices
-│   ├── nextjs-frontend.md           # Next.js 16 patterns
-│   ├── stack.md                     # Technology choices
-│   ├── testing.md                   # Testing strategy
-│   ├── design/                      # Design specifications
-│   ├── implementation/              # Implementation guides (CQRS, SQLx)
-│   └── workflows/                   # Step-by-step workflows
-├── development/                     # Development guides
-│   ├── COMMIT_CONVENTIONS.md        # Git commit standards
-│   ├── CI_CD.md                     # CI/CD setup
-│   ├── RELEASE_PROCESS.md           # Release workflow
-│   ├── testing.md                   # Testing infrastructure
-│   └── VERSIONING.md                # Version management
-├── research/                        # Research papers and analysis
-├── archive/                         # Archived implementation docs
-│   ├── implementation/              # Old summaries and reports
-│   └── interpro/                    # InterPro implementation sessions
-├── database-setup.md                # PostgreSQL setup guide
-├── DOCKER_SETUP.md                  # Docker configuration
-├── INSTALL.md                       # Installation instructions
-├── QUICK_START.md                   # Quick start guide
-├── SETUP.md                         # Setup instructions
-└── TESTING.md                       # Testing overview
-```
 
 ## Quick Reference by Task Type
 
@@ -147,39 +65,25 @@ docs/
 1. Read [Testing Strategy](./docs/agents/testing.md)
 2. Read [Development Testing](./docs/development/testing.md)
 
-### Releases & Deployment
-1. Read [Release Process](./docs/development/RELEASE_PROCESS.md)
-2. Read [CI/CD](./docs/development/CI_CD.md)
-3. Read [Versioning](./docs/development/VERSIONING.md)
-
 ## Workflow Checklist
 
 ### Before Starting Work
-- [ ] Read relevant documentation from AGENTS.md
-- [ ] Check ROADMAP.md for context
-- [ ] Create/assign Linear task
-- [ ] Create branch: `<type>/<linear-id>-<description>`
+- [ ] Check [docs/INDEX.md](./docs/INDEX.md) for relevant documentation
+- [ ] Read relevant architecture/pattern docs
+- [ ] Understand the task requirements
 
 ### During Development
 - [ ] Follow architectural patterns (especially CQRS for backend)
 - [ ] Use structured logging (NO `println!`)
 - [ ] Handle errors properly (NO `.unwrap()`)
 - [ ] Write tests
-- [ ] Commit with conventional format + Linear ID
+- [ ] Commit with conventional format
 
 ### Before Committing
 - [ ] Run `cargo clippy` (Rust)
 - [ ] Run `cargo fmt` (Rust)
 - [ ] Run tests
 - [ ] Verify commit message format
-- [ ] Include Linear issue ID
-
-### Before PR
-- [ ] All tests pass
-- [ ] CI passes
-- [ ] Linear tasks updated
-- [ ] PR description includes test plan
-- [ ] Breaking changes documented
 
 ## Project Status (2026-01-28)
 
@@ -188,11 +92,10 @@ docs/
 | Backend | ✅ 100% | Production-ready, 67 migrations, 750+ tests |
 | Ingestion | ✅ 95% | All pipelines coded, needs production data |
 | CLI | ✅ 100% | 10 commands, installers, CI/CD complete |
-| Frontend | 🔄 80% | Needs E2E testing |
+| Frontend | ✅ 80% | All pages built, needs E2E testing |
 | Infrastructure | ✅ Ready | Terraform IaC ready for deployment |
-| Documentation | ✅ 90% | Comprehensive agent guides |
 
-**Current Version**: 0.1.0
+**Current Version**: 0.1.0  
 **Target Launch**: March 15, 2026
 
 ## Technology Stack
@@ -230,26 +133,12 @@ cd web && yarn dev
 cd web && yarn build
 ```
 
-## Getting Help
+## Contact
 
-- **Documentation Issues**: Update relevant docs in `docs/agents/`
-- **Architectural Questions**: Consult AGENTS.md and design docs
-- **Project Status**: Check ROADMAP.md
-- **Commit Format**: See docs/development/COMMIT_CONVENTIONS.md
-
-## Contributing
-
-1. Read AGENTS.md and relevant documentation
-2. Create Linear task (or get assigned)
-3. Create feature branch with Linear ID
-4. Follow architectural patterns
-5. Write tests
-6. Use conventional commits with Linear ID
-7. Create PR with proper description
-8. Update Linear task status
+**Email**: sebastian.stupak@pm.me  
+**Issues**: https://github.com/datadir-lab/bdp/issues
 
 ---
 
-**Last Updated**: 2026-01-28
-**Project**: BDP (Bioinformatics Dependencies Platform)
-**Documentation Version**: 1.0
+**Last Updated**: 2026-01-28  
+**Documentation Index**: [docs/INDEX.md](./docs/INDEX.md)

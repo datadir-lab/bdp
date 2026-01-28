@@ -70,7 +70,7 @@ use tracing_subscriber::{
 };
 
 /// Log level for filtering messages
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum LogLevel {
     /// Very detailed trace-level logging
@@ -78,6 +78,7 @@ pub enum LogLevel {
     /// Debug-level logging for development
     Debug,
     /// Informational messages
+    #[default]
     Info,
     /// Warning messages
     Warn,
@@ -96,9 +97,12 @@ impl LogLevel {
             LogLevel::Error => Level::ERROR,
         }
     }
+}
 
-    /// Parse from string
-    pub fn from_str(s: &str) -> Result<Self> {
+impl std::str::FromStr for LogLevel {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
             "trace" => Ok(LogLevel::Trace),
             "debug" => Ok(LogLevel::Debug),
@@ -107,12 +111,6 @@ impl LogLevel {
             "error" => Ok(LogLevel::Error),
             _ => Err(anyhow::anyhow!("Invalid log level: {}", s)),
         }
-    }
-}
-
-impl Default for LogLevel {
-    fn default() -> Self {
-        LogLevel::Info
     }
 }
 
@@ -129,10 +127,11 @@ impl std::fmt::Display for LogLevel {
 }
 
 /// Output target for logs
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum LogOutput {
     /// Output to console only
+    #[default]
     Console,
     /// Output to file only
     File,
@@ -140,21 +139,16 @@ pub enum LogOutput {
     Both,
 }
 
-impl LogOutput {
-    /// Parse from string
-    pub fn from_str(s: &str) -> Result<Self> {
+impl std::str::FromStr for LogOutput {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
             "console" | "stdout" => Ok(LogOutput::Console),
             "file" => Ok(LogOutput::File),
             "both" | "all" => Ok(LogOutput::Both),
             _ => Err(anyhow::anyhow!("Invalid log output: {}", s)),
         }
-    }
-}
-
-impl Default for LogOutput {
-    fn default() -> Self {
-        LogOutput::Console
     }
 }
 
@@ -169,29 +163,25 @@ impl std::fmt::Display for LogOutput {
 }
 
 /// Log format
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum LogFormat {
     /// Human-readable text format
+    #[default]
     Text,
     /// JSON format for structured logging
     Json,
 }
 
-impl LogFormat {
-    /// Parse from string
-    pub fn from_str(s: &str) -> Result<Self> {
+impl std::str::FromStr for LogFormat {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
             "text" | "pretty" => Ok(LogFormat::Text),
             "json" => Ok(LogFormat::Json),
             _ => Err(anyhow::anyhow!("Invalid log format: {}", s)),
         }
-    }
-}
-
-impl Default for LogFormat {
-    fn default() -> Self {
-        LogFormat::Text
     }
 }
 
@@ -274,15 +264,15 @@ impl LogConfig {
         let mut config = Self::default();
 
         if let Ok(level) = std::env::var("LOG_LEVEL") {
-            config.level = LogLevel::from_str(&level)?;
+            config.level = level.parse()?;
         }
 
         if let Ok(output) = std::env::var("LOG_OUTPUT") {
-            config.output = LogOutput::from_str(&output)?;
+            config.output = output.parse()?;
         }
 
         if let Ok(format) = std::env::var("LOG_FORMAT") {
-            config.format = LogFormat::from_str(&format)?;
+            config.format = format.parse()?;
         }
 
         if let Ok(dir) = std::env::var("LOG_DIR") {
@@ -572,32 +562,33 @@ fn init_both_logging(config: &LogConfig, filter: EnvFilter) -> Result<()> {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
 
     #[test]
     fn test_log_level_from_str() {
-        assert_eq!(LogLevel::from_str("trace").unwrap(), LogLevel::Trace);
-        assert_eq!(LogLevel::from_str("DEBUG").unwrap(), LogLevel::Debug);
-        assert_eq!(LogLevel::from_str("Info").unwrap(), LogLevel::Info);
-        assert_eq!(LogLevel::from_str("warn").unwrap(), LogLevel::Warn);
-        assert_eq!(LogLevel::from_str("ERROR").unwrap(), LogLevel::Error);
-        assert!(LogLevel::from_str("invalid").is_err());
+        assert_eq!("trace".parse::<LogLevel>().unwrap(), LogLevel::Trace);
+        assert_eq!("DEBUG".parse::<LogLevel>().unwrap(), LogLevel::Debug);
+        assert_eq!("Info".parse::<LogLevel>().unwrap(), LogLevel::Info);
+        assert_eq!("warn".parse::<LogLevel>().unwrap(), LogLevel::Warn);
+        assert_eq!("ERROR".parse::<LogLevel>().unwrap(), LogLevel::Error);
+        assert!("invalid".parse::<LogLevel>().is_err());
     }
 
     #[test]
     fn test_log_output_from_str() {
-        assert_eq!(LogOutput::from_str("console").unwrap(), LogOutput::Console);
-        assert_eq!(LogOutput::from_str("file").unwrap(), LogOutput::File);
-        assert_eq!(LogOutput::from_str("both").unwrap(), LogOutput::Both);
-        assert!(LogOutput::from_str("invalid").is_err());
+        assert_eq!("console".parse::<LogOutput>().unwrap(), LogOutput::Console);
+        assert_eq!("file".parse::<LogOutput>().unwrap(), LogOutput::File);
+        assert_eq!("both".parse::<LogOutput>().unwrap(), LogOutput::Both);
+        assert!("invalid".parse::<LogOutput>().is_err());
     }
 
     #[test]
     fn test_log_format_from_str() {
-        assert_eq!(LogFormat::from_str("text").unwrap(), LogFormat::Text);
-        assert_eq!(LogFormat::from_str("json").unwrap(), LogFormat::Json);
-        assert!(LogFormat::from_str("invalid").is_err());
+        assert_eq!("text".parse::<LogFormat>().unwrap(), LogFormat::Text);
+        assert_eq!("json".parse::<LogFormat>().unwrap(), LogFormat::Json);
+        assert!("invalid".parse::<LogFormat>().is_err());
     }
 
     #[test]

@@ -11,12 +11,7 @@ use tracing::{debug, info, warn};
 use zip::ZipArchive;
 
 use super::config::NcbiTaxonomyFtpConfig;
-
-/// Maximum number of retry attempts for FTP operations
-const MAX_RETRIES: u32 = 3;
-
-/// Delay between retry attempts (in seconds)
-const RETRY_DELAY_SECS: u64 = 5;
+use crate::ingest::common::ftp::{MAX_RETRIES, RETRY_DELAY_SECS};
 
 /// FTP client for downloading NCBI Taxonomy data
 pub struct NcbiTaxonomyFtp {

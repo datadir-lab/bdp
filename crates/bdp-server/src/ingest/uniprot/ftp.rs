@@ -10,12 +10,7 @@ use tracing::{debug, info, warn};
 
 use super::config::UniProtFtpConfig;
 use super::models::ReleaseInfo;
-
-/// Maximum number of retry attempts for FTP operations
-const MAX_RETRIES: u32 = 3;
-
-/// Delay between retry attempts (in seconds)
-const RETRY_DELAY_SECS: u64 = 5;
+use crate::ingest::common::ftp::{MAX_RETRIES, RETRY_DELAY_SECS};
 
 /// FTP client for downloading UniProt data
 pub struct UniProtFtp {

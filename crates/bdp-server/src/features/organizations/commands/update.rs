@@ -9,6 +9,10 @@ use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use uuid::Uuid;
 
+use crate::features::shared::validation::{
+    validate_name, validate_url, NameValidationError, UrlValidationError,
+};
+
 /// Command to update an existing organization
 ///
 /// At least one field besides `slug` must be provided for update.
@@ -69,18 +73,12 @@ pub enum UpdateOrganizationError {
     /// No fields were provided for update
     #[error("At least one field must be provided for update")]
     NoFieldsToUpdate,
-    /// Name exceeds maximum length
-    #[error("Name must be between 1 and 256 characters")]
-    NameLength,
-    /// Name was empty or only whitespace
-    #[error("Name cannot be empty or only whitespace")]
-    NameEmpty,
-    /// Website URL failed validation
-    #[error("Website URL is invalid: {0}")]
-    WebsiteInvalid(String),
-    /// Logo URL failed validation
-    #[error("Logo URL is invalid: {0}")]
-    LogoUrlInvalid(String),
+    /// Name validation failed
+    #[error("Name validation failed: {0}")]
+    NameValidation(#[from] NameValidationError),
+    /// URL validation failed
+    #[error("URL validation failed: {0}")]
+    UrlValidation(#[from] UrlValidationError),
     /// Organization with the given slug was not found
     #[error("Organization with slug '{0}' not found")]
     NotFound(String),
@@ -103,10 +101,8 @@ impl UpdateOrganizationCommand {
     ///
     /// - `SlugRequired` - Slug is empty
     /// - `NoFieldsToUpdate` - No fields provided for update
-    /// - `NameLength` - Name exceeds 256 characters
-    /// - `NameEmpty` - Name is empty or whitespace-only
-    /// - `WebsiteInvalid` - Website URL is not a valid HTTP(S) URL
-    /// - `LogoUrlInvalid` - Logo URL is not a valid HTTP(S) URL
+    /// - `NameValidation` - Name validation failed (empty or too long)
+    /// - `UrlValidation` - URL validation failed (invalid format)
     pub fn validate(&self) -> Result<(), UpdateOrganizationError> {
         if self.slug.is_empty() {
             return Err(UpdateOrganizationError::SlugRequired);
@@ -119,24 +115,22 @@ impl UpdateOrganizationCommand {
         {
             return Err(UpdateOrganizationError::NoFieldsToUpdate);
         }
+
+        // Validate name using shared utility
         if let Some(ref name) = self.name {
-            if name.trim().is_empty() {
-                return Err(UpdateOrganizationError::NameEmpty);
-            }
-            if name.len() > 256 {
-                return Err(UpdateOrganizationError::NameLength);
-            }
+            validate_name(name, 256)?;
         }
+
+        // Validate website URL using shared utility
         if let Some(ref website) = self.website {
-            if !website.is_empty() && !is_valid_url(website) {
-                return Err(UpdateOrganizationError::WebsiteInvalid(website.clone()));
-            }
+            validate_url(website, "website")?;
         }
+
+        // Validate logo URL using shared utility
         if let Some(ref logo_url) = self.logo_url {
-            if !logo_url.is_empty() && !is_valid_url(logo_url) {
-                return Err(UpdateOrganizationError::LogoUrlInvalid(logo_url.clone()));
-            }
+            validate_url(logo_url, "logo_url")?;
         }
+
         Ok(())
     }
 }
@@ -231,10 +225,6 @@ struct OrganizationRecord {
     is_system: bool,
     created_at: DateTime<Utc>,
     updated_at: DateTime<Utc>,
-}
-
-fn is_valid_url(url: &str) -> bool {
-    url.starts_with("http://") || url.starts_with("https://")
 }
 
 #[cfg(test)]

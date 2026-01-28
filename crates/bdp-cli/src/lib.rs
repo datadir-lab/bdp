@@ -1,4 +1,5 @@
 //! BDP CLI Library
+#![deny(clippy::unwrap_used, clippy::expect_used)]
 //!
 //! Command-line interface for managing biological datasets with BDP.
 //!

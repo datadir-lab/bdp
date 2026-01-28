@@ -290,12 +290,9 @@ impl From<super::queries::ListDependenciesError> for DataSourceApiError {
 impl IntoResponse for DataSourceApiError {
     fn into_response(self) -> Response {
         match self {
-            DataSourceApiError::CreateError(CreateDataSourceError::SlugRequired)
-            | DataSourceApiError::CreateError(CreateDataSourceError::SlugLength)
-            | DataSourceApiError::CreateError(CreateDataSourceError::NameRequired)
-            | DataSourceApiError::CreateError(CreateDataSourceError::NameLength)
-            | DataSourceApiError::CreateError(CreateDataSourceError::SourceTypeRequired)
-            | DataSourceApiError::CreateError(CreateDataSourceError::InvalidSourceType(_)) => {
+            DataSourceApiError::CreateError(CreateDataSourceError::SlugValidation(_))
+            | DataSourceApiError::CreateError(CreateDataSourceError::NameValidation(_))
+            | DataSourceApiError::CreateError(CreateDataSourceError::SourceTypeValidation(_)) => {
                 let error = ErrorResponse::new("VALIDATION_ERROR", self.to_string());
                 (StatusCode::BAD_REQUEST, Json(error)).into_response()
             }
@@ -449,8 +446,11 @@ mod tests {
 
     #[test]
     fn test_error_display() {
-        let err = DataSourceApiError::CreateError(CreateDataSourceError::SlugRequired);
-        assert!(err.to_string().contains("Slug is required"));
+        use crate::features::shared::validation::SlugValidationError;
+        let err = DataSourceApiError::CreateError(CreateDataSourceError::SlugValidation(
+            SlugValidationError::Required,
+        ));
+        assert!(err.to_string().contains("Slug"));
     }
 
     #[test]

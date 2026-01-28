@@ -54,10 +54,10 @@ uuid = { workspace = true }
 # Additional Ingest Dependencies
 # ============================================================================
 # XML parsing
-quick-xml = { version = "0.37", features = ["serialize"] }
+quick-xml = { workspace = true }
 
 # HTML parsing and scraping
-scraper = "0.20"
+scraper = { workspace = true }
 select = "0.6"
 
 # Progress indicators

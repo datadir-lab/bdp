@@ -10,6 +10,10 @@ use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use uuid::Uuid;
 
+use crate::features::shared::validation::{
+    validate_name, validate_slug, validate_source_type, NameValidationError, SlugValidationError,
+};
+
 /// Command to create a new data source
 ///
 /// Creates a registry entry and associated data_source record.
@@ -64,24 +68,15 @@ pub struct CreateDataSourceResponse {
 /// Errors that can occur when creating a data source
 #[derive(Debug, thiserror::Error)]
 pub enum CreateDataSourceError {
-    /// Slug was empty
-    #[error("Slug is required and cannot be empty")]
-    SlugRequired,
-    /// Slug exceeded maximum length
-    #[error("Slug must be between 1 and 255 characters")]
-    SlugLength,
-    /// Name was empty
-    #[error("Name is required and cannot be empty")]
-    NameRequired,
-    /// Name exceeded maximum length
-    #[error("Name must be between 1 and 255 characters")]
-    NameLength,
-    /// Source type was not provided
-    #[error("Source type is required")]
-    SourceTypeRequired,
-    /// Source type was not one of the allowed values
-    #[error("Invalid source type: {0}. Must be one of: protein, genome, annotation, structure, other")]
-    InvalidSourceType(String),
+    /// Slug validation failed
+    #[error("Slug validation failed: {0}")]
+    SlugValidation(#[from] SlugValidationError),
+    /// Name validation failed
+    #[error("Name validation failed: {0}")]
+    NameValidation(#[from] NameValidationError),
+    /// Source type validation failed
+    #[error("Source type validation failed: {0}")]
+    SourceTypeValidation(String),
     /// The organization ID does not exist
     #[error("Organization with ID '{0}' not found")]
     OrganizationNotFound(Uuid),
@@ -105,36 +100,20 @@ impl CreateDataSourceCommand {
     ///
     /// # Errors
     ///
-    /// - `SlugRequired` - Slug is empty
-    /// - `SlugLength` - Slug exceeds 255 characters
-    /// - `NameRequired` - Name is empty or whitespace-only
-    /// - `NameLength` - Name exceeds 255 characters
-    /// - `SourceTypeRequired` - Source type is empty
-    /// - `InvalidSourceType` - Source type is not one of: protein, genome, annotation, structure, other
+    /// - `SlugValidation` - Slug validation failed (empty, too long, or invalid format)
+    /// - `NameValidation` - Name validation failed (empty or too long)
+    /// - `SourceTypeValidation` - Source type is not one of the allowed values
     pub fn validate(&self) -> Result<(), CreateDataSourceError> {
-        if self.slug.is_empty() {
-            return Err(CreateDataSourceError::SlugRequired);
-        }
-        if self.slug.len() > 255 {
-            return Err(CreateDataSourceError::SlugLength);
-        }
-        if self.name.trim().is_empty() {
-            return Err(CreateDataSourceError::NameRequired);
-        }
-        if self.name.len() > 255 {
-            return Err(CreateDataSourceError::NameLength);
-        }
-        if self.source_type.is_empty() {
-            return Err(CreateDataSourceError::SourceTypeRequired);
-        }
-        if !matches!(
-            self.source_type.as_str(),
-            "protein" | "genome" | "annotation" | "structure" | "other"
-        ) {
-            return Err(CreateDataSourceError::InvalidSourceType(
-                self.source_type.clone(),
-            ));
-        }
+        // Validate slug using shared utility (255 char limit for data sources)
+        validate_slug(&self.slug, 255)?;
+
+        // Validate name using shared utility
+        validate_name(&self.name, 255)?;
+
+        // Validate source type using shared utility
+        validate_source_type(&self.source_type)
+            .map_err(CreateDataSourceError::SourceTypeValidation)?;
+
         Ok(())
     }
 }
@@ -292,12 +271,10 @@ mod tests {
             description: None,
             source_type: "protein".to_string(),
             external_id: None,
-            // organism_id: None,
-            // additional_metadata: None,
         };
         assert!(matches!(
             cmd.validate(),
-            Err(CreateDataSourceError::SlugRequired)
+            Err(CreateDataSourceError::SlugValidation(_))
         ));
     }
 
@@ -310,12 +287,10 @@ mod tests {
             description: None,
             source_type: "invalid".to_string(),
             external_id: None,
-            // organism_id: None,
-            // additional_metadata: None,
         };
         assert!(matches!(
             cmd.validate(),
-            Err(CreateDataSourceError::InvalidSourceType(_))
+            Err(CreateDataSourceError::SourceTypeValidation(_))
         ));
     }
 
