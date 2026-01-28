@@ -311,6 +311,8 @@ bdp-example/
 # Downloaded data sources (development/testing)
 data-sources/
 downloads/
+test*downloads/
+data/*downloads/
 
 # Local cache directories
 .bdp/
