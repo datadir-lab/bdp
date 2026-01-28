@@ -44,6 +44,39 @@ bdp pull
 - `bdl.lock` - Exact versions for reproducibility (like `package-lock.json`)
 - `data/` - Downloaded datasets with verified checksums
 
+## CLI Commands
+
+### Data Management
+```bash
+bdp init                              # Initialize new project
+bdp source add "org:name@version"     # Add data source
+bdp pull                              # Download all sources
+bdp status                            # Show cached sources
+bdp clean                             # Clean cache
+```
+
+### Search & Discovery
+```bash
+bdp search insulin                    # Interactive search
+bdp search protein --type data_source # Filter by type
+bdp search "human genome" --format json
+```
+
+### Advanced Querying
+```bash
+# Query with entity aliases
+bdp query protein --where organism=human --limit 20
+
+# Raw SQL queries
+bdp query --sql "SELECT * FROM data_sources WHERE type='protein'"
+
+# Export results
+bdp query protein --format csv --output results.csv
+
+# Dry run (see generated SQL)
+bdp query gene --where status=published --dry-run
+```
+
 ## Supported Data Sources
 
 UniProt · NCBI Taxonomy · GenBank/RefSeq · Gene Ontology

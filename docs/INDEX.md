@@ -47,7 +47,16 @@ Complete documentation index for developers and AI agents working on the Bioinfo
 - **[UniProt Ingestion](./agents/design/uniprot-ingestion.md)** - Automated scraping and parsing
 - **[CLI Audit & Provenance](./agents/design/cli-audit-provenance.md)** - Audit trail design
 
+### Feature Specifications
+- **[Query Command Specification](./features/bdp-query-specification.md)** - Complete query feature spec
+- **[Query Implementation Summary](./features/bdp-query-implementation-summary.md)** - Implementation details
+- **[Query Linear Tasks](./features/bdp-query-linear-tasks.md)** - Task breakdown (23 tasks, 4 phases)
+
 ## For Developers
+
+### CLI Commands
+- **[Query Command Reference](./cli/QUERY_COMMAND.md)** - SQL-like querying guide
+- **[Search Command Reference](./cli/SEARCH_COMMAND.md)** - Full-text search guide
 
 ### Getting Started
 - **[Docker Setup](./DOCKER_SETUP.md)** - Docker configuration
@@ -88,9 +97,10 @@ Historical implementation documentation and summaries are in **[docs/archive/](.
 **Last Updated**: 2026-01-28
 
 ### Status Overview
-- ✅ Backend API (25+ endpoints, CQRS architecture)
+- ✅ Backend API (26+ endpoints, CQRS architecture)
 - ✅ Database (67 migrations)
-- ✅ CLI (10 commands with full audit system)
+- ✅ CLI (12 commands: init, source, pull, status, audit, clean, config, uninstall, search, query)
+- ✅ Search & Query (Full-text search + SQL-like querying with 60+ tests)
 - ✅ Frontend (Next.js 16, all pages built)
 - ✅ Ingestion Pipelines (4 complete: UniProt, NCBI Taxonomy, GenBank, Gene Ontology)
 - ✅ Infrastructure (Terraform, OVH Cloud)
