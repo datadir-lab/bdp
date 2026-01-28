@@ -11,9 +11,33 @@ The documentation index contains all guides organized by topic. **ALWAYS refer t
 ## Critical Rules
 
 ### Logging (MANDATORY)
-- **NEVER** use `println!`, `eprintln!`, or `dbg!` in Rust code
-- **ALWAYS** use structured logging: `info!`, `warn!`, `error!`
-- See [Logging Best Practices](./docs/agents/logging.md)
+
+**Server Code (bdp-server)**:
+- **NEVER** use `println!`, `eprintln!`, or `dbg!` in production code
+- **ALWAYS** use structured logging: `info!`, `warn!`, `error!`, `debug!`
+- Exception: Test modules can use println! for debugging
+
+**CLI Code (bdp-cli)**:
+- Use `println!` ONLY for direct user-facing output:
+  - Command results (tables, status, formatted output)
+  - Success/error messages shown to users
+  - Interactive prompts
+- Use `tracing` for internal operations:
+  - `info!()` for progress and status updates
+  - `warn!()` for warnings
+  - `error!()` for internal errors
+  - `debug!()` for debugging information
+- Exception: Test modules can use println! for debugging
+
+**Test Code**:
+- `println!`, `eprintln!`, and `dbg!` are acceptable for debugging
+- Prefer structured logging for integration tests
+
+**Key Distinction**:
+- User output (what the user sees) → `println!`
+- Internal logging (diagnostics, debugging, monitoring) → `tracing`
+
+See [Logging Best Practices](./docs/agents/logging.md) for details.
 
 ### Error Handling (MANDATORY)
 - **NEVER** use `.unwrap()` or `.expect()` in production code
@@ -74,7 +98,7 @@ The documentation index contains all guides organized by topic. **ALWAYS refer t
 
 ### During Development
 - [ ] Follow architectural patterns (especially CQRS for backend)
-- [ ] Use structured logging (NO `println!`)
+- [ ] Use proper logging (structured logging in server, println! for CLI user output)
 - [ ] Handle errors properly (NO `.unwrap()`)
 - [ ] Write tests
 - [ ] Commit with conventional format

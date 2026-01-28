@@ -1,26 +1,46 @@
+<div align="center">
+
 ![BDP Banner](.github/banner.svg)
 
-# BDP - Bioinformatics Dependencies Platform
+**A dependency manager for biological databases**—treating UniProt, NCBI, and other data sources like software packages with version control and lockfiles.
 
-Version-controlled registry for biological data sources. Think npm/cargo for bioinformatics data.
+Labs spend **4-12 hours per project** on manual data management. With BDP, it takes **~15 minutes**.
+
+</div>
+
+---
+
+## Why BDP?
+
+Only 11% of bioinformatics studies can be reproduced, with data versioning being a major factor. BDP solves this by:
+
+- **Version Control** - Lock exact data versions with lockfiles (like `package-lock.json`)
+- **Reproducible Builds** - Team members get identical datasets with `bdp pull`
+- **Audit Trail** - Regulatory-compliant logs (FDA 21 CFR Part 11, NIH DMS, EMA ALCOA++)
+- **Zero Manual Work** - No more download scripts, checksum verification, or version coordination
 
 ## Quick Start
 
 ```bash
-# Install CLI
+# Install
 curl --proto '=https' --tlsv1.2 -LsSf https://github.com/datadir-lab/bdp/releases/latest/download/bdp-installer.sh | sh
 
-# Use it
-bdp init && bdp source add "uniprot:P01308-fasta@1.0" && bdp pull
+# Create project
+bdp init
+bdp source add "uniprot:P01308-fasta@1.0"  # Insulin protein
+bdp pull
+
+# ✅ Done! Data downloaded, checksums verified, lockfile created
 ```
 
-## Features
+**What you get:**
+- `bdp.yml` - Your data dependencies (like `package.json`)
+- `bdl.lock` - Exact versions for reproducibility (like `package-lock.json`)
+- `data/` - Downloaded datasets with verified checksums
 
-- **Version Control** - Lock down exact data versions for reproducibility
-- **Audit Trail** - Regulatory-compliant audit logs (FDA 21 CFR Part 11, NIH DMS, EMA ALCOA++)
-- **Data Sources** - UniProt, NCBI Taxonomy, GenBank/RefSeq, Gene Ontology
-- **Lockfiles** - Reproducible dependency resolution
-- **S3 Storage** - Scalable object storage for large datasets
+## Supported Data Sources
+
+UniProt · NCBI Taxonomy · GenBank/RefSeq · Gene Ontology
 
 ## Status
 
