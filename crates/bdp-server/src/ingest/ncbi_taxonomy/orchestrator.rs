@@ -119,11 +119,14 @@ impl NcbiTaxonomyOrchestrator {
             return Ok(vec![]);
         }
 
+        // all_versions is guaranteed non-empty due to the check above
+        let first_version = all_versions.first().map(|s| s.as_str()).unwrap_or("unknown");
+        let last_version = all_versions.last().map(|s| s.as_str()).unwrap_or("unknown");
         info!(
             "Found {} versions to ingest: {} to {}",
             all_versions.len(),
-            all_versions.first().unwrap(),
-            all_versions.last().unwrap()
+            first_version,
+            last_version
         );
 
         // 3. Ingest each version sequentially (oldest to newest)
@@ -276,11 +279,14 @@ impl NcbiTaxonomyOrchestrator {
             return Ok(vec![]);
         }
 
+        // all_versions is guaranteed non-empty due to the check above
+        let first_version = all_versions.first().map(|s| s.as_str()).unwrap_or("unknown");
+        let last_version = all_versions.last().map(|s| s.as_str()).unwrap_or("unknown");
         info!(
             "Found {} versions to ingest: {} to {}",
             all_versions.len(),
-            all_versions.first().unwrap(),
-            all_versions.last().unwrap()
+            first_version,
+            last_version
         );
 
         // 3. Process versions in parallel with controlled concurrency

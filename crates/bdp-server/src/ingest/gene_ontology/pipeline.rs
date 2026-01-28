@@ -59,42 +59,6 @@ impl GoPipeline {
         })
     }
 
-    /// Create pipeline with custom chunk sizes (deprecated - use new() instead)
-    #[deprecated(note = "Use new() and pass Storage directly")]
-    pub async fn with_chunk_sizes(
-        db: PgPool,
-        organization_id: Uuid,
-        config: GoHttpConfig,
-        _term_chunk_size: usize,
-        _relationship_chunk_size: usize,
-        _annotation_chunk_size: usize,
-    ) -> Result<Self> {
-        // Create storage from environment variables
-        let storage_config = crate::storage::config::StorageConfig::from_env()
-            .map_err(|e| {
-                crate::ingest::gene_ontology::GoError::Validation(format!(
-                    "Failed to load storage config: {}",
-                    e
-                ))
-            })?;
-
-        let storage = Storage::new(storage_config)
-            .await
-            .map_err(|e| {
-                crate::ingest::gene_ontology::GoError::Validation(format!(
-                    "Failed to create storage: {}",
-                    e
-                ))
-            })?;
-
-        Ok(Self {
-            config,
-            db,
-            s3: storage,
-            organization_id,
-        })
-    }
-
     /// Run full pipeline: ontology + annotations
     pub async fn run_full(&self, internal_version: &str) -> Result<PipelineStats> {
         info!("Starting full GO pipeline (ontology + annotations)");
@@ -113,18 +77,40 @@ impl GoPipeline {
         Ok(total_stats)
     }
 
-    /// Run ontology ingestion only
+    /// Run ontology ingestion for a specific version
+    ///
+    /// # Arguments
+    /// * `internal_version` - Our internal version format (e.g., "1.0")
+    /// * `external_version` - Optional GO version (YYYY-MM-DD format, e.g., "2025-01-01")
     ///
     /// Follows BDP pattern:
     /// 1. Download OBO file from Zenodo/HTTP
     /// 2. Upload to S3 for archival
     /// 3. Parse OBO content
     /// 4. Store to PostgreSQL
-    pub async fn run_ontology(&self, internal_version: &str) -> Result<PipelineStats> {
-        info!("Starting GO ontology ingestion");
+    pub async fn run_ontology_version(
+        &self,
+        internal_version: &str,
+        external_version: Option<&str>,
+    ) -> Result<PipelineStats> {
+        let version_str = external_version.unwrap_or(&self.config.go_release_version);
+        info!(
+            internal = internal_version,
+            external = version_str,
+            "Starting GO ontology ingestion for version"
+        );
 
-        // Create downloader
-        let downloader = GoDownloader::new(self.config.clone())?;
+        // Create a version-specific config if external_version is provided
+        let config = if let Some(ext_ver) = external_version {
+            let mut versioned_config = self.config.clone();
+            versioned_config.go_release_version = ext_ver.to_string();
+            versioned_config
+        } else {
+            self.config.clone()
+        };
+
+        // Create downloader with version-specific config
+        let downloader = GoDownloader::new(config.clone())?;
 
         // 1. Download OBO file
         info!("Step 1/4: Downloading GO ontology...");
@@ -139,7 +125,7 @@ impl GoPipeline {
         info!("Step 2/4: Uploading ontology to S3...");
         let s3_key = format!(
             "go/ontology/{}/go-basic.obo",
-            self.config.go_release_version
+            config.go_release_version
         );
         self.s3
             .upload(
@@ -160,8 +146,8 @@ impl GoPipeline {
         info!("Step 3/4: Parsing GO ontology...");
         let parsed = GoParser::parse_obo(
             &obo_content,
-            &self.config.go_release_version,
-            self.config.parse_limit,
+            &config.go_release_version,
+            config.parse_limit,
         )?;
 
         info!(
@@ -177,7 +163,7 @@ impl GoPipeline {
             .store_ontology(
                 &parsed.terms,
                 &parsed.relationships,
-                &self.config.go_release_version,
+                &config.go_release_version,
                 internal_version,
             )
             .await?;
@@ -189,6 +175,17 @@ impl GoPipeline {
             relationships_stored: storage_stats.relationships_stored,
             annotations_stored: 0,
         })
+    }
+
+    /// Run ontology ingestion only (using configured version)
+    ///
+    /// Follows BDP pattern:
+    /// 1. Download OBO file from Zenodo/HTTP
+    /// 2. Upload to S3 for archival
+    /// 3. Parse OBO content
+    /// 4. Store to PostgreSQL
+    pub async fn run_ontology(&self, internal_version: &str) -> Result<PipelineStats> {
+        self.run_ontology_version(internal_version, None).await
     }
 
     /// Run annotations ingestion only (full GOA dataset)
@@ -377,22 +374,15 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_pipeline_creation() {
-        let db = PgPool::connect_lazy("postgresql://localhost/test").unwrap();
-        let org_id = Uuid::new_v4();
-        let config = GoHttpConfig::test_config();
-
-        let pipeline = GoPipeline::new(db, org_id, config);
-        assert!(pipeline.is_ok());
+    fn test_config_defaults() {
+        let config = GoHttpConfig::default();
+        assert!(!config.obo_url.is_empty());
+        assert!(!config.gaf_url.is_empty());
     }
 
     #[test]
-    fn test_pipeline_with_custom_chunks() {
-        let db = PgPool::connect_lazy("postgresql://localhost/test").unwrap();
-        let org_id = Uuid::new_v4();
+    fn test_config_test_config() {
         let config = GoHttpConfig::test_config();
-
-        let pipeline = GoPipeline::with_chunk_sizes(db, org_id, config, 100, 200, 300);
-        assert!(pipeline.is_ok());
+        assert!(config.obo_url.contains("test") || !config.obo_url.is_empty());
     }
 }

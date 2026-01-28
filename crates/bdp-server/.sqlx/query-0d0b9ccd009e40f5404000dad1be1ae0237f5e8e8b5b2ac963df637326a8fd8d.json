@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT COUNT(*)\n        FROM registry_entries re\n        JOIN data_sources ds ON re.id = ds.id\n        LEFT JOIN protein_metadata pm ON ds.id = pm.data_source_id\n        LEFT JOIN taxonomy_metadata om_direct ON ds.id = om_direct.data_source_id AND ds.source_type = 'organism'\n        WHERE ($1::UUID IS NULL OR re.organization_id = $1)\n          AND ($2::TEXT IS NULL OR ds.source_type = $2)\n          AND ($3::UUID IS NULL OR pm.taxonomy_id = $3 OR (ds.source_type = 'organism' AND ds.id = $3))\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "0d0b9ccd009e40f5404000dad1be1ae0237f5e8e8b5b2ac963df637326a8fd8d"
+}

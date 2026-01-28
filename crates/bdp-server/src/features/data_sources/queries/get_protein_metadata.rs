@@ -1,5 +1,5 @@
 use crate::features::data_sources::types::{
-    ProteinComment, ProteinCrossReference, ProteinFeature,
+    ProteinComment, ProteinCrossReference, ProteinFeature, ProteinPublication,
 };
 use axum::{
     extract::{Path, State},
@@ -16,6 +16,7 @@ pub struct ProteinMetadataResponse {
     pub comments: Vec<ProteinComment>,
     pub features: Vec<ProteinFeature>,
     pub cross_references: Vec<ProteinCrossReference>,
+    pub publications: Vec<ProteinPublication>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -113,10 +114,48 @@ pub async fn get_protein_metadata(
     })
     .collect::<Vec<_>>();
 
+    // Fetch protein publications
+    let publications = sqlx::query!(
+        r#"
+        SELECT reference_number, position,
+               comments as "comments!: Vec<String>",
+               pubmed_id, doi,
+               author_group,
+               authors as "authors!: Vec<String>",
+               title, location
+        FROM protein_publications
+        WHERE protein_id = $1
+        ORDER BY reference_number
+        "#,
+        data_source_id
+    )
+    .fetch_all(&pool)
+    .await
+    .map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to fetch protein publications: {}", e),
+        )
+    })?
+    .into_iter()
+    .map(|r| ProteinPublication {
+        reference_number: r.reference_number,
+        position: r.position,
+        comments: r.comments,
+        pubmed_id: r.pubmed_id,
+        doi: r.doi,
+        author_group: r.author_group,
+        authors: r.authors,
+        title: r.title,
+        location: r.location,
+    })
+    .collect::<Vec<_>>();
+
     let response = ProteinMetadataResponse {
         comments,
         features,
         cross_references: cross_refs,
+        publications,
     };
 
     Ok(Json(serde_json::json!({

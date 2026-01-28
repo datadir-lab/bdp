@@ -1,0 +1,53 @@
+# =============================================================================
+# BDP Infrastructure - Terraform Variables
+# Copy this file to terraform.tfvars and fill in your values
+# =============================================================================
+
+# OVH API Credentials
+# Generate at: https://api.ovh.com/createToken/
+# Required permissions: GET/POST/PUT/DELETE on /cloud/project/*
+ovh_endpoint           = "ovh-eu"  # or ovh-us, ovh-ca
+ovh_application_key    = "your-application-key"
+ovh_application_secret = "your-application-secret"
+ovh_consumer_key       = "your-consumer-key"
+
+# OVH Public Cloud Project ID
+# Find in OVH Control Panel > Public Cloud > Your Project > Project ID
+ovh_project_id = "your-project-id"
+
+# OpenStack Credentials
+# Create in OVH Control Panel > Public Cloud > Users & Roles > Create User
+# Download openrc.sh and extract OS_USERNAME and OS_PASSWORD
+openstack_user_name = "user-xxxxxx"
+openstack_password  = "your-openstack-password"
+
+# Region (pick closest to your users)
+# Europe: GRA7 (France), SBG5 (France), DE1 (Germany), UK1 (UK), WAW1 (Poland)
+# North America: BHS5 (Canada)
+region = "GRA7"
+
+# Instance Configuration
+instance_name   = "bdp-mvp"
+instance_flavor = "d2-2"  # Discovery: 1 vCPU, 2GB RAM (~5 EUR/mo)
+                          # Options: d2-2, d2-4, d2-8, s1-2, s1-4
+
+# Database Configuration
+db_plan   = "essential"   # Cheapest (~30 EUR/mo)
+db_flavor = "db1-4"       # 1 vCPU, 4GB RAM
+db_name   = "bdp"
+db_user   = "bdp_admin"
+
+# Object Storage
+storage_bucket_name = "bdp-data"
+storage_region      = "gra"  # Same region as compute
+
+# SSH Key (paste your public key here)
+# Generate with: ssh-keygen -t ed25519 -C "bdp-mvp"
+ssh_public_key = "ssh-ed25519 AAAA... your-email@example.com"
+ssh_key_name   = "bdp-mvp-key"
+
+# Optional: Domain name
+domain = ""  # e.g., "bdp.example.com"
+
+# Environment
+environment = "mvp"

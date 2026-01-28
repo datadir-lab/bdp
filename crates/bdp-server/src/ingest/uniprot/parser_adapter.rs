@@ -94,7 +94,13 @@ fn entry_to_generic_record(entry: &UniProtEntry, offset: usize) -> GenericRecord
     // Compute content MD5
     let content_md5 = {
         use crate::ingest::framework::compute_md5;
-        compute_md5(serde_json::to_string(&record_data).unwrap().as_bytes())
+        // record_data is a serde_json::Value that we just created, serialization should not fail
+        let json_str = serde_json::to_string(&record_data)
+            .unwrap_or_else(|e| {
+                tracing::error!("Failed to serialize record_data for MD5: {}", e);
+                String::new()
+            });
+        compute_md5(json_str.as_bytes())
     };
 
     GenericRecord {

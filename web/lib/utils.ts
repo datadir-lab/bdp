@@ -116,3 +116,25 @@ export function throttle<T extends (...args: unknown[]) => unknown>(
     }
   };
 }
+
+/**
+ * Format a data source identifier for use in CLI commands.
+ *
+ * @param org - Organization/provider (e.g., "uniprot", "ncbi")
+ * @param name - Data source name (e.g., "P01308")
+ * @param format - File format (e.g., "fasta", "json")
+ * @param version - Version string (e.g., "1.0", "109")
+ * @returns Formatted source identifier (e.g., "uniprot:P01308-fasta@1.0")
+ *
+ * @example
+ * formatSourceId('uniprot', 'P01308', 'fasta', '1.0')
+ * // Returns: "uniprot:P01308-fasta@1.0"
+ */
+export function formatSourceId(
+  org: string,
+  name: string,
+  format: string,
+  version: string
+): string {
+  return `${org}:${name}-${format}@${version}`;
+}

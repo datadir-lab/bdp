@@ -15,6 +15,7 @@
 use anyhow::{Context, Result};
 use bdp_server::config::Config;
 use bdp_server::ingest::gene_ontology::{GoHttpConfig, GoPipeline};
+use bdp_server::storage::{config::StorageConfig, Storage};
 use sqlx::PgPool;
 use std::env;
 use tracing::{error, info, warn};
@@ -94,8 +95,12 @@ async fn main() -> Result<()> {
     let org_id = get_or_create_org(&pool).await?;
     info!("Using organization: {}", org_id);
 
+    // Create storage
+    let storage_config = StorageConfig::from_env()?;
+    let storage = Storage::new(storage_config).await?;
+
     // Create pipeline
-    let pipeline = GoPipeline::new(pool.clone(), org_id, config)?;
+    let pipeline = GoPipeline::new(config, pool.clone(), storage, org_id);
 
     // Test 1: Ingest GO Ontology from local file
     info!("=== Test 1: GO Ontology Ingestion (Local File) ===");

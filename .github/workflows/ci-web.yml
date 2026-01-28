@@ -40,12 +40,35 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./web
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Cache cargo build
+        uses: actions/cache@v4
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-build-
+
+      - name: Generate CLI documentation
+        run: cargo run --package xtask -- generate-cli-docs
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -55,17 +78,21 @@ jobs:
           cache-dependency-path: web/yarn.lock
 
       - name: Install dependencies
+        working-directory: ./web
         run: yarn install --frozen-lockfile
 
       - name: Build Next.js site
+        working-directory: ./web
         run: yarn build
         env:
           NEXT_PUBLIC_API_URL: 'http://localhost:8000'
 
       - name: Index with Pagefind
+        working-directory: ./web
         run: yarn pagefind
 
       - name: Verify Pagefind index was created
+        working-directory: ./web
         run: |
           if [ ! -d "public/_pagefind" ]; then
             echo "Error: Pagefind index directory not found!"

@@ -158,15 +158,37 @@ impl NihExporter {
 
         let events = stmt
             .query_map([], |row: &rusqlite::Row| {
+                let timestamp_str = row.get::<_, String>(1)?;
+                let timestamp = chrono::DateTime::parse_from_rfc3339(&timestamp_str)
+                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(
+                        1,
+                        rusqlite::types::Type::Text,
+                        Box::new(e),
+                    ))?
+                    .with_timezone(&chrono::Utc);
+
+                let event_type_str = row.get::<_, String>(2)?;
+                let event_type = serde_json::from_str(&format!("\"{}\"", event_type_str))
+                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(
+                        2,
+                        rusqlite::types::Type::Text,
+                        Box::new(e),
+                    ))?;
+
+                let details_str = row.get::<_, String>(4)?;
+                let details = serde_json::from_str(&details_str)
+                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(
+                        4,
+                        rusqlite::types::Type::Text,
+                        Box::new(e),
+                    ))?;
+
                 Ok(AuditEvent {
                     id: Some(row.get::<_, i64>(0)?),
-                    timestamp: chrono::DateTime::parse_from_rfc3339(&row.get::<_, String>(1)?)
-                        .unwrap()
-                        .with_timezone(&chrono::Utc),
-                    event_type: serde_json::from_str(&format!("\"{}\"", row.get::<_, String>(2)?))
-                        .unwrap(),
+                    timestamp,
+                    event_type,
                     source_spec: row.get::<_, Option<String>>(3)?,
-                    details: serde_json::from_str(&row.get::<_, String>(4)?).unwrap(),
+                    details,
                     machine_id: row.get::<_, String>(5)?,
                     event_hash: row.get::<_, Option<String>>(6)?,
                     previous_hash: row.get::<_, Option<String>>(7)?,

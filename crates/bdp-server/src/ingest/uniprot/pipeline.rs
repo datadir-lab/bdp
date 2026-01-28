@@ -10,8 +10,19 @@
 //! - Semantic versioning (MAJOR.MINOR.PATCH)
 //! - Bundle aggregates for complete releases
 
+// ============================================================================
+// UniProt Pipeline Constants
+// ============================================================================
+
+/// Maximum number of parallel workers for ingestion.
+/// Can be configured via UNIPROT_MAX_WORKERS environment variable.
+pub const DEFAULT_MAX_WORKERS: usize = 16;
+
+/// Number of days to keep cached decompressed DAT files.
+/// Can be configured via UNIPROT_CACHE_MAX_AGE_DAYS environment variable.
+pub const DEFAULT_CACHE_MAX_AGE_DAYS: u64 = 7;
+
 use anyhow::{Context, Result};
-use chrono::Utc;
 use sqlx::PgPool;
 use std::sync::Arc;
 use uuid::Uuid;
@@ -28,9 +39,39 @@ use crate::ingest::framework::{
     BatchConfig, CreateJobParams, IngestionCoordinator, IngestionWorker,
 };
 use crate::ingest::jobs::IngestStats;
+use crate::ingest::versioning::{
+    BumpType, UniProtBumpDetector, VersionBumpDetector, VersionChangelog,
+    cascade_version_bump, create_version, get_latest_version, get_latest_version_id,
+    calculate_next_version, save_changelog,
+};
 use crate::storage::Storage;
 
 /// UniProt pipeline that handles version discovery and incremental ingestion
+///
+/// This is the main entry point for UniProt data ingestion. The pipeline supports
+/// two modes of operation:
+///
+/// - **Latest mode**: Checks for new releases and ingests only the newest version
+/// - **Historical mode**: Backfills multiple versions within a specified range
+///
+/// # Architecture
+///
+/// The pipeline follows a multi-phase approach:
+/// 1. Download phase: Fetch .dat.gz files from UniProt FTP (with local caching)
+/// 2. Parse phase: Count entries and create work units for parallel processing
+/// 3. Storage phase: Parallel workers parse and store proteins (streaming)
+/// 4. Bundle phase: Create organism-specific and Swiss-Prot bundles
+/// 5. Versioning phase: Detect changes and create semantic version changelog
+///
+/// # Caching
+///
+/// Downloaded and decompressed DAT files are cached locally to avoid repeated
+/// FTP downloads. Cache cleanup occurs automatically for files older than 7 days.
+///
+/// # Idempotency
+///
+/// The pipeline is idempotent - re-running with the same version will detect
+/// the existing ingestion and skip redundant work.
 pub struct UniProtPipeline {
     pool: Arc<PgPool>,
     organization_id: Uuid,
@@ -41,6 +82,16 @@ pub struct UniProtPipeline {
 }
 
 impl UniProtPipeline {
+    /// Creates a new UniProt pipeline instance
+    ///
+    /// # Arguments
+    ///
+    /// * `pool` - PostgreSQL connection pool
+    /// * `organization_id` - ID of the UniProt organization in the database
+    /// * `config` - FTP configuration for UniProt downloads
+    /// * `batch_config` - Configuration for batch sizes and parallelism
+    /// * `storage` - S3-compatible storage backend
+    /// * `cache_dir` - Local directory for caching decompressed DAT files
     pub fn new(
         pool: Arc<PgPool>,
         organization_id: Uuid,
@@ -209,7 +260,19 @@ impl UniProtPipeline {
     /// Run ingestion based on configured mode (Latest or Historical)
     ///
     /// This is the main entry point for mode-based ingestion.
-    /// Dispatches to run_latest_mode() or run_historical_mode() based on config.
+    /// Dispatches to `run_latest_mode()` or `run_historical_mode()` based on config.
+    ///
+    /// # Arguments
+    ///
+    /// * `config` - UniProt ingestion configuration with mode selection
+    ///
+    /// # Returns
+    ///
+    /// Returns aggregated statistics for all versions processed.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if version discovery or ingestion fails.
     pub async fn run_with_mode(&self, config: &UniProtConfig) -> Result<IngestStats> {
         match &config.ingestion_mode {
             IngestionMode::Latest(latest_config) => {
@@ -225,11 +288,20 @@ impl UniProtPipeline {
 
     /// Run in Latest mode: ingest only the newest available version
     ///
-    /// Steps:
-    /// 1. Use VersionDiscovery.check_for_newer_version() to find newer version
+    /// Checks UniProt FTP for newer releases compared to what's already
+    /// in the database. If a newer version is found, it is ingested and
+    /// marked as the current version.
+    ///
+    /// # Steps
+    ///
+    /// 1. Use VersionDiscovery to check for newer version
     /// 2. Apply ignore_before filter if configured
     /// 3. If newer version available, ingest it with is_current=true
     /// 4. If up-to-date, return empty stats (no-op)
+    ///
+    /// # Returns
+    ///
+    /// Returns statistics for the ingested version, or empty stats if up-to-date.
     pub async fn run_latest_mode(&self, config: &LatestConfig) -> Result<IngestStats> {
         tracing::info!(
             check_interval_secs = config.check_interval_secs,
@@ -318,13 +390,21 @@ impl UniProtPipeline {
 
     /// Run in Historical mode: backfill multiple versions within a range
     ///
-    /// Steps:
-    /// 1. Use VersionDiscovery.discover_all_versions()
+    /// Discovers all available UniProt releases and ingests versions within
+    /// the specified range. Historical versions are marked as non-current.
+    ///
+    /// # Steps
+    ///
+    /// 1. Discover all available versions from UniProt FTP
     /// 2. Filter by start_version..end_version range
-    /// 3. If skip_existing=true, check database for existing versions
-    /// 4. Process versions in batches (sequential, batch_size from config)
-    /// 5. Store is_current=false in source_metadata
-    /// 6. Merge stats from all versions and return
+    /// 3. If skip_existing=true, skip already-ingested versions
+    /// 4. Process versions in batches (sequential within batch)
+    /// 5. Store with is_current=false in source_metadata
+    /// 6. Merge and return aggregated stats
+    ///
+    /// # Returns
+    ///
+    /// Returns aggregated statistics for all versions processed.
     pub async fn run_historical_mode(&self, config: &HistoricalConfig) -> Result<IngestStats> {
         tracing::info!(
             start_version = %config.start_version,
@@ -619,6 +699,25 @@ impl UniProtPipeline {
     }
 
     /// Ingest a specific version using the generic ETL framework
+    ///
+    /// Executes the full multi-phase ingestion pipeline for a single version:
+    /// 1. Creates an ingestion job in the database
+    /// 2. Downloads and caches the DAT file
+    /// 3. Parses and stores proteins in parallel
+    /// 4. Creates organism and release bundles
+    /// 5. Detects version changes and creates changelog
+    ///
+    /// # Arguments
+    ///
+    /// * `version` - The discovered version to ingest
+    ///
+    /// # Returns
+    ///
+    /// Returns the UUID of the created ingestion job.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if any phase of the pipeline fails.
     pub async fn ingest_version(&self, version: &DiscoveredVersion) -> Result<Uuid> {
         tracing::info!(
             version = %version.external_version,
@@ -743,11 +842,37 @@ impl UniProtPipeline {
     ) -> Result<()> {
         tracing::info!(job_id = %job_id, version = %version.external_version, "Starting pipeline execution");
 
-        // Phase 0: Set up citation policy for UniProt (idempotent)
+        // Get or create the data source entry for UniProt Swiss-Prot bundle
+        let data_source_entry_id = self.get_or_create_swissprot_entry().await?;
+
+        // Phase 0: Determine version bump type based on previous version (if exists)
+        let previous_version_id = get_latest_version_id(&self.pool, data_source_entry_id).await?;
+        let previous_version_string = get_latest_version(&self.pool, data_source_entry_id).await?;
+
+        tracing::info!(
+            job_id = %job_id,
+            previous_version = ?previous_version_string,
+            previous_version_id = ?previous_version_id,
+            "Checking for previous version"
+        );
+
+        // Phase 0b: Set up citation policy for UniProt (idempotent)
+        // Calculate internal version based on previous version
+        let internal_version = if previous_version_string.is_some() {
+            // For now, default to minor bump - we'll recalculate after detecting changes
+            calculate_next_version(
+                previous_version_string.as_deref().unwrap_or("1.0"),
+                BumpType::Minor,
+            )
+        } else {
+            // First version is always 1.0
+            "1.0".to_string()
+        };
+
         let storage_setup = UniProtStorage::new(
             (*self.pool).clone(),
             self.organization_id,
-            "1.0".to_string(),
+            internal_version.clone(),
             version.external_version.clone(),
         );
         storage_setup.setup_citations().await.context("Failed to setup citation policy")?;
@@ -764,11 +889,156 @@ impl UniProtPipeline {
         // Phase 4: Create bundles after all proteins stored
         self.bundle_phase(coordinator, job_id, version).await?;
 
+        // Phase 5: Detect version changes and create changelog
+        let (new_version_id, new_version, changelog) = self
+            .versioning_phase(
+                data_source_entry_id,
+                previous_version_id,
+                &version.external_version,
+            )
+            .await?;
+
+        tracing::info!(
+            job_id = %job_id,
+            new_version = %new_version,
+            bump_type = ?changelog.bump_type,
+            "Version bump detected"
+        );
+
+        // Phase 6: Cascade version bump to dependents
+        if let Some(_prev_id) = previous_version_id {
+            // Only cascade if there was a previous version
+            let cascaded = cascade_version_bump(&self.pool, new_version_id, &changelog).await?;
+
+            if !cascaded.is_empty() {
+                tracing::info!(
+                    job_id = %job_id,
+                    cascaded_count = cascaded.len(),
+                    "Cascaded version bump to dependents"
+                );
+
+                for result in &cascaded {
+                    tracing::info!(
+                        dependent = %result.entry_slug,
+                        new_version = %result.new_version,
+                        "Cascaded to dependent"
+                    );
+                }
+            }
+        }
+
         // Complete the job
         coordinator.complete_job(job_id).await?;
 
         tracing::info!(job_id = %job_id, "Pipeline execution completed");
         Ok(())
+    }
+
+    /// Get or create the Swiss-Prot data source entry
+    async fn get_or_create_swissprot_entry(&self) -> Result<Uuid> {
+        let slug = "swissprot";
+        let name = "UniProt Swiss-Prot";
+        let description = "UniProt Swiss-Prot - Manually annotated and reviewed protein sequences";
+
+        let entry_id: Uuid = sqlx::query_scalar(
+            r#"
+            INSERT INTO registry_entries (organization_id, slug, name, description, entry_type)
+            VALUES ($1, $2, $3, $4, 'data_source')
+            ON CONFLICT (slug) DO UPDATE SET updated_at = NOW()
+            RETURNING id
+            "#,
+        )
+        .bind(self.organization_id)
+        .bind(slug)
+        .bind(name)
+        .bind(description)
+        .fetch_one(&*self.pool)
+        .await
+        .context("Failed to get or create swissprot registry entry")?;
+
+        // Ensure data source record exists
+        sqlx::query(
+            r#"
+            INSERT INTO data_sources (id, source_type)
+            VALUES ($1, 'bundle')
+            ON CONFLICT (id) DO NOTHING
+            "#,
+        )
+        .bind(entry_id)
+        .execute(&*self.pool)
+        .await
+        .context("Failed to create swissprot data_source")?;
+
+        Ok(entry_id)
+    }
+
+    /// Phase 5: Detect version changes and create changelog
+    async fn versioning_phase(
+        &self,
+        data_source_id: Uuid,
+        previous_version_id: Option<Uuid>,
+        external_version: &str,
+    ) -> Result<(Uuid, String, VersionChangelog)> {
+        tracing::info!(
+            data_source_id = %data_source_id,
+            previous_version_id = ?previous_version_id,
+            external_version = %external_version,
+            "Starting versioning phase"
+        );
+
+        // Detect changes using UniProt-specific detector
+        let detector = UniProtBumpDetector::new();
+        let changelog = detector
+            .detect_changes(&self.pool, data_source_id, previous_version_id)
+            .await
+            .context("Failed to detect version changes")?;
+
+        tracing::info!(
+            bump_type = ?changelog.bump_type,
+            entries_added = changelog.summary.entries_added,
+            entries_removed = changelog.summary.entries_removed,
+            entries_modified = changelog.summary.entries_modified,
+            has_breaking = changelog.has_breaking_changes(),
+            "Detected changes"
+        );
+
+        // Create new version with calculated version number
+        let new_version_id = create_version(
+            &self.pool,
+            data_source_id,
+            &calculate_next_version(
+                &get_latest_version(&self.pool, data_source_id)
+                    .await?
+                    .unwrap_or_else(|| "0.0".to_string()),
+                changelog.bump_type,
+            ),
+            Some(external_version),
+        )
+        .await
+        .context("Failed to create new version")?;
+
+        // Get the new version string
+        let new_version: String = sqlx::query_scalar(
+            "SELECT version FROM versions WHERE id = $1",
+        )
+        .bind(new_version_id)
+        .fetch_one(&*self.pool)
+        .await
+        .context("Failed to get new version string")?;
+
+        // Save changelog to database
+        let changelog_id = save_changelog(&self.pool, new_version_id, &changelog)
+            .await
+            .context("Failed to save changelog")?;
+
+        tracing::info!(
+            new_version_id = %new_version_id,
+            new_version = %new_version,
+            changelog_id = %changelog_id,
+            "Created new version with changelog"
+        );
+
+        Ok((new_version_id, new_version, changelog))
     }
 
     /// Phase 1: Download files from FTP and upload to S3
@@ -781,8 +1051,12 @@ impl UniProtPipeline {
         tracing::info!(job_id = %job_id, "Starting download phase");
         coordinator.start_download(job_id).await?;
 
-        // Run cache cleanup (delete files older than 7 days)
-        if let Err(e) = self.cleanup_cache(7).await {
+        // Run cache cleanup (delete files older than configured days)
+        let cache_max_age_days = std::env::var("UNIPROT_CACHE_MAX_AGE_DAYS")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(DEFAULT_CACHE_MAX_AGE_DAYS);
+        if let Err(e) = self.cleanup_cache(cache_max_age_days).await {
             tracing::warn!(error = %e, "Cache cleanup failed, continuing");
         }
 
@@ -858,7 +1132,7 @@ impl UniProtPipeline {
             job_id, version.external_version
         );
 
-        let (s3_uploaded, file_size, checksum): (bool, i64, Option<String>) = (false, dat_data.len() as i64, None);
+        let (s3_uploaded, file_size, _checksum): (bool, i64, Option<String>) = (false, dat_data.len() as i64, None);
 
         // Register the raw file in database (only if S3 upload succeeded)
         if s3_uploaded {
@@ -930,9 +1204,9 @@ impl UniProtPipeline {
     /// Each worker parses its range on-demand and stores proteins (streaming).
     async fn storage_phase(
         &self,
-        coordinator: &IngestionCoordinator,
+        _coordinator: &IngestionCoordinator,
         job_id: Uuid,
-        s3_key: &str,
+        _s3_key: &str,
         total_records: usize,
         dat_data: Vec<u8>,
         version: &DiscoveredVersion,
@@ -966,7 +1240,12 @@ impl UniProtPipeline {
         );
 
         // Determine number of parallel workers (max 16 for improved throughput)
-        let num_workers = std::cmp::min(16, total_records / self.batch_config.parse_batch_size + 1);
+        // Determine number of parallel workers
+        let max_workers = std::env::var("UNIPROT_MAX_WORKERS")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(DEFAULT_MAX_WORKERS);
+        let num_workers = std::cmp::min(max_workers, total_records / self.batch_config.parse_batch_size + 1);
 
         tracing::info!(
             job_id = %job_id,
@@ -1065,7 +1344,7 @@ impl UniProtPipeline {
     /// - Swissprot bundle (all reviewed proteins)
     async fn bundle_phase(
         &self,
-        coordinator: &IngestionCoordinator,
+        _coordinator: &IngestionCoordinator,
         job_id: Uuid,
         version: &DiscoveredVersion,
     ) -> Result<()> {
@@ -1123,6 +1402,10 @@ impl UniProtPipeline {
                 keywords: Vec::new(),
                 organelle: None,
                 organism_hosts: Vec::new(),
+                publications: Vec::new(),
+                entry_created: None,
+                sequence_updated: None,
+                annotation_updated: None,
             })
             .collect();
 
@@ -1350,19 +1633,30 @@ impl UniProtPipeline {
 }
 
 /// Statistics from an idempotent pipeline run
+///
+/// Tracks the results of running the idempotent ingestion pipeline,
+/// showing how many versions were discovered, skipped, and processed.
 #[derive(Debug, Clone)]
 pub struct IdempotentStats {
+    /// Number of new versions discovered to ingest
     pub discovered_count: usize,
+    /// Number of versions already ingested (skipped)
     pub already_ingested_count: usize,
+    /// Number of versions successfully ingested in this run
     pub newly_ingested_count: usize,
+    /// Number of versions that failed to ingest
     pub failed_count: usize,
 }
 
 impl IdempotentStats {
+    /// Returns the total number of known versions (discovered + already ingested)
     pub fn total_versions(&self) -> usize {
         self.discovered_count + self.already_ingested_count
     }
 
+    /// Returns the success rate as a percentage (0-100)
+    ///
+    /// Returns 100.0 if no new versions were discovered.
     pub fn success_rate(&self) -> f64 {
         if self.discovered_count == 0 {
             return 100.0;

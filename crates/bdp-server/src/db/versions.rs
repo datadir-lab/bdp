@@ -1003,17 +1003,7 @@ pub async fn delete_all_dependencies(pool: &PgPool, version_id: Uuid) -> DbResul
 mod tests {
     use super::*;
 
-    /// Helper to create test pool
-    #[allow(dead_code)]
-    async fn create_test_pool() -> PgPool {
-        let url = std::env::var("TEST_DATABASE_URL").unwrap_or_else(|_| {
-            "postgresql://postgres:postgres@localhost:5432/bdp_test".to_string()
-        });
-        PgPool::connect(&url).await.unwrap()
-    }
-
     /// Helper to create test entry
-    #[allow(dead_code)]
     async fn create_test_entry(pool: &PgPool) -> (Uuid, Uuid) {
         let org_id = Uuid::new_v4();
         let entry_id = Uuid::new_v4();
@@ -1058,7 +1048,6 @@ mod tests {
     }
 
     /// Helper to cleanup test entry
-    #[allow(dead_code)]
     async fn cleanup_test_entry(pool: &PgPool, org_id: Uuid) {
         sqlx::query!("DELETE FROM organizations WHERE id = $1", org_id)
             .execute(pool)

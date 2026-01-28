@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO organizations (id, name, slug, description, is_system)\n            VALUES ($1, $2, $3, $4, $5)\n            ON CONFLICT (slug) DO NOTHING\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Varchar",
+        "Varchar",
+        "Text",
+        "Bool"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "64e608fbeedb51fd3d75f3d56ec25530aabec4feb6c9a1c338da2a541867d787"
+}

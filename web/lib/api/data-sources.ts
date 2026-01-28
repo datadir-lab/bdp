@@ -3,11 +3,16 @@
 import { apiClient } from '@/lib/api-client';
 import type {
   DataSource,
+  DataSourceListItem,
   DataSourceVersion,
   DependenciesResponse,
   DataSourceResponse,
   DataSourceVersionResponse,
   DependenciesApiResponse,
+  ProteinComment,
+  ProteinFeature,
+  ProteinCrossReference,
+  ProteinPublication,
 } from '@/lib/types/data-source';
 
 export interface ListDataSourcesParams {
@@ -88,34 +93,18 @@ export async function getProteinMetadata(
   name: string,
   version: string
 ): Promise<{
-  comments: Array<{ topic: string; text: string }>;
-  features: Array<{
-    feature_type: string;
-    description?: string;
-    start_pos?: number;
-    end_pos?: number;
-  }>;
-  cross_references: Array<{
-    database: string;
-    database_id: string;
-    metadata?: any;
-  }>;
+  comments: ProteinComment[];
+  features: ProteinFeature[];
+  cross_references: ProteinCrossReference[];
+  publications: ProteinPublication[];
 }> {
   const response = await apiClient.get<{
     success: boolean;
     data: {
-      comments: Array<{ topic: string; text: string }>;
-      features: Array<{
-        feature_type: string;
-        description?: string;
-        start_pos?: number;
-        end_pos?: number;
-      }>;
-      cross_references: Array<{
-        database: string;
-        database_id: string;
-        metadata?: any;
-      }>;
+      comments: ProteinComment[];
+      features: ProteinFeature[];
+      cross_references: ProteinCrossReference[];
+      publications: ProteinPublication[];
     };
   }>(`/api/v1/data-sources/${org}/${name}/${version}/protein-metadata`);
   return response.data.data;
@@ -127,7 +116,7 @@ export async function getProteinMetadata(
  */
 export async function listDataSources(
   params: ListDataSourcesParams = {}
-): Promise<{ data: DataSource[]; total: number; pages: number }> {
+): Promise<{ data: DataSourceListItem[]; total: number; pages: number }> {
   const queryParams: Record<string, string> = {};
 
   if (params.org) queryParams.org = params.org;
@@ -139,7 +128,7 @@ export async function listDataSources(
 
   const response = await apiClient.get<{
     success: boolean;
-    data: DataSource[];
+    data: DataSourceListItem[];
     meta: {
       pagination: {
         total: number;

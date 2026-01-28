@@ -1,8 +1,7 @@
 // Gene Ontology Data Models
 
-use chrono::{DateTime, NaiveDate, Utc};
+use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
-use sqlx::types::Json;
 use uuid::Uuid;
 
 // ============================================================================

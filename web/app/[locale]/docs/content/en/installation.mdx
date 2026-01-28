@@ -37,11 +37,17 @@ bdp --version
 
 ## Troubleshooting
 
-**Command not found**
+### Command not found
 
-If you get a "command not found" error, make sure the BDP binary is in your PATH. See <a href="https://gist.github.com/nex3/c395b2f8fd4b02068be37c961301caa7" target="_blank" rel="noopener noreferrer">this guide</a> for adding to PATH on different platforms.
+If you get a "command not found" error, make sure the BDP binary is in your PATH:
 
-**Permission denied**
+**Windows**: Open System Properties → Advanced → Environment Variables. Edit the PATH variable and add your BDP directory followed by `;` (e.g., `C:\Users\YourName\bin;...`). Restart your terminal.
+
+**macOS**: Add `export PATH="your-bdp-dir:$PATH"` to `~/.bash_profile` (or `~/.zshrc` for newer macOS). Restart your terminal.
+
+**Linux**: Add `export PATH="your-bdp-dir:$PATH"` to `~/.bashrc`. Restart your terminal.
+
+### Permission denied
 
 On Unix-like systems, ensure the binary has execute permissions:
 

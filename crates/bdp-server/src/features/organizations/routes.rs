@@ -253,8 +253,8 @@ async fn get_organization(
 #[tracing::instrument(
     skip(pool, query),
     fields(
-        page = ?query.page,
-        per_page = ?query.per_page,
+        page = ?query.pagination.page,
+        per_page = ?query.pagination.per_page,
         is_system = ?query.is_system
     )
 )]
@@ -407,7 +407,7 @@ impl IntoResponse for OrganizationApiError {
                 let error = ErrorResponse::new("VALIDATION_ERROR", self.to_string());
                 (StatusCode::BAD_REQUEST, Json(error)).into_response()
             },
-            OrganizationApiError::GetError(super::queries::GetOrganizationError::NotFound) => {
+            OrganizationApiError::GetError(super::queries::GetOrganizationError::NotFound { .. }) => {
                 let error = ErrorResponse::new("NOT_FOUND", self.to_string());
                 (StatusCode::NOT_FOUND, Json(error)).into_response()
             },

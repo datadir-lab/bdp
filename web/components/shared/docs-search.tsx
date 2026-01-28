@@ -21,6 +21,13 @@ interface PagefindSearch {
   search: (query: string) => Promise<{ results: PagefindResult[] }>;
 }
 
+interface SearchResult {
+  id: string;
+  title: string;
+  url: string;
+  excerpt: string;
+}
+
 declare global {
   interface Window {
     pagefind?: PagefindSearch;
@@ -31,7 +38,7 @@ export function DocsSearch() {
   const t = useTranslations('docsSearch');
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<any[]>([]);
+  const [results, setResults] = useState<SearchResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [pagefind, setPagefind] = useState<PagefindSearch | null>(null);

@@ -161,6 +161,7 @@ pub async fn handle(
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 struct DataSourceRecord {
     id: Uuid,
     organization_id: Uuid,

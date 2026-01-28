@@ -24,8 +24,8 @@ pub fn search_routes() -> Router<PgPool> {
     fields(
         q = %query.query,
         type_filter = ?query.type_filter,
-        page = ?query.page,
-        per_page = ?query.per_page
+        page = ?query.pagination.page,
+        per_page = ?query.pagination.per_page
     )
 )]
 async fn unified_search(

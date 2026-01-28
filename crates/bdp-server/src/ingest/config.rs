@@ -5,6 +5,43 @@
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
+// ============================================================================
+// Ingestion Configuration Constants
+// ============================================================================
+
+/// Default check interval for latest mode ingestion (1 day in seconds).
+pub const DEFAULT_CHECK_INTERVAL_SECS: u64 = 86400;
+
+/// Default batch size for historical mode version processing.
+pub const DEFAULT_HISTORICAL_BATCH_SIZE: usize = 3;
+
+/// Default number of worker threads for job processing.
+pub const DEFAULT_WORKER_THREADS: usize = 4;
+
+/// Default maximum retries for failed jobs.
+pub const DEFAULT_MAX_RETRIES: u32 = 3;
+
+/// Default job timeout in seconds (1 hour).
+pub const DEFAULT_JOB_TIMEOUT_SECS: u64 = 3600;
+
+/// Default UniProt FTP host.
+pub const DEFAULT_UNIPROT_FTP_HOST: &str = "ftp.uniprot.org";
+
+/// Default UniProt FTP path.
+pub const DEFAULT_UNIPROT_FTP_PATH: &str = "/pub/databases/uniprot/current_release/knowledgebase/complete";
+
+/// Default oldest UniProt version to consider.
+pub const DEFAULT_UNIPROT_OLDEST_VERSION: &str = "2020_01";
+
+/// Default UniProt batch size for processing entries.
+pub const DEFAULT_UNIPROT_BATCH_SIZE: usize = 5000;
+
+/// Default UniProt FTP timeout in seconds.
+pub const DEFAULT_UNIPROT_FTP_TIMEOUT_SECS: u64 = 300;
+
+/// Default cron schedule for automatic ingestion (daily at 2 AM).
+pub const DEFAULT_INGESTION_SCHEDULE: &str = "0 2 * * *";
+
 /// Ingestion mode configuration
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(tag = "mode", rename_all = "snake_case")]
@@ -46,11 +83,11 @@ pub struct HistoricalConfig {
 }
 
 fn default_check_interval() -> u64 {
-    86400 // 1 day
+    DEFAULT_CHECK_INTERVAL_SECS
 }
 
 fn default_historical_batch_size() -> usize {
-    3
+    DEFAULT_HISTORICAL_BATCH_SIZE
 }
 
 fn default_true() -> bool {
@@ -70,7 +107,7 @@ impl Default for LatestConfig {
 impl Default for HistoricalConfig {
     fn default() -> Self {
         Self {
-            start_version: "2020_01".to_string(),
+            start_version: DEFAULT_UNIPROT_OLDEST_VERSION.to_string(),
             end_version: None,
             batch_size: default_historical_batch_size(),
             skip_existing: true,
@@ -136,17 +173,17 @@ impl IngestConfig {
                 .parse()
                 .unwrap_or(false),
             worker_threads: std::env::var("INGEST_WORKER_THREADS")
-                .unwrap_or_else(|_| "4".to_string())
-                .parse()
-                .unwrap_or(4),
+                .ok()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(DEFAULT_WORKER_THREADS),
             max_retries: std::env::var("INGEST_MAX_RETRIES")
-                .unwrap_or_else(|_| "3".to_string())
-                .parse()
-                .unwrap_or(3),
+                .ok()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(DEFAULT_MAX_RETRIES),
             job_timeout_secs: std::env::var("INGEST_JOB_TIMEOUT_SECS")
-                .unwrap_or_else(|_| "3600".to_string())
-                .parse()
-                .unwrap_or(3600),
+                .ok()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(DEFAULT_JOB_TIMEOUT_SECS),
             uniprot: UniProtConfig::from_env()?,
         };
 
@@ -204,7 +241,7 @@ impl UniProtConfig {
             }
             "historical" => {
                 let start_version = std::env::var("INGEST_UNIPROT_HISTORICAL_START")
-                    .unwrap_or_else(|_| "2020_01".to_string());
+                    .unwrap_or_else(|_| DEFAULT_UNIPROT_OLDEST_VERSION.to_string());
 
                 let end_version = std::env::var("INGEST_UNIPROT_HISTORICAL_END")
                     .ok();
@@ -245,25 +282,25 @@ impl UniProtConfig {
 
         let config = Self {
             ftp_host: std::env::var("INGEST_UNIPROT_FTP_HOST")
-                .unwrap_or_else(|_| "ftp.uniprot.org".to_string()),
+                .unwrap_or_else(|_| DEFAULT_UNIPROT_FTP_HOST.to_string()),
             ftp_path: std::env::var("INGEST_UNIPROT_FTP_PATH")
-                .unwrap_or_else(|_| "/pub/databases/uniprot/current_release/knowledgebase/complete".to_string()),
+                .unwrap_or_else(|_| DEFAULT_UNIPROT_FTP_PATH.to_string()),
             oldest_version: std::env::var("INGEST_UNIPROT_OLDEST_VERSION")
-                .unwrap_or_else(|_| "2020_01".to_string()),
+                .unwrap_or_else(|_| DEFAULT_UNIPROT_OLDEST_VERSION.to_string()),
             ingestion_schedule: std::env::var("INGEST_UNIPROT_SCHEDULE")
-                .unwrap_or_else(|_| "0 2 * * *".to_string()),
+                .unwrap_or_else(|_| DEFAULT_INGESTION_SCHEDULE.to_string()),
             auto_ingest_enabled: std::env::var("INGEST_UNIPROT_AUTO_ENABLED")
-                .unwrap_or_else(|_| "false".to_string())
-                .parse()
+                .ok()
+                .and_then(|s| s.parse().ok())
                 .unwrap_or(false),
             batch_size: std::env::var("INGEST_UNIPROT_BATCH_SIZE")
-                .unwrap_or_else(|_| "5000".to_string())
-                .parse()
-                .unwrap_or(5000),
+                .ok()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(DEFAULT_UNIPROT_BATCH_SIZE),
             ftp_timeout_secs: std::env::var("INGEST_UNIPROT_FTP_TIMEOUT_SECS")
-                .unwrap_or_else(|_| "300".to_string())
-                .parse()
-                .unwrap_or(300),
+                .ok()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(DEFAULT_UNIPROT_FTP_TIMEOUT_SECS),
             ingestion_mode,
             start_from_version: std::env::var("INGEST_START_FROM_VERSION")
                 .unwrap_or_else(|_| "".to_string()),
@@ -311,9 +348,9 @@ impl Default for IngestConfig {
     fn default() -> Self {
         Self {
             enabled: false,
-            worker_threads: 4,
-            max_retries: 3,
-            job_timeout_secs: 3600,
+            worker_threads: DEFAULT_WORKER_THREADS,
+            max_retries: DEFAULT_MAX_RETRIES,
+            job_timeout_secs: DEFAULT_JOB_TIMEOUT_SECS,
             uniprot: UniProtConfig::default(),
         }
     }
@@ -328,13 +365,13 @@ impl Default for UniProtConfig {
         };
 
         Self {
-            ftp_host: "ftp.uniprot.org".to_string(),
-            ftp_path: "/pub/databases/uniprot/current_release/knowledgebase/complete".to_string(),
-            oldest_version: "2020_01".to_string(),
-            ingestion_schedule: "0 2 * * *".to_string(),
+            ftp_host: DEFAULT_UNIPROT_FTP_HOST.to_string(),
+            ftp_path: DEFAULT_UNIPROT_FTP_PATH.to_string(),
+            oldest_version: DEFAULT_UNIPROT_OLDEST_VERSION.to_string(),
+            ingestion_schedule: DEFAULT_INGESTION_SCHEDULE.to_string(),
             auto_ingest_enabled: false,
-            batch_size: 5000,
-            ftp_timeout_secs: 300,
+            batch_size: DEFAULT_UNIPROT_BATCH_SIZE,
+            ftp_timeout_secs: DEFAULT_UNIPROT_FTP_TIMEOUT_SECS,
             ingestion_mode: IngestionMode::default(),
             start_from_version: "".to_string(),
             cache_dir,
@@ -349,9 +386,9 @@ mod tests {
     #[test]
     fn test_uniprot_config_default() {
         let config = UniProtConfig::default();
-        assert_eq!(config.ftp_host, "ftp.uniprot.org");
-        assert_eq!(config.oldest_version, "2020_01");
-        assert_eq!(config.batch_size, 1000);
+        assert_eq!(config.ftp_host, DEFAULT_UNIPROT_FTP_HOST);
+        assert_eq!(config.oldest_version, DEFAULT_UNIPROT_OLDEST_VERSION);
+        assert_eq!(config.batch_size, DEFAULT_UNIPROT_BATCH_SIZE);
     }
 
     #[test]
@@ -385,8 +422,8 @@ mod tests {
     fn test_ingest_config_default() {
         let config = IngestConfig::default();
         assert!(!config.enabled);
-        assert_eq!(config.worker_threads, 4);
-        assert_eq!(config.max_retries, 3);
+        assert_eq!(config.worker_threads, DEFAULT_WORKER_THREADS);
+        assert_eq!(config.max_retries, DEFAULT_MAX_RETRIES);
     }
 
     #[test]

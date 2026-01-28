@@ -17,6 +17,7 @@ WORKDIR /app
 # Copy workspace configuration
 COPY Cargo.toml Cargo.lock ./
 COPY crates ./crates
+COPY xtask ./xtask
 COPY migrations ./migrations
 COPY .sqlx ./.sqlx
 
@@ -24,7 +25,7 @@ COPY .sqlx ./.sqlx
 # Use --locked to ensure Cargo.lock is respected
 # Use SQLx offline mode (requires .sqlx query cache)
 ENV SQLX_OFFLINE=true
-RUN cargo build --release --package bdp-server --locked
+RUN cargo build --release --bin bdp-server --locked
 
 # Verify the binary was created
 RUN ls -lh /app/target/release/bdp-server

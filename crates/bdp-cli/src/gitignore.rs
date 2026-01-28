@@ -171,17 +171,17 @@ pub fn remove_from_gitignore(project_dir: &Path) -> Result<()> {
     // Remove BDP section
     let lines: Vec<&str> = content.lines().collect();
     let mut new_lines = Vec::new();
-    let mut _in_bdp_section = false;
+    let mut in_bdp_section = false;
 
     for line in lines {
         if line == BDP_SECTION_MARKER {
-            _in_bdp_section = true;
+            in_bdp_section = true;
             continue; // Skip marker line
         }
 
-        if _in_bdp_section {
+        if in_bdp_section {
             if line.trim().is_empty() {
-                _in_bdp_section = false;
+                in_bdp_section = false;
                 // Keep the empty line if not at end
                 if !new_lines.is_empty() {
                     new_lines.push(line.to_string());
@@ -190,7 +190,7 @@ pub fn remove_from_gitignore(project_dir: &Path) -> Result<()> {
             }
             if line.starts_with('#') {
                 // New section starts
-                _in_bdp_section = false;
+                in_bdp_section = false;
                 new_lines.push(line.to_string());
                 continue;
             }

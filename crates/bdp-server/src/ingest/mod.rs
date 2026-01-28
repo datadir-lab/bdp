@@ -22,9 +22,11 @@
 //! These endpoints are read-only and require NO authentication.
 
 pub mod citations;
+pub mod common;
 pub mod config;
 pub mod genbank;
 pub mod gene_ontology;
+pub mod interpro;
 pub mod jobs;
 pub mod models;
 pub mod ncbi_taxonomy;
@@ -32,6 +34,7 @@ pub mod scheduler;
 pub mod orchestrator;
 pub mod uniprot;
 pub mod version_mapping;
+pub mod versioning;
 pub mod framework;
 
 pub use config::{IngestConfig, UniProtConfig};

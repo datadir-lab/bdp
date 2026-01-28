@@ -1,3 +1,22 @@
+//! S3-compatible storage operations
+//!
+//! Provides a high-level interface for interacting with S3-compatible storage
+//! backends (AWS S3, MinIO, etc.). Used for storing data source files, tool
+//! binaries, and ingestion artifacts.
+//!
+//! # Overview
+//!
+//! The [`Storage`] struct provides methods for:
+//! - Uploading files and streams
+//! - Downloading files and streams
+//! - Generating presigned URLs for direct client access
+//! - Listing and managing objects
+//!
+//! # Key Path Conventions
+//!
+//! Data source files: `data-sources/{org}/{name}/{version}/{filename}`
+//! Tool files: `tools/{org}/{name}/{version}/{filename}`
+
 use anyhow::{anyhow, Context, Result};
 use aws_sdk_s3::{
     config::{Credentials, Region},
@@ -10,6 +29,10 @@ use tracing::{debug, info, instrument};
 
 pub mod config;
 
+/// S3-compatible storage client
+///
+/// Wraps the AWS S3 SDK client with convenience methods for BDP operations.
+/// Thread-safe and clonable for use across async tasks.
 #[derive(Clone)]
 pub struct Storage {
     client: Client,
@@ -17,6 +40,15 @@ pub struct Storage {
 }
 
 impl Storage {
+    /// Creates a new Storage instance from configuration
+    ///
+    /// Initializes the S3 client with the provided credentials and endpoint.
+    /// The client is configured for either AWS S3 or MinIO based on the
+    /// endpoint and path_style settings.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the S3 client configuration is invalid.
     pub async fn new(config: config::StorageConfig) -> Result<Self> {
         debug!("Initializing storage with config: {:?}", config);
 
@@ -51,6 +83,20 @@ impl Storage {
         })
     }
 
+    /// Uploads data to S3 and returns upload metadata
+    ///
+    /// Computes a SHA-256 checksum of the data and uploads it to the
+    /// specified key. Returns the key, checksum, and size on success.
+    ///
+    /// # Arguments
+    ///
+    /// * `key` - S3 object key (path within the bucket)
+    /// * `data` - File content to upload
+    /// * `content_type` - Optional MIME content type
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the upload fails.
     #[instrument(skip(self, data))]
     pub async fn upload(
         &self,
@@ -85,6 +131,21 @@ impl Storage {
         })
     }
 
+    /// Uploads a stream to S3 for large files
+    ///
+    /// Suitable for large files that shouldn't be loaded entirely into memory.
+    /// Returns the object key on success.
+    ///
+    /// # Arguments
+    ///
+    /// * `key` - S3 object key
+    /// * `stream` - ByteStream of data to upload
+    /// * `content_type` - Optional MIME content type
+    /// * `size_hint` - Optional content length hint
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the upload fails.
     #[instrument(skip(self, stream))]
     pub async fn upload_stream(
         &self,
@@ -123,6 +184,14 @@ impl Storage {
         Ok(key.to_string())
     }
 
+    /// Downloads an object from S3 into memory
+    ///
+    /// Suitable for small to medium files. For large files, use
+    /// [`download_stream`] instead.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the object doesn't exist or download fails.
     #[instrument(skip(self))]
     pub async fn download(&self, key: &str) -> Result<Vec<u8>> {
         debug!("Downloading from s3://{}/{}", self.bucket, key);
@@ -149,6 +218,13 @@ impl Storage {
         Ok(data)
     }
 
+    /// Downloads an object from S3 as a stream
+    ///
+    /// Suitable for large files that shouldn't be loaded entirely into memory.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the object doesn't exist or download fails.
     #[instrument(skip(self))]
     pub async fn download_stream(&self, key: &str) -> Result<ByteStream> {
         debug!("Getting stream from s3://{}/{}", self.bucket, key);
@@ -165,6 +241,11 @@ impl Storage {
         Ok(response.body)
     }
 
+    /// Deletes an object from S3
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the deletion fails.
     #[instrument(skip(self))]
     pub async fn delete(&self, key: &str) -> Result<()> {
         debug!("Deleting s3://{}/{}", self.bucket, key);
@@ -182,6 +263,17 @@ impl Storage {
         Ok(())
     }
 
+    /// Checks if an object exists in S3
+    ///
+    /// Uses HEAD request to check existence without downloading the object.
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` if the object exists, `false` if not found.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the check fails for reasons other than "not found".
     #[instrument(skip(self))]
     pub async fn exists(&self, key: &str) -> Result<bool> {
         match self
@@ -203,6 +295,13 @@ impl Storage {
         }
     }
 
+    /// Gets metadata for an object without downloading it
+    ///
+    /// Returns size, content type, and last modified timestamp.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the object doesn't exist or metadata retrieval fails.
     #[instrument(skip(self))]
     pub async fn get_metadata(&self, key: &str) -> Result<ObjectMetadata> {
         debug!("Getting metadata for s3://{}/{}", self.bucket, key);
@@ -227,6 +326,23 @@ impl Storage {
         })
     }
 
+    /// Generates a presigned URL for temporary access
+    ///
+    /// Creates a URL that allows direct download without authentication
+    /// for the specified duration.
+    ///
+    /// # Arguments
+    ///
+    /// * `key` - S3 object key
+    /// * `expires_in` - How long the URL should be valid
+    ///
+    /// # Returns
+    ///
+    /// A presigned URL string.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if URL generation fails.
     #[instrument(skip(self))]
     pub async fn generate_presigned_url(
         &self,
@@ -257,6 +373,20 @@ impl Storage {
         Ok(url)
     }
 
+    /// Lists objects with a given prefix
+    ///
+    /// # Arguments
+    ///
+    /// * `prefix` - Key prefix to filter by
+    /// * `max_keys` - Maximum number of keys to return (optional)
+    ///
+    /// # Returns
+    ///
+    /// A vector of object keys matching the prefix.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if listing fails.
     #[instrument(skip(self))]
     pub async fn list(&self, prefix: &str, max_keys: Option<i32>) -> Result<Vec<String>> {
         debug!(
@@ -288,6 +418,16 @@ impl Storage {
         Ok(keys)
     }
 
+    /// Copies an object within the same bucket
+    ///
+    /// # Arguments
+    ///
+    /// * `source_key` - Source object key
+    /// * `dest_key` - Destination object key
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the copy fails.
     #[instrument(skip(self))]
     pub async fn copy(&self, source_key: &str, dest_key: &str) -> Result<()> {
         debug!(
@@ -314,30 +454,46 @@ impl Storage {
         Ok(())
     }
 
+    /// Builds an S3 key for a data source file
+    ///
+    /// Returns: `data-sources/{org}/{name}/{version}/{filename}`
     pub fn build_key(&self, org: &str, name: &str, version: &str, filename: &str) -> String {
         format!("data-sources/{}/{}/{}/{}", org, name, version, filename)
     }
 
+    /// Builds an S3 key for a tool file
+    ///
+    /// Returns: `tools/{org}/{name}/{version}/{filename}`
     pub fn build_tool_key(&self, org: &str, name: &str, version: &str, filename: &str) -> String {
         format!("tools/{}/{}/{}/{}", org, name, version, filename)
     }
 }
 
+/// Result of a successful upload operation
 #[derive(Debug, Clone)]
 pub struct UploadResult {
+    /// S3 object key
     pub key: String,
+    /// SHA-256 checksum of the uploaded data
     pub checksum: String,
+    /// Size of the uploaded data in bytes
     pub size: i64,
 }
 
+/// Metadata for an S3 object
 #[derive(Debug, Clone)]
 pub struct ObjectMetadata {
+    /// S3 object key
     pub key: String,
+    /// Size in bytes
     pub size: i64,
+    /// MIME content type (if set)
     pub content_type: Option<String>,
+    /// Last modification timestamp
     pub last_modified: Option<chrono::DateTime<chrono::Utc>>,
 }
 
+/// Calculates SHA-256 checksum for data verification
 fn calculate_sha256(data: &[u8]) -> String {
     use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();

@@ -326,15 +326,11 @@ pub async fn unified_search(
             entry_type: row.entry_type,
             source_type: row.source_type,
             tool_type: row.tool_type,
-            organism: if row.scientific_name.is_some() {
-                Some(OrganismInfo {
-                    scientific_name: row.scientific_name.unwrap(),
-                    common_name: row.common_name,
-                    ncbi_taxonomy_id: row.ncbi_taxonomy_id,
-                })
-            } else {
-                None
-            },
+            organism: row.scientific_name.map(|name| OrganismInfo {
+                scientific_name: name,
+                common_name: row.common_name,
+                ncbi_taxonomy_id: row.ncbi_taxonomy_id,
+            }),
             latest_version: row.latest_version,
             external_version: row.external_version,
             available_formats: row.available_formats,

@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT status, total_records, records_processed, records_stored,\n                   records_failed, records_skipped\n            FROM ingestion_jobs\n            WHERE id = $1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "status",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 1,
+        "name": "total_records",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "records_processed",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 3,
+        "name": "records_stored",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 4,
+        "name": "records_failed",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 5,
+        "name": "records_skipped",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "2fd0f0bb0848bfcf66fab3bb5f0887a91e5bee9262b31ad5ae4295a3f2509a45"
+}

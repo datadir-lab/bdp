@@ -1,4 +1,5 @@
 use anyhow::Result;
+use tracing::{info, error};
 
 fn main() -> Result<()> {
     // Enable logging
@@ -48,66 +49,86 @@ SQ   SEQUENCE   123 AA;  14447 MW;  4C8345D5C7B42E60 CRC64;
 //
 "#;
 
-    println!("Sample DAT data:");
-    println!("{}", sample_dat);
-    println!("\n=== Testing parse_bytes (full file) ===");
+    info!("Sample DAT data:");
+    info!("{}", sample_dat);
+    info!("=== Testing parse_bytes (full file) ===");
 
     // Test 1: Parse full file
     let parser = bdp_server::ingest::uniprot::parser::DatParser::new();
     match parser.parse_bytes(sample_dat.as_bytes()) {
         Ok(entries) => {
-            println!("✓ Parsed {} entries from full file", entries.len());
+            info!(count = entries.len(), "Parsed entries from full file");
             for (i, entry) in entries.iter().enumerate() {
-                println!("  Entry {}: {} - {}", i, entry.accession, entry.protein_name);
+                info!(
+                    index = i,
+                    accession = %entry.accession,
+                    name = %entry.protein_name,
+                    "Entry"
+                );
             }
         }
         Err(e) => {
-            println!("✗ parse_bytes failed: {}", e);
+            error!(error = %e, "parse_bytes failed");
         }
     }
 
-    println!("\n=== Testing parse_range (first entry only) ===");
+    info!("=== Testing parse_range (first entry only) ===");
 
     // Test 2: Parse range (entry 0 to 0)
     match parser.parse_range(sample_dat.as_bytes(), 0, 0) {
         Ok(entries) => {
-            println!("✓ Parsed {} entries from range 0-0", entries.len());
+            info!(count = entries.len(), range = "0-0", "Parsed entries from range");
             for (i, entry) in entries.iter().enumerate() {
-                println!("  Entry {}: {} - {}", i, entry.accession, entry.protein_name);
+                info!(
+                    index = i,
+                    accession = %entry.accession,
+                    name = %entry.protein_name,
+                    "Entry"
+                );
             }
         }
         Err(e) => {
-            println!("✗ parse_range failed: {}", e);
+            error!(error = %e, "parse_range failed");
         }
     }
 
-    println!("\n=== Testing parse_range (second entry only) ===");
+    info!("=== Testing parse_range (second entry only) ===");
 
     // Test 3: Parse range (entry 1 to 1)
     match parser.parse_range(sample_dat.as_bytes(), 1, 1) {
         Ok(entries) => {
-            println!("✓ Parsed {} entries from range 1-1", entries.len());
+            info!(count = entries.len(), range = "1-1", "Parsed entries from range");
             for (i, entry) in entries.iter().enumerate() {
-                println!("  Entry {}: {} - {}", i, entry.accession, entry.protein_name);
+                info!(
+                    index = i,
+                    accession = %entry.accession,
+                    name = %entry.protein_name,
+                    "Entry"
+                );
             }
         }
         Err(e) => {
-            println!("✗ parse_range failed: {}", e);
+            error!(error = %e, "parse_range failed");
         }
     }
 
-    println!("\n=== Testing parse_range (both entries) ===");
+    info!("=== Testing parse_range (both entries) ===");
 
     // Test 4: Parse range (entry 0 to 1)
     match parser.parse_range(sample_dat.as_bytes(), 0, 1) {
         Ok(entries) => {
-            println!("✓ Parsed {} entries from range 0-1", entries.len());
+            info!(count = entries.len(), range = "0-1", "Parsed entries from range");
             for (i, entry) in entries.iter().enumerate() {
-                println!("  Entry {}: {} - {}", i, entry.accession, entry.protein_name);
+                info!(
+                    index = i,
+                    accession = %entry.accession,
+                    name = %entry.protein_name,
+                    "Entry"
+                );
             }
         }
         Err(e) => {
-            println!("✗ parse_range failed: {}", e);
+            error!(error = %e, "parse_range failed");
         }
     }
 

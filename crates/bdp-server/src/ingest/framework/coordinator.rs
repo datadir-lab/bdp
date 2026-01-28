@@ -10,10 +10,8 @@ use sqlx::PgPool;
 use std::sync::Arc;
 use uuid::Uuid;
 
-use super::checksum::{compute_file_md5, verify_file_md5};
-use super::metalink::MetalinkInfo;
 use super::types::{
-    BatchConfig, CreateJobParams, IngestionJob, JobStatus, RawFile, WorkUnitStatus,
+    BatchConfig, CreateJobParams, JobStatus, WorkUnitStatus,
 };
 
 /// Coordinates ingestion jobs and manages pipeline state
@@ -156,7 +154,8 @@ impl IngestionCoordinator {
 
     /// Create work units for parallel parsing
     ///
-    /// Splits total_records into batches of parse_batch_size
+    /// Splits total_records into batches of parse_batch_size.
+    /// Uses batch inserts for better performance instead of sequential await in loop.
     pub async fn create_work_units(
         &self,
         job_id: Uuid,
@@ -166,30 +165,38 @@ impl IngestionCoordinator {
         let batch_size = self.config.parse_batch_size;
         let num_batches = (total_records + batch_size - 1) / batch_size;
 
-        for i in 0..num_batches {
-            let start_offset = i * batch_size;
-            let end_offset = ((i + 1) * batch_size).min(total_records) - 1;
+        // Prepare all work units data first
+        let work_units: Vec<(Uuid, i32, i64, i64)> = (0..num_batches)
+            .map(|i| {
+                let start_offset = i * batch_size;
+                let end_offset = ((i + 1) * batch_size).min(total_records) - 1;
+                (Uuid::new_v4(), i as i32, start_offset as i64, end_offset as i64)
+            })
+            .collect();
 
-            sqlx::query!(
-                r#"
-                INSERT INTO ingestion_work_units (
-                    id, job_id, unit_type, batch_number,
-                    start_offset, end_offset, status, max_retries
-                )
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-                "#,
-                Uuid::new_v4(),
-                job_id,
-                unit_type,
-                i as i32,
-                start_offset as i64,
-                end_offset as i64,
-                WorkUnitStatus::Pending.as_str(),
-                self.config.max_retries
-            )
-            .execute(&*self.pool)
-            .await
-            .context("Failed to create work unit")?;
+        // Batch insert work units (chunks of 100 to avoid parameter limit)
+        // This is much faster than sequential inserts with awaits in a loop
+        for chunk in work_units.chunks(100) {
+            let mut query_builder = sqlx::QueryBuilder::new(
+                "INSERT INTO ingestion_work_units (id, job_id, unit_type, batch_number, start_offset, end_offset, status, max_retries) "
+            );
+
+            query_builder.push_values(chunk, |mut b, (id, batch_number, start_offset, end_offset)| {
+                b.push_bind(*id)
+                    .push_bind(job_id)
+                    .push_bind(unit_type)
+                    .push_bind(*batch_number)
+                    .push_bind(*start_offset)
+                    .push_bind(*end_offset)
+                    .push_bind(WorkUnitStatus::Pending.as_str())
+                    .push_bind(self.config.max_retries);
+            });
+
+            query_builder
+                .build()
+                .execute(&*self.pool)
+                .await
+                .context("Failed to create work units batch")?;
         }
 
         // Update job with total records

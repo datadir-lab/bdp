@@ -4,11 +4,11 @@ import * as React from 'react';
 import { Dna, Info, Sparkles, FileText } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import type { DataSource } from '@/lib/types/data-source';
+import type { DataSource, DataSourceVersion } from '@/lib/types/data-source';
 
 interface SourceContentSectionsProps {
   dataSource: DataSource;
-  currentVersion: any; // DataSourceVersion type from parent
+  currentVersion: DataSourceVersion & { organization: string; name: string };
 }
 
 export function SourceContentSections({ dataSource, currentVersion }: SourceContentSectionsProps) {

@@ -176,58 +176,69 @@ impl IngestionWorker {
         Ok(staged_ids)
     }
 
-    /// Stage records in database
+    /// Stage records in database using batch inserts for better performance
     async fn stage_records(
         &self,
         job_id: Uuid,
         work_unit_id: Uuid,
         records: &[GenericRecord],
     ) -> Result<Vec<Uuid>> {
+        if records.is_empty() {
+            return Ok(vec![]);
+        }
+
+        // Prepare all record data first (ID generation and MD5 computation)
+        let prepared: Vec<_> = records
+            .iter()
+            .map(|record| {
+                let record_id = Uuid::new_v4();
+                let content_md5 = record.content_md5.clone().unwrap_or_else(|| {
+                    // record_data is a serde_json::Value, serialization should not fail
+                    let json_str = serde_json::to_string(&record.record_data)
+                        .unwrap_or_else(|e| {
+                            tracing::error!("Failed to serialize record_data for MD5: {}", e);
+                            String::new()
+                        });
+                    compute_md5(json_str.as_bytes())
+                });
+                (record_id, record, content_md5)
+            })
+            .collect();
+
+        let staged_ids: Vec<Uuid> = prepared.iter().map(|(id, _, _)| *id).collect();
+
         let mut tx = self
             .pool
             .begin()
             .await
             .context("Failed to start transaction")?;
 
-        let mut staged_ids = Vec::new();
+        // Batch insert records (chunks of 50 to avoid parameter limit - 12 params per record)
+        for chunk in prepared.chunks(50) {
+            let mut query_builder = sqlx::QueryBuilder::new(
+                "INSERT INTO ingestion_staged_records (id, job_id, work_unit_id, record_type, record_identifier, record_name, record_data, content_md5, sequence_md5, source_file, source_offset, status) "
+            );
 
-        for record in records {
-            let record_id = Uuid::new_v4();
-            let content_md5 = record.content_md5.clone().unwrap_or_else(|| {
-                compute_md5(
-                    serde_json::to_string(&record.record_data)
-                        .unwrap()
-                        .as_bytes(),
-                )
+            query_builder.push_values(chunk, |mut b, (record_id, record, content_md5)| {
+                b.push_bind(*record_id)
+                    .push_bind(job_id)
+                    .push_bind(work_unit_id)
+                    .push_bind(&record.record_type)
+                    .push_bind(record.record_identifier.to_lowercase())
+                    .push_bind(record.record_name.as_ref().map(|n| n.to_lowercase()))
+                    .push_bind(&record.record_data)
+                    .push_bind(content_md5)
+                    .push_bind(&record.sequence_md5)
+                    .push_bind(&record.source_file)
+                    .push_bind(record.source_offset)
+                    .push_bind(RecordStatus::Staged.as_str());
             });
 
-            sqlx::query!(
-                r#"
-                INSERT INTO ingestion_staged_records (
-                    id, job_id, work_unit_id, record_type, record_identifier,
-                    record_name, record_data, content_md5, sequence_md5,
-                    source_file, source_offset, status
-                )
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-                "#,
-                record_id,
-                job_id,
-                Some(work_unit_id),
-                record.record_type,
-                record.record_identifier.to_lowercase(),
-                record.record_name.as_ref().map(|n| n.to_lowercase()),
-                record.record_data,
-                content_md5,
-                record.sequence_md5,
-                record.source_file,
-                record.source_offset,
-                RecordStatus::Staged.as_str()
-            )
-            .execute(&mut *tx)
-            .await
-            .context("Failed to insert staged record")?;
-
-            staged_ids.push(record_id);
+            query_builder
+                .build()
+                .execute(&mut *tx)
+                .await
+                .context("Failed to batch insert staged records")?;
         }
 
         tx.commit().await.context("Failed to commit transaction")?;

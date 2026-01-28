@@ -13,7 +13,7 @@ use bdp_server::ingest::framework::BatchConfig;
 use bdp_server::storage::{config::StorageConfig, Storage};
 use sqlx::postgres::PgPoolOptions;
 use std::{sync::Arc, time::Duration};
-use tracing::{info, warn};
+use tracing::{info, warn, error};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 use uuid::Uuid;
 
@@ -25,7 +25,7 @@ async fn main() -> Result<()> {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    println!("=== Historical UniProt Ingestion ===\n");
+    info!("=== Historical UniProt Ingestion ===");
 
     // Parse command line arguments or use defaults
     let versions_to_fetch = std::env::args()
@@ -39,8 +39,7 @@ async fn main() -> Result<()> {
         versions_to_fetch
     };
 
-    println!("Target versions: {}", target_versions.join(", "));
-    println!();
+    info!(versions = ?target_versions, "Target versions");
 
     // Connect to database (Docker)
     let database_url = std::env::var("DATABASE_URL")
@@ -52,17 +51,16 @@ async fn main() -> Result<()> {
         .acquire_timeout(Duration::from_secs(10))
         .connect(&database_url)
         .await?;
-    println!("✓ Connected to database\n");
+    info!("Connected to database");
 
     // Get or create organization
     let org_id = get_or_create_organization(&pool).await?;
-    println!("✓ Using organization: {}\n", org_id);
-    println!("  Organization slug: uniprot\n");
+    info!(org_id = %org_id, slug = "uniprot", "Using organization");
 
     // Initialize S3/MinIO storage
     let storage_config = StorageConfig::from_env()?;
     let storage = Storage::new(storage_config).await?;
-    println!("✓ Storage client initialized\n");
+    info!("Storage client initialized");
 
     // Create ingestion pipeline
     let ftp_config = UniProtFtpConfig::default();
@@ -76,11 +74,13 @@ async fn main() -> Result<()> {
         storage,
     );
 
-    println!("Configuration:");
-    println!("  FTP Host: {}", ftp_config.ftp_host);
-    println!("  FTP Path: {}", ftp_config.ftp_base_path);
-    println!("  Parse batch size: 1000");
-    println!("  Store batch size: 100\n");
+    info!(
+        ftp_host = %ftp_config.ftp_host,
+        ftp_path = %ftp_config.ftp_base_path,
+        parse_batch_size = 1000,
+        store_batch_size = 100,
+        "Configuration"
+    );
 
     // Discover all available versions
     info!("Discovering available versions from FTP (previous releases)...");
@@ -88,11 +88,11 @@ async fn main() -> Result<()> {
 
     let all_versions = match discovery.discover_previous_versions_only().await {
         Ok(versions) => {
-            info!("Found {} historical versions", versions.len());
+            info!(count = versions.len(), "Found historical versions");
             versions
         }
         Err(e) => {
-            warn!("Failed to discover versions: {}", e);
+            warn!(error = %e, "Failed to discover versions");
             return Err(e);
         }
     };
@@ -109,41 +109,39 @@ async fn main() -> Result<()> {
         .collect();
 
     if versions_to_ingest.is_empty() {
-        warn!("None of the requested versions were found on FTP!");
-        warn!("Requested: {:?}", target_versions);
+        warn!(requested = ?target_versions, "None of the requested versions were found on FTP!");
         return Ok(());
     }
 
-    println!("\n=== Versions to Ingest ===");
+    info!("=== Versions to Ingest ===");
     for version in &versions_to_ingest {
-        println!("  - {} ({})", version.external_version, version.release_date);
+        info!(version = %version.external_version, release_date = %version.release_date, "Version");
     }
-    println!();
 
     // Ingest each version
     let mut total_succeeded = 0;
     let mut total_failed = 0;
 
     for version in versions_to_ingest {
-        println!("\n▶ Starting ingestion for version: {}", version.external_version);
-        println!("  Release date: {}", version.release_date);
-        println!("  FTP path: {}", version.ftp_path);
-        println!();
+        info!(
+            version = %version.external_version,
+            release_date = %version.release_date,
+            ftp_path = %version.ftp_path,
+            "Starting ingestion"
+        );
 
         match pipeline.ingest_version(&version).await {
             Ok(job_id) => {
-                println!("✓ Ingestion completed successfully!");
-                println!("  Job ID: {}", job_id);
+                info!(job_id = %job_id, "Ingestion completed successfully");
                 total_succeeded += 1;
             }
             Err(e) => {
-                println!("✗ Ingestion failed: {}", e);
-                // Print full error chain for debugging
-                println!("\nFull error chain:");
+                error!(error = %e, "Ingestion failed");
+                // Log full error chain for debugging
                 let mut current = e.source();
                 let mut depth = 1;
                 while let Some(err) = current {
-                    println!("  {} {}", depth, err);
+                    error!(depth = depth, error = %err, "Error chain");
                     current = err.source();
                     depth += 1;
                 }
@@ -152,9 +150,11 @@ async fn main() -> Result<()> {
         }
     }
 
-    println!("\n=== Ingestion Summary ===");
-    println!("Succeeded: {}", total_succeeded);
-    println!("Failed: {}", total_failed);
+    info!(
+        succeeded = total_succeeded,
+        failed = total_failed,
+        "=== Ingestion Summary ==="
+    );
 
     Ok(())
 }
@@ -173,19 +173,34 @@ async fn get_or_create_organization(pool: &sqlx::PgPool) -> Result<Uuid> {
     if let Some(record) = result {
         Ok(record.id)
     } else {
-        // Create organization - this will fail if slug already exists (unique constraint)
+        // Create organization with full metadata
         let id = Uuid::new_v4();
         sqlx::query!(
             r#"
-            INSERT INTO organizations (id, name, slug, description, is_system)
-            VALUES ($1, $2, $3, $4, $5)
+            INSERT INTO organizations (
+                id, name, slug, description, website, is_system,
+                license, license_url, citation, citation_url,
+                version_strategy, version_description,
+                data_source_url, documentation_url, contact_email
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
             ON CONFLICT (slug) DO NOTHING
             "#,
             id,
             "Universal Protein Resource",
             UNIPROT_SLUG,
             "UniProt Knowledgebase - Protein sequences and functional information",
-            true
+            Some("https://www.uniprot.org"),
+            true,
+            Some("CC-BY-4.0"),
+            Some("https://creativecommons.org/licenses/by/4.0/"),
+            Some("UniProt Consortium (2023). UniProt: the Universal Protein Knowledgebase in 2023. Nucleic Acids Research."),
+            Some("https://www.uniprot.org/help/publications"),
+            Some("date-based"),
+            Some("UniProt releases follow YYYY_MM format (e.g., 2025_01). Each release is a complete snapshot of the database."),
+            Some("https://ftp.uniprot.org/pub/databases/uniprot/"),
+            Some("https://www.uniprot.org/help"),
+            Some("help@uniprot.org")
         )
         .execute(pool)
         .await?;

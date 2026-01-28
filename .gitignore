@@ -180,11 +180,18 @@ out/
 .vercel
 *.next
 
-# npm/yarn
+# npm/yarn/pnpm
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+package-lock.json
+.yarn/
+.pnp.*
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
 
 # ============================================================================
 # MinIO / S3
@@ -222,6 +229,9 @@ mdbook-output/
 # Keep source documentation
 !docs/
 
+# Generated CLI documentation
+web/app/[locale]/docs/content/*/cli-reference.mdx
+
 # ============================================================================
 # Scripts Output
 # ============================================================================
@@ -230,11 +240,31 @@ scripts/output/*
 !scripts/output/.gitkeep
 
 # ============================================================================
+# Claude Code / AI Artifacts
+# ============================================================================
+# Claude settings (local configuration only)
+.claude/
+!.claude/settings.json
+
+# Temporary delivery/session files
+DELIVERY_*.txt
+INSERTION_*.md
+START_HERE.txt
+VALIDATION_*.txt
+VALIDATION_*.md
+validation_subsection*
+*_plaintext.txt
+
+# Windows null device artifact
+nul
+
+# ============================================================================
 # Miscellaneous
 # ============================================================================
 # Local configuration overrides
 local.toml
 config.local.toml
+*.local.json
 
 # SSH keys and certificates (should never be committed)
 *.pem
@@ -253,3 +283,180 @@ secrets/
 credentials/
 *.secret
 *.credential
+
+# ============================================================================
+# Infrastructure
+# ============================================================================
+# Terraform state files (should be in remote backend)
+infrastructure/**/*.tfstate
+infrastructure/**/*.tfstate.*
+infrastructure/**/.terraform/
+infrastructure/**/.terraform.lock.hcl
+infrastructure/**/terraform.tfvars
+infrastructure/**/terraform.tfvars.json
+
+# Keep example files
+!infrastructure/**/*.tfvars.example
+!infrastructure/**/*.tfvars.json.example
+
+# Ansible vault passwords
+infrastructure/**/.vault_pass
+
+# ============================================================================
+# BDP Specific
+# ============================================================================
+# BDP CLI test directory (prevent accidental commits of test data)
+bdp-example/
+
+# Downloaded data sources (development/testing)
+data-sources/
+downloads/
+
+# Local cache directories
+.bdp/
+bdp.db
+
+# Generated files
+bdp.yml.bak
+bdl.lock.bak
+
+# ============================================================================
+# Research & Paper Writing
+# ============================================================================
+# Research directory (paper drafts, notes, etc.)
+research/
+
+# LaTeX intermediate files
+*.aux
+*.lof
+*.log
+*.lot
+*.fls
+*.out
+*.toc
+*.fmt
+*.fot
+*.cb
+*.cb2
+.*.lb
+
+# LaTeX bibliography
+*.bbl
+*.bcf
+*.blg
+*-blx.aux
+*-blx.bib
+*.run.xml
+
+# LaTeX build outputs
+*.dvi
+*.ps
+*.pdf
+
+# Keep important PDFs (uncomment specific files if needed)
+# !important-paper.pdf
+
+# LaTeX temporary files
+*.synctex
+*.synctex(busy)
+*.synctex.gz
+*.synctex.gz(busy)
+*.pdfsync
+
+# LaTeX algorithm packages
+*.alg
+*.loa
+
+# LaTeX nomenclature
+*.nlg
+*.nlo
+*.nls
+
+# LaTeX glossaries
+*.acn
+*.acr
+*.glg
+*.glo
+*.gls
+*.glsdefs
+*.lzo
+*.lzs
+
+# LaTeX hyperref
+*.brf
+
+# LaTeX knitr
+*-concordance.tex
+
+# LaTeX nomenclature
+*.ist
+
+# LaTeX minitoc
+*.maf
+*.mlf
+*.mlt
+*.mtc[0-9]*
+*.slf[0-9]*
+*.slt[0-9]*
+*.stc[0-9]*
+
+# LaTeX morewrites
+*.mw
+
+# LaTeX listings
+*.lol
+
+# LaTeX fancyhdr
+*.fancyhdr
+
+# LaTeX endfloat
+*.ttt
+*.fff
+
+# LaTeX fixme
+*.lox
+
+# LaTeX acronyms
+*.acn
+*.acr
+*.alg
+
+# LaTeX beamer
+*.nav
+*.pre
+*.snm
+*.vrb
+
+# LaTeX standalone
+*.sta
+
+# LaTeX tikz
+*.dpth
+*.md5
+*.auxlock
+
+# LaTeX latexmk
+*.fdb_latexmk
+
+# LaTeX biber
+*.bbl
+*.bcf
+*.blg
+
+# LaTeX editor files
+*.sav
+*.swp
+*.backup
+*~
+
+# TeXworks
+*.prj
+.texpadtmp
+
+# LyX
+*.lyx~
+*.lyx.emergency
+*.lyx.autosave
+
+# Overleaf
+.Rhistory

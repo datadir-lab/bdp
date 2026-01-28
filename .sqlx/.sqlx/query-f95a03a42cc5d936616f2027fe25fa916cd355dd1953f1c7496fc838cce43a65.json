@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE ingestion_jobs\n            SET records_processed = records_processed + $1,\n                records_failed = records_failed + $2\n            WHERE id = (SELECT job_id FROM ingestion_work_units WHERE id = $3)\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f95a03a42cc5d936616f2027fe25fa916cd355dd1953f1c7496fc838cce43a65"
+}

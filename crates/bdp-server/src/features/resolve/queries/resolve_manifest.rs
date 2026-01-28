@@ -52,7 +52,13 @@ impl SourceSpec {
             ));
         }
 
-        let format = format_parts.last().unwrap().to_string();
+        // format_parts.len() >= 2 is guaranteed by the check above
+        let format = format_parts.last()
+            .ok_or_else(|| format!(
+                "Invalid spec format: '{}'. Expected 'registry:identifier-format@version' with format suffix",
+                spec
+            ))?
+            .to_string();
         let name = format_parts[..format_parts.len() - 1].join("-");
 
         Ok(Self {
@@ -153,23 +159,23 @@ pub struct DependencyInfo {
 
 #[derive(Debug, thiserror::Error)]
 pub enum ResolveManifestError {
-    #[error("Invalid source spec: {0}")]
+    #[error("Invalid source specification: '{0}'. Expected format: 'registry:identifier-format@version' (e.g., 'uniprot:P01308-fasta@1.0').")]
     InvalidSourceSpec(String),
-    #[error("Invalid tool spec: {0}")]
+    #[error("Invalid tool specification: '{0}'. Expected format: 'registry:name@version' (e.g., 'ncbi:blast@2.14.0').")]
     InvalidToolSpec(String),
-    #[error("Source not found: {0}")]
+    #[error("Source '{0}' not found in registry. Check the organization name and data source identifier.")]
     SourceNotFound(String),
-    #[error("Tool not found: {0}")]
+    #[error("Tool '{0}' not found in registry. Check the organization name and tool identifier.")]
     ToolNotFound(String),
-    #[error("Version not found: {0}")]
+    #[error("Version '{0}' not available. Use the API to list available versions for this source.")]
     VersionNotFound(String),
-    #[error("Format not available: {0}")]
+    #[error("Format '{0}' not available for this data source. Check available formats with the data source details endpoint.")]
     FormatNotAvailable(String),
-    #[error("Dependency conflict detected: {0}")]
+    #[error("Dependency conflict: {0}. Two sources require incompatible versions of the same dependency.")]
     DependencyConflict(String),
-    #[error("Circular dependency detected: {0}")]
+    #[error("Circular dependency detected involving '{0}'. Dependencies must not form a cycle.")]
     CircularDependency(String),
-    #[error("Database error: {0}")]
+    #[error("Failed to resolve manifest: {0}")]
     Database(#[from] sqlx::Error),
 }
 
@@ -407,7 +413,7 @@ fn detect_conflicts(
     let mut version_map: HashMap<String, HashSet<String>> = HashMap::new();
     let mut visited: HashSet<String> = HashSet::new();
 
-    for (key, source) in resolved_sources {
+    for (_key, source) in resolved_sources {
         let base_key = source.resolved.clone();
 
         if visited.contains(&base_key) {
@@ -415,10 +421,14 @@ fn detect_conflicts(
         }
         visited.insert(base_key.clone());
 
-        version_map
-            .entry(base_key.split('@').next().unwrap().to_string())
-            .or_insert_with(HashSet::new)
-            .insert(base_key.split('@').last().unwrap().to_string());
+        // base_key is in format "org:name@version", split by '@' to get base and version
+        let parts: Vec<&str> = base_key.split('@').collect();
+        if parts.len() == 2 {
+            version_map
+                .entry(parts[0].to_string())
+                .or_insert_with(HashSet::new)
+                .insert(parts[1].to_string());
+        }
 
         if let Some(deps) = &source.dependencies {
             check_dependencies(deps, &mut version_map)?;

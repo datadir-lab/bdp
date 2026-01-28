@@ -104,7 +104,7 @@ JSON report demonstrating compliance with electronic records regulations:
     {
       "timestamp": "2024-01-15T09:20:15Z",
       "event_type": "download",
-      "source": "uniprot:P01308-fasta@1.1.0",
+      "source": "uniprot:P01308-fasta@1.0",
       "checksum": "sha256:abc123...",
       "user": "researcher01"
     }
@@ -125,7 +125,7 @@ Markdown report for NIH DMS compliance:
 
 ## Data Sources
 
-- **UniProt** (P01308-fasta@1.1.0)
+- **UniProt** (P01308-fasta@1.0)
   - Downloaded: 2024-01-15
   - Checksum: sha256:abc123...
   - URL: https://bdp.dev/sources/uniprot/P01308
@@ -213,7 +213,7 @@ Future versions will support syncing audit trails to the BDP backend for:
 ```bash
 # 1. Download and process data
 bdp pull
-# ✓ Downloaded uniprot:P01308-fasta@1.1.0
+# ✓ Downloaded uniprot:P01308-fasta@1.0
 # ✓ Verified checksums
 # ✓ Executed post-pull hooks
 

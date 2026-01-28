@@ -11,6 +11,7 @@ pub mod parser;
 pub mod storage;
 pub mod pipeline;
 pub mod orchestrator;
+pub mod version_discovery;
 
 pub use config::GenbankFtpConfig;
 pub use models::{GenbankRecord, Feature, CdsFeature, SourceFeature};
@@ -18,3 +19,4 @@ pub use parser::GenbankParser;
 pub use storage::GenbankStorage;
 pub use pipeline::GenbankPipeline;
 pub use orchestrator::GenbankOrchestrator;
+pub use version_discovery::{VersionDiscovery, DiscoveredVersion};

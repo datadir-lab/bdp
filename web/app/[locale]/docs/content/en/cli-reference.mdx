@@ -1,0 +1,410 @@
+---
+title: CLI Reference
+description: Complete command reference for the BDP CLI
+---
+
+# BDP CLI Reference
+
+This documentation is auto-generated from the CLI source code. Last updated: 2026-01-22.
+
+## Overview
+
+BDP (Biological Dataset Package) is a command-line tool for managing biological datasets with version control, checksums, and audit trails.
+
+## Installation
+
+### From Source
+
+```bash
+git clone https://github.com/datadir-lab/bdp.git
+cd bdp
+cargo install --path crates/bdp-cli
+```
+
+### Using Cargo
+
+```bash
+cargo install bdp-cli
+```
+
+## Quick Start
+
+```bash
+# Initialize a new project
+bdp init --name my-project
+
+# Add data sources
+bdp source add uniprot:P01308-fasta@1.0
+
+# Download sources
+bdp pull
+
+# Check status
+bdp status
+
+# View audit trail
+bdp audit list
+```
+
+## Commands
+
+# Command-Line Help for `bdp`
+
+This document contains the help content for the `bdp` command-line program.
+
+**Command Overview:**
+
+* [`bdp`↴](#bdp)
+* [`bdp init`↴](#bdp-init)
+* [`bdp source`↴](#bdp-source)
+* [`bdp source add`↴](#bdp-source-add)
+* [`bdp source remove`↴](#bdp-source-remove)
+* [`bdp source list`↴](#bdp-source-list)
+* [`bdp pull`↴](#bdp-pull)
+* [`bdp status`↴](#bdp-status)
+* [`bdp audit`↴](#bdp-audit)
+* [`bdp audit list`↴](#bdp-audit-list)
+* [`bdp audit verify`↴](#bdp-audit-verify)
+* [`bdp audit export`↴](#bdp-audit-export)
+* [`bdp clean`↴](#bdp-clean)
+* [`bdp config`↴](#bdp-config)
+* [`bdp config get`↴](#bdp-config-get)
+* [`bdp config set`↴](#bdp-config-set)
+* [`bdp config show`↴](#bdp-config-show)
+* [`bdp uninstall`↴](#bdp-uninstall)
+
+## `bdp`
+
+BDP - Biological Dataset Package Manager
+
+**Usage:** `bdp [OPTIONS] <COMMAND>`
+
+###### **Subcommands:**
+
+* `init` — Initialize a new BDP project
+* `source` — Manage data sources
+* `pull` — Download and cache sources from manifest
+* `status` — Show status of cached sources
+* `audit` — Audit trail management
+* `clean` — Clean cache
+* `config` — Manage configuration
+* `uninstall` — Uninstall BDP from your system
+
+###### **Options:**
+
+* `-v`, `--verbose` — Verbose output
+* `--server-url <SERVER_URL>` — Server URL
+
+  Default value: `http://localhost:8000`
+
+
+
+## `bdp init`
+
+Initialize a new BDP project
+
+**Usage:** `bdp init [OPTIONS] [PATH]`
+
+###### **Arguments:**
+
+* `<PATH>` — Project directory (defaults to current directory)
+
+  Default value: `.`
+
+###### **Options:**
+
+* `-n`, `--name <NAME>` — Project name (defaults to directory name)
+* `-V`, `--version <VERSION>` — Project version
+
+  Default value: `0.1.0`
+* `-d`, `--description <DESCRIPTION>` — Project description
+* `-f`, `--force` — Force overwrite if bdp.yml exists
+
+
+
+## `bdp source`
+
+Manage data sources
+
+**Usage:** `bdp source <COMMAND>`
+
+###### **Subcommands:**
+
+* `add` — Add a source to the manifest
+* `remove` — Remove a source from the manifest
+* `list` — List sources in the manifest
+
+
+
+## `bdp source add`
+
+Add a source to the manifest
+
+**Usage:** `bdp source add <SOURCE>`
+
+###### **Arguments:**
+
+* `<SOURCE>` — Source specification (e.g., "uniprot:P01308-fasta@1.0")
+
+
+
+## `bdp source remove`
+
+Remove a source from the manifest
+
+**Usage:** `bdp source remove <SOURCE>`
+
+###### **Arguments:**
+
+* `<SOURCE>` — Source specification
+
+
+
+## `bdp source list`
+
+List sources in the manifest
+
+**Usage:** `bdp source list`
+
+
+
+## `bdp pull`
+
+Download and cache sources from manifest
+
+**Usage:** `bdp pull [OPTIONS]`
+
+###### **Options:**
+
+* `-f`, `--force` — Force re-download even if cached
+
+
+
+## `bdp status`
+
+Show status of cached sources
+
+**Usage:** `bdp status`
+
+
+
+## `bdp audit`
+
+Audit trail management
+
+**Usage:** `bdp audit <COMMAND>`
+
+###### **Subcommands:**
+
+* `list` — List audit events
+* `verify` — Verify audit trail integrity
+* `export` — Export audit trail to regulatory format
+
+
+
+## `bdp audit list`
+
+List audit events
+
+**Usage:** `bdp audit list [OPTIONS]`
+
+###### **Options:**
+
+* `-l`, `--limit <LIMIT>` — Limit number of events to show
+
+  Default value: `20`
+* `-s`, `--source <SOURCE>` — Show events from specific source
+
+
+
+## `bdp audit verify`
+
+Verify audit trail integrity
+
+**Usage:** `bdp audit verify`
+
+
+
+## `bdp audit export`
+
+Export audit trail to regulatory format
+
+**Usage:** `bdp audit export [OPTIONS]`
+
+###### **Options:**
+
+* `-f`, `--format <FORMAT>` — Export format (fda, nih, ema, das, json)
+
+  Default value: `fda`
+* `-o`, `--output <OUTPUT>` — Output file path (optional, defaults to audit-{format}.{ext})
+* `--from <FROM>` — Filter events from date (ISO 8601)
+* `--to <TO>` — Filter events to date (ISO 8601)
+* `-n`, `--project-name <PROJECT_NAME>` — Project name for report
+* `-v`, `--project-version <PROJECT_VERSION>` — Project version for report
+
+
+
+## `bdp clean`
+
+Clean cache
+
+**Usage:** `bdp clean [OPTIONS]`
+
+###### **Options:**
+
+* `-a`, `--all` — Clean all cached files
+
+
+
+## `bdp config`
+
+Manage configuration
+
+**Usage:** `bdp config <COMMAND>`
+
+###### **Subcommands:**
+
+* `get` — Get configuration value
+* `set` — Set configuration value
+* `show` — Show all configuration
+
+
+
+## `bdp config get`
+
+Get configuration value
+
+**Usage:** `bdp config get <KEY>`
+
+###### **Arguments:**
+
+* `<KEY>` — Configuration key
+
+
+
+## `bdp config set`
+
+Set configuration value
+
+**Usage:** `bdp config set <KEY> <VALUE>`
+
+###### **Arguments:**
+
+* `<KEY>` — Configuration key
+* `<VALUE>` — Configuration value
+
+
+
+## `bdp config show`
+
+Show all configuration
+
+**Usage:** `bdp config show`
+
+
+
+## `bdp uninstall`
+
+Uninstall BDP from your system
+
+**Usage:** `bdp uninstall [OPTIONS]`
+
+###### **Options:**
+
+* `-y`, `--yes` — Skip confirmation prompt
+* `--purge` — Also remove cache and configuration files
+
+
+
+<hr/>
+
+<small><i>
+    This document was generated automatically by
+    <a href="https://crates.io/crates/clap-markdown"><code>clap-markdown</code></a>.
+</i></small>
+
+
+## Environment Variables
+
+- `BDP_SERVER_URL` - Backend server URL (default: `http://localhost:8000`)
+- `RUST_LOG` - Logging level (e.g., `debug`, `info`, `warn`, `error`)
+
+## Configuration
+
+BDP uses a `bdp.yml` manifest file in your project directory. This file is created automatically when you run `bdp init`.
+
+Example `bdp.yml`:
+
+```yaml
+name: my-project
+version: 0.1.0
+description: My biological data project
+sources:
+  - id: uniprot:P01308-fasta@1.0
+    checksum: sha256:abc123...
+```
+
+## Audit Trail
+
+BDP maintains a cryptographically-linked audit trail of all operations in `.bdp/audit.db`. This provides:
+
+- Tamper-evident logging
+- Regulatory compliance (FDA 21 CFR Part 11, NIH, EMA)
+- Full traceability of data sources
+
+Export audit trails for compliance:
+
+```bash
+# Export to FDA format
+bdp audit export --format fda --output audit-report.pdf
+
+# Export to JSON
+bdp audit export --format json --output audit.json
+```
+
+## Examples
+
+### Working with Multiple Sources
+
+```bash
+# Initialize project
+bdp init --name multi-source-project
+
+# Add multiple sources
+bdp source add uniprot:P01308-fasta@1.0
+bdp source add ncbi-taxonomy:taxdump@2024-01
+bdp source add genbank:NC_000001.11@latest
+
+# List all sources
+bdp source list
+
+# Pull all sources
+bdp pull
+
+# Check what's cached
+bdp status
+```
+
+### Verifying Data Integrity
+
+```bash
+# Verify audit trail integrity
+bdp audit verify
+
+# Export audit trail with date filter
+bdp audit export \
+  --format fda \
+  --from 2024-01-01 \
+  --to 2024-12-31 \
+  --project-name "My Project" \
+  --project-version "1.0.0"
+```
+
+## Support
+
+- GitHub Issues: https://github.com/datadir-lab/bdp/issues
+- Documentation: https://bdp.datadir.io/docs
+
+---
+
+*This documentation is automatically generated from the CLI source code. To update, run `cargo xtask generate-cli-docs`.*

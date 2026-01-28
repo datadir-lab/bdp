@@ -79,7 +79,7 @@ UniProt-Website durchsuchen, nach "Insulin" suchen, Accession-IDs manuell identi
 
 ```bash
 bdp search "insulin homo sapiens"
-# uniprot:P01308-fasta@1.1.0 - http://localhost:3000/sources/uniprot/P01308
+# uniprot:P01308-fasta@1.0 - http://localhost:3000/sources/uniprot/P01308
 ```
 
 
@@ -95,7 +95,7 @@ UniProt-FTP navigieren, korrekte Verzeichnisstruktur finden, wget-Skript schreib
 **Mit BDP:**
 
 ```bash
-bdp source add uniprot:P01308-fasta@1.1.0
+bdp source add uniprot:P01308-fasta@1.0
 bdp pull
 ```
 
@@ -180,7 +180,7 @@ bdp cite --format bibtex > literatur.bib
 Proteinsequenzdaten wurden von UniProt Release 2024_01 (abgerufen am
 15. Januar 2024) mittels bdp (Bioinformatics Dependencies Platform - ${baseUrl})
 bezogen. Konkret wurde humanes Insulin-Vorläuferprotein (UniProt ID: P01308) via
-\`bdp pull\` mit Paket-Identifier uniprot:P01308-fasta@1.1.0 bezogen. Alle
+\`bdp pull\` mit Paket-Identifier uniprot:P01308-fasta@1.0 bezogen. Alle
 Datenquellen sind im Projekt-Repository versioniert und mit kryptographischen
 Prüfsummen dokumentiert um Reproduzierbarkeit sicherzustellen
 (https://github.com/lab/project).`}
@@ -332,7 +332,7 @@ curl -fsSL https://bdp.dev/install.sh | sh
 
 # 3. Alle Daten abrufen (liest bdp.yml + bdl.lock automatisch)
 bdp pull
-# ✓ uniprot:P01308-fasta@1.1.0 heruntergeladen
+# ✓ uniprot:P01308-fasta@1.0 heruntergeladen
 # ✓ ncbi:GRCh38-genome@109 heruntergeladen
 # ✓ Alle Prüfsummen verifiziert
 

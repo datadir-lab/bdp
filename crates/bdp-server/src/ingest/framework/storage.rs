@@ -6,11 +6,12 @@
 
 use anyhow::Result;
 use async_trait::async_trait;
+use futures::future::try_join_all;
 use sqlx::PgPool;
 use std::sync::Arc;
 use uuid::Uuid;
 
-use super::types::{GenericRecord, RecordStatus, StagedRecord};
+use super::types::{RecordStatus, StagedRecord};
 
 /// Generic storage adapter for persisting records to final tables
 #[async_trait]
@@ -99,54 +100,58 @@ impl StorageOrchestrator {
 
         let count = staged.len();
 
-        // Mark as uploading files
-        for record in &staged {
-            self.mark_status(record.id, RecordStatus::UploadingFiles)
-                .await?;
-        }
+        // Mark all as uploading files in parallel
+        let status_futures: Vec<_> = staged
+            .iter()
+            .map(|record| self.mark_status(record.id, RecordStatus::UploadingFiles))
+            .collect();
+        try_join_all(status_futures).await?;
 
-        // Upload files for each record
+        // Upload files for each record in parallel
+        // Note: We use a semaphore-like approach by processing in chunks to avoid overwhelming S3
         let formats = adapter.supported_formats();
-        for record in &staged {
-            match adapter.upload_files(record.id, formats.clone()).await {
+        let upload_results: Vec<(Uuid, Result<Vec<Uuid>>)> = {
+            let upload_futures: Vec<_> = staged
+                .iter()
+                .map(|record| {
+                    let record_id = record.id;
+                    let formats = formats.clone();
+                    async move { (record_id, adapter.upload_files(record_id, formats).await) }
+                })
+                .collect();
+            futures::future::join_all(upload_futures).await
+        };
+
+        // Process upload results: mark successful uploads and failed ones
+        let mut successful_ids = Vec::new();
+        for (record_id, result) in upload_results {
+            match result {
                 Ok(_) => {
-                    self.mark_status(record.id, RecordStatus::FilesUploaded)
-                        .await?;
+                    self.mark_status(record_id, RecordStatus::FilesUploaded).await?;
+                    successful_ids.push(record_id);
                 }
                 Err(e) => {
-                    self.mark_failed(record.id, &e.to_string()).await?;
-                    continue;
+                    self.mark_failed(record_id, &e.to_string()).await?;
                 }
             }
         }
 
-        // Filter successfully uploaded records by checking their status in the database
-        let mut uploaded = Vec::new();
-        for record in staged {
-            // Check if the record's status is files_uploaded
-            let status: Option<String> = sqlx::query_scalar(
-                "SELECT status FROM ingestion_staged_records WHERE id = $1"
-            )
-            .bind(record.id)
-            .fetch_optional(&*self.pool)
-            .await?;
-
-            if let Some(status_str) = status {
-                if status_str == "files_uploaded" {
-                    uploaded.push(record);
-                }
-            }
-        }
+        // Filter staged records to only those that were successfully uploaded
+        let uploaded: Vec<_> = staged
+            .into_iter()
+            .filter(|record| successful_ids.contains(&record.id))
+            .collect();
 
         if uploaded.is_empty() {
             return Ok(0);
         }
 
-        // Mark as storing in DB
-        for record in &uploaded {
-            self.mark_status(record.id, RecordStatus::StoringDb)
-                .await?;
-        }
+        // Mark as storing in DB in parallel
+        let status_futures: Vec<_> = uploaded
+            .iter()
+            .map(|record| self.mark_status(record.id, RecordStatus::StoringDb))
+            .collect();
+        try_join_all(status_futures).await?;
 
         // Clone uploaded for error handling
         let uploaded_ids: Vec<Uuid> = uploaded.iter().map(|r| r.id).collect();
@@ -154,10 +159,12 @@ impl StorageOrchestrator {
         // Store batch to final tables
         match adapter.store_batch(uploaded).await {
             Ok(stored_ids) => {
-                // Mark as stored
-                for id in stored_ids {
-                    self.mark_status(id, RecordStatus::Stored).await?;
-                }
+                // Mark all as stored in parallel
+                let status_futures: Vec<_> = stored_ids
+                    .iter()
+                    .map(|id| self.mark_status(*id, RecordStatus::Stored))
+                    .collect();
+                try_join_all(status_futures).await?;
 
                 // Update job counters
                 self.update_job_stored_count(job_id, count as i64).await?;
@@ -165,10 +172,13 @@ impl StorageOrchestrator {
                 Ok(count)
             }
             Err(e) => {
-                // Mark all as failed
-                for id in uploaded_ids {
-                    self.mark_failed(id, &e.to_string()).await?;
-                }
+                // Mark all as failed in parallel
+                let error_msg = e.to_string();
+                let fail_futures: Vec<_> = uploaded_ids
+                    .iter()
+                    .map(|id| self.mark_failed(*id, &error_msg))
+                    .collect();
+                let _ = futures::future::join_all(fail_futures).await;
                 Err(e)
             }
         }

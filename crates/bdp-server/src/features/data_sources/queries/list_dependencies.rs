@@ -5,13 +5,20 @@ use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ListDependenciesQuery {
+    #[serde(default)]
     pub organization_slug: String,
+    #[serde(default)]
     pub data_source_slug: String,
+    #[serde(default)]
     pub version: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub page: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub per_page: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub search: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub format: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -1,0 +1,84 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            v.id,\n            v.version,\n            v.external_version,\n            v.release_date,\n            v.size_bytes,\n            v.download_count as \"download_count!\",\n            v.dependency_count as \"dependency_count!\",\n            v.published_at as \"published_at!\",\n            re.slug as data_source_slug,\n            re.name as data_source_name,\n            o.slug as organization_slug\n        FROM versions v\n        JOIN registry_entries re ON v.entry_id = re.id\n        JOIN organizations o ON re.organization_id = o.id\n        WHERE LOWER(o.slug) = LOWER($1) AND LOWER(re.slug) = LOWER($2) AND v.version = $3\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "version",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "external_version",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "release_date",
+        "type_info": "Date"
+      },
+      {
+        "ordinal": 4,
+        "name": "size_bytes",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 5,
+        "name": "download_count!",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 6,
+        "name": "dependency_count!",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 7,
+        "name": "published_at!",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 8,
+        "name": "data_source_slug",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 9,
+        "name": "data_source_name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 10,
+        "name": "organization_slug",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "7e3622006074d781668a1c13a2627e7feaff1f763606b9ef238de53e3d89c9e0"
+}

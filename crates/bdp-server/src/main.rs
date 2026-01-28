@@ -13,7 +13,6 @@ use serde_json::json;
 use sqlx::postgres::PgPoolOptions;
 use std::{net::SocketAddr, time::Duration};
 use tokio::signal;
-use tower::ServiceBuilder;
 use tower_http::compression::CompressionLayer;
 use tracing::info;
 
@@ -157,16 +156,6 @@ fn create_router(state: AppState, config: &Config) -> Router {
         .layer(audit::AuditLayer::new(state.db.clone()))
 }
 
-/// Root handler
-async fn root() -> impl IntoResponse {
-    Json(json!({
-        "name": "BDP Server",
-        "version": env!("CARGO_PKG_VERSION"),
-        "status": "running",
-        "docs": "/api/v1"
-    }))
-}
-
 /// Health check handler
 async fn health_check(State(state): State<AppState>) -> Result<Response, StatusCode> {
     // Check database connectivity
@@ -282,17 +271,21 @@ async fn query_audit_logs(
 /// Graceful shutdown signal handler
 async fn shutdown_signal(timeout_secs: u64) {
     let ctrl_c = async {
-        signal::ctrl_c()
-            .await
-            .expect("failed to install Ctrl+C handler");
+        if let Err(e) = signal::ctrl_c().await {
+            tracing::error!("Failed to install Ctrl+C handler: {}", e);
+        }
     };
 
     #[cfg(unix)]
     let terminate = async {
-        signal::unix::signal(signal::unix::SignalKind::terminate())
-            .expect("failed to install signal handler")
-            .recv()
-            .await;
+        match signal::unix::signal(signal::unix::SignalKind::terminate()) {
+            Ok(mut signal) => {
+                signal.recv().await;
+            }
+            Err(e) => {
+                tracing::error!("Failed to install SIGTERM handler: {}", e);
+            }
+        }
     };
 
     #[cfg(not(unix))]

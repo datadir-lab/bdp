@@ -24,6 +24,7 @@ import {
   Building2,
   Info,
   Database,
+  ExternalLink,
 } from 'lucide-react';
 import type { DataSource, DataSourceVersion } from '@/lib/types/data-source';
 import { CliCommands } from './cli-commands';
@@ -32,6 +33,7 @@ import { DependenciesSection } from './dependencies-section';
 import { MetadataSidebar } from '@/components/data-sources/metadata-sidebar';
 import { SourceTypeContent } from '@/components/data-sources/source-type-content';
 import { SourceTypeBadge } from '@/components/shared/source-type-badge';
+import { SafeLink as Link } from '@/components/shared/safe-link';
 
 interface DataSourceDetailProps {
   dataSource: DataSource;
@@ -78,10 +80,28 @@ export function DataSourceDetail({
               {getCleanName(dataSource.name)}
             </h1>
 
-            {/* Organization - simplified, full details in sidebar */}
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Building2 className="h-4 w-4" />
-              <span>{dataSource.organization.name}</span>
+            {/* Organization and External Links */}
+            <div className="flex items-center gap-4 flex-wrap">
+              <Link
+                href={`/${locale}/org/${dataSource.organization.slug}`}
+                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors"
+              >
+                <Building2 className="h-4 w-4" />
+                <span>{dataSource.organization.name}</span>
+              </Link>
+
+              {/* UniProt Website Link - only show for UniProt proteins */}
+              {dataSource.organization.slug === 'uniprot' && dataSource.protein_metadata?.accession && (
+                <a
+                  href={`https://www.uniprot.org/uniprotkb/${dataSource.protein_metadata.accession}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  <span>View on UniProt.org</span>
+                </a>
+              )}
             </div>
 
             {/* Source Type Badge */}

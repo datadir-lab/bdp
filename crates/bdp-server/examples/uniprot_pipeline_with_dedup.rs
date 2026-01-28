@@ -155,13 +155,31 @@ async fn get_or_create_organization(db_pool: &sqlx::PgPool) -> Result<Uuid> {
         return Ok(id);
     }
 
-    // Create organization
+    // Create organization with full metadata
     let org_id = Uuid::new_v4();
     sqlx::query(
-        "INSERT INTO organizations (id, slug, name, is_system)
-         VALUES ($1, 'uniprot', 'Universal Protein Resource', true)"
+        "INSERT INTO organizations (
+            id, name, slug, description, website, is_system,
+            license, license_url, citation, citation_url,
+            version_strategy, version_description,
+            data_source_url, documentation_url, contact_email
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)"
     )
     .bind(org_id)
+    .bind("Universal Protein Resource")
+    .bind("uniprot")
+    .bind("UniProt Knowledgebase - Protein sequences and functional information")
+    .bind("https://www.uniprot.org")
+    .bind(true)
+    .bind("CC-BY-4.0")
+    .bind("https://creativecommons.org/licenses/by/4.0/")
+    .bind("UniProt Consortium (2023). UniProt: the Universal Protein Knowledgebase in 2023. Nucleic Acids Research.")
+    .bind("https://www.uniprot.org/help/publications")
+    .bind("date-based")
+    .bind("UniProt releases follow YYYY_MM format (e.g., 2025_01). Each release is a complete snapshot of the database.")
+    .bind("https://ftp.uniprot.org/pub/databases/uniprot/")
+    .bind("https://www.uniprot.org/help")
+    .bind("help@uniprot.org")
     .execute(db_pool)
     .await?;
 

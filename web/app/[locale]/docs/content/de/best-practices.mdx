@@ -26,7 +26,7 @@ BDP ist darauf ausgelegt, nahtlos mit Git für maximale Reproduzierbarkeit zu ar
 
 2. **Datenquellen mit BDP hinzufügen:**
    ```bash
-   bdp source add uniprot:P01308-fasta@1.1.0
+   bdp source add uniprot:P01308-fasta@1.0
    bdp pull
    ```
 
@@ -71,7 +71,7 @@ Verwenden Sie klare, beschreibende Namen in Ihrer `bdp.yml`:
 ```yaml
 sources:
   # Gut: Spezifisch und versioniert
-  - source: uniprot:P01308-fasta@1.1.0
+  - source: uniprot:P01308-fasta@1.0
     name: human-insulin
 
   # Vermeiden: Zu generisch
@@ -85,7 +85,7 @@ Verwenden Sie immer spezifische Versionen in Produktions-Workflows:
 
 ```bash
 # Gut: Explizite Version
-bdp source add uniprot:P01308-fasta@1.1.0
+bdp source add uniprot:P01308-fasta@1.0
 
 # Riskant: Kann sich über Zeit ändern
 bdp source add uniprot:P01308-fasta@latest
@@ -182,7 +182,7 @@ Prüfsummen immer verifizieren:
 bdp audit
 
 # Spezifische Quelle verifizieren
-bdp audit uniprot:P01308-fasta@1.1.0
+bdp audit uniprot:P01308-fasta@1.0
 ```
 
 ### Audit-Trail überprüfen

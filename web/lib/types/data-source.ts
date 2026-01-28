@@ -26,7 +26,19 @@ export interface ProteinFeature {
 export interface ProteinCrossReference {
   database: string;
   database_id: string;
-  metadata?: any;
+  metadata?: Record<string, unknown>;
+}
+
+export interface ProteinPublication {
+  reference_number: number;
+  position?: string;
+  comments: string[];
+  pubmed_id?: string;
+  doi?: string;
+  author_group?: string;
+  authors: string[];
+  title?: string;
+  location?: string;
 }
 
 export interface ProteinMetadata {
@@ -42,6 +54,9 @@ export interface ProteinMetadata {
   protein_existence?: number;
   keywords?: string[];
   organelle?: string;
+  entry_created?: string;
+  sequence_updated?: string;
+  annotation_updated?: string;
 }
 
 export interface VersionFile {
@@ -79,9 +94,25 @@ export interface DataSourceVersion {
   dependency_count: number;
   published_at: string;
   updated_at?: string;
-  additional_metadata?: Record<string, any>;
+  additional_metadata?: Record<string, unknown>;
 }
 
+// List item type - matches backend list API response (flat structure)
+export interface DataSourceListItem {
+  id: string;
+  organization_id: string;
+  organization_slug: string;
+  slug: string;
+  name: string;
+  source_type: string;
+  external_id?: string;
+  organism_scientific_name?: string;
+  latest_version?: string;
+  total_downloads: number;
+  created_at: string;
+}
+
+// Full data source type - matches backend detail API response (nested structure)
 export interface DataSource {
   id: string;
   organization: Organization;
@@ -102,13 +133,12 @@ export interface DataSource {
 
 export interface Dependency {
   id: string;
-  source: string; // Full spec: 'uniprot:P01308-fasta@1.0'
-  organization: string;
-  name: string;
-  version: string;
-  format: string;
-  checksum: string;
-  size_bytes: number;
+  organization_slug: string;
+  entry_slug: string;
+  entry_name: string;
+  entry_type: string;
+  required_version: string;
+  dependency_type: string;
 }
 
 export interface DependenciesResponse {

@@ -30,7 +30,7 @@ pub trait DataSourceParser: Send + Sync {
     ///
     /// Default implementation returns None, forcing full parse to count.
     /// Implementations can override if they can count records efficiently.
-    async fn count_records(&self, data: &[u8]) -> Result<Option<usize>> {
+    async fn count_records(&self, _data: &[u8]) -> Result<Option<usize>> {
         Ok(None)
     }
 

@@ -5,6 +5,17 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use uuid::Uuid;
 
+// ============================================================================
+// Audit Query Constants
+// ============================================================================
+
+/// Default number of audit entries returned per query
+pub const DEFAULT_AUDIT_QUERY_LIMIT: i64 = 100;
+
+/// Maximum number of audit entries that can be returned in a single query.
+/// This prevents excessive memory usage and query timeouts.
+pub const MAX_AUDIT_QUERY_LIMIT: i64 = 1000;
+
 /// Audit log entry from the database
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct AuditEntry {
@@ -160,7 +171,7 @@ pub struct AuditQuery {
 }
 
 fn default_limit() -> i64 {
-    100
+    DEFAULT_AUDIT_QUERY_LIMIT
 }
 
 impl Default for AuditQuery {
@@ -260,17 +271,30 @@ impl AuditEntryBuilder {
         self
     }
 
+    /// Build the CreateAuditEntry
+    ///
+    /// # Panics
+    /// Panics if action or resource_type are not set. Use `try_build()` for fallible construction.
     pub fn build(self) -> CreateAuditEntry {
-        CreateAuditEntry {
+        self.try_build()
+            .expect("AuditEntryBuilder: action and resource_type are required")
+    }
+
+    /// Try to build the CreateAuditEntry, returning an error if required fields are missing
+    pub fn try_build(self) -> Result<CreateAuditEntry, &'static str> {
+        let action = self.action.ok_or("action is required")?;
+        let resource_type = self.resource_type.ok_or("resource_type is required")?;
+
+        Ok(CreateAuditEntry {
             user_id: self.user_id,
-            action: self.action.expect("action is required"),
-            resource_type: self.resource_type.expect("resource_type is required"),
+            action,
+            resource_type,
             resource_id: self.resource_id,
             changes: self.changes,
             metadata: self.metadata,
             ip_address: self.ip_address,
             user_agent: self.user_agent,
-        }
+        })
     }
 }
 

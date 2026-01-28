@@ -31,6 +31,7 @@
 
 use bdp_common::types::Pagination;
 use bdp_server::db::{create_pool, health_check, organizations, DbConfig, DbError};
+use tracing::info;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -40,36 +41,39 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_env_filter("info")
         .init();
 
-    println!("=== BDP Database Usage Example ===\n");
+    info!("=== BDP Database Usage Example ===");
 
     // ========================================================================
     // 1. Database Connection Setup
     // ========================================================================
 
-    println!("1. Setting up database connection...");
+    info!("1. Setting up database connection...");
 
     // Load configuration from environment
     let config = DbConfig::from_env()?;
-    println!("   Database URL: {}", mask_password(&config.url));
-    println!("   Max connections: {}", config.max_connections);
+    info!(
+        url = %mask_password(&config.url),
+        max_connections = config.max_connections,
+        "Database configuration"
+    );
 
     // Create connection pool
     let pool = create_pool(&config).await?;
-    println!("   ✓ Connection pool created\n");
+    info!("Connection pool created");
 
     // ========================================================================
     // 2. Health Check
     // ========================================================================
 
-    println!("2. Performing health check...");
+    info!("2. Performing health check...");
     health_check(&pool).await?;
-    println!("   ✓ Database is healthy\n");
+    info!("Database is healthy");
 
     // ========================================================================
     // 3. Create Organizations
     // ========================================================================
 
-    println!("3. Creating sample organizations...");
+    info!("3. Creating sample organizations...");
 
     let org1 = organizations::create_organization(
         &pool,
@@ -81,12 +85,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     match org1 {
         Ok(org) => {
-            println!("   ✓ Created: {} ({})", org.name, org.slug);
-            println!("     ID: {}", org.id);
-            println!("     Created at: {}", org.created_at);
+            info!(
+                name = %org.name,
+                slug = %org.slug,
+                id = %org.id,
+                created_at = %org.created_at,
+                "Created organization"
+            );
         },
         Err(DbError::Duplicate(_)) => {
-            println!("   ⚠ Organization 'acme-corp' already exists (skipping)");
+            info!(slug = "acme-corp", "Organization already exists (skipping)");
         },
         Err(e) => return Err(e.into()),
     }
@@ -100,9 +108,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     .await;
 
     match org2 {
-        Ok(org) => println!("   ✓ Created: {} ({})", org.name, org.slug),
+        Ok(org) => info!(name = %org.name, slug = %org.slug, "Created organization"),
         Err(DbError::Duplicate(_)) => {
-            println!("   ⚠ Organization 'biotech-labs' already exists (skipping)");
+            info!(slug = "biotech-labs", "Organization already exists (skipping)");
         },
         Err(e) => return Err(e.into()),
     }
@@ -112,55 +120,56 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .await;
 
     match org3 {
-        Ok(org) => println!("   ✓ Created: {} ({})", org.name, org.slug),
+        Ok(org) => info!(name = %org.name, slug = %org.slug, "Created organization"),
         Err(DbError::Duplicate(_)) => {
-            println!("   ⚠ Organization 'data-science-inc' already exists (skipping)");
+            info!(slug = "data-science-inc", "Organization already exists (skipping)");
         },
         Err(e) => return Err(e.into()),
     }
-
-    println!();
 
     // ========================================================================
     // 4. Retrieve Organization
     // ========================================================================
 
-    println!("4. Retrieving organization by slug...");
+    info!("4. Retrieving organization by slug...");
 
     let org = organizations::get_organization_by_slug(&pool, "acme-corp").await?;
-    println!("   ✓ Found: {}", org.name);
-    println!("     Description: {:?}", org.description);
-    println!("     Last updated: {}\n", org.updated_at);
+    info!(
+        name = %org.name,
+        description = ?org.description,
+        updated_at = %org.updated_at,
+        "Found organization"
+    );
 
     // ========================================================================
     // 5. List Organizations (with pagination)
     // ========================================================================
 
-    println!("5. Listing organizations with pagination...");
+    info!("5. Listing organizations with pagination...");
 
     // First page
     let page1 = organizations::list_organizations(&pool, Pagination::new(2, 0)).await?;
-    println!("   Page 1 ({} items):", page1.len());
+    info!(page = 1, items = page1.len(), "Page results");
     for (i, org) in page1.iter().enumerate() {
-        println!("     {}. {} ({})", i + 1, org.name, org.slug);
+        info!(index = i + 1, name = %org.name, slug = %org.slug, "Organization");
     }
 
     // Second page
     let page2 = organizations::list_organizations(&pool, Pagination::new(2, 2)).await?;
-    println!("   Page 2 ({} items):", page2.len());
+    info!(page = 2, items = page2.len(), "Page results");
     for (i, org) in page2.iter().enumerate() {
-        println!("     {}. {} ({})", i + 1, org.name, org.slug);
+        info!(index = i + 1, name = %org.name, slug = %org.slug, "Organization");
     }
 
     // Count total
     let total = organizations::count_organizations(&pool).await?;
-    println!("   Total organizations: {}\n", total);
+    info!(total = total, "Total organizations");
 
     // ========================================================================
     // 6. Update Organization
     // ========================================================================
 
-    println!("6. Updating organization...");
+    info!("6. Updating organization...");
 
     let updated = organizations::update_organization(
         &pool,
@@ -170,65 +179,66 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     )
     .await?;
 
-    println!("   ✓ Updated: {}", updated.name);
-    println!("     New description: {:?}", updated.description);
-    println!("     Updated at: {}\n", updated.updated_at);
+    info!(
+        name = %updated.name,
+        description = ?updated.description,
+        updated_at = %updated.updated_at,
+        "Updated organization"
+    );
 
     // ========================================================================
     // 7. Search Organizations
     // ========================================================================
 
-    println!("7. Searching organizations...");
+    info!("7. Searching organizations...");
 
     let search_results =
         organizations::search_organizations(&pool, "bio", Pagination::default()).await?;
 
-    println!("   Found {} results for 'bio':", search_results.len());
+    info!(query = "bio", count = search_results.len(), "Search results");
     for org in search_results {
-        println!("     - {} ({})", org.name, org.slug);
+        info!(name = %org.name, slug = %org.slug, "Match");
     }
-    println!();
 
     // ========================================================================
     // 8. Error Handling
     // ========================================================================
 
-    println!("8. Demonstrating error handling...");
+    info!("8. Demonstrating error handling...");
 
     // Try to get a non-existent organization
     match organizations::get_organization_by_slug(&pool, "non-existent").await {
-        Ok(_) => println!("   Unexpected: Found non-existent organization"),
-        Err(DbError::NotFound(msg)) => println!("   ✓ Correctly handled NotFound: {}", msg),
-        Err(e) => println!("   ✗ Unexpected error: {}", e),
+        Ok(_) => info!("Unexpected: Found non-existent organization"),
+        Err(DbError::NotFound(msg)) => info!(message = %msg, "Correctly handled NotFound"),
+        Err(e) => info!(error = %e, "Unexpected error"),
     }
 
     // Try to create a duplicate organization
     match organizations::create_organization(&pool, "acme-corp", "Duplicate", None).await {
-        Ok(_) => println!("   Unexpected: Created duplicate organization"),
-        Err(DbError::Duplicate(msg)) => println!("   ✓ Correctly handled Duplicate: {}", msg),
-        Err(e) => println!("   ✗ Unexpected error: {}", e),
+        Ok(_) => info!("Unexpected: Created duplicate organization"),
+        Err(DbError::Duplicate(msg)) => info!(message = %msg, "Correctly handled Duplicate"),
+        Err(e) => info!(error = %e, "Unexpected error"),
     }
-    println!();
 
     // ========================================================================
     // 9. Cleanup (Optional)
     // ========================================================================
 
-    println!("9. Cleanup (deleting test organizations)...");
-    println!("   Skipping cleanup - organizations left in database for inspection");
-    println!("   To clean up manually, run:");
-    println!("   DELETE FROM organizations WHERE slug IN ('acme-corp', 'biotech-labs', 'data-science-inc');\n");
+    info!("9. Cleanup (deleting test organizations)...");
+    info!("Skipping cleanup - organizations left in database for inspection");
+    info!("To clean up manually, run:");
+    info!("DELETE FROM organizations WHERE slug IN ('acme-corp', 'biotech-labs', 'data-science-inc');");
 
     // Uncomment to actually delete:
     // for slug in &["acme-corp", "biotech-labs", "data-science-inc"] {
     //     match organizations::delete_organization(&pool, slug).await {
-    //         Ok(_) => println!("   ✓ Deleted: {}", slug),
-    //         Err(DbError::NotFound(_)) => println!("   ⚠ Not found: {}", slug),
-    //         Err(e) => println!("   ✗ Error deleting {}: {}", slug, e),
+    //         Ok(_) => info!(slug = %slug, "Deleted organization"),
+    //         Err(DbError::NotFound(_)) => info!(slug = %slug, "Organization not found"),
+    //         Err(e) => info!(slug = %slug, error = %e, "Error deleting"),
     //     }
     // }
 
-    println!("=== Example Complete ===");
+    info!("=== Example Complete ===");
 
     Ok(())
 }

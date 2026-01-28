@@ -290,7 +290,7 @@ impl NcbiTaxonomyStorage {
         &self,
         tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
         chunk: &[TaxonomyEntry],
-        existing_taxonomy_ids: &HashMap<i32, Uuid>,
+        _existing_taxonomy_ids: &HashMap<i32, Uuid>,
     ) -> Result<()> {
         // 1. Batch insert/update registry_entries
         let entry_id_map = self.batch_upsert_registry_entries(tx, chunk).await?;
@@ -399,8 +399,12 @@ impl NcbiTaxonomyStorage {
         );
 
         query_builder.push_values(chunk, |mut b, entry| {
+            // Entry ID is guaranteed to exist since we just inserted it in batch_upsert_registry_entries
             let entry_id = entry_id_map.get(&entry.taxonomy_id)
-                .expect("Entry ID must exist in map - was just inserted in batch_upsert_registry_entries");
+                .unwrap_or_else(|| panic!(
+                    "Entry ID must exist in map for taxonomy_id {} - was just inserted in batch_upsert_registry_entries",
+                    entry.taxonomy_id
+                ));
             b.push_bind(entry_id)
                 .push_bind(entry.taxonomy_id)
                 .push_bind(&entry.scientific_name)
@@ -473,15 +477,19 @@ impl NcbiTaxonomyStorage {
         &self,
         tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
         chunk: &[TaxonomyEntry],
-        entry_id_map: &HashMap<i32, Uuid>,
+        _entry_id_map: &HashMap<i32, Uuid>,
         version_id_map: &HashMap<i32, Uuid>,
     ) -> Result<()> {
         // Generate all file contents and upload to S3 if configured
         let mut file_data = Vec::new();
 
         for entry in chunk {
+            // Version ID is guaranteed to exist since we just inserted it in batch_insert_versions
             let version_id = version_id_map.get(&entry.taxonomy_id)
-                .expect("Version ID must exist in map - was just inserted in batch_insert_versions");
+                .unwrap_or_else(|| panic!(
+                    "Version ID must exist in map for taxonomy_id {} - was just inserted in batch_insert_versions",
+                    entry.taxonomy_id
+                ));
 
             // Generate JSON content
             let json_content = entry.to_json()?;

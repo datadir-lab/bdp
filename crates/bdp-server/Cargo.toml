@@ -39,6 +39,10 @@ path = "src/bin/go_test_human.rs"
 name = "go_test_local_ontology"
 path = "src/bin/go_test_local_ontology.rs"
 
+[[bench]]
+name = "search_performance"
+harness = false
+
 [dependencies]
 # ============================================================================
 # Workspace Dependencies
@@ -129,6 +133,7 @@ md5 = { version = "0.7", features = ["std"] }
 async-trait = "0.1.89"
 digest = "0.10.7"
 regex = "1.12.2"
+scraper = "0.22"  # HTML parsing for GO version discovery
 
 [dev-dependencies]
 # Testing
@@ -143,6 +148,9 @@ testcontainers-modules = { version = "0.11", features = ["postgres", "minio"] }
 serial_test = "3.2"
 ctor = "0.2"
 reqwest = { workspace = true }
+
+# Benchmarking
+criterion = { version = "0.5", features = ["html_reports", "async_tokio"] }
 
 # Test utilities from workspace
 tokio = { workspace = true, features = ["test-util"] }

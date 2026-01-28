@@ -84,18 +84,10 @@ export function DependenciesSection({
     fetchDependencies();
   }, [org, name, version, page, debouncedSearch, formatFilter]);
 
-  const formatBytes = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
-  };
-
-  // Get unique formats from first page for filter (in real app, backend should provide this)
-  const availableFormats = React.useMemo(() => {
-    const formats = new Set(dependencies.map((dep) => dep.format));
-    return Array.from(formats);
+  // Get unique types from first page for filter
+  const availableTypes = React.useMemo(() => {
+    const types = new Set(dependencies.map((dep) => dep.entry_type));
+    return Array.from(types);
   }, [dependencies]);
 
   return (
@@ -123,13 +115,13 @@ export function DependenciesSection({
 
         <Select value={formatFilter} onValueChange={setFormatFilter}>
           <SelectTrigger className="w-full sm:w-40">
-            <SelectValue placeholder="Format" />
+            <SelectValue placeholder="Type" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Formats</SelectItem>
-            {availableFormats.map((format) => (
-              <SelectItem key={format} value={format}>
-                {format.toUpperCase()}
+            <SelectItem value="all">All Types</SelectItem>
+            {availableTypes.map((type) => (
+              <SelectItem key={type} value={type}>
+                {type.charAt(0).toUpperCase() + type.slice(1)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -159,9 +151,9 @@ export function DependenciesSection({
                 <TableRow>
                   <TableHead>Data Source</TableHead>
                   <TableHead>Organization</TableHead>
+                  <TableHead>Type</TableHead>
                   <TableHead>Version</TableHead>
-                  <TableHead>Format</TableHead>
-                  <TableHead className="text-right">Size</TableHead>
+                  <TableHead>Dependency Type</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -170,22 +162,27 @@ export function DependenciesSection({
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2">
                         <Package className="h-4 w-4 text-muted-foreground" />
-                        {dep.name}
+                        <div>
+                          <div>{dep.entry_name}</div>
+                          <code className="text-xs text-muted-foreground">{dep.entry_slug}</code>
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline">{dep.organization}</Badge>
+                      <Badge variant="outline">{dep.organization_slug}</Badge>
                     </TableCell>
                     <TableCell>
-                      <code className="text-xs">v{dep.version}</code>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="secondary" className="uppercase">
-                        {dep.format}
+                      <Badge variant="secondary" className="capitalize">
+                        {dep.entry_type}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-right">
-                      {formatBytes(dep.size_bytes)}
+                    <TableCell>
+                      <code className="text-xs">v{dep.required_version}</code>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="capitalize">
+                        {dep.dependency_type}
+                      </Badge>
                     </TableCell>
                   </TableRow>
                 ))}

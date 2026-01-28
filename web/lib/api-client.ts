@@ -38,7 +38,7 @@ class ApiClient {
       ...(isServer ? { next: { revalidate: 0 } } : {}),
     };
 
-    let lastError: any;
+    let lastError: unknown;
 
     for (let i = 0; i < retries; i++) {
       try {
@@ -96,7 +96,13 @@ class ApiClient {
           throw error;
         }
 
-        // Retry on network errors and 5xx server errors
+        // Don't retry on structured API errors with 5xx status (e.g., INTERNAL_ERROR)
+        // These are application errors from the backend, not transient network issues
+        if ((error as ApiError).status && (error as ApiError).status >= 500 && (error as ApiError).code) {
+          throw error;
+        }
+
+        // Retry on network errors and generic 5xx server errors
         if (i < retries - 1) {
           // Exponential backoff: 1s, 2s, 3s
           const delay = 1000 * (i + 1);
@@ -107,8 +113,11 @@ class ApiClient {
       }
     }
 
-    // All retries failed
+    // All retries failed - preserve original error if it's an ApiError
     console.error(`All retries failed for ${url}:`, lastError);
+    if ((lastError as ApiError).code && (lastError as ApiError).status) {
+      throw lastError;
+    }
     const apiError: ApiError = {
       message: lastError instanceof Error ? lastError.message : 'Network error after retries',
       code: 'NETWORK_ERROR',

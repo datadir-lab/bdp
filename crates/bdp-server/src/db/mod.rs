@@ -2,16 +2,47 @@ use sqlx::postgres::{PgPool, PgPoolOptions};
 use std::time::Duration;
 use thiserror::Error;
 
+/// Database operation errors with contextual information
 #[derive(Error, Debug)]
 pub enum DbError {
-    #[error("Database error: {0}")]
+    /// SQL query or connection error
+    #[error("Database query failed: {0}")]
     Sqlx(#[from] sqlx::Error),
-    #[error("Configuration error: {0}")]
+
+    /// Database configuration is invalid or missing
+    #[error("Database configuration error: {0}. Check DATABASE_URL and connection settings.")]
     Config(String),
-    #[error("Resource not found: {0}")]
+
+    /// Requested record does not exist
+    #[error("{0}")]
     NotFound(String),
-    #[error("Resource already exists: {0}")]
+
+    /// Record already exists (unique constraint violation)
+    #[error("{0}")]
     Duplicate(String),
+}
+
+impl DbError {
+    /// Create a not found error with resource context
+    pub fn not_found(resource_type: &str, identifier: &str) -> Self {
+        Self::NotFound(format!(
+            "{} '{}' not found in database",
+            resource_type, identifier
+        ))
+    }
+
+    /// Create a duplicate error with resource context
+    pub fn duplicate(resource_type: &str, identifier: &str) -> Self {
+        Self::Duplicate(format!(
+            "{} '{}' already exists",
+            resource_type, identifier
+        ))
+    }
+
+    /// Create a configuration error
+    pub fn config(message: impl Into<String>) -> Self {
+        Self::Config(message.into())
+    }
 }
 
 pub type DbResult<T> = Result<T, DbError>;

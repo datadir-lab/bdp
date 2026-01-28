@@ -41,7 +41,7 @@ use clap::{Parser, Subcommand};
 pub struct Cli {
     /// Subcommand to execute
     #[command(subcommand)]
-    pub command: Commands,
+    pub command: Option<Commands>,
 
     /// Verbose output
     #[arg(short, long, global = true)]
@@ -50,6 +50,10 @@ pub struct Cli {
     /// Server URL
     #[arg(long, env = "BDP_SERVER_URL", default_value = "http://localhost:8000", global = true)]
     pub server_url: String,
+
+    /// Generate markdown documentation (hidden)
+    #[arg(long, hide = true)]
+    pub markdown_help: bool,
 }
 
 /// Available CLI commands

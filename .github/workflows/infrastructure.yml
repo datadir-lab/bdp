@@ -1,0 +1,285 @@
+# =============================================================================
+# Infrastructure CI/CD - Terraform on OVH Cloud
+# =============================================================================
+#
+# Security Model (Open Source Safe):
+# - Secrets stored in GitHub Environment (not repo secrets)
+# - State stored in Terraform Cloud (not in repo)
+# - PRs can only run `plan` (no apply)
+# - Apply requires manual approval from maintainers
+# - Fork PRs cannot access secrets or run workflows
+#
+# Required GitHub Setup:
+# 1. Create Environment "production" in repo settings
+# 2. Add required reviewers (maintainers only)
+# 3. Add environment secrets (see below)
+#
+# Required Environment Secrets:
+# - TF_API_TOKEN: Terraform Cloud API token
+# - OVH_APPLICATION_KEY: OVH API key
+# - OVH_APPLICATION_SECRET: OVH API secret
+# - OVH_CONSUMER_KEY: OVH consumer key
+# - OVH_PROJECT_ID: OVH Public Cloud project ID
+# - OPENSTACK_USER_NAME: OpenStack username
+# - OPENSTACK_PASSWORD: OpenStack password
+# - SSH_PUBLIC_KEY: SSH public key for instance access
+
+name: Infrastructure
+
+on:
+  # Plan on PR to infrastructure files
+  pull_request:
+    paths:
+      - 'infrastructure/**'
+      - '.github/workflows/infrastructure.yml'
+
+  # Manual trigger for apply/destroy
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Terraform action to perform'
+        required: true
+        type: choice
+        options:
+          - plan
+          - apply
+          - destroy
+        default: plan
+
+      confirm_destroy:
+        description: 'Type "destroy" to confirm destruction'
+        required: false
+        type: string
+
+# Prevent concurrent runs
+concurrency:
+  group: terraform-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  TF_VERSION: '1.6.0'
+  TF_WORKING_DIR: 'infrastructure'
+
+jobs:
+  # ===========================================================================
+  # Security Check - Block fork PRs from accessing secrets
+  # ===========================================================================
+  security-check:
+    runs-on: ubuntu-latest
+    outputs:
+      is_fork: ${{ steps.check.outputs.is_fork }}
+    steps:
+      - name: Check if fork
+        id: check
+        run: |
+          if [ "${{ github.event.pull_request.head.repo.fork }}" == "true" ]; then
+            echo "is_fork=true" >> $GITHUB_OUTPUT
+            echo "::warning::Fork PR detected - infrastructure workflows are disabled for security"
+          else
+            echo "is_fork=false" >> $GITHUB_OUTPUT
+          fi
+
+  # ===========================================================================
+  # Terraform Plan - Runs on PRs and manual trigger
+  # ===========================================================================
+  plan:
+    name: Terraform Plan
+    runs-on: ubuntu-latest
+    needs: security-check
+    if: |
+      needs.security-check.outputs.is_fork == 'false' &&
+      (github.event_name == 'pull_request' ||
+       (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'plan'))
+
+    # Use production environment for secrets (but no approval needed for plan)
+    environment: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+
+      - name: Create terraform.tfvars
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          cat > terraform.tfvars << 'EOF'
+          ovh_application_key    = "${{ secrets.OVH_APPLICATION_KEY }}"
+          ovh_application_secret = "${{ secrets.OVH_APPLICATION_SECRET }}"
+          ovh_consumer_key       = "${{ secrets.OVH_CONSUMER_KEY }}"
+          ovh_project_id         = "${{ secrets.OVH_PROJECT_ID }}"
+          openstack_user_name    = "${{ secrets.OPENSTACK_USER_NAME }}"
+          openstack_password     = "${{ secrets.OPENSTACK_PASSWORD }}"
+          ssh_public_key         = "${{ secrets.SSH_PUBLIC_KEY }}"
+          EOF
+
+      - name: Terraform Init
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform init
+
+      - name: Terraform Validate
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform validate
+
+      - name: Terraform Plan
+        id: plan
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          terraform plan -no-color -out=tfplan 2>&1 | tee plan.txt
+          echo "plan_output<<EOF" >> $GITHUB_OUTPUT
+          cat plan.txt >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+        continue-on-error: true
+
+      - name: Comment PR with Plan
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const output = `#### Terraform Plan 📖
+
+            <details><summary>Show Plan</summary>
+
+            \`\`\`terraform
+            ${{ steps.plan.outputs.plan_output }}
+            \`\`\`
+
+            </details>
+
+            *Pushed by: @${{ github.actor }}, Action: \`${{ github.event_name }}\`*`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            })
+
+      - name: Plan Status
+        if: steps.plan.outcome == 'failure'
+        run: exit 1
+
+      - name: Upload Plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan
+          path: ${{ env.TF_WORKING_DIR }}/tfplan
+          retention-days: 5
+
+  # ===========================================================================
+  # Terraform Apply - Requires manual approval
+  # ===========================================================================
+  apply:
+    name: Terraform Apply
+    runs-on: ubuntu-latest
+    needs: security-check
+    if: |
+      needs.security-check.outputs.is_fork == 'false' &&
+      github.event_name == 'workflow_dispatch' &&
+      github.event.inputs.action == 'apply'
+
+    # Requires manual approval from maintainers
+    environment:
+      name: production
+      url: ${{ steps.output.outputs.instance_ip }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+
+      - name: Create terraform.tfvars
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          cat > terraform.tfvars << 'EOF'
+          ovh_application_key    = "${{ secrets.OVH_APPLICATION_KEY }}"
+          ovh_application_secret = "${{ secrets.OVH_APPLICATION_SECRET }}"
+          ovh_consumer_key       = "${{ secrets.OVH_CONSUMER_KEY }}"
+          ovh_project_id         = "${{ secrets.OVH_PROJECT_ID }}"
+          openstack_user_name    = "${{ secrets.OPENSTACK_USER_NAME }}"
+          openstack_password     = "${{ secrets.OPENSTACK_PASSWORD }}"
+          ssh_public_key         = "${{ secrets.SSH_PUBLIC_KEY }}"
+          EOF
+
+      - name: Terraform Init
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform init
+
+      - name: Terraform Apply
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform apply -auto-approve
+
+      - name: Get Outputs
+        id: output
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          echo "instance_ip=$(terraform output -raw instance_ip)" >> $GITHUB_OUTPUT
+
+      - name: Summary
+        run: |
+          echo "## Infrastructure Deployed 🚀" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Resource | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Instance IP | ${{ steps.output.outputs.instance_ip }} |" >> $GITHUB_STEP_SUMMARY
+
+  # ===========================================================================
+  # Terraform Destroy - Requires manual approval + confirmation
+  # ===========================================================================
+  destroy:
+    name: Terraform Destroy
+    runs-on: ubuntu-latest
+    needs: security-check
+    if: |
+      needs.security-check.outputs.is_fork == 'false' &&
+      github.event_name == 'workflow_dispatch' &&
+      github.event.inputs.action == 'destroy' &&
+      github.event.inputs.confirm_destroy == 'destroy'
+
+    environment: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+
+      - name: Create terraform.tfvars
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          cat > terraform.tfvars << 'EOF'
+          ovh_application_key    = "${{ secrets.OVH_APPLICATION_KEY }}"
+          ovh_application_secret = "${{ secrets.OVH_APPLICATION_SECRET }}"
+          ovh_consumer_key       = "${{ secrets.OVH_CONSUMER_KEY }}"
+          ovh_project_id         = "${{ secrets.OVH_PROJECT_ID }}"
+          openstack_user_name    = "${{ secrets.OPENSTACK_USER_NAME }}"
+          openstack_password     = "${{ secrets.OPENSTACK_PASSWORD }}"
+          ssh_public_key         = "${{ secrets.SSH_PUBLIC_KEY }}"
+          EOF
+
+      - name: Terraform Init
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform init
+
+      - name: Terraform Destroy
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform destroy -auto-approve
+
+      - name: Summary
+        run: |
+          echo "## Infrastructure Destroyed ⚠️" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "All resources have been destroyed." >> $GITHUB_STEP_SUMMARY

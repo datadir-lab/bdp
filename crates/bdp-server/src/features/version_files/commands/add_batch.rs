@@ -1,4 +1,3 @@
-use chrono::{DateTime, Utc};
 use mediator::Request;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;

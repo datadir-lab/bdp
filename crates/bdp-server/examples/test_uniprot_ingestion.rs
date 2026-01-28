@@ -8,6 +8,7 @@ use bdp_server::ingest::uniprot::{
     UniProtFtpConfig, UniProtPipeline, VersionDiscovery,
 };
 use sqlx::PgPool;
+use tracing::{info, error};
 use uuid::Uuid;
 
 #[tokio::main]
@@ -17,43 +18,43 @@ async fn main() -> Result<()> {
         .with_env_filter("info,bdp_server=debug")
         .init();
 
-    println!("=== UniProt Ingestion System Test ===\n");
+    info!("=== UniProt Ingestion System Test ===");
 
     // Connect to database
     let database_url = std::env::var("DATABASE_URL")
         .unwrap_or_else(|_| "postgresql://bdp:bdp_dev_password@localhost:5432/bdp".to_string());
 
-    println!("1. Connecting to database...");
+    info!("1. Connecting to database...");
     let pool = PgPool::connect(&database_url).await?;
-    println!("   ✓ Connected\n");
+    info!("Connected");
 
     // Get or create test organization
-    println!("2. Setting up test organization...");
+    info!("2. Setting up test organization...");
     let org_id = get_or_create_test_org(&pool).await?;
-    println!("   ✓ Organization ID: {}\n", org_id);
+    info!(org_id = %org_id, "Organization ready");
 
     // Test configuration system
-    println!("3. Testing configuration system...");
+    info!("3. Testing configuration system...");
     test_configuration()?;
-    println!("   ✓ Configuration system works\n");
+    info!("Configuration system works");
 
     // Test version discovery
-    println!("4. Testing version discovery...");
+    info!("4. Testing version discovery...");
     test_version_discovery(&pool, org_id).await?;
-    println!("   ✓ Version discovery works\n");
+    info!("Version discovery works");
 
     // Test mode selection
-    println!("5. Testing mode selection...");
+    info!("5. Testing mode selection...");
     test_mode_selection()?;
-    println!("   ✓ Mode selection works\n");
+    info!("Mode selection works");
 
-    println!("=== All Tests Passed! ===\n");
-    println!("The UniProt ingestion system is ready for use.");
-    println!("\nTo run actual ingestion:");
-    println!("  1. Set INGEST_ENABLED=true");
-    println!("  2. Set INGEST_UNIPROT_MODE=latest or historical");
-    println!("  3. Configure mode-specific settings");
-    println!("  4. Start the server or call pipeline.run_with_mode()");
+    info!("=== All Tests Passed! ===");
+    info!("The UniProt ingestion system is ready for use.");
+    info!("To run actual ingestion:");
+    info!("  1. Set INGEST_ENABLED=true");
+    info!("  2. Set INGEST_UNIPROT_MODE=latest or historical");
+    info!("  3. Configure mode-specific settings");
+    info!("  4. Start the server or call pipeline.run_with_mode()");
 
     Ok(())
 }
@@ -89,8 +90,11 @@ fn test_configuration() -> Result<()> {
         auto_ingest: false,
         ignore_before: Some("2024_01".to_string()),
     };
-    println!("   - Latest config: check_interval={}s, auto_ingest={}",
-             latest.check_interval_secs, latest.auto_ingest);
+    info!(
+        check_interval_secs = latest.check_interval_secs,
+        auto_ingest = latest.auto_ingest,
+        "Latest config"
+    );
 
     // Test Historical mode config
     let historical = HistoricalConfig {
@@ -99,22 +103,24 @@ fn test_configuration() -> Result<()> {
         batch_size: 3,
         skip_existing: true,
     };
-    println!("   - Historical config: range={} to {}, batch_size={}",
-             historical.start_version,
-             historical.end_version.as_deref().unwrap_or("latest"),
-             historical.batch_size);
+    info!(
+        start = %historical.start_version,
+        end = historical.end_version.as_deref().unwrap_or("latest"),
+        batch_size = historical.batch_size,
+        "Historical config"
+    );
 
     // Test mode enum
     let mode_latest = IngestionMode::Latest(latest);
     let mode_historical = IngestionMode::Historical(historical);
 
     match mode_latest {
-        IngestionMode::Latest(_) => println!("   - Latest mode recognized"),
+        IngestionMode::Latest(_) => info!("Latest mode recognized"),
         _ => {}
     }
 
     match mode_historical {
-        IngestionMode::Historical(_) => println!("   - Historical mode recognized"),
+        IngestionMode::Historical(_) => info!("Historical mode recognized"),
         _ => {}
     }
 
@@ -127,15 +133,15 @@ async fn test_version_discovery(pool: &PgPool, org_id: Uuid) -> Result<()> {
 
     // Test get_last_ingested_version
     let last_version = discovery.get_last_ingested_version(pool, org_id).await?;
-    println!("   - Last ingested version: {:?}", last_version);
+    info!(last_version = ?last_version, "Last ingested version");
 
     // Test version_exists_in_db
     let exists = discovery.version_exists_in_db(pool, "2025_01").await?;
-    println!("   - Version 2025_01 exists: {}", exists);
+    info!(version = "2025_01", exists = exists, "Version exists check");
 
     // Test was_ingested_as_current
     let was_current = discovery.was_ingested_as_current(pool, "2025_01").await?;
-    println!("   - Version 2025_01 was current: {}", was_current);
+    info!(version = "2025_01", was_current = was_current, "Was current check");
 
     Ok(())
 }
@@ -149,10 +155,13 @@ fn test_mode_selection() -> Result<()> {
 
     match config.ingestion_mode {
         IngestionMode::Latest(ref cfg) => {
-            println!("   - Parsed Latest mode with check_interval={}s", cfg.check_interval_secs);
+            info!(
+                check_interval_secs = cfg.check_interval_secs,
+                "Parsed Latest mode"
+            );
         }
         IngestionMode::Historical(_) => {
-            println!("   - ERROR: Expected Latest mode");
+            error!("ERROR: Expected Latest mode");
         }
     }
 
@@ -165,11 +174,14 @@ fn test_mode_selection() -> Result<()> {
 
     match config.ingestion_mode {
         IngestionMode::Historical(ref cfg) => {
-            println!("   - Parsed Historical mode with start={}, batch_size={}",
-                     cfg.start_version, cfg.batch_size);
+            info!(
+                start = %cfg.start_version,
+                batch_size = cfg.batch_size,
+                "Parsed Historical mode"
+            );
         }
         IngestionMode::Latest(_) => {
-            println!("   - ERROR: Expected Historical mode");
+            error!("ERROR: Expected Historical mode");
         }
     }
 

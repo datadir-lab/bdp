@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE ingestion_raw_files\n            SET computed_md5 = $1, verified_md5 = $2, verified_at = NOW()\n            WHERE id = $3\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Varchar",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "7d4f6d158a9bc77fad2e23becc2cb5409f5a99d2521b90e21edff8f3a2258277"
+}

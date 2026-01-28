@@ -14,6 +14,32 @@ use crate::ingest::citations::{setup_citation_policy, uniprot_policy};
 use crate::storage::Storage;
 use std::collections::HashMap;
 
+// ============================================================================
+// UniProt Storage Constants
+// ============================================================================
+
+/// Number of concurrent S3 uploads to process at once.
+/// Higher values improve throughput but increase memory usage.
+pub const S3_UPLOAD_BATCH_SIZE: usize = 50;
+
+/// Number of entries to process in each database micro-transaction.
+/// Smaller values reduce memory usage and improve failure isolation.
+pub const DB_MICRO_BATCH_SIZE: usize = 10;
+
+/// Maximum number of features/cross-references/comments to insert in a single batch.
+/// Limited by PostgreSQL parameter count limits.
+pub const MAX_INSERT_BATCH_SIZE: usize = 100;
+
+/// Maximum number of publications to insert in a single batch.
+/// Smaller than MAX_INSERT_BATCH_SIZE due to more columns per row.
+pub const MAX_PUBLICATION_BATCH_SIZE: usize = 50;
+
+/// Maximum number of dependencies to insert in a single batch.
+pub const DEPENDENCY_BATCH_SIZE: usize = 1000;
+
+/// Maximum slug length for taxonomy entries.
+pub const MAX_SLUG_LENGTH: usize = 100;
+
 /// Convert organism taxonomy to human-readable slug
 ///
 /// Examples:
@@ -34,7 +60,7 @@ fn taxonomy_to_slug(organism_name: &str, taxonomy_id: i32) -> String {
         .collect::<String>();
 
     // Fallback for empty or too long names
-    if name.is_empty() || name.len() > 100 {
+    if name.is_empty() || name.len() > MAX_SLUG_LENGTH {
         format!("taxon-{}", taxonomy_id)
     } else {
         name
@@ -62,6 +88,7 @@ fn taxonomy_to_slug(organism_name: &str, taxonomy_id: i32) -> String {
 /// Classify source type based on taxonomic lineage
 ///
 /// This is now integrated with NCBI Taxonomy database via TaxonomyHelper
+#[allow(dead_code)]
 fn classify_source_type(lineage: &[String]) -> &'static str {
     match lineage.first().map(|s| s.as_str()) {
         Some("Viruses") => "virus",
@@ -73,6 +100,24 @@ fn classify_source_type(lineage: &[String]) -> &'static str {
 }
 
 /// Storage handler for UniProt data
+///
+/// Responsible for persisting parsed UniProt entries to the database
+/// and optionally uploading FASTA sequences to S3 storage.
+///
+/// # Database Schema
+///
+/// Uses the following tables:
+/// - `registry_entries`: Main entry for each protein
+/// - `data_sources`: Type-specific metadata (protein, organism)
+/// - `protein_metadata`: Protein-specific fields (accession, sequence, etc.)
+/// - `taxonomy_metadata`: Organism/taxonomy information
+/// - `protein_features`, `cross_references`, `comments`: Related data
+/// - `protein_publications`: Literature references
+///
+/// # Transaction Handling
+///
+/// Uses micro-transactions for efficient memory usage and failure isolation.
+/// S3 uploads happen before database transactions to ensure data consistency.
 pub struct UniProtStorage {
     db: PgPool,
     s3: Option<Storage>,
@@ -82,7 +127,14 @@ pub struct UniProtStorage {
 }
 
 impl UniProtStorage {
-    /// Create a new storage handler
+    /// Create a new storage handler (database only, no S3)
+    ///
+    /// # Arguments
+    ///
+    /// * `db` - PostgreSQL connection pool
+    /// * `organization_id` - UniProt organization ID in the database
+    /// * `internal_version` - BDP internal version (semantic version)
+    /// * `external_version` - UniProt release version (e.g., "2024_03")
     pub fn new(
         db: PgPool,
         organization_id: Uuid,
@@ -98,7 +150,10 @@ impl UniProtStorage {
         }
     }
 
-    /// Create storage handler with S3 support
+    /// Create storage handler with S3 support for FASTA uploads
+    ///
+    /// When S3 is configured, FASTA sequences are uploaded alongside
+    /// database records for efficient file serving.
     pub fn with_s3(
         db: PgPool,
         s3: Storage,
@@ -127,19 +182,33 @@ impl UniProtStorage {
     }
 
     /// Store a batch of parsed entries
+    ///
+    /// Processes entries in two phases:
+    /// 1. Upload FASTA files to S3 (if configured) in parallel batches
+    /// 2. Store metadata in the database using micro-transactions
+    ///
+    /// # Arguments
+    ///
+    /// * `entries` - Parsed UniProt entries to store
+    ///
+    /// # Returns
+    ///
+    /// Returns the number of entries successfully stored.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if S3 uploads or database transactions fail.
     pub async fn store_entries(&self, entries: &[UniProtEntry]) -> Result<usize> {
         info!("Storing {} UniProt entries", entries.len());
 
         // STEP 1: Upload ALL entries to S3 FIRST (before any database transaction!)
         // Use parallel uploads with batching for 10-20x speedup
         if let Some(ref s3) = self.s3 {
-            use futures::stream::{self, StreamExt};
-
             let internal_ver = self.internal_version.clone();
             let org_id = self.organization_id;
 
             // Process in batches of 50 concurrent uploads
-            let chunks: Vec<_> = entries.chunks(50).collect();
+            let chunks: Vec<_> = entries.chunks(S3_UPLOAD_BATCH_SIZE).collect();
             for chunk in chunks {
                 let mut upload_futures = Vec::new();
 
@@ -182,7 +251,7 @@ impl UniProtStorage {
 
         // Process entries in micro-batches (10 at a time) with separate transactions
         // This balances between transaction overhead and failure isolation
-        for chunk in entries.chunks(10) {
+        for chunk in entries.chunks(DB_MICRO_BATCH_SIZE) {
             let mut tx = self.db.begin().await.context("Failed to begin transaction")?;
 
             let mut chunk_success = true;
@@ -408,7 +477,7 @@ impl UniProtStorage {
         hasher.update(entry.sequence.as_bytes());
         let sequence_checksum = format!("{:x}", hasher.finalize());
 
-        // 3. Insert protein metadata (with extended metadata)
+        // 3. Insert protein metadata (with extended metadata and dates)
         sqlx::query(
             r#"
             INSERT INTO protein_metadata (
@@ -416,16 +485,20 @@ impl UniProtStorage {
                 sequence_length, mass_da, sequence_checksum,
                 sequence_id, taxonomy_id, uniprot_version,
                 alternative_names, ec_numbers, protein_existence, keywords,
-                organelle, organism_hosts
+                organelle, organism_hosts,
+                entry_created, sequence_updated, annotation_updated
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
             ON CONFLICT (data_source_id) DO UPDATE SET
                 alternative_names = EXCLUDED.alternative_names,
                 ec_numbers = EXCLUDED.ec_numbers,
                 protein_existence = EXCLUDED.protein_existence,
                 keywords = EXCLUDED.keywords,
                 organelle = EXCLUDED.organelle,
-                organism_hosts = EXCLUDED.organism_hosts
+                organism_hosts = EXCLUDED.organism_hosts,
+                entry_created = EXCLUDED.entry_created,
+                sequence_updated = EXCLUDED.sequence_updated,
+                annotation_updated = EXCLUDED.annotation_updated
             "#
         )
         .bind(data_source_id)
@@ -445,6 +518,9 @@ impl UniProtStorage {
         .bind(&entry.keywords)
         .bind(&entry.organelle)
         .bind(&entry.organism_hosts)
+        .bind(entry.entry_created)
+        .bind(entry.sequence_updated)
+        .bind(entry.annotation_updated)
         .execute(&mut **tx)
         .await
         .context("Failed to create protein_metadata")?;
@@ -457,6 +533,9 @@ impl UniProtStorage {
 
         // 6. Insert comments
         self.store_comments_tx(tx, data_source_id, entry).await?;
+
+        // 7. Insert publications
+        self.store_publications_tx(tx, data_source_id, entry).await?;
 
         Ok(())
     }
@@ -479,7 +558,7 @@ impl UniProtStorage {
             .await?;
 
         // Batch insert features (max 100 at a time to avoid parameter limit)
-        for chunk in entry.features.chunks(100) {
+        for chunk in entry.features.chunks(MAX_INSERT_BATCH_SIZE) {
             let mut query_builder = sqlx::QueryBuilder::new(
                 "INSERT INTO protein_features (protein_id, feature_type, start_pos, end_pos, description) "
             );
@@ -516,7 +595,7 @@ impl UniProtStorage {
             .await?;
 
         // Batch insert cross-references (max 100 at a time)
-        for chunk in entry.cross_references.chunks(100) {
+        for chunk in entry.cross_references.chunks(MAX_INSERT_BATCH_SIZE) {
             let mut query_builder = sqlx::QueryBuilder::new(
                 "INSERT INTO protein_cross_references (protein_id, database, database_id, metadata) "
             );
@@ -553,7 +632,7 @@ impl UniProtStorage {
             .await?;
 
         // Batch insert comments (max 100 at a time)
-        for chunk in entry.comments.chunks(100) {
+        for chunk in entry.comments.chunks(MAX_INSERT_BATCH_SIZE) {
             let mut query_builder = sqlx::QueryBuilder::new(
                 "INSERT INTO protein_comments (protein_id, topic, text) "
             );
@@ -562,6 +641,48 @@ impl UniProtStorage {
                 b.push_bind(protein_id)
                     .push_bind(&comment.topic)
                     .push_bind(&comment.text);
+            });
+
+            query_builder.build().execute(&mut **tx).await?;
+        }
+
+        Ok(())
+    }
+
+    /// Store protein publications (within transaction)
+    async fn store_publications_tx(
+        &self,
+        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+        protein_id: Uuid,
+        entry: &UniProtEntry,
+    ) -> Result<()> {
+        if entry.publications.is_empty() {
+            return Ok(());
+        }
+
+        // Delete existing publications for this protein
+        sqlx::query("DELETE FROM protein_publications WHERE protein_id = $1")
+            .bind(protein_id)
+            .execute(&mut **tx)
+            .await?;
+
+        // Batch insert publications (max 50 at a time due to many columns)
+        for chunk in entry.publications.chunks(MAX_PUBLICATION_BATCH_SIZE) {
+            let mut query_builder = sqlx::QueryBuilder::new(
+                "INSERT INTO protein_publications (protein_id, reference_number, position, comments, pubmed_id, doi, author_group, authors, title, location) "
+            );
+
+            query_builder.push_values(chunk, |mut b, pub_ref| {
+                b.push_bind(protein_id)
+                    .push_bind(pub_ref.reference_number)
+                    .push_bind(&pub_ref.position)
+                    .push_bind(&pub_ref.comments)
+                    .push_bind(&pub_ref.pubmed_id)
+                    .push_bind(&pub_ref.doi)
+                    .push_bind(&pub_ref.author_group)
+                    .push_bind(&pub_ref.authors)
+                    .push_bind(&pub_ref.title)
+                    .push_bind(&pub_ref.location);
             });
 
             query_builder.build().execute(&mut **tx).await?;
@@ -654,6 +775,7 @@ impl UniProtStorage {
     /// Upload entry files to S3 BEFORE transaction (non-blocking for database)
     ///
     /// This MUST be called BEFORE starting any database transaction.
+    #[allow(dead_code)]
     async fn upload_entry_to_s3(&self, entry: &UniProtEntry) -> Result<()> {
         if let Some(ref s3) = self.s3 {
             Self::upload_entry_to_s3_static(s3, entry, self.organization_id, &self.internal_version, &self.external_version).await
@@ -907,7 +1029,7 @@ impl UniProtStorage {
         }
 
         // Batch insert dependencies (1000 at a time for performance)
-        for chunk in protein_entries.chunks(1000) {
+        for chunk in protein_entries.chunks(DEPENDENCY_BATCH_SIZE) {
             let mut query_builder = sqlx::QueryBuilder::new(
                 "INSERT INTO dependencies (version_id, depends_on_entry_id, depends_on_version, dependency_type) "
             );
@@ -1112,7 +1234,7 @@ impl UniProtStorage {
         }
 
         // Process in batches to avoid parameter limits
-        for chunk in protein_slugs.chunks(1000) {
+        for chunk in protein_slugs.chunks(DEPENDENCY_BATCH_SIZE) {
             // Build query to get entry IDs for these slugs
             let mut query_builder = sqlx::QueryBuilder::new(
                 "SELECT id FROM registry_entries WHERE organization_id = "

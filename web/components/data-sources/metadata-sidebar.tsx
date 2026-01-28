@@ -13,6 +13,7 @@ import {
   Check,
   Download,
   Info,
+  ArrowUpRight,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -24,6 +25,7 @@ import {
 } from '@/components/ui/tooltip';
 import { DownloadGraph } from './download-graph';
 import type { DataSource, DataSourceVersion } from '@/lib/types/data-source';
+import { SafeLink as Link } from '@/components/shared/safe-link';
 
 interface MetadataSidebarProps {
   dataSource: DataSource;
@@ -99,9 +101,9 @@ export function MetadataSidebar({ dataSource, currentVersion, isInSheet = false 
   };
 
   return (
-    <div className={isInSheet ? "space-y-6 w-full" : "sticky top-20 space-y-6"}>
+    <div className={isInSheet ? "space-y-4 w-full" : "sticky top-20 space-y-4"}>
       {/* Download Graph */}
-      <div className="rounded-lg border bg-card p-4 w-full overflow-hidden">
+      <div className="rounded-lg border bg-card p-3 w-full overflow-hidden">
         {chartReady ? (
           <DownloadGraph
             downloadCount={currentVersion.download_count}
@@ -113,7 +115,7 @@ export function MetadataSidebar({ dataSource, currentVersion, isInSheet = false 
               <Download className="h-4 w-4 text-muted-foreground" />
               <h3 className="font-semibold">Downloads</h3>
             </div>
-            <div className="h-[180px] flex items-center justify-center">
+            <div className="h-[160px] flex items-center justify-center">
               <div className="text-sm text-muted-foreground">Loading chart...</div>
             </div>
           </div>
@@ -121,18 +123,18 @@ export function MetadataSidebar({ dataSource, currentVersion, isInSheet = false 
       </div>
 
       {/* Version Info */}
-      <div className="rounded-lg border bg-card p-4 space-y-4 w-full overflow-hidden">
-        <h3 className="font-semibold">Version Info</h3>
+      <div className="rounded-lg border bg-card p-3 space-y-3 w-full overflow-hidden">
+        <h3 className="font-semibold text-sm">Version Info</h3>
 
-        <div className="space-y-3 text-sm">
+        <div className="space-y-2 text-sm">
           <InfoRow
-            icon={<Package className="h-4 w-4" />}
+            icon={<Package className="h-3.5 w-3.5" />}
             label="Version"
             value={
               <div>
-                <div className="font-mono break-all">v{currentVersion.version}</div>
+                <div className="font-mono break-all text-xs">v{currentVersion.version}</div>
                 {currentVersion.external_version && currentVersion.external_version !== 'unknown' && (
-                  <div className="text-xs text-muted-foreground break-all">
+                  <div className="text-[10px] text-muted-foreground break-all">
                     {currentVersion.external_version}
                   </div>
                 )}
@@ -142,7 +144,7 @@ export function MetadataSidebar({ dataSource, currentVersion, isInSheet = false 
           />
 
           <InfoRow
-            icon={<Calendar className="h-4 w-4" />}
+            icon={<Calendar className="h-3.5 w-3.5" />}
             label="Published"
             value={new Date(currentVersion.published_at).toLocaleDateString('en-US', {
               year: 'numeric',
@@ -154,7 +156,7 @@ export function MetadataSidebar({ dataSource, currentVersion, isInSheet = false 
 
           {currentVersion.size_bytes && (
             <InfoRow
-              icon={<HardDrive className="h-4 w-4" />}
+              icon={<HardDrive className="h-3.5 w-3.5" />}
               label="Size"
               value={formatBytes(currentVersion.size_bytes)}
             />
@@ -163,45 +165,59 @@ export function MetadataSidebar({ dataSource, currentVersion, isInSheet = false 
       </div>
 
 
-      {/* Organization */}
-      <div className="rounded-lg border bg-card p-4 space-y-4 w-full overflow-hidden">
-        <div className="flex items-center gap-2">
-          <Building2 className="h-4 w-4 text-muted-foreground" />
-          <h3 className="font-semibold">Organization</h3>
-        </div>
+      {/* Organization - Clickable Card */}
+      <Link
+        href={`/org/${dataSource.organization.slug}`}
+        className="block group"
+      >
+        <div className="rounded-lg border bg-card p-3 space-y-2 w-full overflow-hidden hover:border-primary/50 transition-colors">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Building2 className="h-4 w-4 text-muted-foreground" />
+              <h3 className="font-semibold text-sm">Organization</h3>
+            </div>
+            <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
+          </div>
 
-        <div className="space-y-2">
-          <div className="font-medium break-words">{dataSource.organization.name}</div>
-          {dataSource.organization.description && (
-            <p className="text-sm text-muted-foreground break-words">
-              {dataSource.organization.description}
-            </p>
-          )}
-          {dataSource.organization.website && (
-            <a
-              href={dataSource.organization.website}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-sm text-primary hover:underline break-all"
-            >
-              Visit website
-              <ExternalLink className="h-3 w-3 shrink-0" />
-            </a>
-          )}
+          <div className="space-y-1.5">
+            <div className="font-medium text-sm break-words group-hover:text-primary transition-colors">{dataSource.organization.name}</div>
+            {dataSource.organization.description && (
+              <p className="text-xs text-muted-foreground break-words line-clamp-2">
+                {dataSource.organization.description}
+              </p>
+            )}
+          </div>
         </div>
-      </div>
+      </Link>
+
+      {/* Organization Website - if available */}
+      {dataSource.organization.website && (
+        <a
+          href={dataSource.organization.website}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block -mt-2"
+        >
+          <div className="rounded-lg border bg-card p-2 hover:border-primary/50 transition-colors">
+            <div className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors break-all">
+              <ExternalLink className="h-3 w-3 shrink-0" />
+              <span>Visit organization website</span>
+            </div>
+          </div>
+        </a>
+      )}
 
       {/* License */}
-      <div className="rounded-lg border bg-card p-4 space-y-4 w-full overflow-hidden">
+      <div className="rounded-lg border bg-card p-3 space-y-2 w-full overflow-hidden">
         <div className="flex items-center gap-2">
           <Scale className="h-4 w-4 text-muted-foreground" />
-          <h3 className="font-semibold">License</h3>
+          <h3 className="font-semibold text-sm">License</h3>
         </div>
 
-        <div className="text-sm space-y-3">
+        <div className="text-sm space-y-2">
           {/* Placeholder - would come from backend */}
-          <Badge variant="secondary">CC BY 4.0</Badge>
-          <p className="text-muted-foreground">
+          <Badge variant="secondary" className="text-xs">CC BY 4.0</Badge>
+          <p className="text-xs text-muted-foreground">
             This data is freely available for research and commercial use.
           </p>
           <p className="text-xs text-muted-foreground italic">
@@ -211,15 +227,15 @@ export function MetadataSidebar({ dataSource, currentVersion, isInSheet = false 
       </div>
 
       {/* Citation */}
-      <div className="rounded-lg border bg-card p-4 space-y-4 w-full overflow-hidden">
+      <div className="rounded-lg border bg-card p-3 space-y-2 w-full overflow-hidden">
         <div className="flex items-center gap-2">
           <Quote className="h-4 w-4 text-muted-foreground" />
-          <h3 className="font-semibold">Cite this data</h3>
+          <h3 className="font-semibold text-sm">Cite this data</h3>
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-2">
           <div className="text-sm">
-            <pre className="p-3 rounded-md bg-secondary text-xs overflow-x-auto max-w-full">
+            <pre className="p-2 rounded-md bg-secondary text-xs overflow-x-auto max-w-full">
               <code className="break-all whitespace-pre-wrap">{generateBibtex()}</code>
             </pre>
           </div>
@@ -227,34 +243,34 @@ export function MetadataSidebar({ dataSource, currentVersion, isInSheet = false 
           <Button
             variant="outline"
             size="sm"
-            className="w-full"
+            className="w-full h-8 text-xs"
             onClick={copyBibtex}
           >
             {copiedBibtex ? (
               <>
-                <Check className="h-3 w-3 mr-2" />
+                <Check className="h-3 w-3 mr-1.5" />
                 Copied!
               </>
             ) : (
               <>
-                <Copy className="h-3 w-3 mr-2" />
+                <Copy className="h-3 w-3 mr-1.5" />
                 Copy BibTeX
               </>
             )}
           </Button>
 
           <p className="text-xs text-muted-foreground">
-            Or use <code className="px-1 py-0.5 rounded bg-secondary break-all">bdp cite {dataSource.organization.slug}:{dataSource.slug}@{currentVersion.version}</code>
+            Or use <code className="px-1 py-0.5 rounded bg-secondary break-all text-xs">bdp cite {dataSource.organization.slug}:{dataSource.slug}@{currentVersion.version}</code>
           </p>
         </div>
       </div>
 
       {/* Organism metadata - only show for non-protein types */}
       {dataSource.organism && dataSource.source_type !== 'protein' && (
-        <div className="rounded-lg border bg-card p-4 space-y-4 w-full overflow-hidden">
-          <h3 className="font-semibold">Organism</h3>
+        <div className="rounded-lg border bg-card p-3 space-y-2 w-full overflow-hidden">
+          <h3 className="font-semibold text-sm">Organism</h3>
 
-          <div className="space-y-3 text-sm">
+          <div className="space-y-2 text-sm">
             <InfoRow
               label="Scientific Name"
               value={<span className="italic">{dataSource.organism.scientific_name}</span>}
@@ -301,25 +317,25 @@ function InfoRow({
   tooltip?: string;
 }) {
   return (
-    <div className="flex justify-between items-start gap-4 min-w-0">
-      <div className="flex items-center gap-2 text-muted-foreground shrink-0">
+    <div className="flex justify-between items-start gap-3 min-w-0">
+      <div className="flex items-center gap-1.5 text-muted-foreground shrink-0 text-xs">
         {icon}
         <span>{label}</span>
         {tooltip && (
           <Tooltip>
             <TooltipTrigger asChild>
               <button type="button" className="inline-flex items-center">
-                <Info className="h-3.5 w-3.5 cursor-help" />
+                <Info className="h-3 w-3 cursor-help" />
                 <span className="sr-only">More information</span>
               </button>
             </TooltipTrigger>
             <TooltipContent side="top" className="max-w-xs">
-              <p>{tooltip}</p>
+              <p className="text-xs">{tooltip}</p>
             </TooltipContent>
           </Tooltip>
         )}
       </div>
-      <div className="text-right font-medium break-words min-w-0">{value}</div>
+      <div className="text-right font-medium break-words min-w-0 text-xs">{value}</div>
     </div>
   );
 }

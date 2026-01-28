@@ -83,7 +83,7 @@ pub async fn handle(
         taxonomy_id: result.ncbi_taxonomy_id.unwrap_or(0),
         scientific_name: result.scientific_name,
         common_name: result.common_name,
-        created_at: result.created_at.unwrap(),
+        created_at: result.created_at.unwrap_or_else(chrono::Utc::now),
     })
 }
 

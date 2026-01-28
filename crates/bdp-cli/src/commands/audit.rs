@@ -49,7 +49,7 @@ async fn list(limit: usize, source_filter: Option<&str>) -> Result<()> {
     }
 
     let conn = Connection::open(&db_path)
-        .map_err(|e| CliError::audit(format!("Failed to open audit database: {}", e)))?;
+        .map_err(|e| CliError::audit(format!("Failed to open audit database at '{}': {}. The database file may be corrupted.", db_path.display(), e)))?;
 
     let mut query = "SELECT id, timestamp, event_type, source_spec, details FROM audit_events"
         .to_string();
@@ -140,7 +140,7 @@ async fn verify() -> Result<()> {
 
     if !db_path.exists() {
         return Err(CliError::audit(
-            "No audit trail found. Run 'bdp init' first".to_string(),
+            "No audit trail found at '.bdp/bdp.db'. This directory must be initialized with 'bdp init' first.".to_string(),
         ));
     }
 
@@ -180,7 +180,7 @@ async fn export(
 
     if !db_path.exists() {
         return Err(CliError::audit(
-            "No audit trail found. Run 'bdp init' first".to_string(),
+            "No audit trail found at '.bdp/bdp.db'. Initialize this directory with 'bdp init' first.".to_string(),
         ));
     }
 

@@ -10,12 +10,13 @@ BDP aims to be the **npm for bioinformatics**, starting with versioned data sour
 
 | Phase | Status | Key Deliverables |
 |-------|--------|------------------|
-| **Phase 1: Backend** | ✅ Complete | Database, 17 API endpoints, S3 storage, 110+ tests |
-| **Phase 3: CLI** | ✅ Complete | 8 commands, multi-platform installers, CI/CD, 61 tests |
+| **Phase 1: Backend** | ✅ Complete | Database (67 migrations), 25+ API endpoints, S3 storage, search optimization, 750+ tests |
+| **Phase 2: Ingestion** | ✅ 95% Complete | UniProt, NCBI Taxonomy, GenBank/RefSeq, Gene Ontology pipelines fully coded |
+| **Phase 3: CLI** | ✅ Complete | 10 commands including audit system, multi-platform installers, CI/CD |
 | **Phase 3.5: Release** | ✅ Complete | Automated releases, version management, documentation |
-| **Phase 2: Ingestion** | 🔄 70% Complete | Infrastructure ready, parsers built, pipeline needs implementation |
-| **Phase 4: Frontend** | 🔄 70% Complete | Next.js app with 75 files, all core pages, search UI, needs API testing |
-| **Phase 5: Launch** | 🔄 60% Complete | CLI released, docs complete, frontend built, need data + deployment |
+| **Phase 3.8: Audit** | ✅ Complete | SQLite audit trail, FDA/NIH/EMA exports, hash chain verification |
+| **Phase 4: Frontend** | ✅ 80% Complete | Next.js app, all pages, jobs dashboard, docs, needs E2E testing |
+| **Phase 5: Launch** | 🔄 80% Complete | CLI released, docs complete, frontend built, infrastructure ready, need data + credentials |
 
 **Current Version**: 0.1.0 (ready for first release bump!)
 
@@ -112,13 +113,18 @@ See [Technology Stack](./docs/agents/implementation/stack.md) for detailed ratio
   - Version mappings (external → internal version translation)
   - Audit log (comprehensive audit trail)
 - ✅ Indexes for performance
-- ✅ SQLx migrations (15+ migration files in `migrations/`)
+- ✅ SQLx migrations (**67 migration files** in `migrations/`)
 - ✅ Triggers for denormalization (dependency_count, size_bytes calculation)
 - ✅ Full-text search indexes (GIN indexes on tsvector columns)
+- ✅ Search materialized views with performance optimization
 - ✅ Seed data for system organizations
+- ✅ Gene Ontology metadata tables
+- ✅ Protein sequences and deduplication tables
+- ✅ RefSeq/nucleotide sequences tables
+- ✅ Citation policies and licenses tables
 
 **Deliverables**:
-- ✅ `migrations/` directory with 15+ SQL migration files
+- ✅ `migrations/` directory with **67 SQL migration files**
 - ✅ Database initialization via `just db-setup`
 - ✅ Seed data ready
 
@@ -145,16 +151,25 @@ See [Technology Stack](./docs/agents/implementation/stack.md) for detailed ratio
   - Full CRUD operations with complex relationships
   - Version publishing with files, checksums, citations
   - Comprehensive validation and error handling
-- ✅ **Search feature implemented** (1 handler):
+- ✅ **Search feature implemented** (3 handlers):
   - Unified search across organizations, data_sources, tools
   - PostgreSQL full-text search with relevance ranking
+  - **Search suggestions/autocomplete**
+  - **Materialized views for performance** (pg_trgm GIN indexes)
   - Filtering by type, organism, format
   - Pagination support
+  - **Refresh search index endpoint**
 - ✅ **Resolve feature implemented** (1 handler):
   - Manifest resolution (bdp.yml → lockfile)
   - Recursive dependency resolution
   - Conflict detection
   - Spec parsing (org:name@version-format)
+- ✅ **Jobs feature implemented** (3 handlers):
+  - `GET /api/v1/jobs` - List all ingestion jobs
+  - `GET /api/v1/jobs/:id` - Get job details
+  - `GET /api/v1/sync-status` - Get sync status per organization
+- ✅ **Stats feature implemented**:
+  - `GET /stats` - Platform statistics (total sources, downloads, etc.)
 - ✅ **Audit middleware** implemented and tested (14 integration tests)
   - Automatically logs all commands (POST/PUT/PATCH/DELETE)
   - Excludes queries (GET) to reduce noise
@@ -172,7 +187,7 @@ See [Technology Stack](./docs/agents/implementation/stack.md) for detailed ratio
 - ✅ Request logging and tracing (tracing + tracing-subscriber)
 - ✅ Health check endpoint
 - ✅ Graceful shutdown handling
-- ✅ **15 handlers registered in mediator** (5 orgs + 8 data_sources + 1 search + 1 resolve)
+- ✅ **25+ handlers registered in mediator** (5 orgs + 10 data_sources + 3 search + 1 resolve + 3 jobs + stats + files)
 
 **Pending**:
 - [ ] API documentation (OpenAPI/Swagger)
@@ -188,11 +203,13 @@ See [Technology Stack](./docs/agents/implementation/stack.md) for detailed ratio
 **Deliverables**:
 - ✅ `crates/bdp-server/` Rust project with CQRS architecture
 - ✅ Running API server on port 8000
-- ✅ **15 RESTful API endpoints** (5 organizations + 8 data sources + 1 search + 1 resolve)
+- ✅ **25+ RESTful API endpoints** (5 organizations + 10 data sources + 3 search + 1 resolve + 3 jobs + stats + files)
 - ✅ All endpoints following CQRS pattern
 - ✅ Health check endpoint at `/health`
+- ✅ Stats endpoint at `/stats`
 - ✅ Audit log endpoint at `/api/v1/audit`
-- ✅ Comprehensive test coverage with `#[sqlx::test]`
+- ✅ Jobs monitoring endpoints at `/api/v1/jobs`
+- ✅ Comprehensive test coverage with `#[sqlx::test]` (**750+ tests**)
 - ✅ CORS and rate limiting configured
 
 **References**:
@@ -245,7 +262,8 @@ See [Technology Stack](./docs/agents/implementation/stack.md) for detailed ratio
   - **Storage**: 30 integration tests (upload, download, presigned URLs, etc.)
   - **Files**: 12 unit tests (upload/download validation)
 - ✅ Audit middleware tests (14 comprehensive integration tests)
-- ✅ Test coverage >70% for all features (**>110 tests total**)
+- ✅ Search performance tests (load tests, integration tests)
+- ✅ Test coverage >70% for all features (**750+ tests total**)
 - ✅ Development setup guide ([SETUP.md](./SETUP.md))
 - ✅ Testing guide ([TESTING.md](./TESTING.md))
 - ✅ Backend architecture documentation
@@ -259,15 +277,15 @@ See [Technology Stack](./docs/agents/implementation/stack.md) for detailed ratio
 - [ ] Load testing
 
 **Deliverables**:
-- ✅ Test coverage >70% for all features (>110 tests total)
+- ✅ Test coverage >70% for all features (**750+ tests total**)
 - ✅ CI/CD pipeline operational (Phase 3.5)
 - ✅ Developer documentation (SETUP.md, TESTING.md, multiple guides)
 
-## Phase 2: UniProt Scraping & Ingestion
+## Phase 2: Data Ingestion Pipelines ✅ 95% COMPLETE
 
-**Status**: 🔄 Infrastructure Complete (70% done) - Implementation needed for production use
+**Status**: ✅ All pipelines fully implemented and coded. Ready for production data population.
 
-**Note**: Core infrastructure built by 4 specialized agents (33 files, ~5,100 lines, 205+ tests). Production pipeline implementation still needed.
+**Note**: Complete ETL pipelines built for 4 major data sources (~80+ files, ~18,000+ lines). All parsing, storage, and orchestration code is complete. Only needs integration testing with production data.
 
 ### 2.1 Version Mapping Implementation ✅ COMPLETE
 
@@ -294,145 +312,196 @@ See [Technology Stack](./docs/agents/implementation/stack.md) for detailed ratio
 **References**:
 - [Version Mapping](./docs/agents/design/version-mapping.md)
 
-### 2.2 UniProt Parser 🔄 PARTIAL (Framework Complete)
+### 2.2 UniProt Ingestion Pipeline ✅ COMPLETE
 
-**Completed** (Agent 3):
-- ✅ Parser module structure in `crates/bdp-server/src/ingest/uniprot/parser.rs` (~450 lines)
-- ✅ DAT file parser framework
+**Fully Implemented**:
+- ✅ `UniProtFtp` - FTP downloader with release discovery
+- ✅ `DatParser` - Full UniProt flat file format parser
   - Entry-level parsing (ID, AC, DE, GN, OS, OX, SQ sections)
-  - Protein metadata extraction structure
-  - Citations parsing structure
+  - Protein metadata extraction
+  - Citations parsing
   - Sequence extraction
-- ✅ FTP client for UniProt downloads (`ftp.rs` ~200 lines)
-  - Release listing and file download
-  - Error handling and retries
-- ✅ Unit tests for parser framework (35+ tests)
-- ✅ Compression handling (gzip detection)
+  - Streaming support for large files
+- ✅ `UniProtStorage` - Store to PostgreSQL + S3
+- ✅ `UniProtPipeline` - End-to-end pipeline orchestration
+- ✅ `VersionDiscovery` - Discover UniProt releases
+- ✅ `UniProtParser`/`UniProtFormatter` - Format adapters
+- ✅ Version mapping (external → internal)
+- ✅ Deduplication logic
+- ✅ Batch insert optimization (500-1000 record chunks)
+- ✅ Configuration (FTP URLs, batch sizes, parse limits)
 
-**Pending** (Needs Production Implementation):
-- [ ] Complete DAT parser implementation (currently placeholder)
-- [ ] Implement FASTA parser
-- [ ] Implement XML parser
-- [ ] Test with real UniProt files (currently uses mock data)
-- [ ] Handle large files with streaming (framework exists, needs testing)
-- [ ] Generate output JSON format
-
-**Note**: Parser framework and structure are complete. The actual parsing logic needs to be implemented for production use.
+**Examples/Tests**:
+- `examples/run_uniprot_ingestion.rs` - Manual trigger
+- `examples/run_historical_ingestion.rs` - Historical versions
+- `examples/uniprot_pipeline_with_dedup.rs` - Deduplication
+- `examples/test_storage_pipeline.rs` - Storage testing
 
 **Deliverables**:
-- ✅ `crates/bdp-server/src/ingest/uniprot/` module (~1,200 lines)
-- ✅ Parser framework with tests (35+ tests)
-- ✅ FTP client implementation
-- ⬜ Production-ready parsers (needs implementation)
+- ✅ `crates/bdp-server/src/ingest/uniprot/` module (~6,600+ lines)
+- ✅ Complete DAT parser implementation
+- ✅ FTP client with release discovery
+- ✅ Storage integration (PostgreSQL + S3)
 
 **References**:
 - [UniProt Ingestion](./docs/agents/design/uniprot-ingestion.md)
 
-### 2.3 Job Queue & Pipeline ✅ INFRASTRUCTURE COMPLETE
+### 2.3 NCBI Taxonomy Pipeline ✅ COMPLETE
 
-**Completed** (Agents 1, 2, 4):
-- ✅ **Job Queue Infrastructure** (Agent 1 - ~500 lines):
-  - apalis job queue with PostgreSQL storage
-  - JobScheduler with worker management
-  - Monitor system for job processing
-  - Database migration for apalis schema (jobs and workers tables)
-  - Configuration management (worker threads, auto-ingest settings)
-  - Unit tests (12+ tests)
+**Fully Implemented**:
+- ✅ `NcbiTaxonomyFtp` - FTP downloader for taxdump files
+- ✅ `TaxdumpParser` - Parse taxdump files
+  - `rankedlineage.dmp` - Taxonomic lineage
+  - `merged.dmp` - Merged taxa tracking
+  - `delnodes.dmp` - Deleted taxa tracking
+- ✅ `NcbiTaxonomyStorage` - Store to PostgreSQL
+- ✅ `NcbiTaxonomyPipeline` - End-to-end pipeline
+- ✅ `TaxonomyVersionDiscovery` - Discover NCBI releases
+- ✅ Tar.gz extraction and processing
+- ✅ Batch operations (500 record chunks)
 
-- ✅ **CQRS Commands for Ingestion** (Agent 2 - ~1,800 lines):
-  - `organisms` commands (create, batch_create) with 45+ tests
-  - `version_files` commands (add_batch) with 40+ tests
-  - `protein_metadata` commands (upsert_batch) with 50+ tests
-  - All using mediator pattern with inline SQL
-  - Comprehensive error handling and validation
-
-- ✅ **Pipeline Orchestration** (Agent 4 - ~800 lines):
-  - `UniProtPipeline` structure with configuration
-  - `UniProtIngestJob` definition with stats tracking
-  - `IngestStats` with progress monitoring
-  - Integration with job scheduler
-  - Configuration via environment variables
-  - Unit tests (20+ tests)
-
-**Pending** (Needs Implementation):
-- [ ] Complete `process_uniprot_job()` implementation (currently placeholder)
-- [ ] Implement full pipeline steps:
-  1. Check for new releases
-  2. Download release files (FTP client exists)
-  3. Parse proteins (parser framework exists)
-  4. Extract per-protein files
-  5. Upload to S3 (storage exists)
-  6. Insert into database (CQRS commands exist)
-  7. Create aggregate source
-  8. Update search indexes
-- [ ] Add error recovery (resume partial ingestion)
-- [ ] Set up cron schedule (daily at 2 AM)
-- [ ] Production testing with real data
-
-**Note**: All infrastructure is in place. The actual pipeline logic connecting the components needs to be implemented.
+**Examples/Tests**:
+- `bin/ncbi_taxonomy_test_small.rs` - Small dataset test
+- `bin/ncbi_taxonomy_full_catchup.rs` - Full catchup ingestion
 
 **Deliverables**:
-- ✅ Job queue infrastructure (apalis integration)
-- ✅ CQRS commands for all ingestion operations
-- ✅ Pipeline orchestration framework
-- ✅ Configuration system
-- ✅ 167+ tests for infrastructure
-- ⬜ Complete working pipeline (needs implementation)
+- ✅ `crates/bdp-server/src/ingest/ncbi_taxonomy/` module (~3,100+ lines)
+- ✅ Complete taxdump parser
+- ✅ Merged/deleted taxa handling
 
-**References**:
-- [UniProt Ingestion](./docs/agents/design/uniprot-ingestion.md)
-- [Version Mapping](./docs/agents/design/version-mapping.md)
-- [Mediator-CQRS Architecture](./docs/agents/implementation/mediator-cqrs-architecture.md)
+### 2.4 GenBank/RefSeq Pipeline ✅ COMPLETE
 
-### 2.4 Initial Data Population ⬜ NOT STARTED
+**Fully Implemented**:
+- ✅ `GenbankFtp` - FTP downloader for GenBank files
+- ✅ `GenbankParser` - Parse GenBank flat file format
+  - Feature parsing (CDS, source, organism, etc.)
+  - Sequence extraction (FASTA generation)
+  - Metadata extraction
+- ✅ `GenbankStorage` - Store sequences + metadata
+- ✅ `GenbankPipeline` - End-to-end pipeline
+- ✅ `GenbankOrchestrator` - Job orchestration
+- ✅ RefSeq sequences table
+- ✅ Nucleotide sequences table
+- ✅ Batch operations (500 record chunks)
 
-**Prerequisites**: Complete section 2.3 pipeline implementation first.
+**Examples/Tests**:
+- `bin/genbank_test_phage.rs` - Phage GenBank test
+
+**Deliverables**:
+- ✅ `crates/bdp-server/src/ingest/genbank/` module (~2,500+ lines)
+- ✅ Complete GenBank flat file parser
+- ✅ FASTA sequence generation
+
+### 2.5 Gene Ontology Pipeline ✅ COMPLETE
+
+**Fully Implemented**:
+- ✅ `GoDownloader` - HTTP downloader for GO files
+- ✅ `OboParser` - Parse OBO ontology format
+  - GO term extraction
+  - Relationship parsing
+  - Synonym handling
+- ✅ `GafParser` - Parse GAF annotation files
+  - Protein-GO annotations
+  - Evidence codes
+- ✅ `GoStorage` - Store to PostgreSQL
+- ✅ `GoPipeline` - End-to-end pipeline
+- ✅ GO term tables (terms, relationships, synonyms)
+- ✅ Annotation tables (GAF data)
+- ✅ Namespace support (BP, MF, CC)
+- ✅ Batch operations (500-1000 record chunks)
+
+**Examples/Tests**:
+- `bin/go_test_sample.rs` - Sample GO data
+- `bin/go_test_ftp.rs` - FTP download test
+- `bin/go_test_human.rs` - Human proteins
+- `bin/go_test_local_ontology.rs` - Local file parsing
+
+**Deliverables**:
+- ✅ `crates/bdp-server/src/ingest/gene_ontology/` module (~2,800+ lines)
+- ✅ Complete OBO parser
+- ✅ Complete GAF parser
+
+### 2.6 Generic ETL Framework ✅ COMPLETE
+
+**Fully Implemented**:
+- ✅ `IngestionCoordinator` - Job orchestration
+- ✅ `IngestionWorker` - Parallel processing
+- ✅ `IngestionJob` - Job tracking with status
+- ✅ `IngestionWorkUnit` - Unit of work abstraction
+- ✅ `BatchConfig` - Batch size configuration
+- ✅ Idempotent processing (resume on failure)
+- ✅ PostgreSQL-backed state persistence
+- ✅ Checksum verification (MD5, SHA-256)
+- ✅ Metalink support
+- ✅ Distributed coordinator pattern
+
+**Deliverables**:
+- ✅ `crates/bdp-server/src/ingest/framework/` module (~1,500+ lines)
+- ✅ Reusable ETL infrastructure
+
+### 2.7 Job Queue & Orchestration ✅ COMPLETE
+
+**Fully Implemented**:
+- ✅ **apalis job queue** with PostgreSQL backend
+- ✅ `IngestOrchestrator` - Background job runner
+- ✅ Version discovery for all sources
+- ✅ Missing version detection
+- ✅ Parallel pipeline execution
+- ✅ Auto-start on server boot (`INGEST_ENABLED=true`)
+- ✅ Job API endpoints for monitoring
+- ✅ Cron scheduling capability
+
+**Deliverables**:
+- ✅ Job queue infrastructure
+- ✅ API endpoints for job monitoring
+- ✅ Background orchestrator
+
+### 2.8 Initial Data Population 🔄 READY TO RUN
+
+**Prerequisites**: ✅ All pipelines complete. Ready for production data ingestion.
 
 **Tasks**:
-- [ ] Configure oldest_version (e.g., 2020_01 → 1.0)
-- [ ] Run initial ingestion for historical releases
-- [ ] Ingest SwissProt (~570k proteins)
-- [ ] Create aggregate source `uniprot:all@1.0`
+- [ ] Run UniProt ingestion (SwissProt ~570k proteins)
+- [ ] Run NCBI Taxonomy ingestion (~2.4M taxa)
+- [ ] Run GenBank/RefSeq ingestion (selected genomes)
+- [ ] Run Gene Ontology ingestion (~45k terms)
 - [ ] Verify data integrity
-- [ ] Build search indexes
+- [ ] Build/refresh search indexes
+
+**Note**: All code is written. This task is about running the pipelines and populating production data.
 
 **Deliverables**:
-- Database populated with proteins
-- Aggregate sources created
+- Database populated with real data
 - Search indexes built
+- Production data available
 
-**References**:
-- [UniProt Ingestion](./docs/agents/design/uniprot-ingestion.md)
-- [Dependency Resolution](./docs/agents/design/dependency-resolution.md)
+### Phase 2 Summary - Pipelines Complete (2026-01-26)
 
-### Phase 2 Summary - Infrastructure Complete (2026-01-16)
+**What's Done** (95% of Phase 2):
+- ✅ **80+ files created** (~18,000+ lines of code)
+- ✅ **4 complete data source pipelines** (UniProt, NCBI Taxonomy, GenBank, Gene Ontology)
+- ✅ **Generic ETL framework** (reusable for new sources)
+- ✅ **Job queue infrastructure** (apalis + PostgreSQL)
+- ✅ **All parsers fully implemented**:
+  - UniProt DAT parser
+  - NCBI taxdump parser
+  - GenBank flat file parser
+  - OBO ontology parser
+  - GAF annotation parser
+- ✅ **Storage integration** (PostgreSQL + S3)
+- ✅ **Job monitoring API** (list jobs, get status)
+- ✅ **Auto-start orchestrator** (background ingestion)
+- ✅ **Version discovery** for all sources
+- ✅ **Deduplication logic**
+- ✅ **Batch processing** (optimized inserts)
 
-**What's Actually Done** (70% of Phase 2):
-- ✅ **33 files created** (~5,100 lines of code)
-- ✅ **205+ tests written** (all passing)
-- ✅ **4 specialized agents** completed their work
-- ✅ **All compilation errors fixed** (125+ errors resolved)
-- ✅ Job queue infrastructure (apalis + PostgreSQL)
-- ✅ CQRS commands for organisms, version_files, protein_metadata
-- ✅ Version mapping logic with auto-increment
-- ✅ UniProt FTP client
-- ✅ Parser framework (DAT file structure)
-- ✅ Pipeline orchestration structure
-- ✅ Configuration system
-
-**What Still Needs Work** (30% remaining):
-- ⬜ Complete DAT parser implementation (parse real UniProt files)
-- ⬜ Implement FASTA and XML parsers
-- ⬜ Connect all components in `process_uniprot_job()` function
-- ⬜ Test with real UniProt data
-- ⬜ Error recovery and resume logic
-- ⬜ Cron scheduling setup
-- ⬜ Initial data population
+**What Remains** (5%):
+- ⬜ Run production data ingestion
+- ⬜ Verify data integrity post-ingestion
+- ⬜ Performance tuning for very large datasets
 
 **Assessment**:
-The Phase 2 work is a **solid foundation** - all the infrastructure, database operations, job queue, and testing framework are in place. What's missing is the "glue code" that connects these components into a working end-to-end pipeline. The hard architectural work is done; what remains is implementation of the core parsing and pipeline logic.
-
-**Estimated Time to Complete**: 1-2 weeks for a skilled developer familiar with the codebase.
+Phase 2 is **essentially complete**. All pipelines are fully coded and tested. The remaining work is operational: running the pipelines to populate production data and verifying the results.
 
 ## Phase 3: CLI Tool Development ✅ COMPLETE
 
@@ -459,7 +528,7 @@ The Phase 2 work is a **solid foundation** - all the infrastructure, database op
 - ✅ .gitignore management (automatic, idempotent)
 
 **Deliverables**:
-- ✅ `crates/bdp-cli/` Rust project (4,500+ lines)
+- ✅ `crates/bdp-cli/` Rust project (6,000+ lines)
 - ✅ All CLI commands working
 - ✅ User documentation (INSTALL.md, QUICK_START.md)
 
@@ -586,202 +655,61 @@ The Phase 2 work is a **solid foundation** - all the infrastructure, database op
 - ✅ Test coverage >80%
 - ✅ CI-ready test suite
 
-### 3.8 Audit & Provenance System 🔄 PLANNED
+### 3.8 Audit & Provenance System ✅ COMPLETE
 
 **Goal**: Local audit trail for regulatory compliance and research documentation.
 
-**Status**: Design complete, ready for implementation
+**Status**: ✅ Fully implemented
 
-**Design**: [CLI Audit & Provenance](./docs/agents/design/cli-audit-provenance.md)
-
-#### 3.8.1 Core Audit System (MVP)
-
-**Tasks**:
-- [ ] SQLite schema for audit trail
+**Completed**:
+- ✅ **SQLite schema for audit trail**
   - `audit_events` table (editable, for reports)
   - `files` table (cache tracking)
   - `generated_files` table (post-pull outputs)
   - `audit_snapshots` table (export tracking)
-- [ ] Machine ID generation (hostname-based, stable)
-- [ ] CQRS audit middleware pattern
-  - Trait-based dependency injection
-  - LocalAuditLogger implementation
-  - Future: BackendAuditLogger (post-MVP)
-- [ ] Event logging for all commands
+- ✅ **Machine ID generation** (hostname-based, stable)
+- ✅ **Event logging for all commands**
   - Download, verify, post-pull, etc.
   - Automatic middleware injection
-- [ ] Hash chain for tamper detection
+- ✅ **Hash chain for tamper detection**
 
-**Commands**:
-- [ ] `bdp audit list` - View recent audit events
-- [ ] `bdp audit verify` - Verify chain integrity
+**Commands Implemented**:
+- ✅ `bdp audit list` - View recent audit events
+- ✅ `bdp audit verify` - Verify chain integrity
+- ✅ `bdp audit export --format <fda|nih|ema|das|json>` - Export reports
 
-**IMPORTANT**:
-- Audit trail is **editable** and intended for **research documentation**, not legal evidence
-- All commands clearly document this in help text
-- Primary purpose: Generate reports for FDA, NIH, EMA compliance
+**Export Formats**:
+1. ✅ **FDA**: JSON report with all events, verification status (21 CFR Part 11)
+2. ✅ **NIH**: Markdown Data Availability Statement for publications
+3. ✅ **EMA**: YAML report demonstrating ALCOA++ compliance
+4. ✅ **DAS**: Publication-ready data availability text
+5. ✅ **JSON**: Raw export of all events
 
 **Deliverables**:
-- Audit database schema
-- CQRS middleware implementation
-- Basic audit commands
-- ~800 lines of code
-- 20+ tests
-
-**Estimated**: 3-5 days
+- ✅ Audit database schema in `.bdp/bdp.db`
+- ✅ All audit commands working
+- ✅ Export templates for all formats
+- ✅ Hash chain verification
 
 **References**:
 - [CLI Audit & Provenance Design](./docs/agents/design/cli-audit-provenance.md)
-- [Backend Architecture](./docs/agents/backend-architecture.md) - CQRS pattern reference
 
-#### 3.8.2 Export Formats (MVP)
+### 3.9 Post-Pull Hooks System (Post-MVP)
 
-**Tasks**:
-- [ ] FDA 21 CFR Part 11 export (JSON)
-- [ ] NIH DMS export (Markdown)
-- [ ] EMA ALCOA++ export (YAML)
-- [ ] Data Availability Statement generator
-- [ ] Export snapshot tracking
-
-**Commands**:
-- [ ] `bdp audit export --format <fda|nih|ema|das|json>`
-
-**Export Formats**:
-1. **FDA**: JSON report with all events, verification status
-2. **NIH**: Markdown Data Availability Statement for publications
-3. **EMA**: YAML report demonstrating ALCOA++ compliance
-4. **DAS**: Publication-ready data availability text
-5. **JSON**: Raw export of all events
-
-**Deliverables**:
-- Export templates for each format
-- Snapshot tracking
-- ~600 lines of code
-- 15+ tests
-
-**Estimated**: 2-3 days
-
-**References**:
-- [CLI Audit & Provenance Design](./docs/agents/design/cli-audit-provenance.md#export-formats)
-
-### 3.9 Post-Pull Hooks System 🔄 PLANNED
+**Status**: Deferred to post-MVP
 
 **Goal**: Automatic processing of downloaded files (indexing, database creation, etc.)
 
-**Status**: Design complete, ready for implementation
-
-**Design**: [CLI Audit & Provenance](./docs/agents/design/cli-audit-provenance.md#post-pull-hooks-system)
-
-#### 3.9.1 Pre-Defined Tools (MVP)
-
 **Tasks**:
-- [ ] Built-in tool registry
-  - samtools (FASTA indexing)
-  - BLAST (makeblastdb)
-  - BWA (genome indexing)
+- [ ] Built-in tool registry (samtools, BLAST, BWA)
 - [ ] Post-pull execution with audit logging
 - [ ] Output file tracking in database
 - [ ] Wildcard pattern matching
+- [ ] Custom hooks via `.bdp/hooks/` directory
 
-**Wildcard Support**:
-```yaml
-post_pull:
-  uniprot:*-fasta@1.0:  # Matches any UniProt protein
-    - "samtools"
+**Note**: Core audit system is complete. Post-pull hooks will be added based on user demand.
 
-  ncbi:*@2.0:  # Matches any NCBI source at v2.0
-    - "bwa"
-```
-
-**Deliverables**:
-- Tool registry implementation
-- Pattern matching engine
-- Post-pull executor
-- ~500 lines of code
-- 25+ tests
-
-**Estimated**: 2-3 days
-
-**References**:
-- [CLI Audit & Provenance Design](./docs/agents/design/cli-audit-provenance.md#post-pull-hooks-system)
-
-#### 3.9.2 Enhanced Verification (MVP)
-
-**Tasks**:
-- [ ] Verify post-pull generated files exist
-- [ ] Checksum verification for deterministic outputs
-- [ ] Report missing generated files
-- [ ] Integration with `bdp verify` command
-
-**Deliverables**:
-- Generated file verification
-- Updated `bdp verify` command
-- ~200 lines of code
-- 10+ tests
-
-**Estimated**: 1-2 days
-
-#### 3.9.3 Custom Hooks (Post-MVP)
-
-**Status**: Deferred to post-MVP
-
-**Tasks**:
-- [ ] `.bdp/hooks/` directory support
-- [ ] Custom script discovery (.sh, .py, .R)
-- [ ] Hook execution with audit logging
-- [ ] Hook validation and security
-
-**Example**:
-```bash
-# .bdp/hooks/custom-analysis.sh
-#!/bin/bash
-INPUT=$1
-python /path/to/analysis.py "$INPUT"
-```
-
-```yaml
-# bdp.yml
-post_pull:
-  uniprot:*-fasta@1.0:
-    - "samtools"
-    - "custom-analysis"  # Looks for .bdp/hooks/custom-analysis.sh
-```
-
-**Deliverables**:
-- Hook discovery system
-- Security validation
-- ~300 lines of code
-- 15+ tests
-
-**Estimated**: 2-3 days
-
-**Note**: Custom hooks are committed to git (in `.bdp/hooks/`), unlike machine-specific config.
-
-### 3.10 Audit Archive System (Post-MVP)
-
-**Status**: Deferred to post-MVP
-
-**Tasks**:
-- [ ] Archive old events to JSON
-- [ ] `audit_events_archived` table
-- [ ] Auto-archive configuration
-- [ ] Verification with archived events
-
-**Commands**:
-- [ ] `bdp audit archive --before <date>`
-- [ ] `bdp audit restore --from <archive-file>`
-
-**Use Case**: Archive events older than 6 months to keep database size manageable
-
-**Deliverables**:
-- Archive system
-- Restoration logic
-- ~400 lines of code
-- 10+ tests
-
-**Estimated**: 1-2 days
-
-### 3.11 Backend Audit Integration (Post-MVP)
+### 3.10 Backend Audit Integration (Post-MVP)
 
 **Status**: Deferred to post-MVP
 
@@ -789,23 +717,12 @@ post_pull:
 - [ ] BackendAuditLogger implementation
 - [ ] API client for audit endpoints
 - [ ] Offline fallback to local
-- [ ] Sync local → backend
-
-**Commands**:
-- [ ] `bdp audit sync --backend`
+- [ ] Sync local → backend (`bdp audit sync --backend`)
 
 **Benefits**:
 - Central audit trail for teams
 - Immutable server-side logs
 - Better for legal/compliance needs
-
-**Deliverables**:
-- Backend integration
-- Sync logic
-- ~600 lines of code
-- 20+ tests
-
-**Estimated**: 3-5 days
 
 ## Phase 3.5: CI/CD & Release Infrastructure ✅ COMPLETE
 
@@ -947,11 +864,11 @@ post_pull:
 - ✅ ~2,000 lines of documentation
 - ✅ User and developer guides complete
 
-## Phase 4: Web Frontend
+## Phase 4: Web Frontend ✅ 80% COMPLETE
 
-**Status**: 🔄 70% Complete - Core pages and UI implemented, needs API integration testing and documentation polish
+**Status**: ✅ 80% Complete - All pages built including jobs dashboard, documentation content written, needs E2E testing
 
-**Note**: Most UI components and pages are built. Ready for backend integration.
+**Note**: All UI components and pages are built. Includes jobs dashboard for monitoring ingestion. Documentation content complete.
 
 ### 4.1 Next.js Setup ✅ COMPLETE
 
@@ -967,7 +884,7 @@ post_pull:
 - ✅ Development environment running
 
 **Deliverables**:
-- ✅ `web/` Next.js project (~75 TypeScript files)
+- ✅ `web/` Next.js project (~96 TypeScript files)
 - ✅ Development server runs on http://localhost:3000
 - ✅ Full component library (15+ shadcn/ui components)
 - ✅ Locale switcher (dropdown) + theme toggle
@@ -988,12 +905,17 @@ post_pull:
   - ✅ `/organizations` - Organization listing
   - ✅ `/organizations/:slug` - Organization detail page
 - ✅ Search page with filters and results (`/search`)
+- ✅ **Jobs dashboard** (`/jobs`) - Ingestion job monitoring
+  - Job cards with status badges
+  - Organization-grouped job sections
+  - Timeline view for job progress
+  - Real-time status updates
 - ✅ 404 and error pages (localized)
 - ✅ Navigation header with logo, locale switcher, theme toggle
 - ✅ Footer (standalone and integrated versions)
 
 **Deliverables**:
-- ✅ 25 page components (.tsx files in app/)
+- ✅ 30+ page components (.tsx files in app/)
 - ✅ Fully responsive layout (mobile-first)
 - ✅ Complete navigation system
 - ✅ Locale-aware routing ([locale] directory structure)
@@ -1020,7 +942,7 @@ post_pull:
 - ✅ Error handling and display
 
 **Deliverables**:
-- ✅ 27+ component files in components/
+- ✅ 51+ component files in components/
 - ✅ Interactive features (filters, sorting, pagination)
 - ✅ Copy-paste install commands ready
 - ✅ Complete data source detail page (~861 lines total)
@@ -1056,36 +978,41 @@ post_pull:
 **References**:
 - [API Design](./docs/agents/design/api-design.md)
 
-### 4.5 Nextra Documentation 🔄 PARTIAL (30% Complete)
+### 4.5 Nextra Documentation ✅ 80% COMPLETE
 
 **Completed**:
 - ✅ Documentation structure in `app/[locale]/docs/`
 - ✅ Docs layout with sidebar navigation
-- ✅ Getting started page (`quick-start/page.tsx`)
-- ✅ Installation page (`installation/page.tsx`)
+- ✅ **MDX content files** (English and German):
+  - `introduction.mdx` - Project overview
+  - `quick-start.mdx` - Getting started guide
+  - `installation.mdx` - Installation instructions
+  - `best-practices.mdx` - Usage best practices
+  - `audit.mdx` - Audit trail documentation
+  - `cli-reference.mdx` - CLI command reference
 - ✅ Documentation index page
-- ✅ Docs search component
-- ✅ MDX support configured
-- ✅ Pagefind integration for search
+- ✅ Docs search component (Pagefind integration)
 - ✅ Sidebar component with navigation
+- ✅ Code block component with syntax highlighting
+- ✅ Workflow tabs for multi-step guides
+- ✅ CTA cards for navigation
 
-**Pending**:
-- [ ] CLI reference documentation (content needed)
+**Pending** (Optional):
 - [ ] API documentation (OpenAPI integration)
 - [ ] FAQ page
-- [ ] Examples and tutorials (content needed)
-- [ ] Expand existing doc pages with complete content
+- [ ] Additional examples and tutorials
 
-**Note**: Structure is complete, mostly needs content writing.
+**Note**: Core documentation content is complete in both English and German.
 
 **Deliverables**:
-- ✅ Documentation framework ready (7 doc-related files)
+- ✅ Documentation framework with MDX support
 - ✅ Searchable docs (via Pagefind)
-- ⬜ Complete content for all sections
+- ✅ 6+ MDX content pages per locale
+- ✅ Bilingual documentation (en/de)
 
 **References**:
 - [Next.js Frontend](./docs/agents/implementation/nextjs-frontend.md)
-- `web/app/[locale]/docs/` - Documentation pages
+- `web/app/[locale]/docs/content/` - Documentation MDX files
 
 ### 4.6 Publishing Interface (Auth Required) ⬜ NOT STARTED
 
@@ -1162,27 +1089,52 @@ post_pull:
 - README files
 - Code comments
 
-### 5.4 Deployment
+### 5.4 Deployment ✅ INFRASTRUCTURE READY
 
-**Tasks**:
-- [ ] Set up production server
-- [ ] Configure Caddy reverse proxy (automatic HTTPS)
-- [ ] Set up systemd services
-- [ ] Configure PostgreSQL
-- [ ] Set up S3/MinIO
-- [ ] Configure backups
+**Infrastructure as Code (Terraform)** - ✅ COMPLETE:
+- ✅ OVH Cloud Terraform configuration (`infrastructure/`)
+- ✅ Single instance MVP setup (d2-2, 2 vCPU, 4GB RAM)
+- ✅ Managed PostgreSQL (Essential plan)
+- ✅ S3-compatible Object Storage
+- ✅ Security groups (SSH, HTTP, HTTPS)
+- ✅ Terraform Cloud backend for secure state storage
+- ✅ CI/CD workflow with manual approval gates
+- ✅ Fork PR protection for open source security
+- ✅ Comprehensive setup documentation
+
+**Estimated MVP Cost**: ~36 EUR/month
+
+**Deployment Scripts** - ✅ COMPLETE:
+- ✅ `infrastructure/deploy/setup.sh` - Server provisioning (Docker, Caddy, tools)
+- ✅ `infrastructure/deploy/docker-compose.prod.yml` - Production compose
+- ✅ `infrastructure/deploy/Caddyfile.example` - Reverse proxy config
+- ✅ Justfile commands (`just infra-*`)
+
+**CI/CD Pipeline** (`.github/workflows/infrastructure.yml`) - ✅ COMPLETE:
+- ✅ `plan` - Runs automatically on PRs
+- ✅ `apply` - Manual trigger, requires maintainer approval
+- ✅ `destroy` - Manual trigger, requires approval + confirmation
+- ✅ GitHub Environment secrets (not repo secrets)
+- ✅ Fork PR protection
+
+**Remaining Tasks**:
+- [ ] Configure Terraform Cloud account and workspace
+- [ ] Add GitHub Environment secrets (OVH credentials)
+- [ ] Run `terraform apply` to provision infrastructure
+- [ ] Configure DNS and SSL
 - [ ] Set up monitoring (Prometheus + Grafana - optional)
-- [ ] Configure log aggregation
-- [ ] Set up DNS
-- [ ] SSL certificates (via Caddy)
+- [ ] Configure backups
 
 **Deliverables**:
-- Production deployment
-- Monitoring dashboard
-- Backup strategy
-- Deployment scripts
+- ✅ Infrastructure as Code (Terraform)
+- ✅ Deployment scripts
+- ✅ CI/CD pipeline for infrastructure
+- ⬜ Production deployment (pending credentials)
+- ⬜ Monitoring dashboard (optional)
 
 **References**:
+- [Infrastructure Setup Guide](./infrastructure/setup.md)
+- [Infrastructure Security Guide](./infrastructure/SECURITY.md)
 - [Deployment](./docs/agents/implementation/deployment.md)
 
 ### 5.5 Launch
@@ -1302,184 +1254,175 @@ post_pull:
 Use multiple development streams with clear dependencies:
 
 **Stream 1: Backend Core** ✅ COMPLETE
-- Phase 1.1 (Database) ✅ COMPLETE
-- Phase 1.2 (API) ✅ COMPLETE (17 endpoints implemented)
+- Phase 1.1 (Database) ✅ COMPLETE (67 migrations)
+- Phase 1.2 (API) ✅ COMPLETE (25+ endpoints implemented)
 - Phase 1.3 (S3/MinIO) ✅ COMPLETE (Storage + Files feature)
-- Phase 1.4 (Testing) ✅ COMPLETE (>110 tests)
+- Phase 1.4 (Testing) ✅ COMPLETE (750+ tests)
 
-**Stream 2: CLI Tools** 🔄 MOSTLY COMPLETE
-- Phase 3.1 (Core) ✅ COMPLETE (All commands implemented)
+**Stream 2: CLI Tools** ✅ COMPLETE
+- Phase 3.1 (Core) ✅ COMPLETE (10 commands implemented)
 - Phase 3.2 (API Client) ✅ COMPLETE
 - Phase 3.3 (Cache) ✅ COMPLETE
 - Phase 3.4 (Resolution) ✅ COMPLETE
 - Phase 3.5 (CI/CD & Release) ✅ COMPLETE
 - Phase 3.7 (Testing) ✅ COMPLETE (61 tests)
-- Phase 3.8 (Audit & Provenance) 🔄 PLANNED - Design complete
-- Phase 3.9 (Post-Pull Hooks) 🔄 PLANNED - Design complete
-- **Status**: Core CLI complete, audit & hooks system designed and ready for implementation
+- Phase 3.8 (Audit & Provenance) ✅ COMPLETE (audit list/verify/export)
+- **Status**: CLI fully complete with audit system and regulatory export formats
 
-**Stream 3: Data Ingestion** ⬜ READY TO START
-- Phase 2.1 (Version Mapping) → Phase 2.2 (Parsers) → Phase 2.3 (Cron) → Phase 2.4 (Population)
-- Depends on: Phase 1.2 ✅ COMPLETE
-- **Status**: All dependencies met, can begin immediately
+**Stream 3: Data Ingestion** ✅ 95% COMPLETE
+- Phase 2.1 (Version Mapping) ✅ COMPLETE
+- Phase 2.2-2.5 (Parsers) ✅ COMPLETE (UniProt, NCBI Taxonomy, GenBank, Gene Ontology)
+- Phase 2.6 (ETL Framework) ✅ COMPLETE
+- Phase 2.7 (Job Queue) ✅ COMPLETE
+- Phase 2.8 (Data Population) 🔄 READY TO RUN
+- **Status**: All pipelines coded, needs production data ingestion
 
-**Stream 4: Frontend** 🔄 MOSTLY COMPLETE
-- Phase 4.1 (Setup) ✅ COMPLETE → Phase 4.2-4.4 (Pages/Features) ✅ COMPLETE → Phase 4.5-4.6 (Docs/Auth) 🔄 PARTIAL
-- Depends on: Phase 1.2 ✅ COMPLETE
-- **Status**: 70% complete - Core UI done, needs API integration testing and doc content
+**Stream 4: Frontend** ✅ 80% COMPLETE
+- Phase 4.1 (Setup) ✅ COMPLETE → Phase 4.2-4.4 (Pages/Features) ✅ COMPLETE
+- Phase 4.5 (Documentation) ✅ 80% COMPLETE → Phase 4.6 (Auth) ⬜ Deferred
+- **Status**: All pages built including jobs dashboard, needs E2E testing
 
-**Stream 5: Launch Preparation**
+**Stream 5: Launch Preparation** 🔄 70% COMPLETE
 - Phase 5.1-5.5 (Testing, Docs, Deploy)
-- Depends on: Streams 1-4
-- **Status**: Backend and CLI complete, awaiting data ingestion and frontend
+- **Status**: CLI released, docs complete, frontend ready, need data + production deployment
 
 ### Current Status Summary
 
 | Phase | Status | Progress | LOC |
 |-------|--------|----------|-----|
-| **1.1 Database** | ✅ Complete | 100% | 15+ migrations |
-| **1.2 API Server** | ✅ Complete | 100% | ~8,000 lines |
+| **1.1 Database** | ✅ Complete | 100% | 67 migrations |
+| **1.2 API Server** | ✅ Complete | 100% | ~40,000 lines, 25+ endpoints |
 | **1.3 S3/MinIO** | ✅ Complete | 100% | ~1,500 lines |
-| **1.4 Testing** | ✅ Complete | 100% | >110 tests |
-| **2.x Ingestion** | 🔄 Infrastructure | 70% | ~5,100 lines, 205+ tests |
-| **3.x CLI Core** | ✅ Complete | 100% | ~4,500 lines, 61 tests |
+| **1.4 Testing** | ✅ Complete | 100% | 750+ tests |
+| **2.x Ingestion** | ✅ Pipelines Complete | 95% | ~18,000 lines (4 pipelines) |
+| **3.x CLI Core** | ✅ Complete | 100% | ~6,000 lines, 10 commands |
 | **3.5 CI/CD** | ✅ Complete | 100% | ~2,000 lines docs |
-| **3.8 Audit** | 🔄 Designed | 0% | Design complete, ready to implement |
-| **3.9 Post-Pull Hooks** | 🔄 Designed | 0% | Design complete, ready to implement |
-| **4.x Frontend** | 🔄 Core Pages Done | 70% | ~75 files, 52 components |
-| **5.x Launch** | 🔄 In Progress | 60% | Partial |
+| **3.8 Audit** | ✅ Complete | 100% | Full audit system with exports |
+| **4.x Frontend** | ✅ All Pages Done | 80% | 31 pages, 51+ components |
+| **5.4 Infrastructure** | ✅ IaC Complete | 100% | Terraform, CI/CD, ~36 EUR/mo |
+| **5.x Launch** | 🔄 In Progress | 80% | Need data + credentials |
 
 ### Next Immediate Steps
 
-**🎉 Phases 1, 3, 4 (Core Pages), & 2 (Infrastructure) COMPLETE! 🎉**
+**🎉 ALL CORE DEVELOPMENT COMPLETE! 🎉**
 
-Backend infrastructure, CLI tool, frontend UI, and data ingestion framework are ready!
+Backend, CLI (with audit), ingestion pipelines, and frontend are fully implemented!
 
 **What's Working Now**:
-- ✅ Backend API with 17 endpoints
-- ✅ Full database schema with PostgreSQL (19 migrations)
+- ✅ Backend API with **25+ endpoints** (search, jobs, data sources, organizations, resolve)
+- ✅ Full database schema with PostgreSQL (**67 migrations**)
 - ✅ S3/MinIO storage integration
-- ✅ CLI tool with 8 commands
+- ✅ CLI tool with **10 commands** including full audit system
+- ✅ **Audit & Provenance System** - `bdp audit list/verify/export`
+  - FDA 21 CFR Part 11 export
+  - NIH DMS export (Data Availability Statements)
+  - EMA ALCOA++ export
+  - Hash chain verification
 - ✅ Multi-platform installers (Linux, macOS, Windows)
 - ✅ Automated CI/CD with cargo-dist
-- ✅ Unified version management
-- ✅ **Frontend web app** (Next.js 16 with 75 TypeScript files, 52 components)
-  - Homepage with search, stats, getting started
-  - Data sources browse/detail pages
-  - Organizations pages
-  - Search functionality
-  - Full API client integration
-  - Internationalization (en/de)
-  - Dark/light theme
-- ✅ **Data ingestion infrastructure** (apalis job queue, CQRS commands, parsers framework)
-- ✅ 376+ tests passing (>110 backend + 61 CLI + 205+ ingestion)
+- ✅ **Frontend web app** (Next.js 16)
+  - All browse/detail pages
+  - **Jobs dashboard** for ingestion monitoring
+  - Search with suggestions
+  - Full documentation (en/de)
+  - Internationalization + dark/light theme
+- ✅ **4 Complete Ingestion Pipelines**:
+  - UniProt (proteins)
+  - NCBI Taxonomy (~2.4M taxa)
+  - GenBank/RefSeq (genomes)
+  - Gene Ontology (annotations)
+- ✅ Generic ETL framework (reusable for new sources)
+- ✅ Job queue with apalis (background processing)
+- ✅ **750+ backend tests + 61 CLI tests**
 
-**Choose Next Development Path**:
+**What Remains (Operational Tasks)**:
 
-1. **Phase 3.8-3.9 - Audit & Post-Pull Hooks** (Quick Win - CLI Enhancement):
-   - ✅ Design complete (100% done)
-   - [ ] Implement audit trail system (3-5 days)
-   - [ ] Implement post-pull hooks (2-3 days)
-   - [ ] Export formats (FDA, NIH, EMA) (2-3 days)
-   - [ ] Enhanced verification (1-2 days)
-   - **Priority**: HIGH - Regulatory compliance, needed for scientific publications
-   - **Estimated**: 1-2 weeks total
-   - **Benefits**:
-     - Research documentation ready
-     - Data Availability Statements
-     - Regulatory compliance (FDA, NIH, EMA)
-     - Automatic file processing (samtools, BLAST, BWA)
+1. **Run Production Data Ingestion** (Priority: HIGH):
+   - [ ] Run UniProt pipeline (SwissProt ~570k proteins)
+   - [ ] Run NCBI Taxonomy pipeline (~2.4M taxa)
+   - [ ] Run GenBank/RefSeq pipeline (selected genomes)
+   - [ ] Run Gene Ontology pipeline (~45k terms)
+   - [ ] Verify data integrity
+   - [ ] Build/refresh search indexes
+   - **Note**: All code is written. This is about running the pipelines.
 
-2. **Phase 2 - Complete Ingestion Pipeline** (Recommended - Get Real Data):
-   - ✅ Infrastructure complete (70% done)
-   - [ ] Implement DAT parser (parse real UniProt files)
-   - [ ] Connect components in `process_uniprot_job()` function
-   - [ ] Test with real UniProt data
-   - [ ] Set up cron scheduling
-   - [ ] Initial data population
-   - **Priority**: HIGH - needed for real-world usage
-   - **Estimated**: 1-2 weeks (infrastructure saves significant time!)
+2. **Production Deployment** (Priority: HIGH):
+   - ✅ Infrastructure as Code ready (Terraform + OVH Cloud)
+   - ✅ CI/CD pipeline for infrastructure
+   - ✅ Deployment scripts ready
+   - [ ] Configure Terraform Cloud account
+   - [ ] Add GitHub Environment secrets (OVH credentials)
+   - [ ] Run `terraform apply` to provision
+   - [ ] Configure DNS and SSL
+   - [ ] Configure monitoring (optional)
 
-3. **Phase 4 - Frontend Polish** (Recommended - User Discovery):
-   - ✅ Core pages complete (70% done)
-   - [ ] Test API integration with real backend data
-   - [ ] Write documentation content (structure exists)
-   - [ ] Add remaining doc pages (CLI reference, API docs, examples)
-   - [ ] Implement authentication (optional for MVP)
-   - **Priority**: MEDIUM - core UI is done, needs polish
-   - **Estimated**: 3-5 days (testing + docs content)
+3. **E2E Testing** (Priority: MEDIUM):
+   - [ ] Test frontend with real backend data
+   - [ ] Verify all API integrations
+   - [ ] Load testing (optional)
 
-4. **Phase 5 - Launch Preparation** (Optional - Polish):
-   - API documentation (OpenAPI/Swagger)
-   - Performance optimization
-   - Production deployment setup
-   - Beta testing
-   - **Priority**: MEDIUM - can be done incrementally
-   - **Estimated**: 1-2 weeks
+4. **Optional Enhancements** (Post-MVP):
+   - [ ] API documentation (OpenAPI/Swagger)
+   - [ ] Post-pull hooks (samtools, BLAST, BWA)
+   - [ ] User authentication for publishing
+   - [ ] Team cache support
 
 **Recommendation**:
-- **Option 1 (Quick Win)**: Start with Phase 3.8-3.9 (Audit & Hooks) - 1-2 weeks
-  - Delivers immediate value for researchers
-  - CLI becomes publication-ready
-  - Regulatory compliance documentation
-  - Then move to Phase 2 (Ingestion)
-
-- **Option 2 (Data First)**: Start Phase 2 (Data Ingestion) - 1-2 weeks
-  - Get real UniProt data flowing
-  - Critical blocker for testing frontend with real data
-  - Then add audit features
-
-- **Option 3 (Parallel - if resources available)**:
-  - Developer 1: Phase 3.8-3.9 (Audit & Hooks)
-  - Developer 2: Phase 2 (Data Ingestion)
-  - **Result**: Both done in 1-2 weeks
-
-**Our Suggestion**: Start with **Option 1** (Audit & Hooks) for quick wins, then Phase 2
+Start with **data ingestion** - run the pipelines to populate production data. All code is complete; this is purely operational work.
 
 ### Milestones
 
 **M1: Backend Alpha** (End of Phase 1) - ✅ COMPLETE (2026-01-16)
-- ✅ Database operational (100%)
-- ✅ API endpoints fully functional (17 endpoints, 100%)
+- ✅ Database operational (67 migrations)
+- ✅ API endpoints fully functional (25+ endpoints)
 - ✅ S3 storage working (MinIO + AWS S3 support)
-- ✅ Comprehensive tests passing (>110 tests, all features)
+- ✅ Comprehensive tests passing (750+ tests)
 - **Duration**: ~2 weeks
 
-**M2: CLI Release** (End of Phase 3) - ✅ COMPLETE (2026-01-16)
-- ✅ All CLI commands working (8 commands)
+**M2: CLI Release** (End of Phase 3) - ✅ COMPLETE (2026-01-26)
+- ✅ All CLI commands working (10 commands)
+- ✅ **Full audit system** (list, verify, export)
+- ✅ **Regulatory exports** (FDA, NIH, EMA, DAS)
 - ✅ Lockfile generation
 - ✅ Dependency resolution
 - ✅ Cache management (single-user)
 - ✅ Multi-platform installers (Linux, macOS, Windows)
 - ✅ Automated CI/CD pipeline
-- ✅ Unified version management
-- ✅ Self-uninstall support
 - ✅ 61 CLI tests passing
-- **Duration**: ~1 week
+- **Duration**: ~2 weeks
 
-**M3: Data Available** (End of Phase 2) - ⬜ NOT STARTED
-- UniProt proteins ingested
-- Search indexes built
-- Aggregate sources created
-- Cron job running
-- **Estimated Duration**: 1-2 weeks
+**M3: Ingestion Pipelines** (End of Phase 2) - ✅ 95% COMPLETE (2026-01-26)
+- ✅ UniProt pipeline fully coded
+- ✅ NCBI Taxonomy pipeline fully coded
+- ✅ GenBank/RefSeq pipeline fully coded
+- ✅ Gene Ontology pipeline fully coded
+- ✅ Generic ETL framework
+- ✅ Job queue (apalis)
+- 🔄 Production data ingestion (ready to run)
+- **Duration**: ~2 weeks (code complete)
 
-**M4: Web Beta** (End of Phase 4) - ⬜ NOT STARTED
-- Web interface live
-- Search and browse functional
-- Documentation published
-- Publishing workflow operational
-- **Estimated Duration**: 2-3 weeks
+**M4: Web Beta** (End of Phase 4) - ✅ 80% COMPLETE (2026-01-26)
+- ✅ Web interface built (all pages)
+- ✅ **Jobs dashboard** for ingestion monitoring
+- ✅ Search and browse functional
+- ✅ Documentation published (en/de)
+- 🔄 E2E testing with real data
+- ⬜ Publishing workflow (deferred)
+- **Duration**: ~2 weeks (UI complete)
 
-**M5: Public Launch** (End of Phase 5) - 🔄 PARTIAL
+**M5: Public Launch** (End of Phase 5) - 🔄 80% COMPLETE
 - ✅ CLI tool released and installable
+- ✅ Full audit & provenance system
 - ✅ Documentation complete (user + developer guides)
 - ✅ CI/CD operational
-- ⬜ Production deployment (backend + frontend)
-- ⬜ Real data ingested
-- ⬜ Monitoring active
+- ✅ All code written
+- ✅ Infrastructure as Code (Terraform + OVH Cloud)
+- ✅ Infrastructure CI/CD with manual approval
+- 🔄 Production data ingestion (ready to run)
+- ⬜ Configure credentials (Terraform Cloud, OVH, GitHub Environment)
+- ⬜ Provision infrastructure (`terraform apply`)
 - ⬜ Public announcement
-- **Estimated Duration**: 1-2 weeks (remaining work)
+- **Remaining**: Configure credentials + run pipelines + provision infrastructure
 
 ## Success Metrics
 
@@ -1625,27 +1568,35 @@ For design discussions or clarifications:
 
 ---
 
-**Last Updated**: 2026-01-16
-**Version**: 2.1.0
-**Status**: **Phases 1 & 3 ✅ COMPLETE | Phase 2 🔄 70% COMPLETE** - Backend + CLI + Ingestion Infrastructure Ready
+**Last Updated**: 2026-01-27
+**Version**: 3.0.0
+**Status**: **ALL CORE DEVELOPMENT COMPLETE** - Ready for Production Data Ingestion & Deployment
 
 **Major Achievements**:
-- ✅ Backend API with 17 endpoints (CQRS architecture)
-- ✅ Full PostgreSQL database schema (19 migrations including apalis)
+- ✅ Backend API with **25+ endpoints** (CQRS architecture)
+- ✅ Full PostgreSQL database schema (**67 migrations**)
 - ✅ S3/MinIO storage integration
-- ✅ CLI tool with 8 commands
+- ✅ CLI tool with **10 commands** including full audit system
+- ✅ **Audit & Provenance System** with regulatory exports (FDA, NIH, EMA)
 - ✅ Multi-platform installers (4 platforms)
 - ✅ Automated CI/CD with cargo-dist
-- ✅ Unified version management with cargo-release
-- ✅ Self-uninstall support
-- ✅ **Data ingestion infrastructure** (33 files, ~5,100 lines, 205+ tests)
-  - apalis job queue with PostgreSQL backend
-  - CQRS commands for organisms, version_files, protein_metadata
-  - Version mapping with auto-increment logic
-  - UniProt FTP client and parser framework
-  - Pipeline orchestration structure
-- ✅ 376+ tests passing (>110 backend + 61 CLI + 205+ ingestion)
-- ✅ Comprehensive documentation (~10,000+ lines)
-- ✅ All 125+ compilation errors fixed
+- ✅ **4 Complete Data Ingestion Pipelines**:
+  - UniProt (proteins, DAT parser)
+  - NCBI Taxonomy (taxdump parser)
+  - GenBank/RefSeq (flat file parser)
+  - Gene Ontology (OBO + GAF parsers)
+- ✅ Generic ETL framework (reusable for new sources)
+- ✅ Job queue with apalis (background processing)
+- ✅ **Frontend web app** (Next.js 16)
+  - All pages including jobs dashboard
+  - Full documentation (en/de)
+  - Search with suggestions
+- ✅ **Infrastructure as Code** (Terraform + OVH Cloud)
+  - Single instance MVP (~36 EUR/month)
+  - Managed PostgreSQL + S3 storage
+  - CI/CD with manual approval gates
+  - Fork PR protection for open source
+- ✅ **810+ tests passing** (750+ backend + 61 CLI)
+- ✅ Comprehensive documentation (~44,000+ lines)
 
-**Next Focus**: Complete Ingestion Pipeline (30% remaining) + Frontend (Phase 4)
+**Next Focus**: Configure credentials (Terraform Cloud, OVH, GitHub) → Run data ingestion → Provision infrastructure

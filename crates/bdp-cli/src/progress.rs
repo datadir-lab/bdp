@@ -7,12 +7,13 @@ use indicatif::{ProgressBar, ProgressStyle};
 /// Create a progress bar for file downloads
 pub fn create_download_progress(size: u64, message: &str) -> ProgressBar {
     let pb = ProgressBar::new(size);
-    pb.set_style(
-        ProgressStyle::default_bar()
-            .template("{msg}\n{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({eta})")
-            .expect("Invalid progress bar template")
-            .progress_chars("#>-"),
-    );
+    // Template is a static string, so template() should not fail.
+    // If it does, fall back to default style.
+    if let Ok(style) = ProgressStyle::default_bar()
+        .template("{msg}\n{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({eta})")
+    {
+        pb.set_style(style.progress_chars("#>-"));
+    }
     pb.set_message(message.to_string());
     pb
 }
@@ -20,11 +21,13 @@ pub fn create_download_progress(size: u64, message: &str) -> ProgressBar {
 /// Create a spinner for indeterminate operations
 pub fn create_spinner(message: &str) -> ProgressBar {
     let pb = ProgressBar::new_spinner();
-    pb.set_style(
-        ProgressStyle::default_spinner()
-            .template("{spinner:.green} {msg}")
-            .expect("Invalid spinner template"),
-    );
+    // Template is a static string, so template() should not fail.
+    // If it does, fall back to default style.
+    if let Ok(style) = ProgressStyle::default_spinner()
+        .template("{spinner:.green} {msg}")
+    {
+        pb.set_style(style);
+    }
     pb.set_message(message.to_string());
     pb.enable_steady_tick(std::time::Duration::from_millis(100));
     pb
@@ -33,12 +36,13 @@ pub fn create_spinner(message: &str) -> ProgressBar {
 /// Create a simple progress bar with custom message
 pub fn create_progress_bar(total: u64, message: &str) -> ProgressBar {
     let pb = ProgressBar::new(total);
-    pb.set_style(
-        ProgressStyle::default_bar()
-            .template("{msg}\n{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {pos}/{len} ({eta})")
-            .expect("Invalid progress bar template")
-            .progress_chars("#>-"),
-    );
+    // Template is a static string, so template() should not fail.
+    // If it does, fall back to default style.
+    if let Ok(style) = ProgressStyle::default_bar()
+        .template("{msg}\n{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {pos}/{len} ({eta})")
+    {
+        pb.set_style(style.progress_chars("#>-"));
+    }
     pb.set_message(message.to_string());
     pb
 }

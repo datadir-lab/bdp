@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE ingestion_work_units\n            SET record_count = $1\n            WHERE id = $2\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "7bfa7b2424e97e1d3fcebcda7d1f2f859c645a0df4fbb365f53591357476ad15"
+}

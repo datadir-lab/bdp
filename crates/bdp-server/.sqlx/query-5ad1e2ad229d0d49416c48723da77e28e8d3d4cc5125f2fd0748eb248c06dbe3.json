@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT COUNT(*) as \"count!\"\n            FROM search_registry_entries_mv mv\n            WHERE mv.search_vector @@ plainto_tsquery('english', $1)\n              AND ($2::VARCHAR[] IS NULL OR mv.entry_type = ANY($2))\n              AND ($3::TEXT IS NULL OR LOWER(mv.scientific_name) LIKE LOWER($3) OR LOWER(mv.common_name) LIKE LOWER($3))\n              AND ($4::TEXT IS NULL OR $4 = ANY(mv.available_formats))\n              AND ($5::VARCHAR[] IS NULL OR mv.source_type = ANY($5))\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count!",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "VarcharArray",
+        "Text",
+        "Text",
+        "VarcharArray"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "5ad1e2ad229d0d49416c48723da77e28e8d3d4cc5125f2fd0748eb248c06dbe3"
+}

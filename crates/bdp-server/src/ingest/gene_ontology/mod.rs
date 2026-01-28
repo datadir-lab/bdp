@@ -24,6 +24,7 @@ pub mod models;
 pub mod parser;
 pub mod pipeline;
 pub mod storage;
+pub mod version_discovery;
 
 // Re-export main types
 pub use config::GoHttpConfig;
@@ -35,6 +36,7 @@ pub use models::{
 pub use parser::{GoParser, OboParser, GafParser, ParsedObo};
 pub use pipeline::{GoPipeline, PipelineStats};
 pub use storage::{GoStorage, StorageStats};
+pub use version_discovery::{VersionDiscovery, DiscoveredVersion};
 
 // Batch size constants
 pub const DEFAULT_TERM_CHUNK_SIZE: usize = 500;
@@ -67,4 +69,16 @@ pub enum GoError {
 
     #[error("Decompression error: {0}")]
     Decompression(String),
+}
+
+impl From<regex::Error> for GoError {
+    fn from(err: regex::Error) -> Self {
+        GoError::Parse(err.to_string())
+    }
+}
+
+impl From<std::num::ParseIntError> for GoError {
+    fn from(err: std::num::ParseIntError) -> Self {
+        GoError::Parse(err.to_string())
+    }
 }

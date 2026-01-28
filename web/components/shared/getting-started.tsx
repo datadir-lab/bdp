@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Copy, Check } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, formatSourceId } from '@/lib/utils';
 import { siteConfig } from '@/lib/site-config';
 
 interface TerminalLineProps {
@@ -117,6 +117,9 @@ function TerminalWindow({ children, platform, activeTab, onTabChange }: Terminal
 export function GettingStarted() {
   const [activeTab, setActiveTab] = useState<'unix' | 'windows'>('unix');
 
+  // Standard example source identifier
+  const exampleSource = formatSourceId('uniprot', 'P01308', 'fasta', '1.0');
+
   return (
     <div className="w-full max-w-4xl animate-fade-in">
       <TerminalWindow platform={activeTab} activeTab={activeTab} onTabChange={setActiveTab}>
@@ -127,7 +130,7 @@ export function GettingStarted() {
               comment="# Install BDP"
             />
             <TerminalLine command="bdp init" comment="# Initialize project" />
-            <TerminalLine command="bdp source add uniprot:P01308-fasta@1.0" comment="# Add data source" />
+            <TerminalLine command={`bdp source add ${exampleSource}`} comment="# Add data source" />
             <TerminalLine command="bdp pull" comment="# Download and cache" />
           </>
         ) : (
@@ -138,7 +141,7 @@ export function GettingStarted() {
               comment="# Install BDP"
             />
             <TerminalLine command="bdp init" prompt="PS>" comment="# Initialize project" />
-            <TerminalLine command="bdp source add uniprot:P01308-fasta@1.0" prompt="PS>" comment="# Add data source" />
+            <TerminalLine command={`bdp source add ${exampleSource}`} prompt="PS>" comment="# Add data source" />
             <TerminalLine command="bdp pull" prompt="PS>" comment="# Download and cache" />
           </>
         )}

@@ -1,0 +1,25 @@
+[package]
+name = "xtask"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[[bin]]
+name = "xtask"
+path = "src/main.rs"
+
+[dependencies]
+# CLI framework for xtask commands
+clap = { version = "4.5", features = ["derive"] }
+
+# For generating markdown documentation
+clap-markdown = "0.1"
+
+# Use bdp-cli types for documentation generation
+bdp-cli = { path = "../crates/bdp-cli" }
+
+# File system operations
+anyhow = "1.0"
+
+# Date/time for timestamps
+chrono = "0.4"

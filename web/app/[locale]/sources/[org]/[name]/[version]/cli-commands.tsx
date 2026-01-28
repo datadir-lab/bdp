@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { Copy, Check } from 'lucide-react';
 import { CodeBlock } from '@/components/docs/code-block';
+import { formatSourceId } from '@/lib/utils';
 import type { VersionFile } from '@/lib/types/data-source';
 
 interface CliCommandsProps {
@@ -30,7 +31,7 @@ export function CliCommands({ org, name, version, files }: CliCommandsProps) {
   };
 
   const commands = files
-    .map((file) => `bdp source add ${org}:${name}-${file.format}@${version}`)
+    .map((file) => `bdp source add ${formatSourceId(org, name, file.format, version)}`)
     .join('\n');
 
   return (

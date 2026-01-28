@@ -13,7 +13,7 @@ pub async fn add(source: String) -> Result<()> {
 
     // Load manifest
     let mut manifest = Manifest::load("bdp.yml")
-        .map_err(|_| CliError::NotInitialized("Run 'bdp init' first".to_string()))?;
+        .map_err(|_| CliError::NotInitialized("No bdp.yml found. Run 'bdp init' to create a project first.".to_string()))?;
 
     // Check if already exists
     if manifest.has_source(&source) {
@@ -36,7 +36,7 @@ pub async fn add(source: String) -> Result<()> {
 pub async fn remove(source: String) -> Result<()> {
     // Load manifest
     let mut manifest = Manifest::load("bdp.yml")
-        .map_err(|_| CliError::NotInitialized("Run 'bdp init' first".to_string()))?;
+        .map_err(|_| CliError::NotInitialized("No bdp.yml found. Run 'bdp init' to create a project first.".to_string()))?;
 
     // Remove source
     if manifest.remove_source(&source) {
@@ -53,7 +53,7 @@ pub async fn remove(source: String) -> Result<()> {
 pub async fn list() -> Result<()> {
     // Load manifest
     let manifest = Manifest::load("bdp.yml")
-        .map_err(|_| CliError::NotInitialized("Run 'bdp init' first".to_string()))?;
+        .map_err(|_| CliError::NotInitialized("No bdp.yml found. Run 'bdp init' to create a project first.".to_string()))?;
 
     if manifest.sources.is_empty() {
         println!("No sources defined in bdp.yml");

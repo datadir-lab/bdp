@@ -1,9 +1,36 @@
+//! Create data source command
+//!
+//! Creates a new data source entry in the registry. Data sources represent
+//! biological data files such as protein sequences, genome assemblies, or
+//! annotation files.
+
 use chrono::{DateTime, Utc};
 use mediator::Request;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use uuid::Uuid;
 
+/// Command to create a new data source
+///
+/// Creates a registry entry and associated data_source record.
+/// Type-specific metadata (protein, organism, etc.) should be added
+/// via the appropriate metadata tables after creation.
+///
+/// # Examples
+///
+/// ```rust,ignore
+/// use bdp_server::features::data_sources::commands::CreateDataSourceCommand;
+/// use uuid::Uuid;
+///
+/// let command = CreateDataSourceCommand {
+///     organization_id: org_id,
+///     slug: "human-insulin".to_string(),
+///     name: "Human Insulin".to_string(),
+///     description: Some("Insulin precursor protein".to_string()),
+///     source_type: "protein".to_string(),
+///     external_id: Some("P01308".to_string()),
+/// };
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateDataSourceCommand {
     pub organization_id: Uuid,
@@ -18,6 +45,7 @@ pub struct CreateDataSourceCommand {
     // Type-specific metadata should go in *_metadata tables
 }
 
+/// Response from creating a data source
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateDataSourceResponse {
     pub id: Uuid,
@@ -33,26 +61,37 @@ pub struct CreateDataSourceResponse {
     pub created_at: DateTime<Utc>,
 }
 
+/// Errors that can occur when creating a data source
 #[derive(Debug, thiserror::Error)]
 pub enum CreateDataSourceError {
+    /// Slug was empty
     #[error("Slug is required and cannot be empty")]
     SlugRequired,
+    /// Slug exceeded maximum length
     #[error("Slug must be between 1 and 255 characters")]
     SlugLength,
+    /// Name was empty
     #[error("Name is required and cannot be empty")]
     NameRequired,
+    /// Name exceeded maximum length
     #[error("Name must be between 1 and 255 characters")]
     NameLength,
+    /// Source type was not provided
     #[error("Source type is required")]
     SourceTypeRequired,
+    /// Source type was not one of the allowed values
     #[error("Invalid source type: {0}. Must be one of: protein, genome, annotation, structure, other")]
     InvalidSourceType(String),
+    /// The organization ID does not exist
     #[error("Organization with ID '{0}' not found")]
     OrganizationNotFound(Uuid),
+    /// The organism ID does not exist (legacy - organisms are now in metadata tables)
     #[error("Organism with ID '{0}' not found")]
     OrganismNotFound(Uuid),
+    /// A data source with this slug already exists
     #[error("Data source with slug '{0}' already exists")]
     DuplicateSlug(String),
+    /// A database error occurred
     #[error("Database error: {0}")]
     Database(#[from] sqlx::Error),
 }
@@ -62,6 +101,16 @@ impl Request<Result<CreateDataSourceResponse, CreateDataSourceError>> for Create
 impl crate::cqrs::middleware::Command for CreateDataSourceCommand {}
 
 impl CreateDataSourceCommand {
+    /// Validates the command parameters
+    ///
+    /// # Errors
+    ///
+    /// - `SlugRequired` - Slug is empty
+    /// - `SlugLength` - Slug exceeds 255 characters
+    /// - `NameRequired` - Name is empty or whitespace-only
+    /// - `NameLength` - Name exceeds 255 characters
+    /// - `SourceTypeRequired` - Source type is empty
+    /// - `InvalidSourceType` - Source type is not one of: protein, genome, annotation, structure, other
     pub fn validate(&self) -> Result<(), CreateDataSourceError> {
         if self.slug.is_empty() {
             return Err(CreateDataSourceError::SlugRequired);
@@ -90,6 +139,28 @@ impl CreateDataSourceCommand {
     }
 }
 
+/// Handles the create data source command
+///
+/// Creates a new data source in a transaction:
+/// 1. Validates the organization exists
+/// 2. Creates a registry_entries record
+/// 3. Creates a data_sources record linked to the entry
+///
+/// # Arguments
+///
+/// * `pool` - Database connection pool
+/// * `command` - The create command with data source details
+///
+/// # Returns
+///
+/// Returns the created data source details on success.
+///
+/// # Errors
+///
+/// - Validation errors if command parameters are invalid
+/// - `OrganizationNotFound` - The organization ID doesn't exist
+/// - `DuplicateSlug` - A data source with this slug already exists
+/// - `Database` - A database error occurred
 #[tracing::instrument(skip(pool))]
 pub async fn handle(
     pool: PgPool,
@@ -180,6 +251,7 @@ pub async fn handle(
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 struct DataSourceRecord {
     id: Uuid,
     organization_id: Uuid,

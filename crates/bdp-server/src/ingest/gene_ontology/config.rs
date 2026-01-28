@@ -61,22 +61,32 @@ impl GoHttpConfig {
     }
 
     /// Get URL for GO ontology OBO file
-    pub fn ontology_url(&self) -> String {
-        // For FTP base URLs, construct FTP path
-        if self.ontology_base_url.starts_with("ftp://") {
-            // Temporary workaround: Download from specific release via HTTP
-            // EBI doesn't host the ontology OBO file, only annotations
-            format!(
-                "http://release.geneontology.org/2025-09-08/ontology/go-basic.obo"
-            )
-        } else if self.go_release_version == "current" {
-            format!("{}/go-basic.obo", self.ontology_base_url)
+    ///
+    /// # Arguments
+    /// * `version` - Optional version override (e.g., "2025-01-01")
+    ///
+    /// If version is provided, downloads from the versioned release archive.
+    /// Otherwise uses the configured go_release_version.
+    pub fn ontology_url_for_version(&self, version: Option<&str>) -> String {
+        let ver = version.unwrap_or(&self.go_release_version);
+
+        // Use HTTP release archive for all downloads
+        // This is the canonical source for GO releases
+        if ver == "current" {
+            // For "current", use the latest from release archive
+            // In practice, we should discover the actual latest version
+            format!("http://release.geneontology.org/2025-09-08/ontology/go-basic.obo")
         } else {
             format!(
                 "http://release.geneontology.org/{}/ontology/go-basic.obo",
-                self.go_release_version
+                ver
             )
         }
+    }
+
+    /// Get URL for GO ontology OBO file (using configured version)
+    pub fn ontology_url(&self) -> String {
+        self.ontology_url_for_version(None)
     }
 
     /// Get URL for GOA UniProt annotations (gzipped GAF)

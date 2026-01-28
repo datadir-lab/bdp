@@ -11,7 +11,7 @@ use bdp_server::ingest::ncbi_taxonomy::{
     NcbiTaxonomyFtpConfig, NcbiTaxonomyPipeline,
 };
 use sqlx::postgres::PgPoolOptions;
-use tracing::{info, Level};
+use tracing::{error, info, warn, Level};
 use tracing_subscriber::FmtSubscriber;
 use uuid::Uuid;
 
@@ -30,9 +30,8 @@ async fn main() -> Result<()> {
     tracing::subscriber::set_global_default(subscriber)
         .expect("Failed to set tracing subscriber");
 
-    println!("\n🧪 NCBI Taxonomy Small Dataset Test\n");
-    println!("This will download and parse 1,000 taxonomy entries");
-    println!("to verify the implementation works correctly.\n");
+    info!("NCBI Taxonomy Small Dataset Test");
+    info!("This will download and parse 1,000 taxonomy entries to verify the implementation works correctly.");
 
     // Get database URL from environment
     let database_url = std::env::var("DATABASE_URL")
@@ -44,23 +43,25 @@ async fn main() -> Result<()> {
         .connect(&database_url)
         .await?;
 
-    info!("✓ Database connected");
+    info!("Database connected");
 
     // NCBI organization ID (created earlier)
     let org_id = Uuid::parse_str("00000000-0000-0000-0000-000000000001")?;
 
     // Configure with parse limit for small test
-    info!("Configuring pipeline with 1,000 entry limit...");
+    info!(parse_limit = 1000, "Configuring pipeline with entry limit");
     let config = NcbiTaxonomyFtpConfig::new()
         .with_parse_limit(1000);
 
     let pipeline = NcbiTaxonomyPipeline::new(config, db);
 
     // Run ingestion for the latest version with limited parsing
-    println!("\n📥 Starting ingestion...");
-    println!("   - Version: Latest (2026-01-01)");
-    println!("   - Parse limit: 1,000 entries");
-    println!("   - Expected time: ~1-2 minutes\n");
+    info!(
+        version = "Latest (2026-01-01)",
+        parse_limit = 1000,
+        expected_time = "~1-2 minutes",
+        "Starting ingestion"
+    );
 
     let start = std::time::Instant::now();
 
@@ -68,26 +69,30 @@ async fn main() -> Result<()> {
         Ok(result) => {
             let duration = start.elapsed();
 
-            println!("\n✅ Ingestion completed successfully!\n");
-            println!("Results:");
-            println!("  - Version: {}", result.external_version.unwrap_or_default());
-            println!("  - Duration: {:.1} seconds", duration.as_secs_f64());
+            info!("Ingestion completed successfully!");
+            info!(
+                version = result.external_version.as_deref().unwrap_or("unknown"),
+                duration_secs = format!("{:.1}", duration.as_secs_f64()),
+                "Results"
+            );
 
             if let Some(stats) = result.storage_stats {
-                println!("  - Taxa stored: {}", stats.stored);
-                println!("  - Taxa updated: {}", stats.updated);
-                println!("  - Failed: {}", stats.failed);
+                info!(
+                    taxa_stored = stats.stored,
+                    taxa_updated = stats.updated,
+                    failed = stats.failed,
+                    "Storage statistics"
+                );
             }
 
             if result.skipped {
-                println!("\n⚠️  Version was already ingested (skipped)");
+                warn!("Version was already ingested (skipped)");
             }
 
-            println!("\n🎉 Test completed successfully!");
-            println!("   You can now run full ingestion with more data.");
+            info!("Test completed successfully! You can now run full ingestion with more data.");
         }
         Err(e) => {
-            println!("\n❌ Ingestion failed: {}", e);
+            error!(error = %e, "Ingestion failed");
             return Err(e);
         }
     }

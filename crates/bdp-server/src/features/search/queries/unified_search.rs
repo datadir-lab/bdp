@@ -1,8 +1,36 @@
+//! Unified search query
+//!
+//! Full-text search across organizations, data sources, and tools.
+//! Uses PostgreSQL's full-text search with materialized views for performance.
+
 use mediator::Request;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use uuid::Uuid;
 
+use crate::features::shared::pagination::{PaginationMetadata, PaginationParams};
+use crate::features::shared::validation::VALID_SOURCE_TYPES;
+
+/// Query for unified full-text search
+///
+/// Searches across organizations, data sources, and tools with optional
+/// filtering by type, source type, organism, and format.
+///
+/// # Examples
+///
+/// ```rust,ignore
+/// use bdp_server::features::search::queries::UnifiedSearchQuery;
+///
+/// // Search for insulin-related entries
+/// let query = UnifiedSearchQuery {
+///     query: "insulin".to_string(),
+///     type_filter: Some(vec!["data_source".to_string()]),
+///     source_type_filter: Some(vec!["protein".to_string()]),
+///     organism: Some("human".to_string()),
+///     format: None,
+///     pagination: PaginationParams::new(Some(1), Some(20)),
+/// };
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UnifiedSearchQuery {
     pub query: String,
@@ -14,75 +42,94 @@ pub struct UnifiedSearchQuery {
     pub organism: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub format: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub page: Option<i64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub per_page: Option<i64>,
+    #[serde(flatten)]
+    pub pagination: PaginationParams,
 }
 
+/// Response containing search results with pagination
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UnifiedSearchResponse {
+    /// Matching items ranked by relevance
     pub items: Vec<SearchResultItem>,
+    /// Pagination metadata
     pub pagination: PaginationMetadata,
 }
 
+/// A single search result item
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchResultItem {
+    /// Unique identifier
     pub id: Uuid,
+    /// Organization slug (for building URLs)
     pub organization_slug: String,
+    /// Entry slug
     pub slug: String,
+    /// Display name
     pub name: String,
+    /// Entry description
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
+    /// Type: "data_source", "tool", or "organization"
     pub entry_type: String,
+    /// Source type (for data sources): protein, genome, etc.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source_type: Option<String>,
+    /// Tool type (for tools)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_type: Option<String>,
+    /// Organism information (if applicable)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub organism: Option<OrganismInfo>,
+    /// Latest internal version
     #[serde(skip_serializing_if = "Option::is_none")]
     pub latest_version: Option<String>,
+    /// External version (e.g., UniProt release)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub external_version: Option<String>,
+    /// Available file formats
     pub available_formats: Vec<String>,
+    /// Total download count across all versions
     pub total_downloads: i64,
+    /// External identifier (e.g., UniProt accession)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub external_id: Option<String>,
+    /// Search relevance rank (higher is more relevant)
     pub rank: f32,
 }
 
+/// Organism information in search results
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OrganismInfo {
+    /// Scientific name (e.g., "Homo sapiens")
     pub scientific_name: String,
+    /// Common name (e.g., "Human")
     #[serde(skip_serializing_if = "Option::is_none")]
     pub common_name: Option<String>,
+    /// NCBI Taxonomy ID (e.g., 9606)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ncbi_taxonomy_id: Option<i32>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PaginationMetadata {
-    pub page: i64,
-    pub per_page: i64,
-    pub total: i64,
-    pub pages: i64,
-    pub has_next: bool,
-    pub has_prev: bool,
-}
 
+/// Errors that can occur during unified search
 #[derive(Debug, thiserror::Error)]
 pub enum UnifiedSearchError {
+    /// Search query was empty
     #[error("Query is required and cannot be empty")]
     QueryRequired,
+    /// Per page was outside valid range (1-100)
     #[error("Per page must be between 1 and 100")]
     InvalidPerPage,
+    /// Page number was less than 1
     #[error("Page must be greater than 0")]
     InvalidPage,
+    /// Type filter contained an invalid value
     #[error("Invalid type filter: {0}. Must be 'data_source', 'tool', or 'organization'")]
     InvalidTypeFilter(String),
+    /// Source type filter contained an invalid value
     #[error("Invalid source type filter: {0}. Must be one of: protein, genome, organism, taxonomy, bundle, transcript, annotation, structure, pathway, other")]
     InvalidSourceTypeFilter(String),
+    /// A database error occurred
     #[error("Database error: {0}")]
     Database(#[from] sqlx::Error),
 }
@@ -92,20 +139,25 @@ impl Request<Result<UnifiedSearchResponse, UnifiedSearchError>> for UnifiedSearc
 impl crate::cqrs::middleware::Query for UnifiedSearchQuery {}
 
 impl UnifiedSearchQuery {
+    /// Validates the search query parameters
+    ///
+    /// # Errors
+    ///
+    /// - `QueryRequired` - Search query is empty
+    /// - `InvalidPage` - Page is less than 1
+    /// - `InvalidPerPage` - Per page is less than 1 or greater than 100
+    /// - `InvalidTypeFilter` - Type filter contains an invalid value
+    /// - `InvalidSourceTypeFilter` - Source type filter contains an invalid value
     pub fn validate(&self) -> Result<(), UnifiedSearchError> {
         if self.query.trim().is_empty() {
             return Err(UnifiedSearchError::QueryRequired);
         }
 
-        let per_page = self.per_page();
-        if per_page < 1 || per_page > 100 {
-            return Err(UnifiedSearchError::InvalidPerPage);
-        }
-
-        let page = self.page();
-        if page < 1 {
-            return Err(UnifiedSearchError::InvalidPage);
-        }
+        // Use shared pagination validation
+        self.pagination.validate().map_err(|msg| match msg {
+            "Page must be greater than 0" => UnifiedSearchError::InvalidPage,
+            _ => UnifiedSearchError::InvalidPerPage,
+        })?;
 
         if let Some(ref types) = self.type_filter {
             for t in types {
@@ -115,9 +167,10 @@ impl UnifiedSearchQuery {
             }
         }
 
+        // Use shared VALID_SOURCE_TYPES constant
         if let Some(ref source_types) = self.source_type_filter {
             for st in source_types {
-                if !matches!(st.as_str(), "protein" | "genome" | "organism" | "taxonomy" | "bundle" | "transcript" | "annotation" | "structure" | "pathway" | "other") {
+                if !VALID_SOURCE_TYPES.contains(&st.as_str()) {
                     return Err(UnifiedSearchError::InvalidSourceTypeFilter(st.clone()));
                 }
             }
@@ -127,18 +180,42 @@ impl UnifiedSearchQuery {
     }
 
     fn page(&self) -> i64 {
-        self.page.unwrap_or(1).max(1)
+        self.pagination.page()
     }
 
     fn per_page(&self) -> i64 {
-        self.per_page.unwrap_or(20).clamp(1, 100)
+        self.pagination.per_page()
     }
 
     fn offset(&self) -> i64 {
-        (self.page() - 1) * self.per_page()
+        self.pagination.offset()
     }
 }
 
+/// Handles the unified search query
+///
+/// Performs full-text search across organizations, data sources, and tools.
+/// Uses PostgreSQL's `plainto_tsquery` for search and a materialized view
+/// for efficient querying of registry entries.
+///
+/// Results are ranked by relevance using `ts_rank` and sorted by:
+/// 1. Search relevance (highest first)
+/// 2. Total downloads (highest first)
+/// 3. Creation date (newest first)
+///
+/// # Arguments
+///
+/// * `pool` - Database connection pool
+/// * `query` - Search query with filters and pagination
+///
+/// # Returns
+///
+/// Returns paginated search results ranked by relevance.
+///
+/// # Errors
+///
+/// - Validation errors if query parameters are invalid
+/// - `Database` - A database error occurred
 #[tracing::instrument(skip(pool))]
 pub async fn handle(
     pool: PgPool,
@@ -156,46 +233,69 @@ pub async fn handle(
         types.contains(&"data_source".to_string()) || types.contains(&"tool".to_string())
     });
 
-    let mut all_results = Vec::new();
+    // When searching only one type, we can use proper LIMIT/OFFSET in the query
+    // When searching both types, we need to combine results and paginate in memory
+    let searching_both_types = has_org_filter && has_entry_filter;
 
-    if has_org_filter {
-        let org_results = search_organizations(&pool, &query).await?;
-        all_results.extend(org_results);
-    }
+    // Run searches concurrently when querying multiple types
+    // This provides significant performance improvement over sequential execution
+    let (org_results, entry_results) = if has_org_filter && has_entry_filter {
+        // Both searches can run in parallel
+        let (org_res, entry_res) = tokio::try_join!(
+            search_organizations(&pool, &query, searching_both_types),
+            search_registry_entries(&pool, &query, searching_both_types)
+        )?;
+        (org_res, entry_res)
+    } else if has_org_filter {
+        let org_res = search_organizations(&pool, &query, searching_both_types).await?;
+        (org_res, vec![])
+    } else if has_entry_filter {
+        let entry_res = search_registry_entries(&pool, &query, searching_both_types).await?;
+        (vec![], entry_res)
+    } else {
+        (vec![], vec![])
+    };
 
-    if has_entry_filter {
-        let entry_results = search_registry_entries(&pool, &query).await?;
-        all_results.extend(entry_results);
-    }
+    let mut all_results = org_results;
+    all_results.extend(entry_results);
 
-    all_results.sort_by(|a, b| b.rank.partial_cmp(&a.rank).unwrap_or(std::cmp::Ordering::Equal));
+    // Sort by rank - organizations and entries are ranked separately, so we need to merge
+    all_results.sort_by(|a, b| {
+        b.rank.partial_cmp(&a.rank)
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| b.total_downloads.cmp(&a.total_downloads))
+            .then_with(|| std::cmp::Ordering::Equal)
+    });
 
     let total = count_search_results(&pool, &query).await?;
-    let items: Vec<SearchResultItem> = all_results.into_iter().skip(offset as usize).take(per_page as usize).collect();
 
-    let pages = if total == 0 {
-        0
+    // If searching both types, we need to paginate in memory after sorting
+    // Otherwise, pagination was already done in the query
+    let items: Vec<SearchResultItem> = if searching_both_types {
+        all_results.into_iter().skip(offset as usize).take(per_page as usize).collect()
     } else {
-        ((total as f64) / (per_page as f64)).ceil() as i64
+        all_results
     };
 
     Ok(UnifiedSearchResponse {
         items,
-        pagination: PaginationMetadata {
-            page,
-            per_page,
-            total,
-            pages,
-            has_next: page < pages,
-            has_prev: page > 1,
-        },
+        pagination: PaginationMetadata::new(page, per_page, total),
     })
 }
 
 async fn search_organizations(
     pool: &PgPool,
     query: &UnifiedSearchQuery,
+    fetch_all_for_merge: bool,
 ) -> Result<Vec<SearchResultItem>, sqlx::Error> {
+    // When searching both types, fetch all results for merging and sorting
+    // When searching only organizations, use proper LIMIT/OFFSET
+    let (limit, offset) = if fetch_all_for_merge {
+        (query.per_page() + query.offset(), 0)
+    } else {
+        (query.per_page(), query.offset())
+    };
+
     let records: Vec<OrganizationSearchRow> = sqlx::query_as!(
         OrganizationSearchRow,
         r#"
@@ -212,10 +312,11 @@ async fn search_organizations(
         WHERE to_tsvector('english', name || ' ' || COALESCE(description, ''))
             @@ plainto_tsquery('english', $1)
         ORDER BY 5 DESC, created_at DESC
-        LIMIT $2
+        LIMIT $2 OFFSET $3
         "#,
         query.query,
-        query.per_page() + query.offset()
+        limit,
+        offset
     )
     .fetch_all(pool)
     .await?;
@@ -245,6 +346,7 @@ async fn search_organizations(
 async fn search_registry_entries(
     pool: &PgPool,
     query: &UnifiedSearchQuery,
+    fetch_all_for_merge: bool,
 ) -> Result<Vec<SearchResultItem>, sqlx::Error> {
     let entry_types = query.type_filter.as_ref().and_then(|types| {
         let filtered: Vec<String> = types
@@ -261,86 +363,54 @@ async fn search_registry_entries(
 
     let organism_pattern = query.organism.as_ref().map(|o| format!("%{}%", o));
 
+    // When searching both types, fetch all results for merging and sorting
+    // When searching only registry entries, use proper LIMIT/OFFSET
+    let (limit, offset) = if fetch_all_for_merge {
+        (query.per_page() + query.offset(), 0)
+    } else {
+        (query.per_page(), query.offset())
+    };
+
+    // Query the materialized view instead of doing complex joins
+    // This eliminates N+1 queries and uses pre-computed aggregations
     let records: Vec<RegistryEntrySearchRow> = sqlx::query_as!(
         RegistryEntrySearchRow,
         r#"
         SELECT
-            re.id,
-            o.slug as organization_slug,
-            re.slug,
-            re.name,
-            re.description,
-            re.entry_type,
-            ds.source_type as "source_type?",
-            t.tool_type as "tool_type?",
-            COALESCE(org_ref.scientific_name, org_direct.scientific_name) as "scientific_name?",
-            COALESCE(org_ref.common_name, org_direct.common_name) as "common_name?",
-            COALESCE(org_ref.taxonomy_id, org_direct.taxonomy_id) as "ncbi_taxonomy_id?",
-            ds.external_id as "external_id?",
-            (
-                SELECT v.version
-                FROM versions v
-                WHERE v.entry_id = re.id
-                ORDER BY v.published_at DESC
-                LIMIT 1
-            ) as latest_version,
-            (
-                SELECT v.external_version
-                FROM versions v
-                WHERE v.entry_id = re.id
-                ORDER BY v.published_at DESC
-                LIMIT 1
-            ) as external_version,
-            COALESCE(
-                (
-                    SELECT ARRAY_AGG(DISTINCT vf.format)
-                    FROM versions v
-                    JOIN version_files vf ON vf.version_id = v.id
-                    WHERE v.entry_id = re.id
-                ),
-                ARRAY[]::VARCHAR[]
-            ) as "available_formats!",
-            COALESCE(
-                (
-                    SELECT SUM(v.download_count)::bigint
-                    FROM versions v
-                    WHERE v.entry_id = re.id
-                ),
-                0
-            ) as "total_downloads!",
-            ts_rank(
-                to_tsvector('english', re.name || ' ' || COALESCE(re.description, '')),
-                plainto_tsquery('english', $1)
-            ) as "rank!"
-        FROM registry_entries re
-        JOIN organizations o ON o.id = re.organization_id
-        LEFT JOIN data_sources ds ON ds.id = re.id
-        LEFT JOIN tools t ON t.id = re.id
-        LEFT JOIN protein_metadata pm ON pm.data_source_id = ds.id
-        LEFT JOIN taxonomy_metadata org_ref ON org_ref.data_source_id = pm.taxonomy_id
-        LEFT JOIN taxonomy_metadata org_direct ON org_direct.data_source_id = ds.id AND ds.source_type = 'organism'
-        WHERE to_tsvector('english', re.name || ' ' || COALESCE(re.description, ''))
-            @@ plainto_tsquery('english', $1)
-          AND ($2::VARCHAR[] IS NULL OR re.entry_type = ANY($2))
-          AND ($3::TEXT IS NULL OR org_ref.scientific_name ILIKE $3 OR org_ref.common_name ILIKE $3 OR org_direct.scientific_name ILIKE $3 OR org_direct.common_name ILIKE $3)
-          AND ($4::TEXT IS NULL OR EXISTS (
-              SELECT 1
-              FROM versions v
-              JOIN version_files vf ON vf.version_id = v.id
-              WHERE v.entry_id = re.id AND vf.format = $4
-          ))
-          AND ($6::VARCHAR[] IS NULL OR ds.source_type = ANY($6))
-          AND re.slug IS NOT NULL
-          AND o.slug IS NOT NULL
-        ORDER BY 17 DESC, 16 DESC, re.created_at DESC
-        LIMIT $5
+            mv.id as "id!",
+            mv.organization_slug as "organization_slug!",
+            mv.slug as "slug!",
+            mv.name as "name!",
+            mv.description as "description?",
+            mv.entry_type as "entry_type!",
+            mv.source_type as "source_type?",
+            mv.tool_type as "tool_type?",
+            mv.scientific_name as "scientific_name?",
+            mv.common_name as "common_name?",
+            mv.ncbi_taxonomy_id as "ncbi_taxonomy_id?",
+            mv.external_id as "external_id?",
+            mv.latest_version as "latest_version?",
+            mv.external_version as "external_version?",
+            mv.available_formats as "available_formats!",
+            mv.total_downloads as "total_downloads!",
+            -- Use pre-computed search_vector with ts_rank for better performance
+            ts_rank(mv.search_vector, plainto_tsquery('english', $1)) as "rank!"
+        FROM search_registry_entries_mv mv
+        WHERE mv.search_vector @@ plainto_tsquery('english', $1)
+          AND ($2::VARCHAR[] IS NULL OR mv.entry_type = ANY($2))
+          AND ($3::TEXT IS NULL OR LOWER(mv.scientific_name) LIKE LOWER($3) OR LOWER(mv.common_name) LIKE LOWER($3))
+          AND ($4::TEXT IS NULL OR $4 = ANY(mv.available_formats))
+          AND ($6::VARCHAR[] IS NULL OR mv.source_type = ANY($6))
+        ORDER BY 17 DESC, 16 DESC, mv.created_at DESC
+        LIMIT $5 OFFSET $7
         "#,
         query.query,
         entry_types.as_deref(),
         organism_pattern.as_deref(),
         query.format,
-        query.per_page() + query.offset(),
-        query.source_type_filter.as_deref()
+        limit,
+        query.source_type_filter.as_deref(),
+        offset
     )
     .fetch_all(pool)
     .await?;
@@ -356,15 +426,11 @@ async fn search_registry_entries(
             entry_type: r.entry_type,
             source_type: r.source_type,
             tool_type: r.tool_type,
-            organism: if r.scientific_name.is_some() {
-                Some(OrganismInfo {
-                    scientific_name: r.scientific_name.unwrap(),
-                    common_name: r.common_name,
-                    ncbi_taxonomy_id: r.ncbi_taxonomy_id,
-                })
-            } else {
-                None
-            },
+            organism: r.scientific_name.map(|name| OrganismInfo {
+                scientific_name: name,
+                common_name: r.common_name,
+                ncbi_taxonomy_id: r.ncbi_taxonomy_id,
+            }),
             latest_version: r.latest_version,
             external_version: r.external_version,
             available_formats: r.available_formats,
@@ -418,27 +484,16 @@ async fn count_search_results(
 
         let organism_pattern = query.organism.as_ref().map(|o| format!("%{}%", o));
 
+        // Use materialized view for counting - much faster than joining base tables
         let entry_count = sqlx::query_scalar!(
             r#"
-            SELECT COUNT(DISTINCT re.id) as "count!"
-            FROM registry_entries re
-            JOIN organizations o ON o.id = re.organization_id
-            LEFT JOIN data_sources ds ON ds.id = re.id
-            LEFT JOIN tools t ON t.id = re.id
-            LEFT JOIN protein_metadata pm ON pm.data_source_id = ds.id
-            LEFT JOIN taxonomy_metadata org_ref ON org_ref.data_source_id = pm.taxonomy_id
-            LEFT JOIN taxonomy_metadata org_direct ON org_direct.data_source_id = ds.id AND ds.source_type = 'organism'
-            WHERE to_tsvector('english', re.name || ' ' || COALESCE(re.description, ''))
-                @@ plainto_tsquery('english', $1)
-              AND ($2::VARCHAR[] IS NULL OR re.entry_type = ANY($2))
-              AND ($3::TEXT IS NULL OR org_ref.scientific_name ILIKE $3 OR org_ref.common_name ILIKE $3 OR org_direct.scientific_name ILIKE $3 OR org_direct.common_name ILIKE $3)
-              AND ($4::TEXT IS NULL OR EXISTS (
-                  SELECT 1
-                  FROM versions v
-                  JOIN version_files vf ON vf.version_id = v.id
-                  WHERE v.entry_id = re.id AND vf.format = $4
-              ))
-              AND ($5::VARCHAR[] IS NULL OR ds.source_type = ANY($5))
+            SELECT COUNT(*) as "count!"
+            FROM search_registry_entries_mv mv
+            WHERE mv.search_vector @@ plainto_tsquery('english', $1)
+              AND ($2::VARCHAR[] IS NULL OR mv.entry_type = ANY($2))
+              AND ($3::TEXT IS NULL OR LOWER(mv.scientific_name) LIKE LOWER($3) OR LOWER(mv.common_name) LIKE LOWER($3))
+              AND ($4::TEXT IS NULL OR $4 = ANY(mv.available_formats))
+              AND ($5::VARCHAR[] IS NULL OR mv.source_type = ANY($5))
             "#,
             query.query,
             entry_types.as_deref(),
@@ -496,8 +551,7 @@ mod tests {
             source_type_filter: None,
             organism: None,
             format: None,
-            page: Some(1),
-            per_page: Some(20),
+            pagination: PaginationParams::new(Some(1), Some(20)),
         };
         assert!(query.validate().is_ok());
     }
@@ -510,8 +564,7 @@ mod tests {
             source_type_filter: None,
             organism: None,
             format: None,
-            page: None,
-            per_page: None,
+            pagination: PaginationParams::default(),
         };
         assert!(matches!(
             query.validate(),
@@ -527,8 +580,7 @@ mod tests {
             source_type_filter: None,
             organism: None,
             format: None,
-            page: Some(1),
-            per_page: Some(101),
+            pagination: PaginationParams::new(Some(1), Some(101)),
         };
         assert!(matches!(
             query.validate(),
@@ -544,8 +596,7 @@ mod tests {
             source_type_filter: None,
             organism: None,
             format: None,
-            page: Some(0),
-            per_page: Some(20),
+            pagination: PaginationParams::new(Some(0), Some(20)),
         };
         assert!(matches!(
             query.validate(),
@@ -561,8 +612,7 @@ mod tests {
             source_type_filter: None,
             organism: None,
             format: None,
-            page: None,
-            per_page: None,
+            pagination: PaginationParams::default(),
         };
         assert!(matches!(
             query.validate(),
@@ -578,8 +628,7 @@ mod tests {
             source_type_filter: Some(vec!["invalid_type".to_string()]),
             organism: None,
             format: None,
-            page: None,
-            per_page: None,
+            pagination: PaginationParams::default(),
         };
         assert!(matches!(
             query.validate(),
@@ -595,8 +644,7 @@ mod tests {
             source_type_filter: Some(vec!["protein".to_string(), "organism".to_string()]),
             organism: None,
             format: None,
-            page: None,
-            per_page: None,
+            pagination: PaginationParams::default(),
         };
         assert!(query.validate().is_ok());
     }
@@ -619,8 +667,7 @@ mod tests {
             source_type_filter: None,
             organism: None,
             format: None,
-            page: Some(1),
-            per_page: Some(10),
+            pagination: PaginationParams::new(Some(1), Some(10)),
         };
 
         let result = handle(pool.clone(), query).await;
@@ -660,8 +707,7 @@ mod tests {
             source_type_filter: None,
             organism: None,
             format: None,
-            page: Some(1),
-            per_page: Some(10),
+            pagination: PaginationParams::new(Some(1), Some(10)),
         };
 
         let result = handle(pool.clone(), query).await;
@@ -705,8 +751,7 @@ mod tests {
             source_type_filter: None,
             organism: None,
             format: None,
-            page: Some(1),
-            per_page: Some(10),
+            pagination: PaginationParams::new(Some(1), Some(10)),
         };
 
         let result = handle(pool.clone(), query).await;
@@ -749,8 +794,7 @@ mod tests {
             source_type_filter: None,
             organism: None,
             format: None,
-            page: Some(1),
-            per_page: Some(10),
+            pagination: PaginationParams::new(Some(1), Some(10)),
         };
 
         let result = handle(pool.clone(), query).await;

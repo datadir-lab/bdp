@@ -58,6 +58,15 @@ pub struct UniProtEntry {
     /// Host organisms (for viruses)
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub organism_hosts: Vec<String>,
+    /// Publications/references
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub publications: Vec<Publication>,
+    /// Entry creation date (from DT line with "integrated into")
+    pub entry_created: Option<NaiveDate>,
+    /// Last sequence update date (from DT line with "sequence version")
+    pub sequence_updated: Option<NaiveDate>,
+    /// Last annotation update date (from DT line with "entry version")
+    pub annotation_updated: Option<NaiveDate>,
 }
 
 /// Protein feature from FT line (domain, site, modification, variant)
@@ -92,6 +101,37 @@ pub struct Comment {
     pub topic: String,
     /// Comment text
     pub text: String,
+}
+
+/// Publication reference from R* lines (RN, RP, RC, RX, RG, RA, RT, RL)
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct Publication {
+    /// Reference number (from RN line)
+    pub reference_number: i32,
+    /// Reference position - describes which part of the protein this reference supports (from RP line)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub position: Option<String>,
+    /// Reference comment - provides context like tissue, strain (from RC line)
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub comments: Vec<String>,
+    /// PubMed ID (from RX line with PMID)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pubmed_id: Option<String>,
+    /// DOI (from RX line with DOI)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub doi: Option<String>,
+    /// Author group/consortium (from RG line)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub author_group: Option<String>,
+    /// List of authors (from RA line)
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub authors: Vec<String>,
+    /// Article title (from RT line)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    /// Publication location - journal, volume, pages, year (from RL line)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub location: Option<String>,
 }
 
 impl UniProtEntry {
@@ -286,6 +326,10 @@ mod tests {
             keywords: vec![],
             organelle: None,
             organism_hosts: vec![],
+            publications: vec![],
+            entry_created: Some(NaiveDate::from_ymd_opt(2024, 1, 15).unwrap()),
+            sequence_updated: None,
+            annotation_updated: None,
         }
     }
 

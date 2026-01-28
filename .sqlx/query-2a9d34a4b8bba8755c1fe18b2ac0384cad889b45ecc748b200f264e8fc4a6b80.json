@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT refresh_search_mv_concurrent()",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "refresh_search_mv_concurrent",
+        "type_info": "Void"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "2a9d34a4b8bba8755c1fe18b2ac0384cad889b45ecc748b200f264e8fc4a6b80"
+}

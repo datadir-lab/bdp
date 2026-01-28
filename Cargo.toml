@@ -4,6 +4,7 @@ members = [
     "crates/bdp-cli",
     "crates/bdp-ingest",
     "crates/bdp-common",
+    "xtask",
 ]
 resolver = "2"
 
@@ -122,20 +123,6 @@ tar = "0.4"
 # Workspace Member Dependencies
 # ============================================================================
 bdp-common = { path = "crates/bdp-common" }
-
-# ============================================================================
-# Development Dependencies (Testing)
-# ============================================================================
-[workspace.dev-dependencies]
-# E2E Testing with Docker containers
-testcontainers = "0.23"
-testcontainers-modules = { version = "0.11", features = ["postgres", "minio"] }
-
-# Test utilities
-tokio-test = "0.4"
-serial_test = "3.2"
-tempfile = "3.14"
-ctor = "0.2"
 
 # ============================================================================
 # Build Profiles

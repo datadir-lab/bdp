@@ -67,23 +67,23 @@ impl StorageAdapter for UniProtStorageAdapter {
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_lowercase());
 
-            let organism = record
+            let _organism = record
                 .record_data
                 .get("organism")
                 .and_then(|v| v.as_str());
 
-            let taxonomy_id = record
+            let _taxonomy_id = record
                 .record_data
                 .get("taxonomy_id")
                 .and_then(|v| v.as_i64())
                 .map(|i| i as i32);
 
-            let sequence = record
+            let _sequence = record
                 .record_data
                 .get("sequence")
                 .and_then(|v| v.as_str());
 
-            let sequence_length = record
+            let _sequence_length = record
                 .record_data
                 .get("sequence_length")
                 .and_then(|v| v.as_i64())
@@ -98,7 +98,7 @@ impl StorageAdapter for UniProtStorageAdapter {
             .fetch_optional(&mut *tx)
             .await?;
 
-            let data_source_id = if let Some(id) = registry_entry_id {
+            let _data_source_id = if let Some(id) = registry_entry_id {
                 id
             } else {
                 // Create registry_entry first

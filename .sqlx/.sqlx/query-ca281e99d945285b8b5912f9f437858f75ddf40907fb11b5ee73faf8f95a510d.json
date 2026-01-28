@@ -1,0 +1,70 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT reference_number, position,\n               comments as \"comments!: Vec<String>\",\n               pubmed_id, doi,\n               author_group,\n               authors as \"authors!: Vec<String>\",\n               title, location\n        FROM protein_publications\n        WHERE protein_id = $1\n        ORDER BY reference_number\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "reference_number",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "position",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "comments!: Vec<String>",
+        "type_info": "TextArray"
+      },
+      {
+        "ordinal": 3,
+        "name": "pubmed_id",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "doi",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 5,
+        "name": "author_group",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "authors!: Vec<String>",
+        "type_info": "TextArray"
+      },
+      {
+        "ordinal": 7,
+        "name": "title",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 8,
+        "name": "location",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "ca281e99d945285b8b5912f9f437858f75ddf40907fb11b5ee73faf8f95a510d"
+}

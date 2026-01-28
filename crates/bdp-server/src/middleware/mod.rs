@@ -6,9 +6,8 @@
 //! - Rate limiting
 //! - Audit logging
 
-use axum::http::{header, HeaderName, Method, StatusCode};
+use axum::http::{header, HeaderName, Method};
 use std::time::Duration;
-use tower::ServiceBuilder;
 use tower_http::{
     cors::{Any, CorsLayer},
     trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer},
@@ -16,6 +15,15 @@ use tower_http::{
 use tracing::Level;
 
 use crate::config::CorsConfig;
+
+// ============================================================================
+// CORS Configuration Constants
+// ============================================================================
+
+/// Default CORS max age in seconds (1 hour).
+/// This determines how long browsers cache the preflight response.
+/// Can be configured via CORS_MAX_AGE_SECS environment variable.
+pub const DEFAULT_CORS_MAX_AGE_SECS: u64 = 3600;
 
 pub mod audit;
 pub mod rate_limit;
@@ -39,7 +47,12 @@ pub fn cors_layer(config: &CorsConfig) -> CorsLayer {
             header::AUTHORIZATION,
             HeaderName::from_static("x-user-id"),
         ])
-        .max_age(Duration::from_secs(3600));
+        .max_age(Duration::from_secs(
+            std::env::var("CORS_MAX_AGE_SECS")
+                .ok()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(DEFAULT_CORS_MAX_AGE_SECS),
+        ));
 
     // Configure origins
     if config.allowed_origins.is_empty() || config.allowed_origins.contains(&"*".to_string()) {

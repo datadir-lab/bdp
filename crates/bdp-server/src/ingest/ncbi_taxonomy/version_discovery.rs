@@ -37,7 +37,7 @@ impl Ord for DiscoveredTaxonomyVersion {
 
 /// NCBI Taxonomy version discovery service
 pub struct TaxonomyVersionDiscovery {
-    config: NcbiTaxonomyFtpConfig,
+    _config: NcbiTaxonomyFtpConfig,
     ftp: NcbiTaxonomyFtp,
     db: PgPool,
 }
@@ -45,7 +45,60 @@ pub struct TaxonomyVersionDiscovery {
 impl TaxonomyVersionDiscovery {
     pub fn new(config: NcbiTaxonomyFtpConfig, db: PgPool) -> Self {
         let ftp = NcbiTaxonomyFtp::new(config.clone());
-        Self { config, ftp, db }
+        Self { _config: config, ftp, db }
+    }
+
+    /// Discover all available versions from FTP (current + historical archives)
+    ///
+    /// Returns all versions sorted by date (oldest first)
+    pub async fn discover_all_versions(&self) -> Result<Vec<DiscoveredTaxonomyVersion>> {
+        let mut versions = Vec::new();
+
+        // 1. Discover current version
+        info!("Discovering current NCBI taxonomy version");
+        match self.discover_current_version_unchecked().await {
+            Ok(current) => {
+                info!(
+                    version = %current.external_version,
+                    date = %current.modification_date,
+                    "Discovered current version"
+                );
+                versions.push(current);
+            }
+            Err(e) => {
+                tracing::warn!(
+                    error = %e,
+                    "Could not discover current version (this is optional for historical catchup)"
+                );
+            }
+        }
+
+        // 2. Discover historical archive versions
+        info!("Discovering historical archive versions");
+        match self.discover_previous_versions().await {
+            Ok(mut previous) => {
+                info!(count = previous.len(), "Discovered historical versions");
+                versions.append(&mut previous);
+            }
+            Err(e) => {
+                tracing::warn!(
+                    error = %e,
+                    "Could not discover historical versions"
+                );
+            }
+        }
+
+        // Sort by date (oldest first)
+        versions.sort();
+
+        info!(
+            count = versions.len(),
+            oldest = versions.first().map(|v| v.external_version.as_str()),
+            newest = versions.last().map(|v| v.external_version.as_str()),
+            "Discovered all available versions"
+        );
+
+        Ok(versions)
     }
 
     /// Discover the current version from FTP
@@ -54,6 +107,29 @@ impl TaxonomyVersionDiscovery {
     pub async fn discover_current_version(&self) -> Result<Option<DiscoveredTaxonomyVersion>> {
         info!("Discovering current NCBI taxonomy version from FTP");
 
+        let discovered = self.discover_current_version_unchecked().await?;
+
+        // Check if this version is already ingested
+        let already_ingested = self
+            .check_version_ingested(&discovered.external_version)
+            .await
+            .context("Failed to check if version is already ingested")?;
+
+        if already_ingested {
+            info!(
+                external_version = %discovered.external_version,
+                "Version already ingested, skipping"
+            );
+            return Ok(None);
+        }
+
+        Ok(Some(discovered))
+    }
+
+    /// Discover current version without checking if it's already ingested
+    ///
+    /// This is useful for discover_all_versions() which does its own filtering
+    async fn discover_current_version_unchecked(&self) -> Result<DiscoveredTaxonomyVersion> {
         // Download taxdump to get modification date
         let taxdump_files = self
             .ftp
@@ -73,24 +149,45 @@ impl TaxonomyVersionDiscovery {
             "Discovered current taxonomy version"
         );
 
-        // Check if this version is already ingested
-        let already_ingested = self
-            .check_version_ingested(&external_version)
-            .await
-            .context("Failed to check if version is already ingested")?;
-
-        if already_ingested {
-            info!(
-                external_version = %external_version,
-                "Version already ingested, skipping"
-            );
-            return Ok(None);
-        }
-
-        Ok(Some(DiscoveredTaxonomyVersion {
+        Ok(DiscoveredTaxonomyVersion {
             external_version,
             modification_date,
-        }))
+        })
+    }
+
+    /// Discover all historical archive versions
+    ///
+    /// Lists all archive files from FTP and parses their dates
+    async fn discover_previous_versions(&self) -> Result<Vec<DiscoveredTaxonomyVersion>> {
+        // List all available archive versions from FTP
+        let archive_dates = self.ftp.list_available_versions().await?;
+
+        let mut versions = Vec::new();
+
+        for date_str in archive_dates {
+            // Parse date string (format: "YYYY-MM-DD")
+            let modification_date = NaiveDate::parse_from_str(&date_str, "%Y-%m-%d")
+                .context(format!("Failed to parse archive date: {}", date_str))?;
+
+            versions.push(DiscoveredTaxonomyVersion {
+                external_version: date_str.clone(),
+                modification_date,
+            });
+
+            debug!(
+                version = %date_str,
+                date = %modification_date,
+                "Discovered historical version"
+            );
+        }
+
+        info!(
+            count = versions.len(),
+            "Parsed {} historical versions from FTP archives",
+            versions.len()
+        );
+
+        Ok(versions)
     }
 
     /// Check if a version has already been ingested
@@ -225,6 +322,183 @@ impl TaxonomyVersionDiscovery {
 
         Ok(())
     }
+
+    // ========================================================================
+    // Version Filtering and Gap Detection
+    // ========================================================================
+
+    /// Filter versions to only include those not yet ingested
+    ///
+    /// Compares discovered versions against database to identify gaps
+    pub async fn filter_new_versions(
+        &self,
+        discovered: Vec<DiscoveredTaxonomyVersion>,
+    ) -> Result<Vec<DiscoveredTaxonomyVersion>> {
+        let mut new_versions = Vec::new();
+
+        for version in discovered {
+            let already_ingested = self
+                .check_version_ingested(&version.external_version)
+                .await?;
+
+            if !already_ingested {
+                new_versions.push(version);
+            } else {
+                debug!(
+                    version = %version.external_version,
+                    "Version already ingested, filtering out"
+                );
+            }
+        }
+
+        info!(
+            new_count = new_versions.len(),
+            "Filtered to {} new versions that haven't been ingested",
+            new_versions.len()
+        );
+
+        Ok(new_versions)
+    }
+
+    /// Filter versions by date range
+    ///
+    /// # Arguments
+    /// * `versions` - List of discovered versions
+    /// * `start_date` - Start date in "YYYY-MM-DD" format (inclusive)
+    /// * `end_date` - Optional end date in "YYYY-MM-DD" format (inclusive)
+    ///
+    /// # Returns
+    /// Filtered versions within the date range
+    pub fn filter_by_date_range(
+        &self,
+        versions: Vec<DiscoveredTaxonomyVersion>,
+        start_date: Option<&str>,
+        end_date: Option<&str>,
+    ) -> Result<Vec<DiscoveredTaxonomyVersion>> {
+        let start_filter = if let Some(date_str) = start_date {
+            Some(NaiveDate::parse_from_str(date_str, "%Y-%m-%d")
+                .context(format!("Invalid start_date format: {}", date_str))?)
+        } else {
+            None
+        };
+
+        let end_filter = if let Some(date_str) = end_date {
+            Some(NaiveDate::parse_from_str(date_str, "%Y-%m-%d")
+                .context(format!("Invalid end_date format: {}", date_str))?)
+        } else {
+            None
+        };
+
+        let filtered: Vec<_> = versions
+            .into_iter()
+            .filter(|v| {
+                let mut include = true;
+
+                if let Some(start) = start_filter {
+                    include = include && v.modification_date >= start;
+                }
+
+                if let Some(end) = end_filter {
+                    include = include && v.modification_date <= end;
+                }
+
+                include
+            })
+            .collect();
+
+        info!(
+            count = filtered.len(),
+            start_date = ?start_date,
+            end_date = ?end_date,
+            "Filtered to {} versions in date range",
+            filtered.len()
+        );
+
+        Ok(filtered)
+    }
+
+    /// Get versions that need to be ingested (all new versions after last ingested)
+    ///
+    /// This is useful for "catchup from last ingested" scenarios
+    pub async fn get_versions_to_ingest(
+        &self,
+        start_date: Option<&str>,
+    ) -> Result<Vec<DiscoveredTaxonomyVersion>> {
+        // 1. Discover all available versions
+        let mut all_versions = self.discover_all_versions().await?;
+
+        // 2. Filter by start_date if provided
+        if let Some(date) = start_date {
+            all_versions = self.filter_by_date_range(all_versions, Some(date), None)?;
+        }
+
+        // 3. Filter out already ingested versions
+        let new_versions = self.filter_new_versions(all_versions).await?;
+
+        info!(
+            count = new_versions.len(),
+            oldest = new_versions.first().map(|v| v.external_version.as_str()),
+            newest = new_versions.last().map(|v| v.external_version.as_str()),
+            "Found {} versions to ingest",
+            new_versions.len()
+        );
+
+        Ok(new_versions)
+    }
+
+    /// Check if a newer version is available compared to last ingested
+    ///
+    /// Returns the newest version if it's different from the last ingested version
+    pub async fn check_for_newer_version(&self) -> Result<Option<DiscoveredTaxonomyVersion>> {
+        // Get last ingested version
+        let last_version = self.get_last_ingested_version().await?;
+
+        // Discover current version (unchecked)
+        let current = self.discover_current_version_unchecked().await?;
+
+        // Compare
+        match last_version {
+            Some(last) if last == current.external_version => {
+                info!(
+                    version = %current.external_version,
+                    "Current version already ingested"
+                );
+                Ok(None)
+            }
+            _ => {
+                info!(
+                    version = %current.external_version,
+                    last_version = ?last_version,
+                    "New version available"
+                );
+                Ok(Some(current))
+            }
+        }
+    }
+
+    /// Get the last ingested external version from database
+    ///
+    /// Returns the most recent external_version from version_mappings
+    pub async fn get_last_ingested_version(&self) -> Result<Option<String>> {
+        let result = sqlx::query_scalar::<_, Option<String>>(
+            r#"
+            SELECT external_version FROM version_mappings
+            WHERE organization_slug = 'ncbi'
+            ORDER BY created_at DESC
+            LIMIT 1
+            "#
+        )
+        .fetch_one(&self.db)
+        .await
+        .context("Failed to get last ingested version")?;
+
+        debug!(
+            last_version = ?result,
+            "Retrieved last ingested external version"
+        );
+
+        Ok(result)
+    }
 }
 
 #[cfg(test)]
@@ -244,6 +518,106 @@ mod tests {
         };
 
         assert!(v1 < v2);
+    }
+
+    #[test]
+    fn test_version_ordering_multiple() {
+        let v1 = DiscoveredTaxonomyVersion {
+            external_version: "2025-12-01".to_string(),
+            modification_date: NaiveDate::from_ymd_opt(2025, 12, 1).unwrap(),
+        };
+
+        let v2 = DiscoveredTaxonomyVersion {
+            external_version: "2026-01-15".to_string(),
+            modification_date: NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
+        };
+
+        let v3 = DiscoveredTaxonomyVersion {
+            external_version: "2026-02-01".to_string(),
+            modification_date: NaiveDate::from_ymd_opt(2026, 2, 1).unwrap(),
+        };
+
+        let mut versions = vec![v3.clone(), v1.clone(), v2.clone()];
+        versions.sort();
+
+        // Should be sorted oldest to newest
+        assert_eq!(versions[0], v1);
+        assert_eq!(versions[1], v2);
+        assert_eq!(versions[2], v3);
+    }
+
+    #[test]
+    fn test_filter_by_date_range_logic() {
+        // Test date range filtering logic without needing database or discovery instance
+        let versions = vec![
+            DiscoveredTaxonomyVersion {
+                external_version: "2025-11-01".to_string(),
+                modification_date: NaiveDate::from_ymd_opt(2025, 11, 1).unwrap(),
+            },
+            DiscoveredTaxonomyVersion {
+                external_version: "2025-12-01".to_string(),
+                modification_date: NaiveDate::from_ymd_opt(2025, 12, 1).unwrap(),
+            },
+            DiscoveredTaxonomyVersion {
+                external_version: "2026-01-01".to_string(),
+                modification_date: NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
+            },
+        ];
+
+        // Test filtering with start date only
+        let start_date = NaiveDate::from_ymd_opt(2025, 12, 1).unwrap();
+        let filtered: Vec<_> = versions
+            .iter()
+            .filter(|v| v.modification_date >= start_date)
+            .collect();
+
+        assert_eq!(filtered.len(), 2);
+        assert_eq!(filtered[0].external_version, "2025-12-01");
+        assert_eq!(filtered[1].external_version, "2026-01-01");
+    }
+
+    #[test]
+    fn test_filter_by_date_range_both_bounds() {
+        // Test date range filtering with both start and end dates
+        let versions = vec![
+            DiscoveredTaxonomyVersion {
+                external_version: "2025-11-01".to_string(),
+                modification_date: NaiveDate::from_ymd_opt(2025, 11, 1).unwrap(),
+            },
+            DiscoveredTaxonomyVersion {
+                external_version: "2025-12-01".to_string(),
+                modification_date: NaiveDate::from_ymd_opt(2025, 12, 1).unwrap(),
+            },
+            DiscoveredTaxonomyVersion {
+                external_version: "2026-01-01".to_string(),
+                modification_date: NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
+            },
+            DiscoveredTaxonomyVersion {
+                external_version: "2026-02-01".to_string(),
+                modification_date: NaiveDate::from_ymd_opt(2026, 2, 1).unwrap(),
+            },
+        ];
+
+        let start_date = NaiveDate::from_ymd_opt(2025, 12, 1).unwrap();
+        let end_date = NaiveDate::from_ymd_opt(2026, 1, 1).unwrap();
+        let filtered: Vec<_> = versions
+            .iter()
+            .filter(|v| v.modification_date >= start_date && v.modification_date <= end_date)
+            .collect();
+
+        assert_eq!(filtered.len(), 2);
+        assert_eq!(filtered[0].external_version, "2025-12-01");
+        assert_eq!(filtered[1].external_version, "2026-01-01");
+    }
+
+    #[test]
+    fn test_date_parsing() {
+        // Test that we can parse the expected date format
+        let date_str = "2026-01-15";
+        let parsed = NaiveDate::parse_from_str(date_str, "%Y-%m-%d").unwrap();
+        assert_eq!(parsed.year(), 2026);
+        assert_eq!(parsed.month(), 1);
+        assert_eq!(parsed.day(), 15);
     }
 
     /// Test version bumping logic without database

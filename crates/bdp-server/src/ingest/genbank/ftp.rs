@@ -192,6 +192,46 @@ impl GenbankFtp {
         Ok(cursor.into_inner())
     }
 
+    /// List release directories (for historical version discovery)
+    ///
+    /// Lists subdirectories in the base path to discover historical releases
+    pub async fn list_release_directories(&self) -> Result<Vec<String>> {
+        let base_path = self.config.get_base_path();
+
+        info!("Listing release directories in: {}", base_path);
+
+        let mut ftp = self.connect().await?;
+        ftp.cwd(base_path)
+            .context("Failed to change to release directory")?;
+
+        let list = ftp.list(None).context("Failed to list directories")?;
+        let mut directories = Vec::new();
+
+        // Parse FTP LIST output to extract directory names
+        for line in list {
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            if parts.is_empty() {
+                continue;
+            }
+
+            // Check if this is a directory (first char is 'd')
+            if parts[0].starts_with('d') {
+                // Directory name is typically the last part
+                if let Some(name) = parts.last() {
+                    directories.push(name.to_string());
+                }
+            }
+        }
+
+        info!(
+            "Found {} directories in {}",
+            directories.len(),
+            base_path
+        );
+
+        Ok(directories)
+    }
+
     /// Connect to FTP server
     async fn connect(&self) -> Result<FtpStream> {
         debug!(

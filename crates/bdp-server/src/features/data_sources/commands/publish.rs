@@ -143,6 +143,7 @@ pub async fn handle(
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 struct VersionRecord {
     id: Uuid,
     entry_id: Uuid,

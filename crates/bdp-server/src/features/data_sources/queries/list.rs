@@ -1,15 +1,36 @@
+//! List data sources query
+//!
+//! Retrieves a paginated list of data sources with optional filtering
+//! by organization, source type, and organism.
+
 use chrono::{DateTime, Utc};
 use mediator::Request;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use uuid::Uuid;
 
+use crate::features::shared::pagination::{PaginationMetadata, PaginationParams};
+
+/// Query to list data sources with pagination and filtering
+///
+/// # Examples
+///
+/// ```rust,ignore
+/// use bdp_server::features::data_sources::queries::ListDataSourcesQuery;
+/// use bdp_server::features::shared::pagination::PaginationParams;
+///
+/// // List all protein data sources
+/// let query = ListDataSourcesQuery {
+///     pagination: PaginationParams::new(Some(1), Some(20)),
+///     organization_id: None,
+///     source_type: Some("protein".to_string()),
+///     organism_id: None,
+/// };
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ListDataSourcesQuery {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub page: Option<i64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub per_page: Option<i64>,
+    #[serde(flatten)]
+    pub pagination: PaginationParams,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub organization_id: Option<Uuid>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -18,6 +39,7 @@ pub struct ListDataSourcesQuery {
     pub organism_id: Option<Uuid>,
 }
 
+/// A single data source item in the list response
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DataSourceListItem {
     pub id: Uuid,
@@ -36,28 +58,26 @@ pub struct DataSourceListItem {
     pub created_at: DateTime<Utc>,
 }
 
+/// Response containing paginated list of data sources
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ListDataSourcesResponse {
+    /// The data sources on this page
     pub items: Vec<DataSourceListItem>,
+    /// Pagination metadata
     pub pagination: PaginationMetadata,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PaginationMetadata {
-    pub page: i64,
-    pub per_page: i64,
-    pub total: i64,
-    pub pages: i64,
-    pub has_next: bool,
-    pub has_prev: bool,
-}
 
+/// Errors that can occur when listing data sources
 #[derive(Debug, thiserror::Error)]
 pub enum ListDataSourcesError {
+    /// Page number must be at least 1
     #[error("Page must be greater than 0")]
     InvalidPage,
+    /// Per page must be between 1 and 100
     #[error("Per page must be between 1 and 100")]
     InvalidPerPage,
+    /// A database error occurred
     #[error("Database error: {0}")]
     Database(#[from] sqlx::Error),
 }
@@ -67,29 +87,35 @@ impl Request<Result<ListDataSourcesResponse, ListDataSourcesError>> for ListData
 impl crate::cqrs::middleware::Query for ListDataSourcesQuery {}
 
 impl ListDataSourcesQuery {
+    /// Validates the query parameters using shared validation
     pub fn validate(&self) -> Result<(), ListDataSourcesError> {
-        if let Some(page) = self.page {
-            if page < 1 {
-                return Err(ListDataSourcesError::InvalidPage);
-            }
-        }
-        if let Some(per_page) = self.per_page {
-            if per_page < 1 || per_page > 100 {
-                return Err(ListDataSourcesError::InvalidPerPage);
-            }
-        }
-        Ok(())
-    }
-
-    fn page(&self) -> i64 {
-        self.page.unwrap_or(1).max(1)
-    }
-
-    fn per_page(&self) -> i64 {
-        self.per_page.unwrap_or(20).clamp(1, 100)
+        self.pagination.validate().map_err(|msg| match msg {
+            "Page must be greater than 0" => ListDataSourcesError::InvalidPage,
+            _ => ListDataSourcesError::InvalidPerPage,
+        })
     }
 }
 
+/// Handles the list data sources query
+///
+/// Returns a paginated list of data sources with optional filters.
+/// Results include latest version and total download counts.
+/// Ordered by creation date descending (newest first).
+///
+/// # Arguments
+///
+/// * `pool` - Database connection pool
+/// * `query` - Query parameters including pagination and filters
+///
+/// # Returns
+///
+/// Returns a paginated list of data sources on success.
+///
+/// # Errors
+///
+/// - `InvalidPage` - Page is less than 1
+/// - `InvalidPerPage` - Per page is less than 1 or greater than 100
+/// - `Database` - A database error occurred
 #[tracing::instrument(skip(pool))]
 pub async fn handle(
     pool: PgPool,
@@ -97,9 +123,9 @@ pub async fn handle(
 ) -> Result<ListDataSourcesResponse, ListDataSourcesError> {
     query.validate()?;
 
-    let page = query.page();
-    let per_page = query.per_page();
-    let offset = (page - 1) * per_page;
+    let page = query.pagination.page();
+    let per_page = query.pagination.per_page();
+    let offset = query.pagination.offset();
 
     let total = sqlx::query_scalar!(
         r#"
@@ -188,26 +214,14 @@ pub async fn handle(
         })
         .collect();
 
-    let pages = if total == 0 {
-        0
-    } else {
-        ((total as f64) / (per_page as f64)).ceil() as i64
-    };
-
     Ok(ListDataSourcesResponse {
         items,
-        pagination: PaginationMetadata {
-            page,
-            per_page,
-            total,
-            pages,
-            has_next: page < pages,
-            has_prev: page > 1,
-        },
+        pagination: PaginationMetadata::new(page, per_page, total),
     })
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 struct DataSourceRecord {
     id: Uuid,
     organization_id: Uuid,
@@ -230,8 +244,7 @@ mod tests {
     #[test]
     fn test_validation_success() {
         let query = ListDataSourcesQuery {
-            page: Some(1),
-            per_page: Some(20),
+            pagination: PaginationParams::new(Some(1), Some(20)),
             organization_id: None,
             source_type: None,
             organism_id: None,
@@ -242,8 +255,7 @@ mod tests {
     #[test]
     fn test_validation_invalid_page() {
         let query = ListDataSourcesQuery {
-            page: Some(0),
-            per_page: Some(20),
+            pagination: PaginationParams::new(Some(0), Some(20)),
             organization_id: None,
             source_type: None,
             organism_id: None,
@@ -257,8 +269,7 @@ mod tests {
     #[test]
     fn test_validation_invalid_per_page() {
         let query = ListDataSourcesQuery {
-            page: Some(1),
-            per_page: Some(101),
+            pagination: PaginationParams::new(Some(1), Some(101)),
             organization_id: None,
             source_type: None,
             organism_id: None,
@@ -304,8 +315,7 @@ mod tests {
         .await?;
 
         let query = ListDataSourcesQuery {
-            page: Some(1),
-            per_page: Some(10),
+            pagination: PaginationParams::new(Some(1), Some(10)),
             organization_id: None,
             source_type: None,
             organism_id: None,
@@ -375,8 +385,7 @@ mod tests {
         .await?;
 
         let query = ListDataSourcesQuery {
-            page: Some(1),
-            per_page: Some(10),
+            pagination: PaginationParams::new(Some(1), Some(10)),
             organization_id: None,
             source_type: Some("protein".to_string()),
             organism_id: None,
@@ -427,8 +436,7 @@ mod tests {
         }
 
         let query = ListDataSourcesQuery {
-            page: Some(2),
-            per_page: Some(10),
+            pagination: PaginationParams::new(Some(2), Some(10)),
             organization_id: None,
             source_type: None,
             organism_id: None,

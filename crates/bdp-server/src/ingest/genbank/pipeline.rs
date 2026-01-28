@@ -10,14 +10,14 @@
 use anyhow::{Context, Result};
 use sqlx::PgPool;
 use std::time::Instant;
-use tracing::{info, warn};
+use tracing::info;
 use uuid::Uuid;
 
 use super::config::GenbankFtpConfig;
 use super::ftp::GenbankFtp;
 use super::models::{Division, PipelineResult};
 use super::parser::GenbankParser;
-use super::storage::{GenbankStorage, StorageStats};
+use super::storage::GenbankStorage;
 use crate::storage::Storage;
 
 pub struct GenbankPipeline {
@@ -29,6 +29,11 @@ pub struct GenbankPipeline {
 impl GenbankPipeline {
     /// Create a new pipeline
     pub fn new(config: GenbankFtpConfig, db: PgPool, s3: Storage) -> Self {
+        Self { config, db, s3 }
+    }
+
+    /// Create a new pipeline with version discovery support
+    pub fn with_version_discovery(config: GenbankFtpConfig, db: PgPool, s3: Storage) -> Self {
         Self { config, db, s3 }
     }
 

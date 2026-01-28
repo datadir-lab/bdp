@@ -1,0 +1,68 @@
+# Production Docker Compose for BDP
+# Deploy on OVH instance
+#
+# Usage:
+#   1. Copy this file and .env to /opt/bdp/ on server
+#   2. Run: docker compose -f docker-compose.prod.yml up -d
+
+services:
+  # Backend API Server
+  bdp-server:
+    image: ghcr.io/YOUR_ORG/bdp-server:latest  # Replace with your registry
+    # Or build locally:
+    # build:
+    #   context: .
+    #   dockerfile: docker/Dockerfile.server
+    container_name: bdp-server
+    restart: unless-stopped
+    environment:
+      # Server Configuration
+      SERVER_HOST: "0.0.0.0"
+      SERVER_PORT: "8000"
+      RUST_LOG: "${RUST_LOG:-info,bdp_server=info,sqlx=warn}"
+
+      # Database (from Terraform output)
+      DATABASE_URL: "${DATABASE_URL}"
+      DATABASE_MAX_CONNECTIONS: "${DATABASE_MAX_CONNECTIONS:-10}"
+
+      # S3 Storage (from Terraform output)
+      STORAGE_TYPE: "s3"
+      STORAGE_S3_ENDPOINT: "${STORAGE_S3_ENDPOINT}"
+      STORAGE_S3_REGION: "${STORAGE_S3_REGION}"
+      STORAGE_S3_BUCKET: "${STORAGE_S3_BUCKET}"
+      STORAGE_S3_ACCESS_KEY: "${STORAGE_S3_ACCESS_KEY}"
+      STORAGE_S3_SECRET_KEY: "${STORAGE_S3_SECRET_KEY}"
+      STORAGE_S3_PATH_STYLE: "false"
+
+      # API Configuration
+      API_BASE_URL: "${API_BASE_URL}"
+      CORS_ORIGINS: "${CORS_ORIGINS}"
+
+      # Ingestion (enable if needed)
+      INGEST_ENABLED: "${INGEST_ENABLED:-false}"
+    ports:
+      - "127.0.0.1:8000:8000"  # Only localhost, Caddy handles public
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Frontend (Next.js)
+  bdp-web:
+    image: ghcr.io/YOUR_ORG/bdp-web:latest  # Replace with your registry
+    # Or build locally:
+    # build:
+    #   context: ./web
+    #   dockerfile: Dockerfile
+    container_name: bdp-web
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: "${API_BASE_URL}"
+      NODE_ENV: "production"
+    ports:
+      - "127.0.0.1:3000:3000"  # Only localhost, Caddy handles public
+    depends_on:
+      bdp-server:
+        condition: service_healthy

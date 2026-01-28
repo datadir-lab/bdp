@@ -1,4 +1,7 @@
 //! Error types for BDP CLI
+//!
+//! This module provides user-friendly error types with clear, actionable messages
+//! that help users understand what went wrong and how to fix it.
 
 use thiserror::Error;
 
@@ -6,86 +9,88 @@ use thiserror::Error;
 pub type Result<T> = std::result::Result<T, CliError>;
 
 /// Comprehensive error type for CLI operations
+///
+/// All errors are designed to be user-facing with clear messages and suggestions.
 #[derive(Error, Debug)]
 pub enum CliError {
-    /// API-related errors
-    #[error("API error: {0}")]
+    /// API server communication failed
+    #[error("Server error: {0}. Ensure the BDP server is running (check with 'bdp status') and accessible.")]
     Api(String),
 
-    /// File not found
-    #[error("File not found: {0}")]
+    /// Required file is missing
+    #[error("File not found: '{0}'. Verify the file path exists and you have read permissions.")]
     FileNotFound(String),
 
-    /// Invalid manifest format or content
-    #[error("Invalid manifest: {0}")]
+    /// Manifest file (bdp.yml) has invalid format or content
+    #[error("Invalid manifest (bdp.yml): {0}. Run 'bdp init' to create a valid manifest.")]
     InvalidManifest(String),
 
-    /// Invalid lockfile format or content
-    #[error("Invalid lockfile: {0}")]
+    /// Lockfile (bdl.lock) has invalid format or content
+    #[error("Invalid lockfile (bdl.lock): {0}. Delete the lockfile and run 'bdp pull' to regenerate it.")]
     InvalidLockfile(String),
 
-    /// Cache-related errors
-    #[error("Cache error: {0}")]
+    /// Cache operation failed
+    #[error("Cache error: {0}. Try running 'bdp clean --cache' to clear the cache.")]
     Cache(String),
 
-    /// Checksum verification failure
-    #[error("Checksum mismatch for {file}: expected {expected}, got {actual}")]
+    /// Downloaded file checksum verification failed
+    #[error("Checksum verification failed for '{file}': expected '{expected}', got '{actual}'. The file may be corrupted. Run 'bdp pull --force' to re-download.")]
     ChecksumMismatch {
         file: String,
         expected: String,
         actual: String,
     },
 
-    /// Database errors (SQLx)
-    #[error("Database error: {0}")]
+    /// Database operation failed (SQLx)
+    #[error("Database error: {0}. Check your database connection settings.")]
     Database(#[from] sqlx::Error),
 
-    /// Audit database errors (rusqlite)
-    #[error("Audit error: {0}")]
+    /// Audit database operation failed (rusqlite)
+    #[error("Audit database error: {0}")]
     AuditDb(#[from] rusqlite::Error),
 
-    /// Audit trail errors
-    #[error("Audit error: {0}")]
+    /// Audit trail operation failed
+    #[error("Audit trail error: {0}")]
     Audit(String),
 
-    /// I/O errors
-    #[error("IO error: {0}")]
+    /// File system operation failed
+    #[error("File operation failed: {0}. Check file permissions and disk space.")]
     Io(#[from] std::io::Error),
 
-    /// HTTP client errors
-    #[error("HTTP error: {0}")]
+    /// HTTP request failed
+    #[error("Network request failed: {0}. Check your internet connection and server URL.")]
     Http(#[from] reqwest::Error),
 
-    /// Configuration errors
-    #[error("Configuration error: {0}")]
+    /// Configuration is missing or invalid
+    #[error("Configuration error: {0}. Check your environment variables or config file.")]
     Config(String),
 
-    /// YAML parsing errors
-    #[error("YAML parsing error: {0}")]
+    /// YAML parsing failed
+    #[error("Failed to parse YAML: {0}. Check the file syntax at the indicated line/column.")]
     YamlParse(#[from] serde_yaml::Error),
 
-    /// JSON parsing errors
-    #[error("JSON parsing error: {0}")]
+    /// JSON parsing failed
+    #[error("Failed to parse JSON: {0}. Check the file syntax.")]
     JsonParse(#[from] serde_json::Error),
 
-    /// Invalid source specification
-    #[error("Invalid source specification: {0}")]
+    /// Source specification doesn't follow expected format
+    #[error("Invalid source specification: {0}. Expected format: 'registry:identifier-format@version' (e.g., 'uniprot:P01308-fasta@1.0').")]
     InvalidSourceSpec(String),
 
-    /// Project already initialized
-    #[error("Project already initialized: {0}")]
+    /// Project directory already has a bdp.yml
+    #[error("Project already initialized: {0}. Use --force to reinitialize.")]
     AlreadyInitialized(String),
 
-    /// Project not initialized
-    #[error("Project not initialized: {0}")]
+    /// Project directory doesn't have a bdp.yml
+    #[error("Not a BDP project: {0}. Run 'bdp init' first to initialize this directory.")]
     NotInitialized(String),
 
-    /// Source already exists
-    #[error("Source already exists: {0}")]
+    /// Source is already in the manifest
+    #[error("Source '{0}' already exists in manifest. Use 'bdp source list' to see current sources.")]
     SourceExists(String),
 
-    /// Source not found
-    #[error("Source not found: {0}")]
+    /// Source not found in manifest or registry
+    #[error("Source '{0}' not found. Run 'bdp search' to find available sources.")]
     SourceNotFound(String),
 
     /// Generic anyhow error wrapper

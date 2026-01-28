@@ -4,6 +4,7 @@
 use anyhow::{Context, Result};
 use bdp_server::config::Config;
 use bdp_server::ingest::gene_ontology::{GoHttpConfig, GoPipeline};
+use bdp_server::storage::{config::StorageConfig, Storage};
 use sqlx::PgPool;
 use tracing::{info, warn};
 use uuid::Uuid;
@@ -42,9 +43,12 @@ async fn main() -> Result<()> {
     info!("  GOA release: {}", config.goa_release_version);
     info!("  Parse limit: {:?}", config.parse_limit);
 
+    // Create storage
+    let storage_config = StorageConfig::from_env()?;
+    let storage = Storage::new(storage_config).await?;
+
     // Create pipeline
-    let pipeline = GoPipeline::new(db.clone(), org_id, config)
-        .context("Failed to create GO pipeline")?;
+    let pipeline = GoPipeline::new(config, db.clone(), storage, org_id);
 
     // Test 1: Ontology ingestion
     info!("\n=== Test 1: GO Ontology Ingestion ===");

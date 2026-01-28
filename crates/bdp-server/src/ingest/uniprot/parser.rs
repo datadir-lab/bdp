@@ -47,7 +47,7 @@ use std::io::{BufRead, BufReader, Read};
 use std::path::Path;
 use tar::Archive;
 
-use super::models::{Comment, CrossReference, ProteinFeature, UniProtEntry};
+use super::models::{Comment, CrossReference, ProteinFeature, Publication, UniProtEntry};
 
 /// Parser for UniProt DAT files
 pub struct DatParser {
@@ -134,6 +134,7 @@ impl DatParser {
     }
 
     /// Check if data is a tar archive by looking for tar magic number
+    #[allow(dead_code)]
     fn is_tar_archive(&self, data: &[u8]) -> bool {
         if data.len() < 512 {
             tracing::debug!(size = data.len(), "Data too small to be tar archive");
@@ -514,7 +515,7 @@ impl DatParser {
             current_entry.parse_id_line(line)?;
         } else if line.starts_with("AC   ") {
             current_entry.parse_ac_line(line)?;
-        } else if line.starts_with("DT   ") && line.contains("integrated into") {
+        } else if line.starts_with("DT   ") {
             current_entry.parse_dt_line(line)?;
         } else if line.starts_with("DE   ") {
             current_entry.parse_de_line(line)?;
@@ -540,6 +541,22 @@ impl DatParser {
             current_entry.parse_og_line(line)?;
         } else if line.starts_with("OH   ") {
             current_entry.parse_oh_line(line)?;
+        } else if line.starts_with("RN   ") {
+            current_entry.parse_rn_line(line)?;
+        } else if line.starts_with("RP   ") {
+            current_entry.parse_rp_line(line)?;
+        } else if line.starts_with("RC   ") {
+            current_entry.parse_rc_line(line)?;
+        } else if line.starts_with("RX   ") {
+            current_entry.parse_rx_line(line)?;
+        } else if line.starts_with("RG   ") {
+            current_entry.parse_rg_line(line)?;
+        } else if line.starts_with("RA   ") {
+            current_entry.parse_ra_line(line)?;
+        } else if line.starts_with("RT   ") {
+            current_entry.parse_rt_line(line)?;
+        } else if line.starts_with("RL   ") {
+            current_entry.parse_rl_line(line)?;
         } else if line.starts_with("SQ   ") {
             current_entry.parse_sq_line(line)?;
             *in_sequence = true;
@@ -586,7 +603,7 @@ impl DatParser {
                 current_entry.parse_id_line(&line)?;
             } else if line.starts_with("AC   ") {
                 current_entry.parse_ac_line(&line)?;
-            } else if line.starts_with("DT   ") && line.contains("integrated into") {
+            } else if line.starts_with("DT   ") {
                 current_entry.parse_dt_line(&line)?;
             } else if line.starts_with("DE   ") {
                 current_entry.parse_de_line(&line)?;
@@ -612,6 +629,22 @@ impl DatParser {
                 current_entry.parse_og_line(&line)?;
             } else if line.starts_with("OH   ") {
                 current_entry.parse_oh_line(&line)?;
+            } else if line.starts_with("RN   ") {
+                current_entry.parse_rn_line(&line)?;
+            } else if line.starts_with("RP   ") {
+                current_entry.parse_rp_line(&line)?;
+            } else if line.starts_with("RC   ") {
+                current_entry.parse_rc_line(&line)?;
+            } else if line.starts_with("RX   ") {
+                current_entry.parse_rx_line(&line)?;
+            } else if line.starts_with("RG   ") {
+                current_entry.parse_rg_line(&line)?;
+            } else if line.starts_with("RA   ") {
+                current_entry.parse_ra_line(&line)?;
+            } else if line.starts_with("RT   ") {
+                current_entry.parse_rt_line(&line)?;
+            } else if line.starts_with("RL   ") {
+                current_entry.parse_rl_line(&line)?;
             } else if line.starts_with("SQ   ") {
                 current_entry.parse_sq_line(&line)?;
                 in_sequence = true;
@@ -627,6 +660,41 @@ impl DatParser {
 impl Default for DatParser {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+/// Helper to build Publication from R* lines
+#[derive(Default, Debug)]
+struct PublicationBuilder {
+    reference_number: Option<i32>,
+    position: Option<String>,
+    comments: Vec<String>,
+    pubmed_id: Option<String>,
+    doi: Option<String>,
+    author_group: Option<String>,
+    authors: Vec<String>,
+    title: Option<String>,
+    location: Option<String>,
+}
+
+impl PublicationBuilder {
+    fn new() -> Self {
+        Self::default()
+    }
+
+    fn build(self) -> Option<Publication> {
+        let reference_number = self.reference_number?;
+        Some(Publication {
+            reference_number,
+            position: self.position,
+            comments: self.comments,
+            pubmed_id: self.pubmed_id,
+            doi: self.doi,
+            author_group: self.author_group,
+            authors: self.authors,
+            title: self.title,
+            location: self.location,
+        })
     }
 }
 
@@ -657,9 +725,18 @@ struct EntryBuilder {
     organelle: Option<String>,
     organism_hosts: Vec<String>,
 
+    // Publications
+    publications: Vec<Publication>,
+
+    // Entry history dates
+    entry_created: Option<NaiveDate>,
+    sequence_updated: Option<NaiveDate>,
+    annotation_updated: Option<NaiveDate>,
+
     // Parser state
     current_comment_topic: Option<String>,
     current_comment_text: String,
+    current_publication: Option<PublicationBuilder>,
 }
 
 impl EntryBuilder {
@@ -688,11 +765,28 @@ impl EntryBuilder {
     }
 
     /// Parse DT line: DT   01-JAN-1990, integrated into UniProtKB/Swiss-Prot.
+    /// DT   01-JAN-1990, sequence version 1.
+    /// DT   01-JAN-1990, entry version 1.
     fn parse_dt_line(&mut self, line: &str) -> Result<()> {
-        if self.release_date.is_none() {
-            let dt_part = line.trim_start_matches("DT   ");
-            if let Some(date_str) = dt_part.split(',').next() {
-                self.release_date = Some(parse_date(date_str.trim())?);
+        let dt_part = line.trim_start_matches("DT   ");
+        if let Some(date_str) = dt_part.split(',').next() {
+            let date = parse_date(date_str.trim())?;
+
+            if dt_part.contains("integrated into") {
+                // Entry creation date
+                if self.entry_created.is_none() {
+                    self.entry_created = Some(date);
+                }
+                // Also use as release_date for backwards compatibility
+                if self.release_date.is_none() {
+                    self.release_date = Some(date);
+                }
+            } else if dt_part.contains("sequence version") {
+                // Last sequence update
+                self.sequence_updated = Some(date);
+            } else if dt_part.contains("entry version") {
+                // Last annotation update
+                self.annotation_updated = Some(date);
             }
         }
         Ok(())
@@ -868,7 +962,7 @@ impl EntryBuilder {
         // Look for position range (e.g., "50..150" or "50")
         let mut start_pos = None;
         let mut end_pos = None;
-        let mut description = String::new();
+        let description;
 
         if let Some(semicolon_pos) = rest.find(';') {
             let pos_part = &rest[..semicolon_pos].trim();
@@ -1011,10 +1105,155 @@ impl EntryBuilder {
         Ok(())
     }
 
+    /// Parse RN line: RN   [1]
+    fn parse_rn_line(&mut self, line: &str) -> Result<()> {
+        // Finish previous publication if any
+        self.finish_publication();
+
+        // Start new publication
+        let rn_part = line.trim_start_matches("RN   ");
+        if let Some(start) = rn_part.find('[') {
+            if let Some(end) = rn_part.find(']') {
+                if let Ok(num) = rn_part[start + 1..end].trim().parse::<i32>() {
+                    let mut pub_builder = PublicationBuilder::new();
+                    pub_builder.reference_number = Some(num);
+                    self.current_publication = Some(pub_builder);
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Parse RP line: RP   NUCLEOTIDE SEQUENCE [MRNA].
+    fn parse_rp_line(&mut self, line: &str) -> Result<()> {
+        if let Some(ref mut pub_builder) = self.current_publication {
+            let rp_part = line.trim_start_matches("RP   ").trim();
+            if let Some(existing) = &mut pub_builder.position {
+                existing.push(' ');
+                existing.push_str(rp_part);
+            } else {
+                pub_builder.position = Some(rp_part.to_string());
+            }
+        }
+        Ok(())
+    }
+
+    /// Parse RC line: RC   STRAIN=Bristol N2; TISSUE=Sperm;
+    fn parse_rc_line(&mut self, line: &str) -> Result<()> {
+        if let Some(ref mut pub_builder) = self.current_publication {
+            let rc_part = line.trim_start_matches("RC   ").trim();
+            // Split by semicolon for multiple comments
+            for comment in rc_part.split(';') {
+                let trimmed = comment.trim();
+                if !trimmed.is_empty() {
+                    pub_builder.comments.push(trimmed.to_string());
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Parse RX line: RX   PubMed=12345678; DOI=10.1234/example;
+    fn parse_rx_line(&mut self, line: &str) -> Result<()> {
+        if let Some(ref mut pub_builder) = self.current_publication {
+            let rx_part = line.trim_start_matches("RX   ");
+
+            // Extract PubMed ID
+            if let Some(pmid_start) = rx_part.find("PubMed=") {
+                let after_pmid = &rx_part[pmid_start + 7..];
+                if let Some(end) = after_pmid.find(';') {
+                    pub_builder.pubmed_id = Some(after_pmid[..end].trim().to_string());
+                } else {
+                    pub_builder.pubmed_id = Some(after_pmid.trim().to_string());
+                }
+            }
+
+            // Extract DOI
+            if let Some(doi_start) = rx_part.find("DOI=") {
+                let after_doi = &rx_part[doi_start + 4..];
+                if let Some(end) = after_doi.find(';') {
+                    pub_builder.doi = Some(after_doi[..end].trim().to_string());
+                } else {
+                    pub_builder.doi = Some(after_doi.trim().to_string());
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Parse RG line: RG   The C. elegans sequencing consortium;
+    fn parse_rg_line(&mut self, line: &str) -> Result<()> {
+        if let Some(ref mut pub_builder) = self.current_publication {
+            let rg_part = line.trim_start_matches("RG   ").trim().trim_end_matches(';');
+            if let Some(existing) = &mut pub_builder.author_group {
+                existing.push(' ');
+                existing.push_str(rg_part);
+            } else {
+                pub_builder.author_group = Some(rg_part.to_string());
+            }
+        }
+        Ok(())
+    }
+
+    /// Parse RA line: RA   Smith J.D., Doe J.;
+    fn parse_ra_line(&mut self, line: &str) -> Result<()> {
+        if let Some(ref mut pub_builder) = self.current_publication {
+            let ra_part = line.trim_start_matches("RA   ");
+            // Split by comma for multiple authors
+            for author in ra_part.split(',') {
+                let trimmed = author.trim().trim_end_matches(';');
+                if !trimmed.is_empty() {
+                    pub_builder.authors.push(trimmed.to_string());
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Parse RT line: RT   "Title of the article.";
+    fn parse_rt_line(&mut self, line: &str) -> Result<()> {
+        if let Some(ref mut pub_builder) = self.current_publication {
+            let rt_part = line.trim_start_matches("RT   ").trim();
+            // Remove quotes and trailing semicolon
+            let title = rt_part.trim_matches('"').trim_end_matches(';');
+            if let Some(existing) = &mut pub_builder.title {
+                existing.push(' ');
+                existing.push_str(title);
+            } else {
+                pub_builder.title = Some(title.to_string());
+            }
+        }
+        Ok(())
+    }
+
+    /// Parse RL line: RL   J. Biol. Chem. 270:1234-1245(1995).
+    fn parse_rl_line(&mut self, line: &str) -> Result<()> {
+        if let Some(ref mut pub_builder) = self.current_publication {
+            let rl_part = line.trim_start_matches("RL   ").trim();
+            if let Some(existing) = &mut pub_builder.location {
+                existing.push(' ');
+                existing.push_str(rl_part);
+            } else {
+                pub_builder.location = Some(rl_part.to_string());
+            }
+        }
+        Ok(())
+    }
+
+    /// Finish the current publication and add it to the list
+    fn finish_publication(&mut self) {
+        if let Some(pub_builder) = self.current_publication.take() {
+            if let Some(publication) = pub_builder.build() {
+                self.publications.push(publication);
+            }
+        }
+    }
+
     /// Build the final UniProtEntry
     fn build(mut self) -> Result<Option<UniProtEntry>> {
-        // Finish any pending comment
+        // Finish any pending comment and publication
         self.finish_comment();
+        self.finish_publication();
         // Skip entries with missing required fields
         let accession = match self.accession {
             Some(a) => a,
@@ -1074,6 +1313,10 @@ impl EntryBuilder {
             keywords: self.keywords,
             organelle: self.organelle,
             organism_hosts: self.organism_hosts,
+            publications: self.publications,
+            entry_created: self.entry_created,
+            sequence_updated: self.sequence_updated,
+            annotation_updated: self.annotation_updated,
         }))
     }
 }

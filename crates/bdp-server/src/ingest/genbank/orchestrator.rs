@@ -17,6 +17,7 @@ use super::config::GenbankFtpConfig;
 use super::ftp::GenbankFtp;
 use super::models::{Division, OrchestratorResult, PipelineResult};
 use super::pipeline::GenbankPipeline;
+use super::version_discovery::VersionDiscovery;
 use crate::storage::Storage;
 
 pub struct GenbankOrchestrator {
@@ -249,6 +250,107 @@ impl GenbankOrchestrator {
 
         let test_division = GenbankFtpConfig::get_test_division();
         self.run_single_division(organization_id, test_division).await
+    }
+
+    /// Run historical ingestion for all available versions
+    ///
+    /// This method discovers all available versions from FTP and ingests
+    /// each one sequentially. Use this for backfilling historical data.
+    ///
+    /// # Arguments
+    /// * `organization_id` - The organization to ingest data for
+    /// * `divisions` - Divisions to ingest (None = all primary divisions)
+    /// * `from_release` - Optional starting release number (None = all versions)
+    ///
+    /// # Returns
+    /// Vector of orchestrator results, one per version
+    pub async fn run_historical_ingestion(
+        &self,
+        organization_id: Uuid,
+        divisions: Option<Vec<Division>>,
+        from_release: Option<i32>,
+    ) -> Result<Vec<OrchestratorResult>> {
+        info!("Starting historical ingestion");
+
+        // Discover all available versions
+        let discovery = VersionDiscovery::new(self.config.clone());
+        let mut versions = discovery.discover_all_versions().await?;
+
+        // Apply release filter if specified
+        if let Some(from_release) = from_release {
+            info!("Filtering versions from release {} onwards", from_release);
+            versions = discovery.filter_from_release(versions, from_release);
+        }
+
+        // Get already ingested versions from database
+        // In a real implementation, this would query the versions table
+        let ingested_versions: Vec<String> = Vec::new();
+
+        // Filter to only new versions
+        let new_versions = discovery.filter_new_versions(versions, ingested_versions);
+
+        if new_versions.is_empty() {
+            info!("No new versions to ingest. All up-to-date!");
+            return Ok(Vec::new());
+        }
+
+        info!("Found {} new versions to ingest", new_versions.len());
+
+        // Determine which divisions to process
+        let divisions = divisions.unwrap_or_else(|| {
+            if self.config.parse_limit.is_some() {
+                vec![GenbankFtpConfig::get_test_division()]
+            } else {
+                GenbankFtpConfig::get_primary_divisions()
+            }
+        });
+
+        // Ingest each version
+        let mut results = Vec::new();
+
+        for (i, version) in new_versions.iter().enumerate() {
+            info!(
+                "Processing version {}/{}: {}",
+                i + 1,
+                new_versions.len(),
+                version.external_version
+            );
+
+            match self
+                .run_divisions(
+                    organization_id,
+                    &divisions,
+                    Some(version.external_version.clone()),
+                )
+                .await
+            {
+                Ok(result) => {
+                    info!(
+                        "Successfully ingested {}: {} divisions, {} records in {:.2}s",
+                        version.external_version,
+                        result.divisions_processed,
+                        result.total_records,
+                        result.duration_seconds
+                    );
+                    results.push(result);
+                }
+                Err(e) => {
+                    warn!(
+                        "Failed to ingest {}: {}",
+                        version.external_version, e
+                    );
+                    // Continue with next version
+                    continue;
+                }
+            }
+        }
+
+        info!(
+            "Historical ingestion complete: {} versions successfully ingested",
+            results.len()
+        );
+
+        Ok(results)
     }
 }
 

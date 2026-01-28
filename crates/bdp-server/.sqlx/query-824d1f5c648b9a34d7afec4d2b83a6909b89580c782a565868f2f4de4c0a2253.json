@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            o.slug as org_slug,\n            re.slug as entry_slug,\n            d.depends_on_version,\n            vf.format,\n            vf.checksum,\n            vf.size_bytes\n        FROM dependencies d\n        JOIN registry_entries re ON re.id = d.depends_on_entry_id\n        JOIN organizations o ON o.id = re.organization_id\n        JOIN versions v ON v.entry_id = re.id AND v.version = d.depends_on_version\n        JOIN version_files vf ON vf.version_id = v.id\n        WHERE d.version_id = $1\n        ORDER BY re.slug\n        LIMIT 100\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "org_slug",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 1,
+        "name": "entry_slug",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "depends_on_version",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "format",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "checksum",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 5,
+        "name": "size_bytes",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "824d1f5c648b9a34d7afec4d2b83a6909b89580c782a565868f2f4de4c0a2253"
+}

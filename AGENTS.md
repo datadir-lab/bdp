@@ -95,6 +95,7 @@ web/
 ### Quality & Testing
 - **[Testing Strategy](./docs/agents/testing.md)** - Unit tests, integration tests, E2E tests for Rust and Next.js
 - **[Best Practices](./docs/agents/best-practices.md)** - Code style, error handling, security, performance
+- **[Error Handling Policy](./docs/agents/error-handling.md)** - **MANDATORY** error handling patterns, `thiserror` vs `anyhow`, no `.unwrap()` in production
 
 ### Operations
 - **[Deployment](./docs/agents/deployment.md)** - Single server deployment, database migrations, CI/CD
@@ -131,6 +132,7 @@ web/
 ### For Rust Backend Work
 → **MUST READ FIRST**: [Backend Architecture](./docs/agents/backend-architecture.md) (CQRS pattern - MANDATORY)
 → **MUST READ**: [Logging Best Practices](./docs/agents/logging.md) - **NO `println!`/`eprintln!`/`dbg!`**
+→ **MUST READ**: [Error Handling Policy](./docs/agents/error-handling.md) - **NO `.unwrap()` in production**
 → Then read: [CQRS Architecture](./docs/agents/implementation/cqrs-architecture.md), [Adding Feature with CQRS](./docs/agents/workflows/adding-feature-cqrs.md)
 → Additional: [Rust Backend](./docs/agents/rust-backend.md), [SQLx Guide](./docs/agents/implementation/sqlx-guide.md), [Testing](./docs/agents/testing.md)
 
@@ -139,6 +141,7 @@ web/
 
 ### For CLI Implementation
 → **MUST READ**: [Logging Best Practices](./docs/agents/logging.md) - **NO `println!`/`eprintln!`/`dbg!`**
+→ **MUST READ**: [Error Handling Policy](./docs/agents/error-handling.md) - **NO `.unwrap()` in production**
 → Read: [CLI Development](./docs/agents/cli-development.md), [Architecture](./docs/agents/architecture.md), [Best Practices](./docs/agents/best-practices.md)
 
 ### For Frontend Work

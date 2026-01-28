@@ -8,6 +8,18 @@ use crate::manifest::Manifest;
 use reqwest::Client;
 use std::time::Duration;
 
+// ============================================================================
+// API Client Constants
+// ============================================================================
+
+/// Default timeout for API requests in seconds.
+/// Can be overridden via BDP_API_TIMEOUT_SECS environment variable.
+/// Set to 5 minutes to accommodate large file downloads.
+pub const DEFAULT_API_TIMEOUT_SECS: u64 = 300;
+
+/// Default BDP server URL when not specified via environment variable.
+pub const DEFAULT_SERVER_URL: &str = "http://localhost:8000";
+
 /// API client for BDP server
 pub struct ApiClient {
     client: Client,
@@ -17,8 +29,13 @@ pub struct ApiClient {
 impl ApiClient {
     /// Create a new API client
     pub fn new(base_url: String) -> Result<Self> {
+        let timeout_secs = std::env::var("BDP_API_TIMEOUT_SECS")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(DEFAULT_API_TIMEOUT_SECS);
+
         let client = Client::builder()
-            .timeout(Duration::from_secs(300)) // 5 minutes for large downloads
+            .timeout(Duration::from_secs(timeout_secs))
             .build()?;
 
         Ok(Self { client, base_url })
@@ -27,7 +44,7 @@ impl ApiClient {
     /// Create from environment variables
     pub fn from_env() -> Result<Self> {
         let base_url = std::env::var("BDP_SERVER_URL")
-            .unwrap_or_else(|_| "http://localhost:8000".to_string());
+            .unwrap_or_else(|_| DEFAULT_SERVER_URL.to_string());
 
         Self::new(base_url)
     }
@@ -63,7 +80,9 @@ impl ApiClient {
 
         if !api_response.success {
             return Err(CliError::api(
-                api_response.error.unwrap_or_else(|| "Resolution failed".to_string()),
+                api_response.error.unwrap_or_else(|| {
+                    "Failed to resolve manifest dependencies. Check that all source specifications are valid and available.".to_string()
+                }),
             ));
         }
 
@@ -93,7 +112,12 @@ impl ApiClient {
 
         if !api_response.success {
             return Err(CliError::api(
-                api_response.error.unwrap_or_else(|| "Failed to get data source".to_string()),
+                api_response.error.unwrap_or_else(|| {
+                    format!(
+                        "Data source '{}/{}@{}' not found or unavailable. Run 'bdp search {}' to find available sources.",
+                        org, name, version, name
+                    )
+                }),
             ));
         }
 
@@ -110,7 +134,12 @@ impl ApiClient {
 
         if !api_response.success {
             return Err(CliError::api(
-                api_response.error.unwrap_or_else(|| "Search failed".to_string()),
+                api_response.error.unwrap_or_else(|| {
+                    format!(
+                        "Search for '{}' failed. Try a different search term or check your server connection.",
+                        query
+                    )
+                }),
             ));
         }
 
@@ -127,7 +156,9 @@ impl ApiClient {
 
         if !api_response.success {
             return Err(CliError::api(
-                api_response.error.unwrap_or_else(|| "Failed to list organizations".to_string()),
+                api_response.error.unwrap_or_else(|| {
+                    "Failed to list organizations. Check your server connection.".to_string()
+                }),
             ));
         }
 
@@ -144,7 +175,12 @@ impl ApiClient {
 
         if !api_response.success {
             return Err(CliError::api(
-                api_response.error.unwrap_or_else(|| "Failed to get organization".to_string()),
+                api_response.error.unwrap_or_else(|| {
+                    format!(
+                        "Organization '{}' not found. Run 'bdp org list' to see available organizations.",
+                        name
+                    )
+                }),
             ));
         }
 

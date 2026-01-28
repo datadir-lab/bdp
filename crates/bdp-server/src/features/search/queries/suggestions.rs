@@ -1,8 +1,31 @@
+//! Search suggestions query
+//!
+//! Provides autocomplete suggestions for search queries using PostgreSQL's
+//! trigram similarity (pg_trgm extension) for fuzzy matching.
+
 use mediator::Request;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use uuid::Uuid;
 
+/// Query for autocomplete search suggestions
+///
+/// Provides fast fuzzy-matching suggestions as the user types,
+/// using trigram similarity for partial and misspelled queries.
+///
+/// # Examples
+///
+/// ```rust,ignore
+/// use bdp_server::features::search::queries::SearchSuggestionsQuery;
+///
+/// // Get suggestions for partial input
+/// let query = SearchSuggestionsQuery {
+///     q: "ins".to_string(),
+///     limit: Some(5),
+///     type_filter: Some(vec!["data_source".to_string()]),
+///     source_type_filter: Some(vec!["protein".to_string()]),
+/// };
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchSuggestionsQuery {
     pub q: String,
@@ -14,35 +37,52 @@ pub struct SearchSuggestionsQuery {
     pub source_type_filter: Option<Vec<String>>,
 }
 
+/// Response containing autocomplete suggestions
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchSuggestionsResponse {
+    /// Matching suggestions ranked by similarity score
     pub suggestions: Vec<SearchSuggestionItem>,
 }
 
+/// A single autocomplete suggestion item
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchSuggestionItem {
+    /// Unique identifier
     pub id: Uuid,
+    /// Organization slug (for building URLs)
     pub organization_slug: String,
+    /// Entry slug
     pub slug: String,
+    /// Display name
     pub name: String,
+    /// Type: "data_source", "tool", or "organization"
     pub entry_type: String,
+    /// Source type (for data sources): protein, genome, etc.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source_type: Option<String>,
+    /// Latest version (if applicable)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub latest_version: Option<String>,
+    /// Trigram similarity score (0-1, higher is more similar)
     pub match_score: f32,
 }
 
+/// Errors that can occur during search suggestions
 #[derive(Debug, thiserror::Error)]
 pub enum SearchSuggestionsError {
+    /// Query must be at least 2 characters
     #[error("Query is required and must be at least 2 characters")]
     QueryTooShort,
+    /// Limit was outside valid range (1-20)
     #[error("Limit must be between 1 and 20")]
     InvalidLimit,
+    /// Type filter contained an invalid value
     #[error("Invalid type filter: {0}. Must be 'data_source', 'tool', or 'organization'")]
     InvalidTypeFilter(String),
+    /// Source type filter contained an invalid value
     #[error("Invalid source type filter: {0}. Must be one of: protein, genome, organism, taxonomy, bundle, transcript, annotation, structure, pathway, other")]
     InvalidSourceTypeFilter(String),
+    /// A database error occurred
     #[error("Database error: {0}")]
     Database(#[from] sqlx::Error),
 }
@@ -52,6 +92,14 @@ impl Request<Result<SearchSuggestionsResponse, SearchSuggestionsError>> for Sear
 impl crate::cqrs::middleware::Query for SearchSuggestionsQuery {}
 
 impl SearchSuggestionsQuery {
+    /// Validates the suggestions query parameters
+    ///
+    /// # Errors
+    ///
+    /// - `QueryTooShort` - Query is less than 2 characters
+    /// - `InvalidLimit` - Limit is less than 1 or greater than 20
+    /// - `InvalidTypeFilter` - Type filter contains an invalid value
+    /// - `InvalidSourceTypeFilter` - Source type filter contains an invalid value
     pub fn validate(&self) -> Result<(), SearchSuggestionsError> {
         if self.q.trim().len() < 2 {
             return Err(SearchSuggestionsError::QueryTooShort);
@@ -86,6 +134,28 @@ impl SearchSuggestionsQuery {
     }
 }
 
+/// Handles the search suggestions query
+///
+/// Provides autocomplete suggestions using PostgreSQL's trigram similarity
+/// (pg_trgm extension). Searches both organizations and registry entries
+/// with optional type and source type filtering.
+///
+/// Results are ranked by trigram similarity score using `word_similarity`,
+/// which measures how similar the query is to words in the name field.
+///
+/// # Arguments
+///
+/// * `pool` - Database connection pool
+/// * `query` - Suggestions query with search term and filters
+///
+/// # Returns
+///
+/// Returns up to `limit` suggestions ranked by similarity.
+///
+/// # Errors
+///
+/// - Validation errors if query parameters are invalid
+/// - `Database` - A database error occurred
 #[tracing::instrument(skip(pool))]
 pub async fn handle(
     pool: PgPool,
@@ -187,32 +257,24 @@ async fn search_entries_autocomplete(
     source_type_filter: Option<Vec<String>>,
     limit: i64,
 ) -> Result<Vec<SearchSuggestionItem>, sqlx::Error> {
+    // Use materialized view for autocomplete to avoid scalar subquery for latest_version
+    // This eliminates N+1 query problem and uses pre-computed data
     let records: Vec<RegistryEntrySuggestionRow> = sqlx::query_as(
         r#"
         SELECT
-            re.id,
-            o.slug as organization_slug,
-            re.slug,
-            re.name,
-            re.entry_type,
-            ds.source_type,
-            (
-                SELECT v.version
-                FROM versions v
-                WHERE v.entry_id = re.id
-                ORDER BY v.published_at DESC
-                LIMIT 1
-            ) as latest_version,
-            word_similarity($1, re.name) as match_score
-        FROM registry_entries re
-        JOIN organizations o ON o.id = re.organization_id
-        LEFT JOIN data_sources ds ON ds.id = re.id
-        WHERE ($1 <% re.name OR re.name ILIKE '%' || $1 || '%')
-          AND ($2::VARCHAR[] IS NULL OR re.entry_type = ANY($2))
-          AND ($4::VARCHAR[] IS NULL OR ds.source_type = ANY($4))
-          AND re.slug IS NOT NULL
-          AND o.slug IS NOT NULL
-        ORDER BY match_score DESC, re.name
+            mv.id,
+            mv.organization_slug,
+            mv.slug,
+            mv.name,
+            mv.entry_type,
+            mv.source_type,
+            mv.latest_version as latest_version,
+            word_similarity($1, mv.name) as match_score
+        FROM search_registry_entries_mv mv
+        WHERE ($1 <% mv.name OR mv.name ILIKE '%' || $1 || '%')
+          AND ($2::VARCHAR[] IS NULL OR mv.entry_type = ANY($2))
+          AND ($4::VARCHAR[] IS NULL OR mv.source_type = ANY($4))
+        ORDER BY match_score DESC, mv.name
         LIMIT $3
         "#,
     )

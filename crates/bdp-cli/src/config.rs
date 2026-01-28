@@ -6,6 +6,13 @@ use crate::error::Result;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+// ============================================================================
+// CLI Configuration Constants
+// ============================================================================
+
+/// Default BDP server URL when not specified via environment variable.
+pub const DEFAULT_SERVER_URL: &str = "http://localhost:8000";
+
 /// CLI configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
@@ -28,7 +35,7 @@ impl Config {
             .join("bdp");
 
         Ok(Self {
-            server_url: "http://localhost:8000".to_string(),
+            server_url: DEFAULT_SERVER_URL.to_string(),
             cache_dir,
             verbose: false,
         })
@@ -82,7 +89,12 @@ impl Config {
 
 impl Default for Config {
     fn default() -> Self {
-        Self::new().expect("Failed to create default config")
+        // If we can't determine the cache directory, fall back to a local directory
+        Self::new().unwrap_or_else(|_| Self {
+            server_url: DEFAULT_SERVER_URL.to_string(),
+            cache_dir: std::path::PathBuf::from(".bdp-cache"),
+            verbose: false,
+        })
     }
 }
 
@@ -93,7 +105,7 @@ mod tests {
     #[test]
     fn test_config_creation() {
         let config = Config::new().unwrap();
-        assert_eq!(config.server_url, "http://localhost:8000");
+        assert_eq!(config.server_url, DEFAULT_SERVER_URL);
         assert!(config.cache_dir.to_string_lossy().contains("bdp"));
         assert!(!config.verbose);
     }

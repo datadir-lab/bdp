@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Info, Loader2, Copy, Check, ArrowRight } from 'lucide-react';
+import { Info, Loader2, Copy, Check, ArrowRight, ExternalLink } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import {
@@ -32,18 +32,50 @@ export function ProteinMetadataContent({
     cross_references: Array<{
       database: string;
       database_id: string;
-      metadata?: any;
+      metadata?: Record<string, unknown>;
+    }>;
+    publications: Array<{
+      reference_number: number;
+      position?: string;
+      comments: string[];
+      pubmed_id?: string;
+      doi?: string;
+      author_group?: string;
+      authors: string[];
+      title?: string;
+      location?: string;
     }>;
   } | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [copiedChecksum, setCopiedChecksum] = React.useState(false);
+  const [copiedSequence, setCopiedSequence] = React.useState(false);
+  const [featureFilter, setFeatureFilter] = React.useState('');
+  const [xrefFilter, setXrefFilter] = React.useState('');
+  const [showAllFeatures, setShowAllFeatures] = React.useState(false);
+  const [showAllXrefs, setShowAllXrefs] = React.useState(false);
 
   const copyChecksum = async () => {
     if (dataSource.protein_metadata?.sequence_checksum) {
       await navigator.clipboard.writeText(dataSource.protein_metadata.sequence_checksum);
       setCopiedChecksum(true);
       setTimeout(() => setCopiedChecksum(false), 2000);
+    }
+  };
+
+  const copySequence = async (sequence: string) => {
+    await navigator.clipboard.writeText(sequence);
+    setCopiedSequence(true);
+    setTimeout(() => setCopiedSequence(false), 2000);
+  };
+
+  const formatDate = (dateStr: string | undefined) => {
+    if (!dateStr) return null;
+    try {
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    } catch {
+      return dateStr;
     }
   };
 
@@ -126,6 +158,33 @@ export function ProteinMetadataContent({
   if (!metadata) {
     return null;
   }
+
+  // Filter features
+  const filteredFeatures = metadata.features.filter(feature => {
+    if (!featureFilter) return true;
+    const searchLower = featureFilter.toLowerCase();
+    return (
+      feature.feature_type.toLowerCase().includes(searchLower) ||
+      (feature.description && feature.description.toLowerCase().includes(searchLower))
+    );
+  });
+
+  const displayedFeatures = showAllFeatures ? filteredFeatures : filteredFeatures.slice(0, 20);
+
+  // Filter cross-references
+  const filteredXrefs = metadata.cross_references.filter(xref => {
+    if (!xrefFilter) return true;
+    const searchLower = xrefFilter.toLowerCase();
+    return (
+      xref.database.toLowerCase().includes(searchLower) ||
+      xref.database_id.toLowerCase().includes(searchLower)
+    );
+  });
+
+  const displayedXrefs = showAllXrefs ? filteredXrefs : filteredXrefs.slice(0, 30);
+
+  // Get unique feature types for filtering suggestions
+  const featureTypes = Array.from(new Set(metadata.features.map(f => f.feature_type))).sort();
 
   return (
     <div className="space-y-12">
@@ -361,6 +420,61 @@ export function ProteinMetadataContent({
               </div>
             )}
 
+            {/* Entry History */}
+            {(dataSource.protein_metadata.entry_created ||
+              dataSource.protein_metadata.sequence_updated ||
+              dataSource.protein_metadata.annotation_updated) && (
+              <div className="mt-8">
+                <SectionHeader
+                  label="Entry History"
+                  tooltip="Timeline of key changes to this protein entry in the database"
+                />
+                <div className="space-y-3 mt-4 p-4 rounded-lg border bg-muted/30">
+                  {dataSource.protein_metadata.entry_created && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-muted-foreground">Created</span>
+                      <span className="text-sm font-mono">{formatDate(dataSource.protein_metadata.entry_created)}</span>
+                    </div>
+                  )}
+                  {dataSource.protein_metadata.sequence_updated && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-muted-foreground">Sequence Updated</span>
+                      <span className="text-sm font-mono">{formatDate(dataSource.protein_metadata.sequence_updated)}</span>
+                    </div>
+                  )}
+                  {dataSource.protein_metadata.annotation_updated && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-muted-foreground">Annotation Updated</span>
+                      <span className="text-sm font-mono">{formatDate(dataSource.protein_metadata.annotation_updated)}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Sequence Display - TODO: Fetch actual sequence from API */}
+            {dataSource.protein_metadata.sequence_length && (
+              <div className="mt-8">
+                <SectionHeader
+                  label="Protein Sequence"
+                  tooltip={`Amino acid sequence of ${dataSource.protein_metadata.sequence_length} residues`}
+                />
+                <div className="mt-4 p-4 rounded-lg border bg-muted/30">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-muted-foreground">
+                      {dataSource.protein_metadata.sequence_length} amino acids
+                    </span>
+                    <div className="text-xs text-muted-foreground">
+                      Download FASTA file from above to view sequence
+                    </div>
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-2">
+                    Note: Sequence display will be added in a future update. For now, download the FASTA file format above.
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Protein Comments */}
             {metadata.comments && metadata.comments.length > 0 && (
               <div className="mt-8">
@@ -394,12 +508,34 @@ export function ProteinMetadataContent({
             {/* Protein Features */}
             {metadata.features && metadata.features.length > 0 && (
               <div className="mt-8">
-                <SectionHeader
-                  label="Protein Features"
-                  tooltip="Sequence annotations describing regions, sites, and domains in the protein. Includes binding sites, active sites, domains, motifs, and post-translational modification sites."
-                />
+                <div className="flex items-center justify-between mb-4">
+                  <SectionHeader
+                    label="Protein Features"
+                    tooltip="Sequence annotations describing regions, sites, and domains in the protein. Includes binding sites, active sites, domains, motifs, and post-translational modification sites."
+                  />
+                  <span className="text-sm text-muted-foreground">
+                    {filteredFeatures.length} {filteredFeatures.length === 1 ? 'feature' : 'features'}
+                  </span>
+                </div>
+                <div className="mb-4">
+                  <input
+                    type="text"
+                    placeholder="Filter by feature type or description..."
+                    value={featureFilter}
+                    onChange={(e) => setFeatureFilter(e.target.value)}
+                    className="w-full px-3 py-2 text-sm border rounded-md"
+                  />
+                  {featureFilter && (
+                    <button
+                      onClick={() => setFeatureFilter('')}
+                      className="text-xs text-muted-foreground hover:text-foreground mt-1"
+                    >
+                      Clear filter
+                    </button>
+                  )}
+                </div>
                 <div className="space-y-4 mt-4">
-                  {metadata.features.slice(0, 20).map((feature, idx) => {
+                  {displayedFeatures.map((feature, idx) => {
                     const cleanedDesc = cleanFeatureDescription(feature.description);
                     return (
                       <div key={idx} className="space-y-1">
@@ -422,10 +558,21 @@ export function ProteinMetadataContent({
                     );
                   })}
                 </div>
-                {metadata.features.length > 20 && (
-                  <p className="text-xs text-muted-foreground mt-2">
-                    + {metadata.features.length - 20} more features
-                  </p>
+                {filteredFeatures.length > 20 && !showAllFeatures && (
+                  <button
+                    onClick={() => setShowAllFeatures(true)}
+                    className="text-sm text-blue-600 hover:text-blue-700 font-medium mt-4"
+                  >
+                    Show all {filteredFeatures.length} features
+                  </button>
+                )}
+                {showAllFeatures && filteredFeatures.length > 20 && (
+                  <button
+                    onClick={() => setShowAllFeatures(false)}
+                    className="text-sm text-blue-600 hover:text-blue-700 font-medium mt-4"
+                  >
+                    Show less
+                  </button>
                 )}
               </div>
             )}
@@ -433,22 +580,133 @@ export function ProteinMetadataContent({
             {/* Cross References */}
             {metadata.cross_references && metadata.cross_references.length > 0 && (
               <div className="mt-8">
-                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
-                  Database Cross-References
-                </h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                    Database Cross-References
+                  </h3>
+                  <span className="text-sm text-muted-foreground">
+                    {filteredXrefs.length} {filteredXrefs.length === 1 ? 'reference' : 'references'}
+                  </span>
+                </div>
+                <div className="mb-4">
+                  <input
+                    type="text"
+                    placeholder="Filter by database or ID..."
+                    value={xrefFilter}
+                    onChange={(e) => setXrefFilter(e.target.value)}
+                    className="w-full px-3 py-2 text-sm border rounded-md"
+                  />
+                  {xrefFilter && (
+                    <button
+                      onClick={() => setXrefFilter('')}
+                      className="text-xs text-muted-foreground hover:text-foreground mt-1"
+                    >
+                      Clear filter
+                    </button>
+                  )}
+                </div>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                  {metadata.cross_references.slice(0, 30).map((xref, idx) => (
+                  {displayedXrefs.map((xref, idx) => (
                     <div key={idx} className="flex items-center gap-2 text-sm">
                       <Badge variant="outline" className="font-mono text-xs">{xref.database}</Badge>
                       <span className="text-muted-foreground truncate">{xref.database_id}</span>
                     </div>
                   ))}
                 </div>
-                {metadata.cross_references.length > 30 && (
-                  <p className="text-xs text-muted-foreground mt-2">
-                    + {metadata.cross_references.length - 30} more references
-                  </p>
+                {filteredXrefs.length > 30 && !showAllXrefs && (
+                  <button
+                    onClick={() => setShowAllXrefs(true)}
+                    className="text-sm text-blue-600 hover:text-blue-700 font-medium mt-4"
+                  >
+                    Show all {filteredXrefs.length} references
+                  </button>
                 )}
+                {showAllXrefs && filteredXrefs.length > 30 && (
+                  <button
+                    onClick={() => setShowAllXrefs(false)}
+                    className="text-sm text-blue-600 hover:text-blue-700 font-medium mt-4"
+                  >
+                    Show less
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Publications */}
+            {metadata.publications && metadata.publications.length > 0 && (
+              <div className="mt-8">
+                <SectionHeader
+                  label="Publications"
+                  tooltip="Scientific literature references supporting the annotations and functional information about this protein"
+                />
+                <div className="space-y-6 mt-4">
+                  {metadata.publications.map((pub) => (
+                    <div key={pub.reference_number} className="p-4 rounded-lg border bg-muted/30">
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0">
+                          <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-semibold">
+                            {pub.reference_number}
+                          </span>
+                        </div>
+                        <div className="flex-1 space-y-2">
+                          {pub.title && (
+                            <h4 className="text-sm font-medium leading-snug">
+                              {pub.title}
+                            </h4>
+                          )}
+                          {pub.authors && pub.authors.length > 0 && (
+                            <p className="text-xs text-muted-foreground">
+                              {pub.author_group ? (
+                                <span className="font-medium">{pub.author_group}</span>
+                              ) : (
+                                pub.authors.join(', ')
+                              )}
+                            </p>
+                          )}
+                          {pub.location && (
+                            <p className="text-xs text-muted-foreground italic">
+                              {pub.location}
+                            </p>
+                          )}
+                          {pub.position && (
+                            <p className="text-xs text-muted-foreground">
+                              <span className="font-medium">Scope:</span> {pub.position}
+                            </p>
+                          )}
+                          {pub.comments && pub.comments.length > 0 && (
+                            <p className="text-xs text-muted-foreground">
+                              <span className="font-medium">Context:</span> {pub.comments.join('; ')}
+                            </p>
+                          )}
+                          <div className="flex items-center gap-3 mt-2">
+                            {pub.pubmed_id && (
+                              <a
+                                href={`https://pubmed.ncbi.nlm.nih.gov/${pub.pubmed_id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs text-blue-600 hover:text-blue-700 hover:underline flex items-center gap-1"
+                              >
+                                <ExternalLink className="h-3 w-3" />
+                                PubMed: {pub.pubmed_id}
+                              </a>
+                            )}
+                            {pub.doi && (
+                              <a
+                                href={`https://doi.org/${pub.doi}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs text-blue-600 hover:text-blue-700 hover:underline flex items-center gap-1"
+                              >
+                                <ExternalLink className="h-3 w-3" />
+                                DOI: {pub.doi}
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>

@@ -153,7 +153,7 @@ async fn get_source_types(
     Ok((StatusCode::OK, Json(ApiResponse::success(source_types))).into_response())
 }
 
-#[tracing::instrument(skip(pool, query), fields(page = ?query.page, per_page = ?query.per_page))]
+#[tracing::instrument(skip(pool, query), fields(page = ?query.pagination.page, per_page = ?query.pagination.per_page))]
 async fn list_data_sources(
     State(pool): State<PgPool>,
     Query(query): Query<ListDataSourcesQuery>,

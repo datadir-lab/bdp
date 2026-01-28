@@ -14,7 +14,7 @@ import {
 import { Package, Download, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { SafeLink as Link } from '@/components/shared/safe-link';
 import { listDataSources } from '@/lib/api/data-sources';
-import type { DataSource } from '@/lib/types/data-source';
+import type { DataSourceListItem } from '@/lib/types/data-source';
 
 interface SourcesListProps {
   searchParams: {
@@ -27,7 +27,7 @@ interface SourcesListProps {
 
 export function SourcesList({ searchParams }: SourcesListProps) {
   const router = useRouter();
-  const [dataSources, setDataSources] = React.useState<DataSource[]>([]);
+  const [dataSources, setDataSources] = React.useState<DataSourceListItem[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [pagination, setPagination] = React.useState({
@@ -161,14 +161,14 @@ export function SourcesList({ searchParams }: SourcesListProps) {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {dataSources.map((dataSource) => {
               // Skip data sources with missing required fields
-              if (!dataSource.slug || !dataSource.organization?.slug) {
+              if (!dataSource.slug || !dataSource.organization_slug) {
                 console.warn('Skipping data source with missing slug:', dataSource);
                 return null;
               }
 
               // Include version in URL to avoid redirect issues
               const version = dataSource.latest_version || 'latest';
-              const href = `/sources/${dataSource.organization.slug}/${dataSource.slug}/${version}`;
+              const href = `/sources/${dataSource.organization_slug}/${dataSource.slug}/${version}`;
 
               return (
               <Link

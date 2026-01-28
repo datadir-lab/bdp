@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT v.id\n        FROM versions v\n        JOIN registry_entries re ON v.entry_id = re.id\n        JOIN organizations o ON re.organization_id = o.id\n        WHERE LOWER(o.slug) = LOWER($1) AND LOWER(re.slug) = LOWER($2) AND v.version = $3\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "b08e879d3e6d604c57b0118920681949527497346e96a26fddf99f3f2ae613d6"
+}

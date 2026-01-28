@@ -15,7 +15,7 @@ use colored::Colorize;
 pub async fn run(server_url: String, force: bool) -> Result<()> {
     // Load manifest
     let manifest = Manifest::load("bdp.yml")
-        .map_err(|_| CliError::NotInitialized("Run 'bdp init' first".to_string()))?;
+        .map_err(|_| CliError::NotInitialized("No bdp.yml found in current directory. Initialize a project with 'bdp init' first.".to_string()))?;
 
     if manifest.sources.is_empty() {
         println!("No sources to pull. Add sources with 'bdp source add'");
@@ -25,11 +25,14 @@ pub async fn run(server_url: String, force: bool) -> Result<()> {
     println!("{} Resolving dependencies...", "→".cyan());
 
     // Initialize API client
-    let api_client = ApiClient::new(server_url)?;
+    let api_client = ApiClient::new(server_url.clone())?;
 
     // Check server health
     if !api_client.health_check().await? {
-        return Err(CliError::api("Cannot connect to BDP server"));
+        return Err(CliError::api(format!(
+            "Cannot connect to BDP server at '{}'. Ensure the server is running or set BDP_SERVER_URL to the correct address.",
+            server_url
+        )));
     }
 
     // Resolve manifest

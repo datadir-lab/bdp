@@ -156,6 +156,37 @@ pub struct Organization {
     /// Whether this is a system organization (hardcoded, has scrapers)
     pub is_system: bool,
 
+    /// License type (e.g., "CC-BY-4.0", "MIT", "Custom")
+    pub license: Option<String>,
+
+    /// Link to full license text
+    pub license_url: Option<String>,
+
+    /// How to cite this organization's data
+    pub citation: Option<String>,
+
+    /// Link to citation guidelines
+    pub citation_url: Option<String>,
+
+    /// Versioning approach (e.g., "semantic", "date-based", "release-based")
+    pub version_strategy: Option<String>,
+
+    /// Description of how versions are managed
+    pub version_description: Option<String>,
+
+    /// Link to the original data source
+    pub data_source_url: Option<String>,
+
+    /// Link to documentation
+    pub documentation_url: Option<String>,
+
+    /// Contact email for questions
+    pub contact_email: Option<String>,
+
+    /// Per-organization versioning strategy defining MAJOR vs MINOR bump rules
+    /// Stored as JSONB in the database
+    pub versioning_strategy: Option<serde_json::Value>,
+
     /// Timestamp when the organization was created
     pub created_at: DateTime<Utc>,
 
@@ -177,6 +208,15 @@ pub struct Organization {
 ///     description: Some("Comprehensive protein database".to_string()),
 ///     logo_url: None,
 ///     is_system: true,
+///     license: Some("CC-BY-4.0".to_string()),
+///     license_url: Some("https://creativecommons.org/licenses/by/4.0/".to_string()),
+///     citation: Some("Cite UniProt...".to_string()),
+///     citation_url: Some("https://www.uniprot.org/help/publications".to_string()),
+///     version_strategy: Some("date-based".to_string()),
+///     version_description: Some("Releases follow YYYY_MM format".to_string()),
+///     data_source_url: Some("https://ftp.uniprot.org/".to_string()),
+///     documentation_url: Some("https://www.uniprot.org/help".to_string()),
+///     contact_email: Some("help@uniprot.org".to_string()),
 /// };
 /// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -198,6 +238,36 @@ pub struct CreateOrganizationParams {
 
     /// Whether this is a system organization
     pub is_system: bool,
+
+    /// Optional license type
+    pub license: Option<String>,
+
+    /// Optional license URL
+    pub license_url: Option<String>,
+
+    /// Optional citation information
+    pub citation: Option<String>,
+
+    /// Optional citation URL
+    pub citation_url: Option<String>,
+
+    /// Optional version strategy
+    pub version_strategy: Option<String>,
+
+    /// Optional version description
+    pub version_description: Option<String>,
+
+    /// Optional data source URL
+    pub data_source_url: Option<String>,
+
+    /// Optional documentation URL
+    pub documentation_url: Option<String>,
+
+    /// Optional contact email
+    pub contact_email: Option<String>,
+
+    /// Optional versioning strategy (JSONB)
+    pub versioning_strategy: Option<serde_json::Value>,
 }
 
 /// Parameters for updating an organization.
@@ -216,6 +286,15 @@ pub struct CreateOrganizationParams {
 ///     description: None,
 ///     logo_url: None,
 ///     is_system: None,
+///     license: None,
+///     license_url: None,
+///     citation: None,
+///     citation_url: None,
+///     version_strategy: None,
+///     version_description: None,
+///     data_source_url: None,
+///     documentation_url: None,
+///     contact_email: None,
 /// };
 /// ```
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -234,6 +313,36 @@ pub struct UpdateOrganizationParams {
 
     /// Optional new is_system value
     pub is_system: Option<bool>,
+
+    /// Optional new license
+    pub license: Option<String>,
+
+    /// Optional new license URL
+    pub license_url: Option<String>,
+
+    /// Optional new citation
+    pub citation: Option<String>,
+
+    /// Optional new citation URL
+    pub citation_url: Option<String>,
+
+    /// Optional new version strategy
+    pub version_strategy: Option<String>,
+
+    /// Optional new version description
+    pub version_description: Option<String>,
+
+    /// Optional new data source URL
+    pub data_source_url: Option<String>,
+
+    /// Optional new documentation URL
+    pub documentation_url: Option<String>,
+
+    /// Optional new contact email
+    pub contact_email: Option<String>,
+
+    /// Optional new versioning strategy
+    pub versioning_strategy: Option<serde_json::Value>,
 }
 
 /// Filter parameters for listing organizations.
@@ -417,11 +526,21 @@ pub async fn create_organization(
         Organization,
         r#"
         INSERT INTO organizations (
-            id, slug, name, website, description, logo_url, is_system, created_at, updated_at
+            id, slug, name, website, description, logo_url, is_system,
+            license, license_url, citation, citation_url,
+            version_strategy, version_description,
+            data_source_url, documentation_url, contact_email,
+            versioning_strategy,
+            created_at, updated_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
         RETURNING
-            id, slug, name, website, description, logo_url, is_system, created_at, updated_at
+            id, slug, name, website, description, logo_url, is_system,
+            license, license_url, citation, citation_url,
+            version_strategy, version_description,
+            data_source_url, documentation_url, contact_email,
+            versioning_strategy,
+            created_at, updated_at
         "#,
         id,
         params.slug,
@@ -430,6 +549,16 @@ pub async fn create_organization(
         params.description,
         params.logo_url,
         params.is_system,
+        params.license,
+        params.license_url,
+        params.citation,
+        params.citation_url,
+        params.version_strategy,
+        params.version_description,
+        params.data_source_url,
+        params.documentation_url,
+        params.contact_email,
+        params.versioning_strategy,
         now,
         now
     )
@@ -491,7 +620,12 @@ pub async fn get_organization_by_slug(pool: &PgPool, slug: &str) -> DbResult<Org
         Organization,
         r#"
         SELECT
-            id, slug, name, website, description, logo_url, is_system, created_at, updated_at
+            id, slug, name, website, description, logo_url, is_system,
+            license, license_url, citation, citation_url,
+            version_strategy, version_description,
+            data_source_url, documentation_url, contact_email,
+            versioning_strategy,
+            created_at, updated_at
         FROM organizations
         WHERE slug = $1
         "#,
@@ -534,7 +668,12 @@ pub async fn get_organization_by_id(pool: &PgPool, id: Uuid) -> DbResult<Organiz
         Organization,
         r#"
         SELECT
-            id, slug, name, website, description, logo_url, is_system, created_at, updated_at
+            id, slug, name, website, description, logo_url, is_system,
+            license, license_url, citation, citation_url,
+            version_strategy, version_description,
+            data_source_url, documentation_url, contact_email,
+            versioning_strategy,
+            created_at, updated_at
         FROM organizations
         WHERE id = $1
         "#,
@@ -607,7 +746,12 @@ pub async fn list_organizations(
                 Organization,
                 r#"
                 SELECT
-                    id, slug, name, website, description, logo_url, is_system, created_at, updated_at
+                    id, slug, name, website, description, logo_url, is_system,
+                    license, license_url, citation, citation_url,
+                    version_strategy, version_description,
+                    data_source_url, documentation_url, contact_email,
+                    versioning_strategy,
+                    created_at, updated_at
                 FROM organizations
                 WHERE is_system = $1 AND name ILIKE $2
                 ORDER BY created_at DESC
@@ -625,7 +769,12 @@ pub async fn list_organizations(
                 Organization,
                 r#"
                 SELECT
-                    id, slug, name, website, description, logo_url, is_system, created_at, updated_at
+                    id, slug, name, website, description, logo_url, is_system,
+                    license, license_url, citation, citation_url,
+                    version_strategy, version_description,
+                    data_source_url, documentation_url, contact_email,
+                    versioning_strategy,
+                    created_at, updated_at
                 FROM organizations
                 WHERE is_system = $1
                 ORDER BY created_at DESC
@@ -644,7 +793,12 @@ pub async fn list_organizations(
             Organization,
             r#"
             SELECT
-                id, slug, name, website, description, logo_url, is_system, created_at, updated_at
+                id, slug, name, website, description, logo_url, is_system,
+                license, license_url, citation, citation_url,
+                version_strategy, version_description,
+                data_source_url, documentation_url, contact_email,
+                versioning_strategy,
+                created_at, updated_at
             FROM organizations
             WHERE name ILIKE $1
             ORDER BY created_at DESC
@@ -661,7 +815,12 @@ pub async fn list_organizations(
             Organization,
             r#"
             SELECT
-                id, slug, name, website, description, logo_url, is_system, created_at, updated_at
+                id, slug, name, website, description, logo_url, is_system,
+                license, license_url, citation, citation_url,
+                version_strategy, version_description,
+                data_source_url, documentation_url, contact_email,
+                versioning_strategy,
+                created_at, updated_at
             FROM organizations
             ORDER BY created_at DESC
             LIMIT $1 OFFSET $2
@@ -849,6 +1008,36 @@ pub async fn update_organization(
     if let Some(is_system) = params.is_system {
         org.is_system = is_system;
     }
+    if let Some(license) = params.license {
+        org.license = Some(license);
+    }
+    if let Some(license_url) = params.license_url {
+        org.license_url = Some(license_url);
+    }
+    if let Some(citation) = params.citation {
+        org.citation = Some(citation);
+    }
+    if let Some(citation_url) = params.citation_url {
+        org.citation_url = Some(citation_url);
+    }
+    if let Some(version_strategy) = params.version_strategy {
+        org.version_strategy = Some(version_strategy);
+    }
+    if let Some(version_description) = params.version_description {
+        org.version_description = Some(version_description);
+    }
+    if let Some(data_source_url) = params.data_source_url {
+        org.data_source_url = Some(data_source_url);
+    }
+    if let Some(documentation_url) = params.documentation_url {
+        org.documentation_url = Some(documentation_url);
+    }
+    if let Some(contact_email) = params.contact_email {
+        org.contact_email = Some(contact_email);
+    }
+    if let Some(versioning_strategy) = params.versioning_strategy {
+        org.versioning_strategy = Some(versioning_strategy);
+    }
 
     let now = Utc::now();
 
@@ -862,10 +1051,25 @@ pub async fn update_organization(
             description = $4,
             logo_url = $5,
             is_system = $6,
-            updated_at = $7
+            license = $7,
+            license_url = $8,
+            citation = $9,
+            citation_url = $10,
+            version_strategy = $11,
+            version_description = $12,
+            data_source_url = $13,
+            documentation_url = $14,
+            contact_email = $15,
+            versioning_strategy = $16,
+            updated_at = $17
         WHERE slug = $1
         RETURNING
-            id, slug, name, website, description, logo_url, is_system, created_at, updated_at
+            id, slug, name, website, description, logo_url, is_system,
+            license, license_url, citation, citation_url,
+            version_strategy, version_description,
+            data_source_url, documentation_url, contact_email,
+            versioning_strategy,
+            created_at, updated_at
         "#,
         slug,
         org.name,
@@ -873,6 +1077,16 @@ pub async fn update_organization(
         org.description,
         org.logo_url,
         org.is_system,
+        org.license,
+        org.license_url,
+        org.citation,
+        org.citation_url,
+        org.version_strategy,
+        org.version_description,
+        org.data_source_url,
+        org.documentation_url,
+        org.contact_email,
+        org.versioning_strategy,
         now
     )
     .fetch_optional(pool)
@@ -1011,7 +1225,12 @@ pub async fn search_organizations(
         Organization,
         r#"
         SELECT
-            id, slug, name, website, description, logo_url, is_system, created_at, updated_at
+            id, slug, name, website, description, logo_url, is_system,
+            license, license_url, citation, citation_url,
+            version_strategy, version_description,
+            data_source_url, documentation_url, contact_email,
+            versioning_strategy,
+            created_at, updated_at
         FROM organizations
         WHERE
             to_tsvector('english', name || ' ' || COALESCE(description, '') || ' ' || slug)
@@ -1118,8 +1337,9 @@ pub async fn get_organization_statistics(
             total_versions: row.total_versions,
             total_size_bytes: row.total_size_bytes,
             total_downloads: row.total_downloads,
-            latest_release_date: row.latest_release_date.map(|d| {
-                DateTime::<Utc>::from_naive_utc_and_offset(d.and_hms_opt(0, 0, 0).unwrap(), Utc)
+            latest_release_date: row.latest_release_date.and_then(|d| {
+                d.and_hms_opt(0, 0, 0)
+                    .map(|naive_dt| DateTime::<Utc>::from_naive_utc_and_offset(naive_dt, Utc))
             }),
         }
     } else {
@@ -1148,23 +1368,7 @@ pub async fn get_organization_statistics(
 mod tests {
     use super::*;
 
-    /// Creates a test database pool for integration tests.
-    ///
-    /// Set the TEST_DATABASE_URL environment variable to run integration tests.
-    /// Example: TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/bdp_test
-    #[allow(dead_code)]
-    async fn create_test_pool() -> PgPool {
-        let url = std::env::var("TEST_DATABASE_URL").unwrap_or_else(|_| {
-            "postgresql://postgres:postgres@localhost:5432/bdp_test".to_string()
-        });
-
-        PgPool::connect(&url)
-            .await
-            .expect("Failed to connect to test database")
-    }
-
     /// Helper to create a test organization with random slug.
-    #[allow(dead_code)]
     async fn create_test_organization(pool: &PgPool, suffix: &str) -> Organization {
         let params = CreateOrganizationParams {
             slug: format!("test-org-{}", suffix),
@@ -1173,6 +1377,16 @@ mod tests {
             description: Some(format!("Test description for {}", suffix)),
             logo_url: None,
             is_system: false,
+            license: None,
+            license_url: None,
+            citation: None,
+            citation_url: None,
+            version_strategy: None,
+            version_description: None,
+            data_source_url: None,
+            documentation_url: None,
+            contact_email: None,
+            versioning_strategy: None,
         };
 
         create_organization(pool, params)
@@ -1190,6 +1404,16 @@ mod tests {
             description: Some("Test description".to_string()),
             logo_url: None,
             is_system: false,
+            license: None,
+            license_url: None,
+            citation: None,
+            citation_url: None,
+            version_strategy: None,
+            version_description: None,
+            data_source_url: None,
+            documentation_url: None,
+            contact_email: None,
+            versioning_strategy: None,
         };
 
         let org = create_organization(&pool, params).await.unwrap();
@@ -1222,6 +1446,16 @@ mod tests {
             description: None,
             logo_url: None,
             is_system: false,
+            license: None,
+            license_url: None,
+            citation: None,
+            citation_url: None,
+            version_strategy: None,
+            version_description: None,
+            data_source_url: None,
+            documentation_url: None,
+            contact_email: None,
+            versioning_strategy: None,
         };
 
         create_organization(&pool, params.clone()).await.unwrap();
@@ -1244,6 +1478,16 @@ mod tests {
             website: None,
             logo_url: None,
             is_system: None,
+            license: None,
+            license_url: None,
+            citation: None,
+            citation_url: None,
+            version_strategy: None,
+            version_description: None,
+            data_source_url: None,
+            documentation_url: None,
+            contact_email: None,
+            versioning_strategy: None,
         };
 
         let updated = update_organization(&pool, &org.slug, update_params)
@@ -1304,6 +1548,16 @@ mod tests {
             description: None,
             logo_url: None,
             is_system: true,
+            license: None,
+            license_url: None,
+            citation: None,
+            citation_url: None,
+            version_strategy: None,
+            version_description: None,
+            data_source_url: None,
+            documentation_url: None,
+            contact_email: None,
+            versioning_strategy: None,
         };
         create_organization(&pool, params_system).await.unwrap();
 
@@ -1314,6 +1568,16 @@ mod tests {
             description: None,
             logo_url: None,
             is_system: false,
+            license: None,
+            license_url: None,
+            citation: None,
+            citation_url: None,
+            version_strategy: None,
+            version_description: None,
+            data_source_url: None,
+            documentation_url: None,
+            contact_email: None,
+            versioning_strategy: None,
         };
         create_organization(&pool, params_regular).await.unwrap();
 

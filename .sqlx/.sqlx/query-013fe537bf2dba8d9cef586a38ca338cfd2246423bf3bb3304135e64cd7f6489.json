@@ -1,0 +1,73 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT id, slug, name, website, description, logo_url,\n               is_system as \"is_system!\", created_at as \"created_at!\", updated_at as \"updated_at!\"\n        FROM organizations\n        WHERE ($1::BOOLEAN IS NULL OR is_system = $1)\n          AND ($2::TEXT IS NULL OR LOWER(name) LIKE $2)\n        ORDER BY created_at DESC\n        LIMIT $3\n        OFFSET $4\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "slug",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "website",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "description",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "logo_url",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "is_system!",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 7,
+        "name": "created_at!",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 8,
+        "name": "updated_at!",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Bool",
+        "Text",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "013fe537bf2dba8d9cef586a38ca338cfd2246423bf3bb3304135e64cd7f6489"
+}

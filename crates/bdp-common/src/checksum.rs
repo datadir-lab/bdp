@@ -55,11 +55,13 @@ pub fn verify_file_checksum(
     expected: &str,
     algorithm: ChecksumAlgorithm,
 ) -> Result<bool> {
-    let actual = compute_file_checksum(path, algorithm)?;
+    let path_ref = path.as_ref();
+    let actual = compute_file_checksum(path_ref, algorithm)?;
     if actual == expected {
         Ok(true)
     } else {
         Err(BdpError::ChecksumMismatch {
+            file: path_ref.display().to_string(),
             expected: expected.to_string(),
             actual,
         })

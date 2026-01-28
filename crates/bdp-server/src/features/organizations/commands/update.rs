@@ -1,9 +1,34 @@
+//! Update organization command
+//!
+//! Partially updates an existing organization. Only the fields that are
+//! provided will be updated; others remain unchanged.
+
 use chrono::{DateTime, Utc};
 use mediator::Request;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use uuid::Uuid;
 
+/// Command to update an existing organization
+///
+/// At least one field besides `slug` must be provided for update.
+/// The `slug` identifies which organization to update and cannot itself
+/// be changed.
+///
+/// # Examples
+///
+/// ```rust,ignore
+/// use bdp_server::features::organizations::commands::UpdateOrganizationCommand;
+///
+/// let command = UpdateOrganizationCommand {
+///     slug: "acme-corp".to_string(),
+///     name: Some("ACME Corporation Inc.".to_string()),
+///     website: Some("https://acme.io".to_string()),
+///     description: None,  // Keep existing description
+///     logo_url: None,
+///     is_system: None,
+/// };
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UpdateOrganizationCommand {
     pub slug: String,
@@ -19,6 +44,7 @@ pub struct UpdateOrganizationCommand {
     pub is_system: Option<bool>,
 }
 
+/// Response from updating an organization
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UpdateOrganizationResponse {
     pub id: Uuid,
@@ -34,22 +60,31 @@ pub struct UpdateOrganizationResponse {
     pub updated_at: DateTime<Utc>,
 }
 
+/// Errors that can occur when updating an organization
 #[derive(Debug, thiserror::Error)]
 pub enum UpdateOrganizationError {
+    /// The slug parameter was empty
     #[error("Slug is required and cannot be empty")]
     SlugRequired,
+    /// No fields were provided for update
     #[error("At least one field must be provided for update")]
     NoFieldsToUpdate,
+    /// Name exceeds maximum length
     #[error("Name must be between 1 and 256 characters")]
     NameLength,
+    /// Name was empty or only whitespace
     #[error("Name cannot be empty or only whitespace")]
     NameEmpty,
+    /// Website URL failed validation
     #[error("Website URL is invalid: {0}")]
     WebsiteInvalid(String),
+    /// Logo URL failed validation
     #[error("Logo URL is invalid: {0}")]
     LogoUrlInvalid(String),
+    /// Organization with the given slug was not found
     #[error("Organization with slug '{0}' not found")]
     NotFound(String),
+    /// A database error occurred
     #[error("Database error: {0}")]
     Database(#[from] sqlx::Error),
 }
@@ -62,6 +97,16 @@ impl Request<Result<UpdateOrganizationResponse, UpdateOrganizationError>>
 impl crate::cqrs::middleware::Command for UpdateOrganizationCommand {}
 
 impl UpdateOrganizationCommand {
+    /// Validates the command parameters
+    ///
+    /// # Errors
+    ///
+    /// - `SlugRequired` - Slug is empty
+    /// - `NoFieldsToUpdate` - No fields provided for update
+    /// - `NameLength` - Name exceeds 256 characters
+    /// - `NameEmpty` - Name is empty or whitespace-only
+    /// - `WebsiteInvalid` - Website URL is not a valid HTTP(S) URL
+    /// - `LogoUrlInvalid` - Logo URL is not a valid HTTP(S) URL
     pub fn validate(&self) -> Result<(), UpdateOrganizationError> {
         if self.slug.is_empty() {
             return Err(UpdateOrganizationError::SlugRequired);
@@ -96,6 +141,25 @@ impl UpdateOrganizationCommand {
     }
 }
 
+/// Handles the update organization command
+///
+/// Updates an existing organization with the provided fields. Fields that
+/// are `None` are not changed (existing values are preserved).
+///
+/// # Arguments
+///
+/// * `pool` - Database connection pool
+/// * `command` - The update command with fields to modify
+///
+/// # Returns
+///
+/// Returns the updated organization details on success.
+///
+/// # Errors
+///
+/// - Validation errors if command parameters are invalid
+/// - `NotFound` - No organization with the given slug exists
+/// - `Database` - A database error occurred
 #[tracing::instrument(skip(pool))]
 pub async fn handle(
     pool: PgPool,
@@ -156,6 +220,7 @@ pub async fn handle(
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 struct OrganizationRecord {
     id: Uuid,
     slug: String,

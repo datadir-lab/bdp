@@ -1,0 +1,40 @@
+# Caddyfile for BDP MVP
+# Place at /etc/caddy/Caddyfile on the server
+#
+# For IP-only access (no domain):
+:80, :443 {
+    # Frontend (Next.js)
+    handle {
+        reverse_proxy localhost:3000
+    }
+
+    # Backend API
+    handle /api/* {
+        reverse_proxy localhost:8000
+    }
+
+    # Health check
+    handle /health {
+        reverse_proxy localhost:8000
+    }
+}
+
+# For domain access (uncomment and replace YOUR_DOMAIN):
+# YOUR_DOMAIN.com {
+#     # Automatic HTTPS via Let's Encrypt
+#
+#     # Frontend (Next.js)
+#     handle {
+#         reverse_proxy localhost:3000
+#     }
+#
+#     # Backend API
+#     handle /api/* {
+#         reverse_proxy localhost:8000
+#     }
+#
+#     # Health check
+#     handle /health {
+#         reverse_proxy localhost:8000
+#     }
+# }

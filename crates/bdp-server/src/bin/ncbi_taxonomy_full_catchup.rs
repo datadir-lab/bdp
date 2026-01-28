@@ -22,7 +22,7 @@ use bdp_server::ingest::ncbi_taxonomy::{
     NcbiTaxonomyFtpConfig, NcbiTaxonomyOrchestrator,
 };
 use sqlx::postgres::PgPoolOptions;
-use tracing::{info, Level};
+use tracing::{info, warn, Level};
 use uuid::Uuid;
 use std::env;
 
@@ -72,8 +72,7 @@ async fn main() -> Result<()> {
 
     // Validate concurrency
     if concurrency > 10 {
-        eprintln!("⚠️  Warning: High concurrency ({}) may cause FTP rate limiting", concurrency);
-        eprintln!("   Recommended: 2-4");
+        warn!(concurrency = concurrency, "High concurrency may cause FTP rate limiting. Recommended: 2-4");
     }
 
     // Get database URL
@@ -87,26 +86,28 @@ async fn main() -> Result<()> {
         .connect(&database_url)
         .await
         .context("Failed to connect to database")?;
-    info!("✓ Database connected (max connections: {})", db_max_connections);
+    info!(max_connections = db_max_connections, "Database connected");
 
     // Create orchestrator
     let config = NcbiTaxonomyFtpConfig::new();
     let orchestrator = NcbiTaxonomyOrchestrator::new(config, db);
 
-    // Print header
-    println!("\n{}", "=".repeat(70));
-    println!("🚀 NCBI Taxonomy Full Historical Catchup");
-    println!("{}\n", "=".repeat(70));
+    // Log header
+    info!("======================================================================");
+    info!("NCBI Taxonomy Full Historical Catchup");
+    info!("======================================================================");
 
-    println!("Configuration:");
-    println!("  Organization ID: {}", org_id);
-    println!("  Concurrency: {}", if sequential { "1 (sequential)".to_string() } else { concurrency.to_string() });
-    println!("  Start date: {}", start_date.as_deref().unwrap_or("Beginning of time (2018-12-01)"));
-    println!("  Database connections: {}", db_max_connections);
+    info!(
+        org_id = %org_id,
+        concurrency = if sequential { 1 } else { concurrency },
+        start_date = start_date.as_deref().unwrap_or("Beginning of time (2018-12-01)"),
+        db_max_connections = db_max_connections,
+        "Configuration"
+    );
 
     // Dry run - just list versions
     if dry_run {
-        println!("\n🔍 Dry run mode - listing versions only\n");
+        info!("Dry run mode - listing versions only");
 
         let versions = orchestrator.list_available_versions().await?;
 
@@ -116,23 +117,32 @@ async fn main() -> Result<()> {
             versions
         };
 
-        println!("Found {} versions to process", filtered_versions.len());
-        if !filtered_versions.is_empty() {
-            println!("  Oldest: {}", filtered_versions.first().unwrap());
-            println!("  Newest: {}", filtered_versions.last().unwrap());
-        }
+        info!(
+            count = filtered_versions.len(),
+            oldest = filtered_versions.first().map(|s| s.as_str()).unwrap_or("N/A"),
+            newest = filtered_versions.last().map(|s| s.as_str()).unwrap_or("N/A"),
+            "Found versions to process"
+        );
 
-        println!("\nEstimated time:");
         let avg_minutes = 10.0;
         let sequential_time = filtered_versions.len() as f64 * avg_minutes;
         let parallel_time = sequential_time / concurrency as f64;
 
-        println!("  Sequential: {:.1} hours ({:.0} minutes)", sequential_time / 60.0, sequential_time);
+        info!(
+            sequential_hours = format!("{:.1}", sequential_time / 60.0),
+            sequential_minutes = format!("{:.0}", sequential_time),
+            "Estimated sequential time"
+        );
         if !sequential {
-            println!("  Parallel ({}x): {:.1} hours ({:.0} minutes)", concurrency, parallel_time / 60.0, parallel_time);
+            info!(
+                concurrency = concurrency,
+                parallel_hours = format!("{:.1}", parallel_time / 60.0),
+                parallel_minutes = format!("{:.0}", parallel_time),
+                "Estimated parallel time"
+            );
         }
 
-        println!("\n💡 To run actual catchup, set DRY_RUN=false\n");
+        info!("To run actual catchup, set DRY_RUN=false");
         return Ok(());
     }
 
@@ -151,14 +161,19 @@ async fn main() -> Result<()> {
         filtered_count as f64 * avg_minutes / concurrency as f64
     };
 
-    println!("\nEstimated:");
-    println!("  Versions to process: {}", filtered_count);
-    println!("  Time: {:.1} hours ({:.0} minutes)", estimated_time / 60.0, estimated_time);
-    println!("  Data download: ~{} GB", filtered_count as f64 * 0.1);
-    println!("  Database entries: ~{} million", filtered_count as f64 * 2.5);
+    info!(
+        versions_to_process = filtered_count,
+        estimated_hours = format!("{:.1}", estimated_time / 60.0),
+        estimated_minutes = format!("{:.0}", estimated_time),
+        estimated_download_gb = format!("~{:.1}", filtered_count as f64 * 0.1),
+        estimated_db_entries_million = format!("~{:.1}", filtered_count as f64 * 2.5),
+        "Estimated workload"
+    );
 
-    println!("\n⚠️  This will take {:.1} hours. Progress will be logged.", estimated_time / 60.0);
-    println!("Press Ctrl+C to cancel within next 5 seconds...\n");
+    warn!(
+        estimated_hours = format!("{:.1}", estimated_time / 60.0),
+        "This will take a while. Press Ctrl+C to cancel within next 5 seconds"
+    );
 
     // Give user time to cancel
     tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
@@ -185,39 +200,41 @@ async fn main() -> Result<()> {
 
     let duration = start.elapsed();
 
-    // Print summary
-    println!("\n{}", "=".repeat(70));
-    println!("✅ Full catchup completed!");
-    println!("{}\n", "=".repeat(70));
+    // Log summary
+    info!("======================================================================");
+    info!("Full catchup completed!");
+    info!("======================================================================");
 
-    println!("{}", NcbiTaxonomyOrchestrator::summarize_results(&results));
+    info!("{}", NcbiTaxonomyOrchestrator::summarize_results(&results));
 
-    println!("\nTiming:");
-    println!("  Total time: {:.1} hours ({:.0} minutes)",
-        duration.as_secs_f64() / 3600.0,
-        duration.as_secs_f64() / 60.0
-    );
-    println!("  Average per version: {:.1} minutes",
-        duration.as_secs_f64() / 60.0 / results.len() as f64
+    info!(
+        total_hours = format!("{:.1}", duration.as_secs_f64() / 3600.0),
+        total_minutes = format!("{:.0}", duration.as_secs_f64() / 60.0),
+        avg_minutes_per_version = format!("{:.1}", duration.as_secs_f64() / 60.0 / results.len() as f64),
+        "Timing"
     );
 
     if !sequential {
         let sequential_estimate = duration.as_secs_f64() * concurrency as f64;
-        println!("  Estimated sequential time: {:.1} hours",
-            sequential_estimate / 3600.0
+        info!(
+            estimated_sequential_hours = format!("{:.1}", sequential_estimate / 3600.0),
+            speedup = format!("~{:.1}x", concurrency as f64),
+            "Parallelism benefits"
         );
-        println!("  Speedup from parallelism: ~{:.1}x", concurrency as f64);
     }
 
     // Performance comparison
     let old_time_hours = results.len() as f64 * 8.0;
     let new_time_hours = duration.as_secs_f64() / 3600.0;
-    println!("\nPerformance:");
-    println!("  Old N+1 pattern time: {:.0} hours ({:.1} days)", old_time_hours, old_time_hours / 24.0);
-    println!("  New batch+parallel time: {:.1} hours", new_time_hours);
-    println!("  Total speedup: {:.0}x", old_time_hours / new_time_hours);
+    info!(
+        old_pattern_hours = format!("{:.0}", old_time_hours),
+        old_pattern_days = format!("{:.1}", old_time_hours / 24.0),
+        new_pattern_hours = format!("{:.1}", new_time_hours),
+        total_speedup = format!("{:.0}x", old_time_hours / new_time_hours),
+        "Performance comparison"
+    );
 
-    println!("\n✨ Success! NCBI Taxonomy historical data is now up to date.\n");
+    info!("Success! NCBI Taxonomy historical data is now up to date.");
 
     Ok(())
 }

@@ -1,0 +1,21 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO ingestion_raw_files (\n                id, job_id, file_type, file_purpose, s3_key,\n                expected_md5, size_bytes, compression, status\n            )\n            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'downloaded')\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Varchar",
+        "Varchar",
+        "Text",
+        "Varchar",
+        "Int8",
+        "Varchar"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "46049e2c391f8864b1bc95446e3a415f13cf46a5f8b4eec2a5399f389af5176e"
+}

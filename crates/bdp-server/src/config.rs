@@ -2,6 +2,37 @@
 
 use serde::{Deserialize, Serialize};
 
+// ============================================================================
+// Server Configuration Constants
+// ============================================================================
+
+/// Default server host binding.
+pub const DEFAULT_SERVER_HOST: &str = "127.0.0.1";
+
+/// Default server port.
+pub const DEFAULT_SERVER_PORT: u16 = 8000;
+
+/// Default shutdown timeout in seconds.
+pub const DEFAULT_SHUTDOWN_TIMEOUT_SECS: u64 = 30;
+
+/// Default database URL for local development.
+pub const DEFAULT_DATABASE_URL: &str = "postgresql://localhost/bdp";
+
+/// Default maximum database connections in the pool.
+pub const DEFAULT_DATABASE_MAX_CONNECTIONS: u32 = 10;
+
+/// Default minimum database connections in the pool.
+pub const DEFAULT_DATABASE_MIN_CONNECTIONS: u32 = 2;
+
+/// Default database connection timeout in seconds.
+pub const DEFAULT_DATABASE_CONNECT_TIMEOUT_SECS: u64 = 10;
+
+/// Default database idle timeout in seconds (10 minutes).
+pub const DEFAULT_DATABASE_IDLE_TIMEOUT_SECS: u64 = 600;
+
+/// Default CORS allowed origin for local development.
+pub const DEFAULT_CORS_ALLOWED_ORIGIN: &str = "http://localhost:3000";
+
 /// Server configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
@@ -42,39 +73,46 @@ impl Config {
 
         let config = Config {
             server: ServerConfig {
-                host: std::env::var("BDP_HOST").unwrap_or_else(|_| "127.0.0.1".to_string()),
+                host: std::env::var("BDP_HOST")
+                    .unwrap_or_else(|_| DEFAULT_SERVER_HOST.to_string()),
                 port: std::env::var("BDP_PORT")
-                    .unwrap_or_else(|_| "8000".to_string())
-                    .parse()?,
+                    .ok()
+                    .and_then(|s| s.parse().ok())
+                    .unwrap_or(DEFAULT_SERVER_PORT),
                 shutdown_timeout_secs: std::env::var("BDP_SHUTDOWN_TIMEOUT")
-                    .unwrap_or_else(|_| "30".to_string())
-                    .parse()?,
+                    .ok()
+                    .and_then(|s| s.parse().ok())
+                    .unwrap_or(DEFAULT_SHUTDOWN_TIMEOUT_SECS),
             },
             database: DatabaseConfig {
                 url: std::env::var("DATABASE_URL")
-                    .unwrap_or_else(|_| "postgresql://localhost/bdp".to_string()),
+                    .unwrap_or_else(|_| DEFAULT_DATABASE_URL.to_string()),
                 max_connections: std::env::var("DATABASE_MAX_CONNECTIONS")
-                    .unwrap_or_else(|_| "10".to_string())
-                    .parse()?,
+                    .ok()
+                    .and_then(|s| s.parse().ok())
+                    .unwrap_or(DEFAULT_DATABASE_MAX_CONNECTIONS),
                 min_connections: std::env::var("DATABASE_MIN_CONNECTIONS")
-                    .unwrap_or_else(|_| "2".to_string())
-                    .parse()?,
+                    .ok()
+                    .and_then(|s| s.parse().ok())
+                    .unwrap_or(DEFAULT_DATABASE_MIN_CONNECTIONS),
                 connect_timeout_secs: std::env::var("DATABASE_CONNECT_TIMEOUT")
-                    .unwrap_or_else(|_| "10".to_string())
-                    .parse()?,
+                    .ok()
+                    .and_then(|s| s.parse().ok())
+                    .unwrap_or(DEFAULT_DATABASE_CONNECT_TIMEOUT_SECS),
                 idle_timeout_secs: std::env::var("DATABASE_IDLE_TIMEOUT")
-                    .unwrap_or_else(|_| "600".to_string())
-                    .parse()?,
+                    .ok()
+                    .and_then(|s| s.parse().ok())
+                    .unwrap_or(DEFAULT_DATABASE_IDLE_TIMEOUT_SECS),
             },
             cors: CorsConfig {
                 allowed_origins: std::env::var("CORS_ALLOWED_ORIGINS")
-                    .unwrap_or_else(|_| "http://localhost:3000".to_string())
+                    .unwrap_or_else(|_| DEFAULT_CORS_ALLOWED_ORIGIN.to_string())
                     .split(',')
                     .map(|s| s.trim().to_string())
                     .collect(),
                 allow_credentials: std::env::var("CORS_ALLOW_CREDENTIALS")
-                    .unwrap_or_else(|_| "true".to_string())
-                    .parse()
+                    .ok()
+                    .and_then(|s| s.parse().ok())
                     .unwrap_or(true),
             },
         };
@@ -122,19 +160,19 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             server: ServerConfig {
-                host: "127.0.0.1".to_string(),
-                port: 8000,
-                shutdown_timeout_secs: 30,
+                host: DEFAULT_SERVER_HOST.to_string(),
+                port: DEFAULT_SERVER_PORT,
+                shutdown_timeout_secs: DEFAULT_SHUTDOWN_TIMEOUT_SECS,
             },
             database: DatabaseConfig {
-                url: "postgresql://localhost/bdp".to_string(),
-                max_connections: 10,
-                min_connections: 2,
-                connect_timeout_secs: 10,
-                idle_timeout_secs: 600,
+                url: DEFAULT_DATABASE_URL.to_string(),
+                max_connections: DEFAULT_DATABASE_MAX_CONNECTIONS,
+                min_connections: DEFAULT_DATABASE_MIN_CONNECTIONS,
+                connect_timeout_secs: DEFAULT_DATABASE_CONNECT_TIMEOUT_SECS,
+                idle_timeout_secs: DEFAULT_DATABASE_IDLE_TIMEOUT_SECS,
             },
             cors: CorsConfig {
-                allowed_origins: vec!["http://localhost:3000".to_string()],
+                allowed_origins: vec![DEFAULT_CORS_ALLOWED_ORIGIN.to_string()],
                 allow_credentials: true,
             },
         }

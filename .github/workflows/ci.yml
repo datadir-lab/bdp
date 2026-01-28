@@ -144,6 +144,52 @@ jobs:
         run: just test
         continue-on-error: ${{ matrix.rust == 'nightly' }}
 
+  # CLI Documentation: Verify CLI docs are up to date
+  cli-docs-check:
+    name: CLI Documentation Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install just
+        uses: extractions/setup-just@v2
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Cache cargo build
+        uses: actions/cache@v4
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-build-
+
+      - name: Generate CLI docs
+        run: cargo run --package xtask -- generate-cli-docs
+
+      - name: Check for uncommitted CLI docs changes
+        run: |
+          if ! git diff --exit-code web/app/\[locale\]/docs/content/en/cli-reference.mdx; then
+            echo "❌ CLI documentation is out of date!"
+            echo "Please run 'just docs-cli' and commit the changes."
+            exit 1
+          fi
+          echo "✅ CLI documentation is up to date"
+
   # SQLx: Verify prepared queries
   sqlx-check:
     name: SQLx Prepared Query Check
@@ -379,6 +425,7 @@ jobs:
       - rust-format
       - rust-lint
       - rust-test
+      - cli-docs-check
       - sqlx-check
       - rust-build
       - frontend-lint

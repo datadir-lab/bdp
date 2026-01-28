@@ -1,21 +1,48 @@
+//! List organizations query
+//!
+//! Retrieves a paginated list of organizations with optional filtering.
+//! Supports filtering by system organization status and name search.
+
 use chrono::{DateTime, Utc};
 use mediator::Request;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use uuid::Uuid;
 
+use crate::features::shared::pagination::{PaginationMetadata, PaginationParams};
+
+/// Query to list organizations with pagination and filtering
+///
+/// # Examples
+///
+/// ```rust,ignore
+/// use bdp_server::features::organizations::queries::ListOrganizationsQuery;
+///
+/// // List all organizations (first page)
+/// let query = ListOrganizationsQuery {
+///     pagination: PaginationParams::new(Some(1), Some(20)),
+///     is_system: None,
+///     name_contains: None,
+/// };
+///
+/// // Search for organizations containing "uni"
+/// let query = ListOrganizationsQuery {
+///     pagination: PaginationParams::new(Some(1), Some(10)),
+///     is_system: Some(true),
+///     name_contains: Some("uni".to_string()),
+/// };
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ListOrganizationsQuery {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub page: Option<i64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub per_page: Option<i64>,
+    #[serde(flatten)]
+    pub pagination: PaginationParams,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub is_system: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name_contains: Option<String>,
 }
 
+/// A single organization item in the list response
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OrganizationListItem {
     pub id: Uuid,
@@ -31,28 +58,25 @@ pub struct OrganizationListItem {
     pub created_at: DateTime<Utc>,
 }
 
+/// Response containing paginated list of organizations
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ListOrganizationsResponse {
+    /// The organizations on this page
     pub items: Vec<OrganizationListItem>,
+    /// Pagination metadata
     pub pagination: PaginationMetadata,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PaginationMetadata {
-    pub page: i64,
-    pub per_page: i64,
-    pub total: i64,
-    pub pages: i64,
-    pub has_next: bool,
-    pub has_prev: bool,
-}
-
+/// Errors that can occur when listing organizations
 #[derive(Debug, thiserror::Error)]
 pub enum ListOrganizationsError {
+    /// Page number must be at least 1
     #[error("Page must be greater than 0")]
     InvalidPage,
+    /// Per page must be between 1 and 100
     #[error("Per page must be between 1 and 100")]
     InvalidPerPage,
+    /// A database error occurred
     #[error("Database error: {0}")]
     Database(#[from] sqlx::Error),
 }
@@ -65,29 +89,40 @@ impl Request<Result<ListOrganizationsResponse, ListOrganizationsError>>
 impl crate::cqrs::middleware::Query for ListOrganizationsQuery {}
 
 impl ListOrganizationsQuery {
+    /// Validates the query parameters
+    ///
+    /// # Errors
+    ///
+    /// - `InvalidPage` - Page is less than 1
+    /// - `InvalidPerPage` - Per page is less than 1 or greater than 100
     pub fn validate(&self) -> Result<(), ListOrganizationsError> {
-        if let Some(page) = self.page {
-            if page < 1 {
-                return Err(ListOrganizationsError::InvalidPage);
-            }
-        }
-        if let Some(per_page) = self.per_page {
-            if per_page < 1 || per_page > 100 {
-                return Err(ListOrganizationsError::InvalidPerPage);
-            }
-        }
-        Ok(())
-    }
-
-    fn page(&self) -> i64 {
-        self.page.unwrap_or(1).max(1)
-    }
-
-    fn per_page(&self) -> i64 {
-        self.per_page.unwrap_or(20).clamp(1, 100)
+        self.pagination.validate().map_err(|msg| match msg {
+            "Page must be greater than 0" => ListOrganizationsError::InvalidPage,
+            _ => ListOrganizationsError::InvalidPerPage,
+        })
     }
 }
 
+/// Handles the list organizations query
+///
+/// Returns a paginated list of organizations, optionally filtered by
+/// system status and name search. Results are ordered by creation date
+/// descending (newest first).
+///
+/// # Arguments
+///
+/// * `pool` - Database connection pool
+/// * `query` - Query parameters including pagination and filters
+///
+/// # Returns
+///
+/// Returns a paginated list of organizations on success.
+///
+/// # Errors
+///
+/// - `InvalidPage` - Page is less than 1
+/// - `InvalidPerPage` - Per page is less than 1 or greater than 100
+/// - `Database` - A database error occurred
 #[tracing::instrument(skip(pool))]
 pub async fn handle(
     pool: PgPool,
@@ -95,9 +130,9 @@ pub async fn handle(
 ) -> Result<ListOrganizationsResponse, ListOrganizationsError> {
     query.validate()?;
 
-    let page = query.page();
-    let per_page = query.per_page();
-    let offset = (page - 1) * per_page;
+    let page = query.pagination.page();
+    let per_page = query.pagination.per_page();
+    let offset = query.pagination.offset();
 
     let total = if query.is_system.is_some() || query.name_contains.is_some() {
         let name_pattern = query
@@ -169,26 +204,14 @@ pub async fn handle(
         })
         .collect();
 
-    let pages = if total == 0 {
-        0
-    } else {
-        ((total as f64) / (per_page as f64)).ceil() as i64
-    };
-
     Ok(ListOrganizationsResponse {
         items,
-        pagination: PaginationMetadata {
-            page,
-            per_page,
-            total,
-            pages,
-            has_next: page < pages,
-            has_prev: page > 1,
-        },
+        pagination: PaginationMetadata::new(page, per_page, total),
     })
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 struct OrganizationRecord {
     id: Uuid,
     slug: String,
@@ -208,8 +231,7 @@ mod tests {
     #[test]
     fn test_validation_success() {
         let query = ListOrganizationsQuery {
-            page: Some(1),
-            per_page: Some(20),
+            pagination: PaginationParams::new(Some(1), Some(20)),
             is_system: None,
             name_contains: None,
         };
@@ -219,8 +241,7 @@ mod tests {
     #[test]
     fn test_validation_invalid_page() {
         let query = ListOrganizationsQuery {
-            page: Some(0),
-            per_page: Some(20),
+            pagination: PaginationParams::new(Some(0), Some(20)),
             is_system: None,
             name_contains: None,
         };
@@ -233,8 +254,7 @@ mod tests {
     #[test]
     fn test_validation_invalid_per_page() {
         let query = ListOrganizationsQuery {
-            page: Some(1),
-            per_page: Some(101),
+            pagination: PaginationParams::new(Some(1), Some(101)),
             is_system: None,
             name_contains: None,
         };
@@ -257,8 +277,7 @@ mod tests {
         .await?;
 
         let query = ListOrganizationsQuery {
-            page: Some(1),
-            per_page: Some(10),
+            pagination: PaginationParams::new(Some(1), Some(10)),
             is_system: None,
             name_contains: None,
         };
@@ -284,8 +303,7 @@ mod tests {
         .await?;
 
         let query = ListOrganizationsQuery {
-            page: Some(1),
-            per_page: Some(10),
+            pagination: PaginationParams::new(Some(1), Some(10)),
             is_system: Some(true),
             name_contains: None,
         };
@@ -311,8 +329,7 @@ mod tests {
         .await?;
 
         let query = ListOrganizationsQuery {
-            page: Some(1),
-            per_page: Some(10),
+            pagination: PaginationParams::new(Some(1), Some(10)),
             is_system: None,
             name_contains: Some("uni".to_string()),
         };
@@ -341,8 +358,7 @@ mod tests {
         }
 
         let query = ListOrganizationsQuery {
-            page: Some(2),
-            per_page: Some(10),
+            pagination: PaginationParams::new(Some(2), Some(10)),
             is_system: None,
             name_contains: None,
         };

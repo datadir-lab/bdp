@@ -7,7 +7,7 @@ use crate::ingest::gene_ontology::{
 };
 use sqlx::{PgPool, Postgres, QueryBuilder, Transaction};
 use std::collections::HashMap;
-use tracing::{info, warn};
+use tracing::info;
 use uuid::Uuid;
 
 /// Storage statistics

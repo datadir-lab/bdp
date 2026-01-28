@@ -3,7 +3,7 @@
 use crate::ingest::gene_ontology::{GoHttpConfig, Result};
 use flate2::read::GzDecoder;
 use reqwest::Client;
-use std::io::{Cursor, Read};
+use std::io::Read;
 use std::time::Duration;
 use suppaftp::{FtpStream, Mode};
 use tracing::{info, warn};
@@ -27,12 +27,18 @@ impl GoDownloader {
         Ok(GoDownloader { client, config })
     }
 
-    /// Download GO ontology OBO file (or load from local file if configured)
-    pub async fn download_ontology(&self) -> Result<String> {
+    /// Download GO ontology OBO file for a specific version
+    ///
+    /// # Arguments
+    /// * `version` - Optional version override (e.g., "2025-01-01")
+    ///
+    /// If version is None, uses the configured go_release_version.
+    pub async fn download_ontology_version(&self, version: Option<&str>) -> Result<String> {
         // Check if local file is configured
         if let Some(local_path) = &self.config.local_ontology_path {
             info!("Loading GO ontology from local file: {}", local_path);
-            let text = std::fs::read_to_string(local_path).map_err(|e| {
+            // Use tokio::fs for async file I/O to avoid blocking the async runtime
+            let text = tokio::fs::read_to_string(local_path).await.map_err(|e| {
                 std::io::Error::new(
                     std::io::ErrorKind::NotFound,
                     format!("Failed to read local ontology file '{}': {}", local_path, e),
@@ -49,7 +55,7 @@ impl GoDownloader {
         }
 
         // Otherwise download from URL
-        let url = self.config.ontology_url();
+        let url = self.config.ontology_url_for_version(version);
         info!("Downloading GO ontology from: {}", url);
 
         let content = self.download_with_retry(&url).await?;
@@ -63,6 +69,26 @@ impl GoDownloader {
         );
 
         Ok(text)
+    }
+
+    /// Download GO ontology OBO file (or load from local file if configured)
+    pub async fn download_ontology(&self) -> Result<String> {
+        self.download_ontology_version(None).await
+    }
+
+    /// List all available versions from the GO release archive
+    ///
+    /// Returns a list of version strings in YYYY-MM-DD format
+    pub async fn list_available_versions(&self) -> Result<Vec<String>> {
+        use super::version_discovery::VersionDiscovery;
+
+        let discovery = VersionDiscovery::new(self.config.clone())?;
+        let versions = discovery.discover_all_versions().await?;
+
+        Ok(versions
+            .into_iter()
+            .map(|v| v.external_version)
+            .collect())
     }
 
     /// Download GOA UniProt annotations (gzipped GAF file)
@@ -141,7 +167,9 @@ impl GoDownloader {
             }
         }
 
-        Err(last_error.unwrap())
+        // last_error is guaranteed to be Some since we always set it on failure
+        // and exit early on success. This is safe because max_retries >= 1.
+        Err(last_error.expect("last_error must be set after retry loop exhaustion"))
     }
 
     /// Download URL without retry

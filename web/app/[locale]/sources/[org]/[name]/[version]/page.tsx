@@ -6,6 +6,7 @@ import { notFound } from 'next/navigation';
 import { getDataSource, getDataSourceVersion } from '@/lib/api/data-sources';
 import { DataSourceDetail } from './data-source-detail';
 import type { DataSource, DataSourceVersion } from '@/lib/types/data-source';
+import type { ApiError } from '@/lib/types';
 
 export default function DataSourceVersionPage() {
   const params = useParams();
@@ -14,7 +15,7 @@ export default function DataSourceVersionPage() {
   const [dataSource, setDataSource] = useState<DataSource | null>(null);
   const [versionDetails, setVersionDetails] = useState<(DataSourceVersion & { organization: string; name: string }) | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<any>(null);
+  const [error, setError] = useState<ApiError | Error | null>(null);
 
   useEffect(() => {
     async function fetchData() {
@@ -62,6 +63,41 @@ export default function DataSourceVersionPage() {
 
     const is404 = error && typeof error === 'object' &&
       ('status' in error && error.status === 404);
+
+    const is500 = error && typeof error === 'object' &&
+      ('status' in error && error.status === 500);
+
+    // Show 500 server error message
+    if (is500) {
+      const errorMessage = error.message || 'A server error occurred';
+      return (
+        <div className="container py-8">
+          <div className="space-y-6">
+            <div className="rounded-lg border border-destructive bg-destructive/10 p-6">
+              <h2 className="text-lg font-semibold mb-2">Server Error</h2>
+              <p className="text-sm text-muted-foreground mb-4">
+                The server encountered an error while processing this data source. The data source may not exist or there may be an issue with the database.
+              </p>
+              <p className="text-sm font-medium mb-4">
+                Error: {errorMessage}
+              </p>
+              <button
+                onClick={() => window.location.href = `/${locale}/sources`}
+                className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+              >
+                Go to Data Sources
+              </button>
+              <details className="mt-4 text-xs">
+                <summary className="cursor-pointer font-medium">Technical Details</summary>
+                <pre className="mt-2 p-2 bg-black/5 rounded overflow-auto">
+                  {JSON.stringify({ org, name, version, error: error }, null, 2)}
+                </pre>
+              </details>
+            </div>
+          </div>
+        </div>
+      );
+    }
 
     // Show network error message
     if (isNetworkError) {

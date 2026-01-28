@@ -1,6 +1,26 @@
 //! UniProt data source configuration
 
 use serde::{Deserialize, Serialize};
+use std::fmt;
+
+/// Error type for UniProt configuration operations
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum UniProtConfigError {
+    /// Version is required when release_type is Previous
+    MissingVersion,
+}
+
+impl fmt::Display for UniProtConfigError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            UniProtConfigError::MissingVersion => {
+                write!(f, "release_type=Previous requires version to be specified")
+            }
+        }
+    }
+}
+
+impl std::error::Error for UniProtConfigError {}
 
 /// Release type for FTP path selection
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -96,23 +116,26 @@ impl UniProtFtpConfig {
     ///
     /// NOTE: If version is provided, automatically uses Previous path type.
     /// This allows downloading historical versions without changing release_type config.
-    pub fn release_base_path(&self, version: Option<&str>) -> String {
+    ///
+    /// # Errors
+    /// Returns an error if `release_type` is `Previous` but no version is provided.
+    pub fn release_base_path(&self, version: Option<&str>) -> Result<String, UniProtConfigError> {
         // If version is explicitly provided, use Previous release path
         // This allows downloading historical versions regardless of config
         if let Some(ver) = version {
-            return format!(
+            return Ok(format!(
                 "{}/previous_releases/release-{}",
                 self.ftp_base_path, ver
-            );
+            ));
         }
 
         // Otherwise, use the configured release type
         match self.release_type {
             ReleaseType::Current => {
-                format!("{}/current_release", self.ftp_base_path)
+                Ok(format!("{}/current_release", self.ftp_base_path))
             }
             ReleaseType::Previous => {
-                panic!("release_type=Previous requires version to be specified");
+                Err(UniProtConfigError::MissingVersion)
             }
         }
     }
@@ -121,9 +144,12 @@ impl UniProtFtpConfig {
     ///
     /// # Arguments
     /// * `version` - Optional for current release, required for previous (e.g., "2024_01")
-    pub fn release_notes_path(&self, version: Option<&str>) -> String {
-        let base = self.release_base_path(version);
-        format!("{}/knowledgebase/relnotes.txt", base)
+    ///
+    /// # Errors
+    /// Returns an error if `release_type` is `Previous` but no version is provided.
+    pub fn release_notes_path(&self, version: Option<&str>) -> Result<String, UniProtConfigError> {
+        let base = self.release_base_path(version)?;
+        Ok(format!("{}/knowledgebase/relnotes.txt", base))
     }
 
     /// Get the full FTP path for the DAT file
@@ -135,43 +161,52 @@ impl UniProtFtpConfig {
     /// # File Format Differences
     /// - Current release: `/current_release/knowledgebase/complete/uniprot_sprot.dat.gz`
     /// - Historical release: `/previous_releases/release-2024_05/knowledgebase/uniprot_sprot-only2024_05.tar.gz`
-    pub fn dat_file_path(&self, version: Option<&str>, dataset: Option<&str>) -> String {
-        let base = self.release_base_path(version);
+    ///
+    /// # Errors
+    /// Returns an error if `release_type` is `Previous` but no version is provided.
+    pub fn dat_file_path(&self, version: Option<&str>, dataset: Option<&str>) -> Result<String, UniProtConfigError> {
+        let base = self.release_base_path(version)?;
         let dataset = dataset.unwrap_or("sprot");
 
         if let Some(ver) = version {
             // Historical releases use tar.gz with different naming
-            format!(
+            Ok(format!(
                 "{}/knowledgebase/uniprot_{}-only{}.tar.gz",
                 base, dataset, ver
-            )
+            ))
         } else {
             // Current release uses dat.gz in complete subdirectory
-            format!(
+            Ok(format!(
                 "{}/knowledgebase/complete/uniprot_{}.dat.gz",
                 base, dataset
-            )
+            ))
         }
     }
 
     /// Get the full FTP path for FASTA file
-    pub fn fasta_file_path(&self, version: Option<&str>, dataset: Option<&str>) -> String {
-        let base = self.release_base_path(version);
+    ///
+    /// # Errors
+    /// Returns an error if `release_type` is `Previous` but no version is provided.
+    pub fn fasta_file_path(&self, version: Option<&str>, dataset: Option<&str>) -> Result<String, UniProtConfigError> {
+        let base = self.release_base_path(version)?;
         let dataset = dataset.unwrap_or("sprot");
-        format!(
+        Ok(format!(
             "{}/knowledgebase/complete/uniprot_{}.fasta.gz",
             base, dataset
-        )
+        ))
     }
 
     /// Get the full FTP path for XML file
-    pub fn xml_file_path(&self, version: Option<&str>, dataset: Option<&str>) -> String {
-        let base = self.release_base_path(version);
+    ///
+    /// # Errors
+    /// Returns an error if `release_type` is `Previous` but no version is provided.
+    pub fn xml_file_path(&self, version: Option<&str>, dataset: Option<&str>) -> Result<String, UniProtConfigError> {
+        let base = self.release_base_path(version)?;
         let dataset = dataset.unwrap_or("sprot");
-        format!(
+        Ok(format!(
             "{}/knowledgebase/complete/uniprot_{}.xml.gz",
             base, dataset
-        )
+        ))
     }
 }
 
@@ -191,7 +226,7 @@ mod tests {
     #[test]
     fn test_release_notes_path_current() {
         let config = UniProtFtpConfig::default().with_release_type(ReleaseType::Current);
-        let path = config.release_notes_path(None);
+        let path = config.release_notes_path(None).unwrap();
         assert_eq!(
             path,
             "/pub/databases/uniprot/current_release/knowledgebase/relnotes.txt"
@@ -201,7 +236,7 @@ mod tests {
     #[test]
     fn test_release_notes_path_previous() {
         let config = UniProtFtpConfig::default().with_release_type(ReleaseType::Previous);
-        let path = config.release_notes_path(Some("2024_01"));
+        let path = config.release_notes_path(Some("2024_01")).unwrap();
         assert_eq!(
             path,
             "/pub/databases/uniprot/previous_releases/release-2024_01/knowledgebase/relnotes.txt"
@@ -209,9 +244,17 @@ mod tests {
     }
 
     #[test]
+    fn test_release_notes_path_previous_without_version() {
+        let config = UniProtFtpConfig::default().with_release_type(ReleaseType::Previous);
+        let result = config.release_notes_path(None);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), UniProtConfigError::MissingVersion);
+    }
+
+    #[test]
     fn test_dat_file_path_current() {
         let config = UniProtFtpConfig::default().with_release_type(ReleaseType::Current);
-        let path = config.dat_file_path(None, None);
+        let path = config.dat_file_path(None, None).unwrap();
         assert_eq!(
             path,
             "/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_sprot.dat.gz"
@@ -221,7 +264,7 @@ mod tests {
     #[test]
     fn test_dat_file_path_previous() {
         let config = UniProtFtpConfig::default().with_release_type(ReleaseType::Previous);
-        let path = config.dat_file_path(Some("2024_01"), None);
+        let path = config.dat_file_path(Some("2024_01"), None).unwrap();
         // Historical releases use tar.gz format
         assert_eq!(
             path,
@@ -232,7 +275,7 @@ mod tests {
     #[test]
     fn test_dat_file_path_trembl() {
         let config = UniProtFtpConfig::default().with_release_type(ReleaseType::Current);
-        let path = config.dat_file_path(None, Some("trembl"));
+        let path = config.dat_file_path(None, Some("trembl")).unwrap();
         assert_eq!(
             path,
             "/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_trembl.dat.gz"
@@ -243,13 +286,13 @@ mod tests {
     fn test_fasta_and_xml_paths() {
         let config = UniProtFtpConfig::default().with_release_type(ReleaseType::Current);
 
-        let fasta = config.fasta_file_path(None, None);
+        let fasta = config.fasta_file_path(None, None).unwrap();
         assert_eq!(
             fasta,
             "/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_sprot.fasta.gz"
         );
 
-        let xml = config.xml_file_path(None, None);
+        let xml = config.xml_file_path(None, None).unwrap();
         assert_eq!(
             xml,
             "/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_sprot.xml.gz"

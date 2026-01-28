@@ -169,6 +169,8 @@ web:
 
 # Build frontend (without Pagefind, without starting server)
 web-build:
+    @Write-Host "📚 Generating CLI documentation..."
+    @cargo run --package xtask -- generate-cli-docs
     @Write-Host "🌐 Building frontend..."
     @cd web; $env:NEXT_PRIVATE_DISABLE_TURBO="1"; yarn build
     @Write-Host "📦 Copying static files to standalone..."
@@ -178,6 +180,8 @@ web-build:
 
 # Build frontend with Pagefind indexing and start production server
 web-prod:
+    @Write-Host "📚 Generating CLI documentation..."
+    @cargo run --package xtask -- generate-cli-docs
     @Write-Host "🌐 Building frontend..."
     @cd web; $env:NEXT_PRIVATE_DISABLE_TURBO="1"; yarn build
     @Write-Host "📦 Copying static files to standalone..."
@@ -327,7 +331,7 @@ test-cli-full: test-cli-setup
 # ============================================================================
 
 # Run all CI checks locally
-ci: sqlx-check lint test
+ci: docs-cli-check sqlx-check lint test
     @echo "✓ All CI checks passed!"
 
 # Run CI checks in offline mode (like GitHub Actions)
@@ -491,12 +495,29 @@ docs-web:
     @echo "📚 Starting documentation server..."
     just web
 
+# Generate CLI reference documentation (MDX format)
+docs-cli:
+    @Write-Host "📚 Generating CLI reference documentation..."
+    @cargo run --package xtask -- generate-cli-docs
+    @Write-Host "✓ CLI docs generated at: web/app/[locale]/docs/content/en/cli-reference.mdx"
+
+# Generate CLI documentation using hidden flag (alternative method)
+docs-cli-raw:
+    @Write-Host "📚 Generating raw markdown from CLI..."
+    @cargo run --bin bdp -- --markdown-help > web/app/[locale]/docs/content/en/cli-reference-raw.md
+    @Write-Host "✓ Raw CLI docs generated"
+
+# Check if CLI docs are up to date (for CI)
+docs-cli-check:
+    @Write-Host "🔍 Checking if CLI docs are up to date..."
+    @$temp = New-TemporaryFile; cargo run --package xtask -- generate-cli-docs --output-dir $temp.DirectoryName | Out-Null; if ((Get-FileHash "web/app/[locale]/docs/content/en/cli-reference.mdx").Hash -eq (Get-FileHash "$($temp.DirectoryName)/cli-reference.mdx").Hash) { Write-Host "✓ CLI docs are up to date"; Remove-Item $temp } else { Write-Host "✗ CLI docs are outdated - run 'just docs-cli' to update"; Remove-Item $temp; exit 1 }
+
 # ============================================================================
 # Deployment
 # ============================================================================
 
 # Build for production
-prod-build: build-release web-build docker-build
+prod-build: docs-cli build-release web-build docker-build
     @echo "✓ Production build complete"
 
 # Deploy to production (placeholder)
@@ -690,3 +711,53 @@ bump-version VERSION:
 install-cargo-release:
     @command -v cargo-release > /dev/null || (echo "Installing cargo-release..." && cargo install cargo-release)
     @echo "✓ cargo-release installed"
+
+# ============================================================================
+# Infrastructure (OVH Cloud)
+# ============================================================================
+
+# Initialize Terraform
+infra-init:
+    @Write-Host "🏗️ Initializing Terraform..."
+    @cd infrastructure; terraform init
+    @Write-Host "✓ Terraform initialized"
+
+# Preview infrastructure changes
+infra-plan:
+    @Write-Host "🔍 Planning infrastructure changes..."
+    @cd infrastructure; terraform plan
+
+# Apply infrastructure changes
+infra-apply:
+    @Write-Host "🚀 Applying infrastructure..."
+    @cd infrastructure; terraform apply
+
+# Destroy infrastructure (careful!)
+infra-destroy:
+    @Write-Host "⚠️ Destroying infrastructure..."
+    @cd infrastructure; terraform destroy
+
+# Show infrastructure outputs
+infra-output:
+    @Write-Host "📋 Infrastructure outputs:"
+    @cd infrastructure; terraform output
+
+# Generate production .env file from Terraform
+infra-env:
+    @Write-Host "📝 Generating production .env..."
+    @cd infrastructure; terraform output -raw env_file_content > ../production.env
+    @Write-Host "✓ Generated production.env"
+
+# SSH into production server
+infra-ssh:
+    @Write-Host "🔐 Connecting to production server..."
+    @cd infrastructure; ssh ubuntu@$(terraform output -raw instance_ip)
+
+# Show infrastructure status
+infra-status:
+    @Write-Host "📊 Infrastructure Status"
+    @Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    @cd infrastructure; terraform output -raw instance_ip 2>$null && Write-Host "Instance IP:  $(terraform output -raw instance_ip)" || Write-Host "Instance:     Not deployed"
+    @cd infrastructure; terraform output -raw database_host 2>$null && Write-Host "Database:     $(terraform output -raw database_host)" || Write-Host "Database:     Not deployed"
+    @cd infrastructure; terraform output -raw s3_endpoint 2>$null && Write-Host "S3 Endpoint:  $(terraform output -raw s3_endpoint)" || Write-Host "S3:           Not deployed"
+    @Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

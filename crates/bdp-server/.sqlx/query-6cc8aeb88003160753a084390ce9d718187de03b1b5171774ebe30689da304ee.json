@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT re.id\n        FROM registry_entries re\n        JOIN organizations o ON o.id = re.organization_id\n        WHERE LOWER(o.slug) = LOWER($1) AND LOWER(re.slug) = LOWER($2) AND re.entry_type = 'tool'\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "6cc8aeb88003160753a084390ce9d718187de03b1b5171774ebe30689da304ee"
+}

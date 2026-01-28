@@ -687,17 +687,7 @@ pub async fn delete_data_source(pool: &PgPool, id: Uuid) -> DbResult<()> {
 mod tests {
     use super::*;
 
-    /// Helper to create test pool for integration tests
-    #[allow(dead_code)]
-    async fn create_test_pool() -> PgPool {
-        let url = std::env::var("TEST_DATABASE_URL").unwrap_or_else(|_| {
-            "postgresql://postgres:postgres@localhost:5432/bdp_test".to_string()
-        });
-        PgPool::connect(&url).await.unwrap()
-    }
-
     /// Helper to create test organization
-    #[allow(dead_code)]
     async fn create_test_org(pool: &PgPool) -> Uuid {
         let id = Uuid::new_v4();
         let now = Utc::now();
@@ -719,7 +709,6 @@ mod tests {
     }
 
     /// Helper to cleanup test organization
-    #[allow(dead_code)]
     async fn cleanup_test_org(pool: &PgPool, id: Uuid) {
         sqlx::query!("DELETE FROM organizations WHERE id = $1", id)
             .execute(pool)

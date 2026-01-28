@@ -38,7 +38,8 @@ impl UniProtFtp {
     /// # Returns
     /// The contents of the relnotes.txt file
     pub async fn download_release_notes(&self, version: Option<&str>) -> Result<String> {
-        let path = self.config.release_notes_path(version);
+        let path = self.config.release_notes_path(version)
+            .context("Failed to build release notes path")?;
         let data = self.download_file(&path).await?;
         String::from_utf8(data).context("Release notes are not valid UTF-8")
     }
@@ -108,7 +109,8 @@ impl UniProtFtp {
     /// # Returns
     /// Decompressed DAT file contents
     pub async fn download_dat_file(&self, version: Option<&str>, dataset: Option<&str>) -> Result<Vec<u8>> {
-        let path = self.config.dat_file_path(version, dataset);
+        let path = self.config.dat_file_path(version, dataset)
+            .context("Failed to build DAT file path")?;
         let compressed = self.download_file(&path).await?;
 
         // Decompress gzip
@@ -128,7 +130,8 @@ impl UniProtFtp {
     ///   - `None` for current release (always exists)
     ///   - `Some("2024_01")` to check if specific previous release exists
     pub async fn check_version_exists(&self, version: Option<&str>) -> Result<bool> {
-        let path = self.config.release_notes_path(version);
+        let path = self.config.release_notes_path(version)
+            .context("Failed to build release notes path")?;
 
         // Try to download release notes - if it exists, version exists
         match self.download_file(&path).await {

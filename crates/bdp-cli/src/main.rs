@@ -11,6 +11,20 @@ async fn main() {
     // Parse command-line arguments
     let cli = Cli::parse();
 
+    // Handle markdown help generation
+    if cli.markdown_help {
+        println!("{}", clap_markdown::help_markdown::<Cli>());
+        return;
+    }
+
+    // Ensure a command is provided
+    if cli.command.is_none() {
+        eprintln!("Error: A subcommand is required");
+        eprintln!();
+        eprintln!("For more information, try '--help'.");
+        process::exit(2);
+    }
+
     // Initialize logging based on verbose flag and environment
     let log_config = if cli.verbose {
         // Verbose mode: log to console with debug level
@@ -47,7 +61,12 @@ async fn main() {
 
 /// Execute the CLI command
 async fn execute_command(cli: &Cli) -> bdp_cli::Result<()> {
-    match &cli.command {
+    // Command is guaranteed to exist at this point (checked in main)
+    let Some(ref command) = cli.command else {
+        unreachable!("Command should have been validated in main");
+    };
+
+    match command {
         Commands::Init {
             path,
             name,

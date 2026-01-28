@@ -3,7 +3,10 @@
 use sqlx::PgPool;
 use tracing::debug;
 
-use super::models::{AuditEntry, AuditQuery, CreateAuditEntry, ResourceType};
+use super::models::{
+    AuditEntry, AuditQuery, CreateAuditEntry, ResourceType,
+    DEFAULT_AUDIT_QUERY_LIMIT, MAX_AUDIT_QUERY_LIMIT,
+};
 use crate::error::ServerResult;
 
 /// Create a new audit log entry
@@ -51,7 +54,7 @@ pub async fn create_audit_entry(
 /// This function builds a dynamic query based on the provided filters
 /// and returns matching audit log entries.
 pub async fn query_audit_logs(pool: &PgPool, query: AuditQuery) -> ServerResult<Vec<AuditEntry>> {
-    let limit = query.limit.min(1000); // Cap at 1000 to prevent excessive queries
+    let limit = query.limit.min(MAX_AUDIT_QUERY_LIMIT);
 
     let mut sql = String::from(
         r#"
@@ -142,7 +145,7 @@ pub async fn get_audit_trail(
     resource_id: uuid::Uuid,
     limit: Option<i64>,
 ) -> ServerResult<Vec<AuditEntry>> {
-    let limit = limit.unwrap_or(100).min(1000);
+    let limit = limit.unwrap_or(DEFAULT_AUDIT_QUERY_LIMIT).min(MAX_AUDIT_QUERY_LIMIT);
 
     let records = sqlx::query_as::<_, AuditEntry>(
         r#"
@@ -178,7 +181,7 @@ pub async fn get_user_audit_logs(
     user_id: uuid::Uuid,
     limit: Option<i64>,
 ) -> ServerResult<Vec<AuditEntry>> {
-    let limit = limit.unwrap_or(100).min(1000);
+    let limit = limit.unwrap_or(DEFAULT_AUDIT_QUERY_LIMIT).min(MAX_AUDIT_QUERY_LIMIT);
 
     let records = sqlx::query_as::<_, AuditEntry>(
         r#"

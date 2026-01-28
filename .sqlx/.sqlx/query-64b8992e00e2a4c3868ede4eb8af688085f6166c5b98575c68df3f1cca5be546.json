@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                pm.accession,\n                pm.protein_name,\n                om.taxonomy_id,\n                om.scientific_name as organism_name\n            FROM protein_metadata pm\n            JOIN taxonomy_metadata om ON om.data_source_id = pm.taxonomy_id\n            WHERE pm.uniprot_version = $1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "accession",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 1,
+        "name": "protein_name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "taxonomy_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 3,
+        "name": "organism_name",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "64b8992e00e2a4c3868ede4eb8af688085f6166c5b98575c68df3f1cca5be546"
+}

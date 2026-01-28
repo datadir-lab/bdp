@@ -13,8 +13,9 @@ pub use get_version::{
 };
 pub use list::{
     DataSourceListItem, ListDataSourcesError, ListDataSourcesQuery, ListDataSourcesResponse,
-    PaginationMetadata,
 };
+// Re-export from shared module to avoid privacy issues
+pub use crate::features::shared::pagination::PaginationMetadata;
 pub use list_dependencies::{
     DependencyItem, ListDependenciesError, ListDependenciesQuery, ListDependenciesResponse,
 };

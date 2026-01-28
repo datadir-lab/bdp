@@ -4,6 +4,7 @@
 //! Run with: cargo run --example test_ftp_listing
 
 use bdp_server::ingest::uniprot::{config::UniProtFtpConfig, version_discovery::VersionDiscovery};
+use tracing::{info, error};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
@@ -17,45 +18,49 @@ async fn main() -> anyhow::Result<()> {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    println!("Testing FTP directory listing for UniProt previous releases...\n");
+    info!("Testing FTP directory listing for UniProt previous releases...");
 
     // Create config
     let config = UniProtFtpConfig::default();
-    println!("FTP Server: {}:{}", config.ftp_host, config.ftp_port);
-    println!("Base Path: {}", config.ftp_base_path);
-    println!("Username: {}\n", config.ftp_username);
+    info!(
+        ftp_server = %config.ftp_host,
+        ftp_port = config.ftp_port,
+        base_path = %config.ftp_base_path,
+        username = %config.ftp_username,
+        "FTP configuration"
+    );
 
     // Create version discovery service
     let discovery = VersionDiscovery::new(config);
 
     // Test listing all available versions
-    println!("Discovering all available versions from FTP...\n");
+    info!("Discovering all available versions from FTP...");
     match discovery.discover_all_versions().await {
         Ok(versions) => {
-            println!("Successfully discovered {} versions:", versions.len());
-            println!("{:<15} {:<12} {:<10} {}", "Version", "Date", "Current", "FTP Path");
-            println!("{}", "-".repeat(70));
+            info!(count = versions.len(), "Successfully discovered versions");
+            info!("Version          Date         Current    FTP Path");
+            info!("{}", "-".repeat(70));
 
             for version in &versions {
-                println!(
-                    "{:<15} {:<12} {:<10} {}",
-                    version.external_version,
-                    version.release_date.format("%Y-%m-%d"),
-                    version.is_current,
-                    version.ftp_path
+                info!(
+                    version = %version.external_version,
+                    date = %version.release_date.format("%Y-%m-%d"),
+                    is_current = version.is_current,
+                    ftp_path = %version.ftp_path,
+                    "Version details"
                 );
             }
 
-            println!("\nTest completed successfully!");
+            info!("Test completed successfully!");
             Ok(())
         }
         Err(e) => {
-            eprintln!("\nError discovering versions: {}", e);
-            eprintln!("\nThis could be due to:");
-            eprintln!("  - Network connectivity issues");
-            eprintln!("  - FTP server being unavailable");
-            eprintln!("  - Firewall blocking FTP connections");
-            eprintln!("  - Changes to the FTP server structure");
+            error!(error = %e, "Error discovering versions");
+            error!("This could be due to:");
+            error!("  - Network connectivity issues");
+            error!("  - FTP server being unavailable");
+            error!("  - Firewall blocking FTP connections");
+            error!("  - Changes to the FTP server structure");
             Err(e)
         }
     }
