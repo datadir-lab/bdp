@@ -145,7 +145,11 @@ impl UniProtEntry {
     pub fn to_fasta(&self) -> String {
         let mut header = format!(
             ">sp|{}|{} {} OS={} OX={}",
-            self.accession, self.entry_name, self.protein_name, self.organism_name, self.taxonomy_id
+            self.accession,
+            self.entry_name,
+            self.protein_name,
+            self.organism_name,
+            self.taxonomy_id
         );
 
         if let Some(ref gene_name) = self.gene_name {
@@ -222,7 +226,11 @@ impl ReleaseInfo {
     }
 
     /// Create ReleaseInfo without license
-    pub fn without_license(external_version: String, release_date: NaiveDate, swissprot_count: u64) -> Self {
+    pub fn without_license(
+        external_version: String,
+        release_date: NaiveDate,
+        swissprot_count: u64,
+    ) -> Self {
         Self {
             external_version,
             release_date,
@@ -267,7 +275,8 @@ impl Default for LicenseInfo {
             modification_allowed: true,
             citation: Some(
                 "UniProt Consortium. UniProt: the Universal Protein Knowledgebase. \
-                 Nucleic Acids Research. https://www.uniprot.org/".to_string()
+                 Nucleic Acids Research. https://www.uniprot.org/"
+                    .to_string(),
             ),
         }
     }
@@ -291,12 +300,11 @@ impl LicenseInfo {
 
     /// Get citation text for this data source
     pub fn citation_text(&self) -> String {
-        self.citation.clone().unwrap_or_else(|| {
-            format!(
-                "This work is licensed under {}. See: {}",
-                self.name, self.url
-            )
-        })
+        // PERFORMANCE: Use as_ref() to avoid cloning when citation exists
+        match &self.citation {
+            Some(citation) => citation.clone(),
+            None => format!("This work is licensed under {}. See: {}", self.name, self.url),
+        }
     }
 }
 

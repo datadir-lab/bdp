@@ -380,8 +380,8 @@ impl LogConfigBuilder {
 /// ```
 pub fn init_logging(config: &LogConfig) -> Result<()> {
     // Build the base filter
-    let mut filter = EnvFilter::from_default_env()
-        .add_directive(config.level.to_tracing_level().into());
+    let mut filter =
+        EnvFilter::from_default_env().add_directive(config.level.to_tracing_level().into());
 
     // Add custom filter directives if provided
     if let Some(ref directives) = config.filter_directives {
@@ -398,15 +398,15 @@ pub fn init_logging(config: &LogConfig) -> Result<()> {
         LogOutput::Console => {
             // Console-only output
             init_console_logging(config, filter)?;
-        }
+        },
         LogOutput::File => {
             // File-only output
             init_file_logging(config, filter)?;
-        }
+        },
         LogOutput::Both => {
             // Both console and file output
             init_both_logging(config, filter)?;
-        }
+        },
     }
 
     Ok(())
@@ -428,13 +428,13 @@ fn init_console_logging(config: &LogConfig, filter: EnvFilter) -> Result<()> {
                 .with(filter)
                 .with(fmt_layer)
                 .try_init()?;
-        }
+        },
         LogFormat::Json => {
             tracing_subscriber::registry()
                 .with(filter)
                 .with(fmt_layer.json())
                 .try_init()?;
-        }
+        },
     }
 
     Ok(())
@@ -443,12 +443,10 @@ fn init_console_logging(config: &LogConfig, filter: EnvFilter) -> Result<()> {
 /// Initialize file-only logging
 fn init_file_logging(config: &LogConfig, filter: EnvFilter) -> Result<()> {
     // Ensure log directory exists
-    std::fs::create_dir_all(&config.log_dir)
-        .context("Failed to create log directory")?;
+    std::fs::create_dir_all(&config.log_dir).context("Failed to create log directory")?;
 
     // Create daily rotating file appender
-    let file_appender =
-        tracing_appender::rolling::daily(&config.log_dir, &config.log_file_prefix);
+    let file_appender = tracing_appender::rolling::daily(&config.log_dir, &config.log_file_prefix);
 
     // Make it non-blocking for better performance
     let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
@@ -472,13 +470,13 @@ fn init_file_logging(config: &LogConfig, filter: EnvFilter) -> Result<()> {
                 .with(filter)
                 .with(fmt_layer)
                 .try_init()?;
-        }
+        },
         LogFormat::Json => {
             tracing_subscriber::registry()
                 .with(filter)
                 .with(fmt_layer.json())
                 .try_init()?;
-        }
+        },
     }
 
     Ok(())
@@ -487,12 +485,10 @@ fn init_file_logging(config: &LogConfig, filter: EnvFilter) -> Result<()> {
 /// Initialize both console and file logging
 fn init_both_logging(config: &LogConfig, filter: EnvFilter) -> Result<()> {
     // Ensure log directory exists
-    std::fs::create_dir_all(&config.log_dir)
-        .context("Failed to create log directory")?;
+    std::fs::create_dir_all(&config.log_dir).context("Failed to create log directory")?;
 
     // Create daily rotating file appender
-    let file_appender =
-        tracing_appender::rolling::daily(&config.log_dir, &config.log_file_prefix);
+    let file_appender = tracing_appender::rolling::daily(&config.log_dir, &config.log_file_prefix);
 
     // Make it non-blocking for better performance
     let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
@@ -527,7 +523,7 @@ fn init_both_logging(config: &LogConfig, filter: EnvFilter) -> Result<()> {
                 .with(console_layer)
                 .with(file_layer)
                 .try_init()?;
-        }
+        },
         LogFormat::Json => {
             // Console layer (JSON format)
             let console_layer = fmt::layer()
@@ -555,7 +551,7 @@ fn init_both_logging(config: &LogConfig, filter: EnvFilter) -> Result<()> {
                 .with(console_layer)
                 .with(file_layer)
                 .try_init()?;
-        }
+        },
     }
 
     Ok(())

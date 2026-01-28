@@ -5,9 +5,7 @@
 //! the version number stays the same (e.g., "2025_01"), only the FTP location changes
 //! from current_release/ to previous_releases/release-2025_01/.
 
-use bdp_server::ingest::uniprot::{
-    config::UniProtFtpConfig, version_discovery::VersionDiscovery,
-};
+use bdp_server::ingest::uniprot::{config::UniProtFtpConfig, version_discovery::VersionDiscovery};
 use sqlx::PgPool;
 use uuid::Uuid;
 
@@ -58,7 +56,7 @@ async fn insert_ingestion_job(
             'completed',
             jsonb_build_object('is_current', $3)
         )
-        "#
+        "#,
     )
     .bind(organization_id)
     .bind(external_version)
@@ -75,7 +73,7 @@ async fn ingestion_job_exists(pool: &PgPool, external_version: &str) -> bool {
         SELECT COUNT(*)
         FROM ingestion_jobs
         WHERE external_version = $1
-        "#
+        "#,
     )
     .bind(external_version)
     .fetch_one(pool)
@@ -93,7 +91,7 @@ async fn get_is_current_metadata(pool: &PgPool, external_version: &str) -> Optio
         FROM ingestion_jobs
         WHERE external_version = $1
         LIMIT 1
-        "#
+        "#,
     )
     .bind(external_version)
     .fetch_optional(pool)
@@ -151,11 +149,7 @@ async fn test_current_to_historical_no_reingest(pool: PgPool) {
 
     // Verify metadata is correct
     let is_current_meta = get_is_current_metadata(&pool, "2025_01").await;
-    assert_eq!(
-        is_current_meta,
-        Some(true),
-        "Metadata should show is_current=true"
-    );
+    assert_eq!(is_current_meta, Some(true), "Metadata should show is_current=true");
 }
 
 /// Test 2: Verify that a new version found in historical releases is ingested
@@ -180,10 +174,7 @@ async fn test_new_version_in_historical_ingests(pool: PgPool) {
         .expect("Failed to check was_ingested_as_current");
 
     // Assert: Should return false, indicating this is new data we should ingest
-    assert!(
-        !was_current,
-        "Version 2024_12 should not be found as previously ingested"
-    );
+    assert!(!was_current, "Version 2024_12 should not be found as previously ingested");
 }
 
 /// Test 3: Verify that pipeline stores is_current metadata correctly
@@ -231,10 +222,7 @@ async fn test_pipeline_stores_is_current_metadata(pool: PgPool) {
         .was_ingested_as_current(&pool, "2025_01")
         .await
         .expect("Failed to check 2025_01");
-    assert!(
-        !was_current_2025_01,
-        "2025_01 should not be marked as current"
-    );
+    assert!(!was_current_2025_01, "2025_01 should not be marked as current");
 }
 
 /// Test 4: Verify the complete monthly update scenario
@@ -274,10 +262,7 @@ async fn test_monthly_update_scenario(pool: PgPool) {
         .was_ingested_as_current(&pool, "2025_02")
         .await
         .expect("Failed to check 2025_02");
-    assert!(
-        !should_ingest_2025_02,
-        "2025_02 should be ingested (new version)"
-    );
+    assert!(!should_ingest_2025_02, "2025_02 should be ingested (new version)");
 
     // Simulate Month 2 ingestion of 2025_02
     insert_ingestion_job(&pool, org_id, "2025_02", true).await;
@@ -293,7 +278,7 @@ async fn test_monthly_update_scenario(pool: PgPool) {
         SELECT COUNT(*)
         FROM ingestion_jobs
         WHERE external_version IN ('2025_01', '2025_02')
-        "#
+        "#,
     )
     .fetch_one(&pool)
     .await
@@ -308,14 +293,11 @@ async fn test_monthly_update_scenario(pool: PgPool) {
         FROM ingestion_jobs
         WHERE external_version IN ('2025_01', '2025_02')
           AND source_metadata->>'is_current' = 'true'
-        "#
+        "#,
     )
     .fetch_one(&pool)
     .await
     .expect("Failed to count current jobs");
 
-    assert_eq!(
-        current_count, 2,
-        "Both versions were ingested as current at different times"
-    );
+    assert_eq!(current_count, 2, "Both versions were ingested as current at different times");
 }

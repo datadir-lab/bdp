@@ -96,13 +96,13 @@ impl IntoResponse for AppError {
                     "DATABASE_ERROR",
                     "A database error occurred. Please try again later.".to_string(),
                 )
-            }
+            },
             AppError::NotFound(ref message) => {
                 (StatusCode::NOT_FOUND, "NOT_FOUND", message.clone())
-            }
+            },
             AppError::Validation(ref message) => {
                 (StatusCode::BAD_REQUEST, "VALIDATION_ERROR", message.clone())
-            }
+            },
             AppError::Internal(ref message) => {
                 tracing::error!(error = %message, "Internal server error");
                 (
@@ -110,7 +110,7 @@ impl IntoResponse for AppError {
                     "INTERNAL_ERROR",
                     "An unexpected error occurred. Please try again later.".to_string(),
                 )
-            }
+            },
             AppError::Config(ref message) => {
                 tracing::error!(error = %message, "Configuration error");
                 (
@@ -118,7 +118,7 @@ impl IntoResponse for AppError {
                     "CONFIG_ERROR",
                     "Server configuration error. Please contact support.".to_string(),
                 )
-            }
+            },
             AppError::Io(ref e) => {
                 tracing::error!(error = ?e, "IO error occurred");
                 (
@@ -126,17 +126,17 @@ impl IntoResponse for AppError {
                     "IO_ERROR",
                     "A file operation failed. Please try again later.".to_string(),
                 )
-            }
+            },
             AppError::Bdp(ref e) => {
                 tracing::error!(error = ?e, "BDP error occurred");
                 (StatusCode::INTERNAL_SERVER_ERROR, "BDP_ERROR", e.to_string())
-            }
+            },
             AppError::Unauthorized(ref message) => {
                 (StatusCode::UNAUTHORIZED, "UNAUTHORIZED", message.clone())
-            }
+            },
             AppError::BadRequest(ref message) => {
                 (StatusCode::BAD_REQUEST, "BAD_REQUEST", message.clone())
-            }
+            },
         };
 
         let body = Json(json!({
@@ -188,7 +188,9 @@ impl From<AppError> for ServerError {
         match err {
             AppError::Database(e) => ServerError::Database(e),
             AppError::NotFound(msg) => ServerError::NotFound(msg),
-            AppError::Validation(msg) => ServerError::Internal(format!("Validation failed: {}", msg)),
+            AppError::Validation(msg) => {
+                ServerError::Internal(format!("Validation failed: {}", msg))
+            },
             AppError::Internal(msg) => ServerError::Internal(msg),
             AppError::Config(msg) => ServerError::Config(msg),
             AppError::Io(e) => ServerError::Io(e),

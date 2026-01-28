@@ -8,7 +8,7 @@
 //! ```
 
 use anyhow::Result;
-use bdp_server::ingest::uniprot::{UniProtFtp, UniProtFtpConfig, DatParser};
+use bdp_server::ingest::uniprot::{DatParser, UniProtFtp, UniProtFtpConfig};
 use tracing::info;
 
 /// Initialize tracing for tests
@@ -33,8 +33,7 @@ async fn test_download_release_notes_real() -> Result<()> {
     init_tracing();
     info!("🧪 Testing real FTP download of release notes");
 
-    let config = UniProtFtpConfig::default()
-        .with_release_type(ReleaseType::Previous);
+    let config = UniProtFtpConfig::default().with_release_type(ReleaseType::Previous);
     let ftp = UniProtFtp::new(config);
 
     // Try to download release notes for version 2024_01
@@ -115,8 +114,7 @@ async fn test_check_version_exists() -> Result<()> {
     init_tracing();
     info!("🧪 Testing version existence check");
 
-    let config = UniProtFtpConfig::default()
-        .with_release_type(ReleaseType::Previous);
+    let config = UniProtFtpConfig::default().with_release_type(ReleaseType::Previous);
     let ftp = UniProtFtp::new(config);
 
     // Check if 2024_01 exists (should exist)
@@ -149,10 +147,7 @@ async fn test_full_ftp_to_database_pipeline() -> Result<()> {
     info!("🧪 Testing full pipeline: FTP → Parse → Database");
 
     // Setup test database
-    let postgres_container = Postgres::default()
-        .with_tag("16-alpine")
-        .start()
-        .await?;
+    let postgres_container = Postgres::default().with_tag("16-alpine").start().await?;
 
     let host = postgres_container.get_host().await?;
     let port = postgres_container.get_host_port_ipv4(5432).await?;
@@ -194,23 +189,17 @@ async fn test_full_ftp_to_database_pipeline() -> Result<()> {
 
     // Store in database
     info!("Storing in database...");
-    let storage = UniProtStorage::new(
-        db_pool.clone(),
-        org_id,
-        "1.0".to_string(),
-        "2024_01".to_string(),
-    );
+    let storage =
+        UniProtStorage::new(db_pool.clone(), org_id, "1.0".to_string(), "2024_01".to_string());
     let stored_count = storage.store_entries(&entries).await?;
     info!("✅ Stored {} proteins", stored_count);
 
     assert_eq!(stored_count, entries.len(), "All entries should be stored");
 
     // Verify in database
-    let protein_count = sqlx::query_scalar::<_, i64>(
-        "SELECT COUNT(*) FROM protein_metadata"
-    )
-    .fetch_one(&db_pool)
-    .await?;
+    let protein_count = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM protein_metadata")
+        .fetch_one(&db_pool)
+        .await?;
 
     info!("✅ Verified {} proteins in database", protein_count);
     assert_eq!(protein_count, stored_count as i64);
@@ -228,8 +217,7 @@ async fn test_download_current_release() -> Result<()> {
     init_tracing();
     info!("🧪 Testing download from current release");
 
-    let config = UniProtFtpConfig::default()
-        .with_release_type(ReleaseType::Current);
+    let config = UniProtFtpConfig::default().with_release_type(ReleaseType::Current);
     let ftp = UniProtFtp::new(config);
 
     // Download current release notes (no version needed)
@@ -269,7 +257,9 @@ async fn test_download_trembl_dataset() -> Result<()> {
 
     // Download TrEMBL DAT file (much larger than Swiss-Prot)
     info!("Downloading TrEMBL DAT file for 2024_01 (limited to 5 entries)...");
-    let dat_data = ftp.download_dat_file(Some("2024_01"), Some("trembl")).await?;
+    let dat_data = ftp
+        .download_dat_file(Some("2024_01"), Some("trembl"))
+        .await?;
 
     info!("✅ Downloaded TrEMBL DAT file ({} bytes decompressed)", dat_data.len());
     assert!(!dat_data.is_empty(), "DAT file should not be empty");

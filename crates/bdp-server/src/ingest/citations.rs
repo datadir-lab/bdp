@@ -62,7 +62,10 @@ impl CitationRequirementType {
 }
 
 /// Gene Ontology citation policy
-pub fn gene_ontology_policy(organization_id: Uuid, license_id: Option<Uuid>) -> CitationPolicyConfig {
+pub fn gene_ontology_policy(
+    organization_id: Uuid,
+    license_id: Option<Uuid>,
+) -> CitationPolicyConfig {
     CitationPolicyConfig {
         organization_id,
         policy_url: "https://geneontology.org/docs/go-citation-policy/".to_string(),
@@ -168,40 +171,40 @@ pub fn ncbi_refseq_policy(organization_id: Uuid, license_id: Option<Uuid>) -> Ci
 }
 
 /// NCBI Taxonomy citation policy (shares NCBI organization)
-pub fn ncbi_taxonomy_policy(organization_id: Uuid, license_id: Option<Uuid>) -> CitationPolicyConfig {
+pub fn ncbi_taxonomy_policy(
+    organization_id: Uuid,
+    license_id: Option<Uuid>,
+) -> CitationPolicyConfig {
     CitationPolicyConfig {
         organization_id,
         policy_url: "https://support.nlm.nih.gov/knowledgebase/article/KA-03391/en-us".to_string(),
         license_id,
         requires_version_citation: false,
         requires_accession_citation: false,
-        citation_instructions: "When citing NCBI Taxonomy, cite the NCBI resource paper.".to_string(),
-        required_citations: vec![
-            RequiredCitation {
-                citation: CitationData {
-                    doi: Some("10.1093/nar/gkac1052".to_string()),
-                    pubmed_id: Some("36420893".to_string()),
-                    title: "Database resources of the National Center for Biotechnology Information".to_string(),
-                    journal: Some("Nucleic Acids Research".to_string()),
-                    publication_date: chrono::NaiveDate::from_ymd_opt(2023, 1, 6),
-                    volume: Some("51".to_string()),
-                    pages: Some("D29-D38".to_string()),
-                    authors: "Sayers, E. W., Bolton, E. E., Brister, J. R., et al.".to_string(),
-                    bibtex: None,
-                },
-                requirement_type: CitationRequirementType::Required,
-                display_order: 1,
-                context: Some("NCBI resources paper".to_string()),
+        citation_instructions: "When citing NCBI Taxonomy, cite the NCBI resource paper."
+            .to_string(),
+        required_citations: vec![RequiredCitation {
+            citation: CitationData {
+                doi: Some("10.1093/nar/gkac1052".to_string()),
+                pubmed_id: Some("36420893".to_string()),
+                title: "Database resources of the National Center for Biotechnology Information"
+                    .to_string(),
+                journal: Some("Nucleic Acids Research".to_string()),
+                publication_date: chrono::NaiveDate::from_ymd_opt(2023, 1, 6),
+                volume: Some("51".to_string()),
+                pages: Some("D29-D38".to_string()),
+                authors: "Sayers, E. W., Bolton, E. E., Brister, J. R., et al.".to_string(),
+                bibtex: None,
             },
-        ],
+            requirement_type: CitationRequirementType::Required,
+            display_order: 1,
+            context: Some("NCBI resources paper".to_string()),
+        }],
     }
 }
 
 /// Set up citation policy for an organization
-pub async fn setup_citation_policy(
-    db: &PgPool,
-    config: &CitationPolicyConfig,
-) -> Result<Uuid> {
+pub async fn setup_citation_policy(db: &PgPool, config: &CitationPolicyConfig) -> Result<Uuid> {
     let mut tx = db.begin().await.context("Failed to begin transaction")?;
 
     let policy_id = setup_citation_policy_tx(&mut tx, config).await?;
@@ -216,10 +219,7 @@ pub async fn setup_citation_policy_tx(
     tx: &mut Transaction<'_, Postgres>,
     config: &CitationPolicyConfig,
 ) -> Result<Uuid> {
-    info!(
-        "Setting up citation policy for organization {}",
-        config.organization_id
-    );
+    info!("Setting up citation policy for organization {}", config.organization_id);
 
     // 1. Create or update citation policy
     let policy_id: Uuid = sqlx::query_scalar(
@@ -256,12 +256,8 @@ pub async fn setup_citation_policy_tx(
 
     // 2. Create citations and link them to the policy
     for required_citation in &config.required_citations {
-        let citation_id = create_citation_tx(
-            tx,
-            &required_citation.citation,
-            config.organization_id,
-        )
-        .await?;
+        let citation_id =
+            create_citation_tx(tx, &required_citation.citation, config.organization_id).await?;
 
         // Link citation to policy
         sqlx::query(

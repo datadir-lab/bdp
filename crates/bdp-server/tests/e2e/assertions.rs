@@ -231,10 +231,7 @@ impl E2EAssertions {
             );
         }
 
-        info!(
-            "Verified protein exists: accession={}, name={}",
-            accession, protein_name
-        );
+        info!("Verified protein exists: accession={}, name={}", accession, protein_name);
         Ok(())
     }
 
@@ -297,11 +294,7 @@ impl E2EAssertions {
         if let Some(proteins) = expected.proteins {
             let actual = self.count_proteins().await?;
             if actual != proteins {
-                bail!(
-                    "Protein count mismatch: expected={}, actual={}",
-                    proteins,
-                    actual
-                );
+                bail!("Protein count mismatch: expected={}, actual={}", proteins, actual);
             }
             info!("Verified protein count: {}", actual);
         }
@@ -309,11 +302,7 @@ impl E2EAssertions {
         if let Some(organisms) = expected.organisms {
             let actual = self.count_organisms().await?;
             if actual != organisms {
-                bail!(
-                    "Organism count mismatch: expected={}, actual={}",
-                    organisms,
-                    actual
-                );
+                bail!("Organism count mismatch: expected={}, actual={}", organisms, actual);
             }
             info!("Verified organism count: {}", actual);
         }
@@ -403,13 +392,10 @@ impl E2EAssertions {
 
     /// Assert that an organization exists
     pub async fn assert_organization_exists(&self, org_id: uuid::Uuid) -> Result<()> {
-        let result = sqlx::query!(
-            "SELECT id FROM organizations WHERE id = $1",
-            org_id
-        )
-        .fetch_optional(&self.db)
-        .await
-        .context("Failed to query organization")?;
+        let result = sqlx::query!("SELECT id FROM organizations WHERE id = $1", org_id)
+            .fetch_optional(&self.db)
+            .await
+            .context("Failed to query organization")?;
 
         if result.is_none() {
             bail!("Organization {} does not exist", org_id);
@@ -444,11 +430,7 @@ impl E2EAssertions {
         .context("Failed to query data sources")?;
 
         if result.len() < expected_count {
-            bail!(
-                "Expected at least {} data sources, found {}",
-                expected_count,
-                result.len()
-            );
+            bail!("Expected at least {} data sources, found {}", expected_count, result.len());
         }
 
         Ok(result)
@@ -474,11 +456,7 @@ impl E2EAssertions {
         .context("Failed to query versions")?;
 
         if result.len() < expected_count {
-            bail!(
-                "Expected at least {} versions, found {}",
-                expected_count,
-                result.len()
-            );
+            bail!("Expected at least {} versions, found {}", expected_count, result.len());
         }
 
         Ok(result)

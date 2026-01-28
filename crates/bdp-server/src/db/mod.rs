@@ -25,18 +25,12 @@ pub enum DbError {
 impl DbError {
     /// Create a not found error with resource context
     pub fn not_found(resource_type: &str, identifier: &str) -> Self {
-        Self::NotFound(format!(
-            "{} '{}' not found in database",
-            resource_type, identifier
-        ))
+        Self::NotFound(format!("{} '{}' not found in database", resource_type, identifier))
     }
 
     /// Create a duplicate error with resource context
     pub fn duplicate(resource_type: &str, identifier: &str) -> Self {
-        Self::Duplicate(format!(
-            "{} '{}' already exists",
-            resource_type, identifier
-        ))
+        Self::Duplicate(format!("{} '{}' already exists", resource_type, identifier))
     }
 
     /// Create a configuration error

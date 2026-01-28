@@ -24,12 +24,7 @@ impl GoPipeline {
     /// Create new pipeline with S3 storage
     ///
     /// Follows the same pattern as GenBank/UniProt/NCBI Taxonomy pipelines.
-    pub fn new(
-        config: GoHttpConfig,
-        db: PgPool,
-        s3: Storage,
-        organization_id: Uuid,
-    ) -> Self {
+    pub fn new(config: GoHttpConfig, db: PgPool, s3: Storage, organization_id: Uuid) -> Self {
         Self {
             config,
             db,
@@ -123,16 +118,9 @@ impl GoPipeline {
 
         // 2. Upload to S3
         info!("Step 2/4: Uploading ontology to S3...");
-        let s3_key = format!(
-            "go/ontology/{}/go-basic.obo",
-            config.go_release_version
-        );
+        let s3_key = format!("go/ontology/{}/go-basic.obo", config.go_release_version);
         self.s3
-            .upload(
-                &s3_key,
-                obo_content.as_bytes().to_vec(),
-                Some("text/plain".to_string()),
-            )
+            .upload(&s3_key, obo_content.as_bytes().to_vec(), Some("text/plain".to_string()))
             .await
             .map_err(|e| {
                 crate::ingest::gene_ontology::GoError::Validation(format!(
@@ -144,11 +132,8 @@ impl GoPipeline {
 
         // 3. Parse OBO file
         info!("Step 3/4: Parsing GO ontology...");
-        let parsed = GoParser::parse_obo(
-            &obo_content,
-            &config.go_release_version,
-            config.parse_limit,
-        )?;
+        let parsed =
+            GoParser::parse_obo(&obo_content, &config.go_release_version, config.parse_limit)?;
 
         info!(
             "Parsed {} terms and {} relationships",
@@ -218,13 +203,10 @@ impl GoPipeline {
 
         // 3. Upload to S3
         info!("Step 3/5: Uploading annotations to S3...");
-        let s3_key = format!("go/annotations/{}/goa_uniprot_all.gaf", self.config.goa_release_version);
+        let s3_key =
+            format!("go/annotations/{}/goa_uniprot_all.gaf", self.config.goa_release_version);
         self.s3
-            .upload(
-                &s3_key,
-                gaf_content.as_bytes().to_vec(),
-                Some("text/plain".to_string()),
-            )
+            .upload(&s3_key, gaf_content.as_bytes().to_vec(), Some("text/plain".to_string()))
             .await
             .map_err(|e| {
                 crate::ingest::gene_ontology::GoError::Validation(format!(
@@ -280,10 +262,7 @@ impl GoPipeline {
         info!("Built lookup map with {} proteins", protein_lookup.len());
 
         // 2. Download organism-specific GAF file
-        info!(
-            "Step 2/5: Downloading GOA {} annotations...",
-            organism
-        );
+        info!("Step 2/5: Downloading GOA {} annotations...", organism);
         let gaf_content = downloader.download_goa_organism(organism).await?;
         info!(
             "Downloaded GAF: {} bytes ({} MB)",
@@ -293,16 +272,10 @@ impl GoPipeline {
 
         // 3. Upload to S3
         info!("Step 3/5: Uploading annotations to S3...");
-        let s3_key = format!(
-            "go/annotations/{}/goa_{}.gaf",
-            self.config.goa_release_version, organism
-        );
+        let s3_key =
+            format!("go/annotations/{}/goa_{}.gaf", self.config.goa_release_version, organism);
         self.s3
-            .upload(
-                &s3_key,
-                gaf_content.as_bytes().to_vec(),
-                Some("text/plain".to_string()),
-            )
+            .upload(&s3_key, gaf_content.as_bytes().to_vec(), Some("text/plain".to_string()))
             .await
             .map_err(|e| {
                 crate::ingest::gene_ontology::GoError::Validation(format!(
@@ -329,10 +302,7 @@ impl GoPipeline {
             .store_annotations(&annotations, &self.config.goa_release_version)
             .await?;
 
-        info!(
-            "GO annotations ingestion completed for {}",
-            organism
-        );
+        info!("GO annotations ingestion completed for {}", organism);
 
         Ok(PipelineStats {
             terms_stored: 0,
@@ -376,13 +346,13 @@ mod tests {
     #[test]
     fn test_config_defaults() {
         let config = GoHttpConfig::default();
-        assert!(!config.obo_url.is_empty());
-        assert!(!config.gaf_url.is_empty());
+        assert!(!config.ontology_base_url.is_empty());
+        assert!(!config.annotation_base_url.is_empty());
     }
 
     #[test]
     fn test_config_test_config() {
         let config = GoHttpConfig::test_config();
-        assert!(config.obo_url.contains("test") || !config.obo_url.is_empty());
+        assert!(config.ontology_base_url.contains("test") || !config.ontology_base_url.is_empty());
     }
 }

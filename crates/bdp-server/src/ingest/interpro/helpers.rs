@@ -32,11 +32,7 @@ impl ProteinLookupHelper {
     /// Batch load protein data sources and their latest versions
     ///
     /// This reduces N queries to 1 query for a batch of accessions
-    pub async fn load_batch(
-        &mut self,
-        pool: &PgPool,
-        accessions: &[String],
-    ) -> Result<(), Error> {
+    pub async fn load_batch(&mut self, pool: &PgPool, accessions: &[String]) -> Result<(), Error> {
         if accessions.is_empty() {
             return Ok(());
         }
@@ -241,14 +237,10 @@ impl InterProEntryLookupHelper {
         .await?;
 
         for record in records {
-            self.cache
-                .insert(record.interpro_id, record.data_source_id);
+            self.cache.insert(record.interpro_id, record.data_source_id);
         }
 
-        debug!(
-            "Loaded {} InterPro entry data sources into cache",
-            self.cache.len()
-        );
+        debug!("Loaded {} InterPro entry data sources into cache", self.cache.len());
 
         Ok(())
     }

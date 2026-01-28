@@ -6,14 +6,12 @@
 //! Usage: cargo run --example run_historical_ingestion
 
 use anyhow::Result;
-use bdp_server::ingest::uniprot::{
-    UniProtPipeline, UniProtFtpConfig, VersionDiscovery,
-};
 use bdp_server::ingest::framework::BatchConfig;
+use bdp_server::ingest::uniprot::{UniProtFtpConfig, UniProtPipeline, VersionDiscovery};
 use bdp_server::storage::{config::StorageConfig, Storage};
 use sqlx::postgres::PgPoolOptions;
 use std::{sync::Arc, time::Duration};
-use tracing::{info, warn, error};
+use tracing::{error, info, warn};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 use uuid::Uuid;
 
@@ -28,9 +26,7 @@ async fn main() -> Result<()> {
     info!("=== Historical UniProt Ingestion ===");
 
     // Parse command line arguments or use defaults
-    let versions_to_fetch = std::env::args()
-        .skip(1)
-        .collect::<Vec<_>>();
+    let versions_to_fetch = std::env::args().skip(1).collect::<Vec<_>>();
 
     let target_versions = if versions_to_fetch.is_empty() {
         // Default: Last two 2025 versions
@@ -90,11 +86,11 @@ async fn main() -> Result<()> {
         Ok(versions) => {
             info!(count = versions.len(), "Found historical versions");
             versions
-        }
+        },
         Err(e) => {
             warn!(error = %e, "Failed to discover versions");
             return Err(e);
-        }
+        },
     };
 
     if all_versions.is_empty() {
@@ -134,7 +130,7 @@ async fn main() -> Result<()> {
             Ok(job_id) => {
                 info!(job_id = %job_id, "Ingestion completed successfully");
                 total_succeeded += 1;
-            }
+            },
             Err(e) => {
                 error!(error = %e, "Ingestion failed");
                 // Log full error chain for debugging
@@ -146,15 +142,11 @@ async fn main() -> Result<()> {
                     depth += 1;
                 }
                 total_failed += 1;
-            }
+            },
         }
     }
 
-    info!(
-        succeeded = total_succeeded,
-        failed = total_failed,
-        "=== Ingestion Summary ==="
-    );
+    info!(succeeded = total_succeeded, failed = total_failed, "=== Ingestion Summary ===");
 
     Ok(())
 }
@@ -163,12 +155,9 @@ async fn get_or_create_organization(pool: &sqlx::PgPool) -> Result<Uuid> {
     const UNIPROT_SLUG: &str = "uniprot";
 
     // Check for existing UniProt organization by slug (unique identifier)
-    let result = sqlx::query!(
-        r#"SELECT id FROM organizations WHERE slug = $1"#,
-        UNIPROT_SLUG
-    )
-    .fetch_optional(pool)
-    .await?;
+    let result = sqlx::query!(r#"SELECT id FROM organizations WHERE slug = $1"#, UNIPROT_SLUG)
+        .fetch_optional(pool)
+        .await?;
 
     if let Some(record) = result {
         Ok(record.id)
@@ -206,12 +195,9 @@ async fn get_or_create_organization(pool: &sqlx::PgPool) -> Result<Uuid> {
         .await?;
 
         // Fetch the ID in case another process created it concurrently
-        let record = sqlx::query!(
-            r#"SELECT id FROM organizations WHERE slug = $1"#,
-            UNIPROT_SLUG
-        )
-        .fetch_one(pool)
-        .await?;
+        let record = sqlx::query!(r#"SELECT id FROM organizations WHERE slug = $1"#, UNIPROT_SLUG)
+            .fetch_one(pool)
+            .await?;
 
         Ok(record.id)
     }

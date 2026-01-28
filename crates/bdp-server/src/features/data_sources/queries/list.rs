@@ -67,7 +67,6 @@ pub struct ListDataSourcesResponse {
     pub pagination: PaginationMetadata,
 }
 
-
 /// Errors that can occur when listing data sources
 #[derive(Debug, thiserror::Error)]
 pub enum ListDataSourcesError {
@@ -260,10 +259,7 @@ mod tests {
             source_type: None,
             organism_id: None,
         };
-        assert!(matches!(
-            query.validate(),
-            Err(ListDataSourcesError::InvalidPage)
-        ));
+        assert!(matches!(query.validate(), Err(ListDataSourcesError::InvalidPage)));
     }
 
     #[test]
@@ -274,10 +270,7 @@ mod tests {
             source_type: None,
             organism_id: None,
         };
-        assert!(matches!(
-            query.validate(),
-            Err(ListDataSourcesError::InvalidPerPage)
-        ));
+        assert!(matches!(query.validate(), Err(ListDataSourcesError::InvalidPerPage)));
     }
 
     #[sqlx::test]

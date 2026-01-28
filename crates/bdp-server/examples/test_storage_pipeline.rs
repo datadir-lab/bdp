@@ -82,11 +82,9 @@ async fn main() -> Result<()> {
 
     // Verify in database
     info!("Verifying storage...");
-    let protein_count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM protein_metadata"
-    )
-    .fetch_one(&pool)
-    .await?;
+    let protein_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM protein_metadata")
+        .fetch_one(&pool)
+        .await?;
 
     let sequence_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM protein_sequences")
         .fetch_one(&pool)
@@ -117,12 +115,9 @@ async fn main() -> Result<()> {
 async fn get_or_create_organization(pool: &sqlx::PgPool) -> Result<Uuid> {
     const UNIPROT_SLUG: &str = "uniprot";
 
-    let result = sqlx::query!(
-        r#"SELECT id FROM organizations WHERE slug = $1"#,
-        UNIPROT_SLUG
-    )
-    .fetch_optional(pool)
-    .await?;
+    let result = sqlx::query!(r#"SELECT id FROM organizations WHERE slug = $1"#, UNIPROT_SLUG)
+        .fetch_optional(pool)
+        .await?;
 
     if let Some(record) = result {
         Ok(record.id)
@@ -158,12 +153,9 @@ async fn get_or_create_organization(pool: &sqlx::PgPool) -> Result<Uuid> {
         .execute(pool)
         .await?;
 
-        let record = sqlx::query!(
-            r#"SELECT id FROM organizations WHERE slug = $1"#,
-            UNIPROT_SLUG
-        )
-        .fetch_one(pool)
-        .await?;
+        let record = sqlx::query!(r#"SELECT id FROM organizations WHERE slug = $1"#, UNIPROT_SLUG)
+            .fetch_one(pool)
+            .await?;
 
         Ok(record.id)
     }

@@ -285,10 +285,15 @@ pub async fn handle(
             e
         );
         GetDataSourceError::Database(e)
-    })?
-    .ok_or_else(|| {
-        GetDataSourceError::NotFound(query.organization_slug.clone(), query.slug.clone())
     })?;
+
+    // PERFORMANCE: Extract slugs before consuming result to avoid unnecessary clones
+    let result = match result {
+        Some(r) => r,
+        None => {
+            return Err(GetDataSourceError::NotFound(query.organization_slug, query.slug));
+        },
+    };
 
     let versions = sqlx::query_as!(
         VersionRecord,
@@ -321,6 +326,45 @@ pub async fn handle(
     .fetch_all(&pool)
     .await?;
 
+    // PERFORMANCE: Move fields out of result instead of cloning
+    // Construct optional nested structs by consuming result fields
+    let organism = if let Some(id) = result.organism_id {
+        Some(OrganismInfo {
+            id,
+            ncbi_taxonomy_id: result.ncbi_taxonomy_id,
+            scientific_name: result.scientific_name.unwrap_or_default(),
+            common_name: result.common_name,
+            rank: result.organism_rank,
+            taxonomy_organization_slug: result.taxonomy_organization_slug,
+            taxonomy_slug: result.taxonomy_slug,
+            taxonomy_version: result.taxonomy_version,
+        })
+    } else {
+        None
+    };
+
+    let protein_metadata = if let Some(accession) = result.protein_accession {
+        Some(ProteinMetadataInfo {
+            accession,
+            entry_name: result.protein_entry_name,
+            protein_name: result.protein_name,
+            gene_name: result.gene_name,
+            sequence_length: result.sequence_length,
+            mass_da: result.mass_da,
+            sequence_checksum: result.sequence_checksum,
+            alternative_names: result.alternative_names,
+            ec_numbers: result.ec_numbers,
+            protein_existence: result.protein_existence,
+            keywords: result.keywords,
+            organelle: result.organelle,
+            entry_created: result.entry_created,
+            sequence_updated: result.sequence_updated,
+            annotation_updated: result.annotation_updated,
+        })
+    } else {
+        None
+    };
+
     Ok(GetDataSourceResponse {
         id: result.id,
         organization: OrganizationInfo {
@@ -331,35 +375,10 @@ pub async fn handle(
         slug: result.slug,
         name: result.name,
         description: result.description,
-        source_type: result.source_type.clone(),
+        source_type: result.source_type,
         external_id: result.external_id,
-        organism: result.organism_id.map(|id| OrganismInfo {
-            id,
-            ncbi_taxonomy_id: result.ncbi_taxonomy_id,
-            scientific_name: result.scientific_name.clone().unwrap_or_default(),
-            common_name: result.common_name.clone(),
-            rank: result.organism_rank.clone(),
-            taxonomy_organization_slug: result.taxonomy_organization_slug.clone(),
-            taxonomy_slug: result.taxonomy_slug.clone(),
-            taxonomy_version: result.taxonomy_version.clone(),
-        }),
-        protein_metadata: result.protein_accession.as_ref().map(|accession| ProteinMetadataInfo {
-            accession: accession.clone(),
-            entry_name: result.protein_entry_name.clone(),
-            protein_name: result.protein_name.clone(),
-            gene_name: result.gene_name.clone(),
-            sequence_length: result.sequence_length,
-            mass_da: result.mass_da,
-            sequence_checksum: result.sequence_checksum.clone(),
-            alternative_names: result.alternative_names.clone(),
-            ec_numbers: result.ec_numbers.clone(),
-            protein_existence: result.protein_existence,
-            keywords: result.keywords.clone(),
-            organelle: result.organelle.clone(),
-            entry_created: result.entry_created,
-            sequence_updated: result.sequence_updated,
-            annotation_updated: result.annotation_updated,
-        }),
+        organism,
+        protein_metadata,
         versions: versions
             .into_iter()
             .map(|v| VersionInfo {
@@ -448,10 +467,7 @@ mod tests {
             organization_slug: "".to_string(),
             slug: "test-protein".to_string(),
         };
-        assert!(matches!(
-            query.validate(),
-            Err(GetDataSourceError::OrganizationSlugRequired)
-        ));
+        assert!(matches!(query.validate(), Err(GetDataSourceError::OrganizationSlugRequired)));
     }
 
     #[test]
@@ -460,10 +476,7 @@ mod tests {
             organization_slug: "test-org".to_string(),
             slug: "".to_string(),
         };
-        assert!(matches!(
-            query.validate(),
-            Err(GetDataSourceError::SlugRequired)
-        ));
+        assert!(matches!(query.validate(), Err(GetDataSourceError::SlugRequired)));
     }
 
     #[sqlx::test]
@@ -583,13 +596,9 @@ mod tests {
         .fetch_one(&pool)
         .await?;
 
-        sqlx::query!(
-            "INSERT INTO entry_tags (entry_id, tag_id) VALUES ($1, $2)",
-            entry_id,
-            tag_id
-        )
-        .execute(&pool)
-        .await?;
+        sqlx::query!("INSERT INTO entry_tags (entry_id, tag_id) VALUES ($1, $2)", entry_id, tag_id)
+            .execute(&pool)
+            .await?;
 
         let query = GetDataSourceQuery {
             organization_slug: "test-org".to_string(),

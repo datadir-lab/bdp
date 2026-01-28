@@ -19,7 +19,6 @@
 /// ```cron
 /// */5 * * * * /path/to/bdp/target/release/examples/refresh_search_index
 /// ```
-
 use bdp_server::{
     db::{create_pool, DbConfig},
     features::search::queries::{self, RefreshSearchIndexCommand},

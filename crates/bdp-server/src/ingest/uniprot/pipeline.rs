@@ -40,9 +40,9 @@ use crate::ingest::framework::{
 };
 use crate::ingest::jobs::IngestStats;
 use crate::ingest::versioning::{
-    BumpType, UniProtBumpDetector, VersionBumpDetector, VersionChangelog,
-    cascade_version_bump, create_version, get_latest_version, get_latest_version_id,
-    calculate_next_version, save_changelog,
+    calculate_next_version, cascade_version_bump, create_version, get_latest_version,
+    get_latest_version_id, save_changelog, BumpType, UniProtBumpDetector, VersionBumpDetector,
+    VersionChangelog,
 };
 use crate::storage::Storage;
 
@@ -116,12 +116,16 @@ impl UniProtPipeline {
 
     /// Get the cache file path for a specific version
     fn get_cache_path(&self, version: &str) -> std::path::PathBuf {
-        self.cache_dir.join("uniprot").join(format!("{}.dat", version))
+        self.cache_dir
+            .join("uniprot")
+            .join(format!("{}.dat", version))
     }
 
     /// Get the lock file path for a specific version
     fn get_lock_path(&self, version: &str) -> std::path::PathBuf {
-        self.cache_dir.join("uniprot").join(format!("{}.dat.lock", version))
+        self.cache_dir
+            .join("uniprot")
+            .join(format!("{}.dat.lock", version))
     }
 
     /// Check if cached DAT file exists for a version
@@ -139,27 +143,33 @@ impl UniProtPipeline {
 
         // Create cache directory
         if let Some(parent) = cache_path.parent() {
-            tokio::fs::create_dir_all(parent).await
+            tokio::fs::create_dir_all(parent)
+                .await
                 .context("Failed to create cache directory")?;
         }
 
         // Create lock file to prevent race conditions
-        let _lock = tokio::fs::File::create(&lock_path).await
+        let _lock = tokio::fs::File::create(&lock_path)
+            .await
             .context("Failed to create lock file")?;
 
         // Write to temporary file
         let temp_path = cache_path.with_extension("tmp");
-        let mut file = tokio::fs::File::create(&temp_path).await
+        let mut file = tokio::fs::File::create(&temp_path)
+            .await
             .context("Failed to create temp cache file")?;
 
-        file.write_all(dat_data).await
+        file.write_all(dat_data)
+            .await
             .context("Failed to write to temp cache file")?;
 
-        file.flush().await
+        file.flush()
+            .await
             .context("Failed to flush temp cache file")?;
 
         // Atomic rename
-        tokio::fs::rename(&temp_path, &cache_path).await
+        tokio::fs::rename(&temp_path, &cache_path)
+            .await
             .context("Failed to rename temp cache file to final cache file")?;
 
         // Remove lock file
@@ -179,7 +189,8 @@ impl UniProtPipeline {
     async fn read_from_cache(&self, version: &str) -> Result<Vec<u8>> {
         let cache_path = self.get_cache_path(version);
 
-        let data = tokio::fs::read(&cache_path).await
+        let data = tokio::fs::read(&cache_path)
+            .await
             .with_context(|| format!("Failed to read cache file: {:?}", cache_path))?;
 
         tracing::info!(
@@ -205,7 +216,8 @@ impl UniProtPipeline {
         let max_age = std::time::Duration::from_secs(max_age_days * 24 * 60 * 60);
         let now = SystemTime::now();
 
-        let mut entries = tokio::fs::read_dir(&cache_dir).await
+        let mut entries = tokio::fs::read_dir(&cache_dir)
+            .await
             .context("Failed to read cache directory")?;
 
         while let Some(entry) = entries.next_entry().await? {
@@ -217,30 +229,41 @@ impl UniProtPipeline {
             }
 
             // Check file age
-            if let Ok(metadata) = tokio::fs::metadata(&path).await {
-                if let Ok(modified) = metadata.modified() {
-                    if let Ok(age) = now.duration_since(modified) {
-                        if age > max_age {
-                            match tokio::fs::remove_file(&path).await {
-                                Ok(_) => {
-                                    tracing::info!(
-                                        path = ?path,
-                                        age_days = age.as_secs() / (24 * 60 * 60),
-                                        "Removed old cache file"
-                                    );
-                                    removed_count += 1;
-                                }
-                                Err(e) => {
-                                    tracing::warn!(
-                                        path = ?path,
-                                        error = %e,
-                                        "Failed to remove old cache file"
-                                    );
-                                }
-                            }
-                        }
-                    }
-                }
+            let metadata = match tokio::fs::metadata(&path).await {
+                Ok(m) => m,
+                Err(_) => continue,
+            };
+
+            let modified = match metadata.modified() {
+                Ok(m) => m,
+                Err(_) => continue,
+            };
+
+            let age = match now.duration_since(modified) {
+                Ok(a) => a,
+                Err(_) => continue,
+            };
+
+            if age <= max_age {
+                continue;
+            }
+
+            match tokio::fs::remove_file(&path).await {
+                Ok(_) => {
+                    tracing::info!(
+                        path = ?path,
+                        age_days = age.as_secs() / (24 * 60 * 60),
+                        "Removed old cache file"
+                    );
+                    removed_count += 1;
+                },
+                Err(e) => {
+                    tracing::warn!(
+                        path = ?path,
+                        error = %e,
+                        "Failed to remove old cache file"
+                    );
+                },
             }
         }
 
@@ -278,11 +301,11 @@ impl UniProtPipeline {
             IngestionMode::Latest(latest_config) => {
                 tracing::info!("Running in Latest mode");
                 self.run_latest_mode(latest_config).await
-            }
+            },
             IngestionMode::Historical(historical_config) => {
                 tracing::info!("Running in Historical mode");
                 self.run_historical_mode(historical_config).await
-            }
+            },
         }
     }
 
@@ -443,10 +466,7 @@ impl UniProtPipeline {
             })
             .collect();
 
-        tracing::info!(
-            filtered_count = filtered_versions.len(),
-            "Filtered versions within range"
-        );
+        tracing::info!(filtered_count = filtered_versions.len(), "Filtered versions within range");
 
         // 3. Skip existing versions if configured
         if config.skip_existing {
@@ -495,10 +515,7 @@ impl UniProtPipeline {
 
         // Process in chunks of batch_size
         for chunk in filtered_versions.chunks(config.batch_size) {
-            tracing::info!(
-                chunk_size = chunk.len(),
-                "Processing version batch"
-            );
+            tracing::info!(chunk_size = chunk.len(), "Processing version batch");
 
             for mut version in chunk.iter().cloned() {
                 // 5. Ensure is_current=false for historical versions
@@ -528,7 +545,7 @@ impl UniProtPipeline {
                             job_id = %job_id,
                             "Successfully ingested historical version"
                         );
-                    }
+                    },
                     Err(e) => {
                         tracing::error!(
                             version = %version.external_version,
@@ -536,7 +553,7 @@ impl UniProtPipeline {
                             "Failed to ingest historical version"
                         );
                         total_stats.entries_failed += 1;
-                    }
+                    },
                 }
             }
         }
@@ -616,18 +633,12 @@ impl UniProtPipeline {
             .await
             .context("Failed to discover UniProt versions")?;
 
-        tracing::info!(
-            discovered_count = discovered.len(),
-            "Discovered UniProt versions"
-        );
+        tracing::info!(discovered_count = discovered.len(), "Discovered UniProt versions");
 
         // 2. Get already ingested versions
         let ingested = self.get_ingested_versions().await?;
 
-        tracing::info!(
-            ingested_count = ingested.len(),
-            "Found previously ingested versions"
-        );
+        tracing::info!(ingested_count = ingested.len(), "Found previously ingested versions");
 
         // 3. Filter to new versions only
         let new_versions = discovery.filter_new_versions(discovered, ingested.clone());
@@ -642,10 +653,7 @@ impl UniProtPipeline {
             });
         }
 
-        tracing::info!(
-            new_versions_count = new_versions.len(),
-            "Processing new versions"
-        );
+        tracing::info!(new_versions_count = new_versions.len(), "Processing new versions");
 
         // 4. Process each new version
         let mut stats = IdempotentStats {
@@ -663,7 +671,7 @@ impl UniProtPipeline {
                         "Successfully ingested version"
                     );
                     stats.newly_ingested_count += 1;
-                }
+                },
                 Err(e) => {
                     tracing::error!(
                         version = %version.external_version,
@@ -671,7 +679,7 @@ impl UniProtPipeline {
                         "Failed to ingest version"
                     );
                     stats.failed_count += 1;
-                }
+                },
             }
         }
 
@@ -798,7 +806,7 @@ impl UniProtPipeline {
                 }
 
                 Ok(job_id)
-            }
+            },
             Err(e) => {
                 tracing::error!(job_id = %job_id, error = %e, "Pipeline failed");
 
@@ -829,7 +837,7 @@ impl UniProtPipeline {
                     .await
                     .context("Failed to mark job as failed")?;
                 Err(e)
-            }
+            },
         }
     }
 
@@ -875,27 +883,29 @@ impl UniProtPipeline {
             internal_version.clone(),
             version.external_version.clone(),
         );
-        storage_setup.setup_citations().await.context("Failed to setup citation policy")?;
+        storage_setup
+            .setup_citations()
+            .await
+            .context("Failed to setup citation policy")?;
 
         // Phase 1: Download from FTP and upload to S3
         let (s3_key, dat_data) = self.download_phase(coordinator, job_id, version).await?;
 
         // Phase 2: Count entries and create work units for parallel processing
-        let total_records = self.parse_phase(coordinator, job_id, &s3_key, &dat_data).await?;
+        let total_records = self
+            .parse_phase(coordinator, job_id, &s3_key, &dat_data)
+            .await?;
 
         // Phase 3: Process work units in parallel (spawn multiple workers, streaming parse+store)
-        self.storage_phase(coordinator, job_id, &s3_key, total_records, dat_data, version).await?;
+        self.storage_phase(coordinator, job_id, &s3_key, total_records, dat_data, version)
+            .await?;
 
         // Phase 4: Create bundles after all proteins stored
         self.bundle_phase(coordinator, job_id, version).await?;
 
         // Phase 5: Detect version changes and create changelog
         let (new_version_id, new_version, changelog) = self
-            .versioning_phase(
-                data_source_entry_id,
-                previous_version_id,
-                &version.external_version,
-            )
+            .versioning_phase(data_source_entry_id, previous_version_id, &version.external_version)
             .await?;
 
         tracing::info!(
@@ -1018,13 +1028,11 @@ impl UniProtPipeline {
         .context("Failed to create new version")?;
 
         // Get the new version string
-        let new_version: String = sqlx::query_scalar(
-            "SELECT version FROM versions WHERE id = $1",
-        )
-        .bind(new_version_id)
-        .fetch_one(&*self.pool)
-        .await
-        .context("Failed to get new version string")?;
+        let new_version: String = sqlx::query_scalar("SELECT version FROM versions WHERE id = $1")
+            .bind(new_version_id)
+            .fetch_one(&*self.pool)
+            .await
+            .context("Failed to get new version string")?;
 
         // Save changelog to database
         let changelog_id = save_changelog(&self.pool, new_version_id, &changelog)
@@ -1098,7 +1106,8 @@ impl UniProtPipeline {
 
             // Decompress the data
             let parser = DatParser::new();
-            let decompressed_data = parser.extract_dat_data(&compressed_data)
+            let decompressed_data = parser
+                .extract_dat_data(&compressed_data)
                 .context("Failed to decompress DAT file")?;
 
             tracing::info!(
@@ -1108,7 +1117,10 @@ impl UniProtPipeline {
             );
 
             // Write to cache for future use
-            if let Err(e) = self.write_to_cache(&version.external_version, &decompressed_data).await {
+            if let Err(e) = self
+                .write_to_cache(&version.external_version, &decompressed_data)
+                .await
+            {
                 tracing::warn!(
                     job_id = %job_id,
                     error = %e,
@@ -1127,12 +1139,11 @@ impl UniProtPipeline {
 
         // Note: We no longer upload the compressed file to S3 since we're caching the decompressed version
         // S3 upload is skipped to avoid storing duplicate data
-        let s3_key = format!(
-            "ingest/uniprot/{}/{}_swissprot.dat.gz",
-            job_id, version.external_version
-        );
+        let s3_key =
+            format!("ingest/uniprot/{}/{}_swissprot.dat.gz", job_id, version.external_version);
 
-        let (s3_uploaded, file_size, _checksum): (bool, i64, Option<String>) = (false, dat_data.len() as i64, None);
+        let (s3_uploaded, file_size, _checksum): (bool, i64, Option<String>) =
+            (false, dat_data.len() as i64, None);
 
         // Register the raw file in database (only if S3 upload succeeded)
         if s3_uploaded {
@@ -1245,7 +1256,8 @@ impl UniProtPipeline {
             .ok()
             .and_then(|s| s.parse().ok())
             .unwrap_or(DEFAULT_MAX_WORKERS);
-        let num_workers = std::cmp::min(max_workers, total_records / self.batch_config.parse_batch_size + 1);
+        let num_workers =
+            std::cmp::min(max_workers, total_records / self.batch_config.parse_batch_size + 1);
 
         tracing::info!(
             job_id = %job_id,
@@ -1296,15 +1308,15 @@ impl UniProtPipeline {
                         failed = failed,
                         "Worker completed"
                     );
-                }
+                },
                 Ok(Err(e)) => {
                     tracing::error!(job_id = %job_id, worker = idx, error = %e, "Worker failed");
                     total_failed += 1;
-                }
+                },
                 Err(e) => {
                     tracing::error!(job_id = %job_id, worker = idx, error = %e, "Worker panicked");
                     total_failed += 1;
-                }
+                },
             }
         }
 
@@ -1389,10 +1401,11 @@ impl UniProtPipeline {
                 organism_name: p.organism_name,
                 taxonomy_id: p.taxonomy_id,
                 taxonomy_lineage: Vec::new(), // Not needed for bundling
-                sequence: String::new(), // Not needed for bundling
+                sequence: String::new(),      // Not needed for bundling
                 sequence_length: 0,
                 mass_da: 0,
-                release_date: chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+                release_date: chrono::NaiveDate::from_ymd_opt(2024, 1, 1)
+                    .unwrap_or_else(|| chrono::NaiveDate::MIN),
                 alternative_names: Vec::new(),
                 ec_numbers: Vec::new(),
                 features: Vec::new(),
@@ -1470,7 +1483,7 @@ impl UniProtPipeline {
                         "No more work units available"
                     );
                     break;
-                }
+                },
             };
 
             tracing::info!(
@@ -1512,7 +1525,7 @@ impl UniProtPipeline {
                         records_processed = count,
                         "Work unit completed successfully"
                     );
-                }
+                },
                 Err(e) => {
                     total_failed += 1;
                     tracing::error!(
@@ -1525,7 +1538,7 @@ impl UniProtPipeline {
 
                     // Mark work unit as failed
                     worker.fail_work_unit(work_unit.id, &e.to_string()).await?;
-                }
+                },
             }
         }
 

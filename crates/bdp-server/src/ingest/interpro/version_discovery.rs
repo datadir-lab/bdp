@@ -10,6 +10,9 @@ use uuid::Uuid;
 
 use super::config::InterProConfig;
 use super::ftp::InterProFtpDownloader;
+use crate::ingest::common::version_discovery::{
+    DiscoveredVersion as DiscoveredVersionTrait, VersionFilter,
+};
 
 /// Discovered InterPro version from FTP
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -28,6 +31,17 @@ pub struct DiscoveredVersion {
     pub ftp_directory: String,
 }
 
+impl DiscoveredVersionTrait for DiscoveredVersion {
+    fn external_version(&self) -> &str {
+        &self.external_version
+    }
+
+    fn release_date(&self) -> NaiveDate {
+        self.release_date
+    }
+}
+
+// InterPro uses custom ordering by major.minor version instead of date
 impl PartialOrd for DiscoveredVersion {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
@@ -37,6 +51,7 @@ impl PartialOrd for DiscoveredVersion {
 impl Ord for DiscoveredVersion {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         // Sort by major.minor version, then by release date
+        // InterPro version numbers are more reliable than estimated dates
         match self.major.cmp(&other.major) {
             std::cmp::Ordering::Equal => match self.minor.cmp(&other.minor) {
                 std::cmp::Ordering::Equal => self.release_date.cmp(&other.release_date),
@@ -96,12 +111,14 @@ impl DiscoveredVersion {
         let year = year.max(2001).min(2100);
         let month = (month as u32).max(1).min(12);
 
-        NaiveDate::from_ymd_opt(year, month, 1)
-            .unwrap_or_else(|| {
-                // SAFETY: 2024-01-01 is a valid date, so this will never panic
+        NaiveDate::from_ymd_opt(year, month, 1).unwrap_or_else(|| {
+            // SAFETY: 2024-01-01 is a valid date, so this will never panic
+            #[allow(clippy::expect_used)]
+            {
                 NaiveDate::from_ymd_opt(2024, 1, 1)
                     .expect("Hardcoded fallback date 2024-01-01 is always valid")
-            })
+            }
+        })
     }
 }
 
@@ -131,13 +148,13 @@ impl VersionDiscovery {
                     "Discovered current InterPro release"
                 );
                 versions.push(current);
-            }
+            },
             Err(e) => {
                 tracing::warn!(
                     error = %e,
                     "Could not discover current release (will try historical versions)"
                 );
-            }
+            },
         }
 
         // 2. Discover all historical versions
@@ -149,13 +166,13 @@ impl VersionDiscovery {
                     historical.len()
                 );
                 versions.append(&mut historical);
-            }
+            },
             Err(e) => {
                 tracing::warn!(
                     error = %e,
                     "Could not discover historical releases"
                 );
-            }
+            },
         }
 
         // Sort by version (oldest first)
@@ -275,10 +292,7 @@ impl VersionDiscovery {
         discovered: Vec<DiscoveredVersion>,
         ingested_versions: Vec<String>,
     ) -> Vec<DiscoveredVersion> {
-        discovered
-            .into_iter()
-            .filter(|v| !ingested_versions.contains(&v.external_version))
-            .collect()
+        VersionFilter::filter_new_versions(discovered, &ingested_versions)
     }
 
     /// Filter versions starting from a specific version (inclusive)
@@ -362,7 +376,9 @@ impl VersionDiscovery {
         organization_id: Uuid,
     ) -> Result<Option<DiscoveredVersion>> {
         // 1. Get last ingested version
-        let last_version = self.get_last_ingested_version(pool, organization_id).await?;
+        let last_version = self
+            .get_last_ingested_version(pool, organization_id)
+            .await?;
 
         // 2. Discover all available versions
         let mut available = self.discover_all_versions().await?;
@@ -375,9 +391,9 @@ impl VersionDiscovery {
         match (last_version, available.first()) {
             (Some(last), Some(newest)) if newest.external_version != last => {
                 Ok(Some(newest.clone()))
-            }
+            },
             (None, Some(newest)) => Ok(Some(newest.clone())), // First ingestion
-            _ => Ok(None),                                     // Up-to-date
+            _ => Ok(None),                                    // Up-to-date
         }
     }
 
@@ -426,6 +442,7 @@ impl VersionDiscovery {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::Datelike;
 
     #[test]
     fn test_parse_version() {
@@ -563,9 +580,7 @@ mod tests {
         ];
 
         // Filter from version 96.0 onwards
-        let filtered = discovery
-            .filter_from_version(discovered, "96.0")
-            .unwrap();
+        let filtered = discovery.filter_from_version(discovered, "96.0").unwrap();
 
         assert_eq!(filtered.len(), 3);
         assert_eq!(filtered[0].external_version, "96.0");

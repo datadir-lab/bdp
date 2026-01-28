@@ -119,7 +119,7 @@ impl GenbankFtpConfig {
     /// List all available divisions for GenBank
     pub fn get_all_divisions() -> Vec<Division> {
         vec![
-            Division::Phage,        // Smallest - good for testing
+            Division::Phage, // Smallest - good for testing
             Division::Viral,
             Division::Bacterial,
             Division::Plant,

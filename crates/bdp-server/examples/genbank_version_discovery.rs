@@ -41,15 +41,15 @@ async fn main() -> Result<()> {
         "genbank" => {
             info!("Discovering GenBank versions");
             GenbankFtpConfig::new().with_genbank()
-        }
+        },
         "refseq" => {
             info!("Discovering RefSeq versions");
             GenbankFtpConfig::new().with_refseq()
-        }
+        },
         _ => {
             eprintln!("Invalid database type. Use 'genbank' or 'refseq'");
             std::process::exit(1);
-        }
+        },
     };
 
     // Create version discovery service
@@ -61,10 +61,7 @@ async fn main() -> Result<()> {
 
     // Apply release filter if specified
     if let Some(from_release) = args.from_release {
-        info!(
-            "Filtering versions from release {} onwards",
-            from_release
-        );
+        info!("Filtering versions from release {} onwards", from_release);
         versions = discovery.filter_from_release(versions, from_release);
     }
 

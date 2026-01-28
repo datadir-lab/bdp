@@ -95,14 +95,14 @@ impl TaxdumpParser {
                             break;
                         }
                     }
-                }
+                },
                 Ok(None) => {
                     // Skipped entry (e.g., invalid rank)
-                }
+                },
                 Err(e) => {
                     warn!("Failed to parse line {}: {} - Error: {}", line_num, line, e);
                     // Continue parsing other entries
-                }
+                },
             }
         }
 
@@ -110,9 +110,16 @@ impl TaxdumpParser {
     }
 
     /// Parse a single line from rankedlineage.dmp
-    pub fn parse_rankedlineage_line(&self, line: &str, line_num: usize) -> Result<Option<TaxonomyEntry>> {
+    pub fn parse_rankedlineage_line(
+        &self,
+        line: &str,
+        line_num: usize,
+    ) -> Result<Option<TaxonomyEntry>> {
         // Split by \t|\t separator
-        let fields: Vec<&str> = line.split("\t|\t").map(|f| f.trim().trim_end_matches('|').trim()).collect();
+        let fields: Vec<&str> = line
+            .split("\t|\t")
+            .map(|f| f.trim().trim_end_matches('|').trim())
+            .collect();
 
         // We need at least 10 fields (tax_id through superkingdom)
         if fields.len() < 10 {
@@ -202,7 +209,7 @@ impl TaxdumpParser {
                 Err(e) => {
                     warn!("Failed to parse merged line {}: {} - Error: {}", line_num, line, e);
                     // Continue parsing other entries
-                }
+                },
             }
         }
 
@@ -227,13 +234,17 @@ impl TaxdumpParser {
             .trim_end_matches('|')
             .trim()
             .parse()
-            .with_context(|| format!("Line {}: Invalid old_taxonomy_id: {}", line_num, fields[0]))?;
+            .with_context(|| {
+                format!("Line {}: Invalid old_taxonomy_id: {}", line_num, fields[0])
+            })?;
 
         let new_taxonomy_id: i32 = fields[1]
             .trim_end_matches('|')
             .trim()
             .parse()
-            .with_context(|| format!("Line {}: Invalid new_taxonomy_id: {}", line_num, fields[1]))?;
+            .with_context(|| {
+                format!("Line {}: Invalid new_taxonomy_id: {}", line_num, fields[1])
+            })?;
 
         Ok(MergedTaxon::new(old_taxonomy_id, new_taxonomy_id))
     }
@@ -263,7 +274,7 @@ impl TaxdumpParser {
                 Err(e) => {
                     warn!("Failed to parse delnodes line {}: {} - Error: {}", line_num, line, e);
                     // Continue parsing other entries
-                }
+                },
             }
         }
 
@@ -273,7 +284,9 @@ impl TaxdumpParser {
     /// Parse a single line from delnodes.dmp
     pub fn parse_delnodes_line(&self, line: &str, line_num: usize) -> Result<DeletedTaxon> {
         // Split by \t|\t or \t| separator
-        let tax_id_str = line.split('\t').next()
+        let tax_id_str = line
+            .split('\t')
+            .next()
             .context("Line is empty")?
             .trim()
             .trim_end_matches('|')
@@ -359,7 +372,9 @@ mod tests {
         let merged = "123\t|\t456\t|";
         let delnodes = "789\t|";
 
-        let taxdump = parser.parse(rankedlineage, merged, delnodes, "2026-01-15".to_string()).unwrap();
+        let taxdump = parser
+            .parse(rankedlineage, merged, delnodes, "2026-01-15".to_string())
+            .unwrap();
 
         assert_eq!(taxdump.entries.len(), 1);
         assert_eq!(taxdump.merged.len(), 1);

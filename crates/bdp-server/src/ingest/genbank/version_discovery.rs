@@ -11,6 +11,9 @@ use uuid::Uuid;
 use super::config::GenbankFtpConfig;
 use super::ftp::GenbankFtp;
 use super::models::SourceDatabase;
+use crate::ingest::common::version_discovery::{
+    DiscoveredVersion as DiscoveredVersionTrait, VersionFilter,
+};
 
 /// Discovered GenBank/RefSeq version from FTP
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -25,6 +28,17 @@ pub struct DiscoveredVersion {
     pub source_database: SourceDatabase,
 }
 
+impl DiscoveredVersionTrait for DiscoveredVersion {
+    fn external_version(&self) -> &str {
+        &self.external_version
+    }
+
+    fn release_date(&self) -> NaiveDate {
+        self.release_date
+    }
+}
+
+// GenBank uses custom ordering by release number instead of date
 impl PartialOrd for DiscoveredVersion {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
@@ -34,6 +48,7 @@ impl PartialOrd for DiscoveredVersion {
 impl Ord for DiscoveredVersion {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         // Sort by release number (oldest first)
+        // GenBank release numbers are more reliable than estimated dates
         self.release_number.cmp(&other.release_number)
     }
 }
@@ -114,13 +129,13 @@ impl VersionDiscovery {
                     "Discovered current RefSeq release"
                 );
                 versions.push(current);
-            }
+            },
             Err(e) => {
                 tracing::warn!(
                     error = %e,
                     "Could not discover current RefSeq release (this may be expected)"
                 );
-            }
+            },
         }
 
         // 2. Try to list historical releases
@@ -128,13 +143,13 @@ impl VersionDiscovery {
             Ok(mut historical) => {
                 tracing::info!(count = historical.len(), "Discovered historical RefSeq releases");
                 versions.append(&mut historical);
-            }
+            },
             Err(e) => {
                 tracing::warn!(
                     error = %e,
                     "Could not discover historical RefSeq releases (this may be expected)"
                 );
-            }
+            },
         }
 
         // Sort by release number (oldest first)
@@ -241,9 +256,7 @@ impl VersionDiscovery {
     /// Format: "117" -> 117 or "RefSeq-117" -> 117
     fn parse_refseq_release_number(&self, release_str: &str) -> Result<i32> {
         // Remove "RefSeq-" prefix if present
-        let release_str = release_str
-            .strip_prefix("RefSeq-")
-            .unwrap_or(release_str);
+        let release_str = release_str.strip_prefix("RefSeq-").unwrap_or(release_str);
 
         release_str
             .trim()
@@ -267,8 +280,9 @@ impl VersionDiscovery {
         let month = ((release_in_year * 2) + 1).min(12) as u32;
 
         // Use the 15th of the month as a reasonable estimate
-        NaiveDate::from_ymd_opt(year, month, 15)
-            .unwrap_or_else(|| NaiveDate::from_ymd_opt(year, 1, 1).unwrap())
+        NaiveDate::from_ymd_opt(year, month, 15).unwrap_or_else(|| {
+            NaiveDate::from_ymd_opt(year, 1, 1).unwrap_or_else(|| NaiveDate::MIN)
+        })
     }
 
     /// Estimate RefSeq release date based on release number
@@ -287,8 +301,9 @@ impl VersionDiscovery {
         let month = ((release_in_year * 2) + 1).min(12) as u32;
 
         // Use the 15th of the month as a reasonable estimate
-        NaiveDate::from_ymd_opt(year, month, 15)
-            .unwrap_or_else(|| NaiveDate::from_ymd_opt(year, 1, 1).unwrap())
+        NaiveDate::from_ymd_opt(year, month, 15).unwrap_or_else(|| {
+            NaiveDate::from_ymd_opt(year, 1, 1).unwrap_or_else(|| NaiveDate::MIN)
+        })
     }
 
     /// Filter versions that haven't been ingested yet
@@ -297,10 +312,7 @@ impl VersionDiscovery {
         discovered: Vec<DiscoveredVersion>,
         ingested_versions: Vec<String>,
     ) -> Vec<DiscoveredVersion> {
-        discovered
-            .into_iter()
-            .filter(|v| !ingested_versions.contains(&v.external_version))
-            .collect()
+        VersionFilter::filter_new_versions(discovered, &ingested_versions)
     }
 
     /// Filter versions starting from a specific release number
@@ -326,7 +338,9 @@ impl VersionDiscovery {
         organization_id: Uuid,
     ) -> Result<Option<DiscoveredVersion>> {
         // 1. Get last ingested version from organization_sync_status
-        let last_version = self.get_last_ingested_version(pool, organization_id).await?;
+        let last_version = self
+            .get_last_ingested_version(pool, organization_id)
+            .await?;
 
         // 2. Discover all available versions from FTP
         let mut available = self.discover_all_versions().await?;
@@ -339,9 +353,9 @@ impl VersionDiscovery {
         match (last_version, available.first()) {
             (Some(last), Some(newest)) if newest.external_version != last => {
                 Ok(Some(newest.clone()))
-            }
+            },
             (None, Some(newest)) => Ok(Some(newest.clone())), // First ingestion
-            _ => Ok(None),                                      // Up-to-date
+            _ => Ok(None),                                    // Up-to-date
         }
     }
 
@@ -415,6 +429,7 @@ impl VersionDiscovery {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::Datelike;
 
     #[test]
     fn test_version_ordering() {
@@ -461,10 +476,7 @@ mod tests {
         let discovery = VersionDiscovery::new(config);
 
         assert_eq!(discovery.parse_refseq_release_number("117").unwrap(), 117);
-        assert_eq!(
-            discovery.parse_refseq_release_number("RefSeq-117").unwrap(),
-            117
-        );
+        assert_eq!(discovery.parse_refseq_release_number("RefSeq-117").unwrap(), 117);
         assert_eq!(discovery.parse_refseq_release_number("100").unwrap(), 100);
     }
 

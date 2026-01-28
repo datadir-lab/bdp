@@ -3,9 +3,7 @@
 //! These tests verify batch insert performance and correctness.
 //! Run with: cargo test --test ncbi_taxonomy_batch_test -- --nocapture --ignored
 
-use bdp_server::ingest::ncbi_taxonomy::{
-    NcbiTaxonomyFtpConfig, NcbiTaxonomyPipeline,
-};
+use bdp_server::ingest::ncbi_taxonomy::{NcbiTaxonomyFtpConfig, NcbiTaxonomyPipeline};
 
 #[tokio::test]
 #[ignore] // Requires database and FTP access
@@ -13,8 +11,7 @@ async fn test_batch_operations_small_dataset() {
     println!("\n=== Testing Batch Operations with Small Dataset ===\n");
 
     // Use parse_limit to test with small dataset
-    let config = NcbiTaxonomyFtpConfig::new()
-        .with_parse_limit(1000);
+    let config = NcbiTaxonomyFtpConfig::new().with_parse_limit(1000);
 
     println!("Configuration:");
     println!("  - Parse limit: 1000 entries");

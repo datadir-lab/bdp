@@ -8,9 +8,7 @@ use sqlx::{PgPool, Row};
 use tracing::{debug, instrument};
 use uuid::Uuid;
 
-use super::types::{
-    BumpType, ChangelogEntry, ChangelogSummary, TriggerReason, VersionChangelog,
-};
+use super::types::{BumpType, ChangelogEntry, ChangelogSummary, TriggerReason, VersionChangelog};
 
 /// Store changelog in database
 ///
@@ -150,17 +148,20 @@ pub async fn get_changelog(pool: &PgPool, version_id: Uuid) -> Result<Option<Ver
                 "Retrieved changelog"
             );
             Ok(Some(changelog))
-        }
+        },
         None => {
             debug!(version_id = %version_id, "No changelog found");
             Ok(None)
-        }
+        },
     }
 }
 
 /// Get changelog by changelog ID
 #[instrument(skip(pool))]
-pub async fn get_changelog_by_id(pool: &PgPool, changelog_id: Uuid) -> Result<Option<VersionChangelog>> {
+pub async fn get_changelog_by_id(
+    pool: &PgPool,
+    changelog_id: Uuid,
+) -> Result<Option<VersionChangelog>> {
     let row = sqlx::query(
         r#"
         SELECT
@@ -194,7 +195,7 @@ pub async fn get_changelog_by_id(pool: &PgPool, changelog_id: Uuid) -> Result<Op
                 triggered_by: r.get("triggered_by"),
             };
             Ok(Some(parse_changelog_record(record)?))
-        }
+        },
         None => Ok(None),
     }
 }
@@ -204,11 +205,11 @@ fn parse_changelog_record(record: ChangelogRecord) -> Result<VersionChangelog> {
     let bump_type = BumpType::from_db_str(&record.bump_type)
         .ok_or_else(|| anyhow::anyhow!("Invalid bump type: {}", record.bump_type))?;
 
-    let entries: Vec<ChangelogEntry> = serde_json::from_value(record.entries)
-        .context("Failed to parse changelog entries")?;
+    let entries: Vec<ChangelogEntry> =
+        serde_json::from_value(record.entries).context("Failed to parse changelog entries")?;
 
-    let summary: ChangelogSummary = serde_json::from_value(record.summary)
-        .context("Failed to parse changelog summary")?;
+    let summary: ChangelogSummary =
+        serde_json::from_value(record.summary).context("Failed to parse changelog summary")?;
 
     Ok(VersionChangelog {
         bump_type,
@@ -267,18 +268,20 @@ pub async fn list_changelogs_for_data_source(
             .ok_or_else(|| anyhow::anyhow!("Invalid bump type: {}", bump_type_str))?;
 
         let entries_val: serde_json::Value = r.get("entries");
-        let entries: Vec<ChangelogEntry> = serde_json::from_value(entries_val)
-            .context("Failed to parse changelog entries")?;
+        let entries: Vec<ChangelogEntry> =
+            serde_json::from_value(entries_val).context("Failed to parse changelog entries")?;
 
         let summary_val: serde_json::Value = r.get("summary");
-        let summary: ChangelogSummary = serde_json::from_value(summary_val)
-            .context("Failed to parse changelog summary")?;
+        let summary: ChangelogSummary =
+            serde_json::from_value(summary_val).context("Failed to parse changelog summary")?;
 
         let changelog = VersionChangelog {
             bump_type,
             entries,
             summary,
-            summary_text: r.get::<Option<String>, _>("summary_text").unwrap_or_default(),
+            summary_text: r
+                .get::<Option<String>, _>("summary_text")
+                .unwrap_or_default(),
             triggered_by_version_id: r.get("triggered_by_version_id"),
         };
 
@@ -332,18 +335,20 @@ pub async fn find_cascaded_changelogs(
             .ok_or_else(|| anyhow::anyhow!("Invalid bump type: {}", bump_type_str))?;
 
         let entries_val: serde_json::Value = r.get("entries");
-        let entries: Vec<ChangelogEntry> = serde_json::from_value(entries_val)
-            .context("Failed to parse changelog entries")?;
+        let entries: Vec<ChangelogEntry> =
+            serde_json::from_value(entries_val).context("Failed to parse changelog entries")?;
 
         let summary_val: serde_json::Value = r.get("summary");
-        let summary: ChangelogSummary = serde_json::from_value(summary_val)
-            .context("Failed to parse changelog summary")?;
+        let summary: ChangelogSummary =
+            serde_json::from_value(summary_val).context("Failed to parse changelog summary")?;
 
         let changelog = VersionChangelog {
             bump_type,
             entries,
             summary,
-            summary_text: r.get::<Option<String>, _>("summary_text").unwrap_or_default(),
+            summary_text: r
+                .get::<Option<String>, _>("summary_text")
+                .unwrap_or_default(),
             triggered_by_version_id: r.get("triggered_by_version_id"),
         };
 
@@ -390,7 +395,7 @@ pub async fn count_changelogs_by_trigger(pool: &PgPool) -> Result<Vec<(TriggerRe
         FROM version_changelogs
         WHERE triggered_by IS NOT NULL
         GROUP BY triggered_by
-        "#
+        "#,
     )
     .fetch_all(pool)
     .await

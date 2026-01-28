@@ -10,9 +10,7 @@ use sqlx::PgPool;
 use std::sync::Arc;
 use uuid::Uuid;
 
-use super::types::{
-    BatchConfig, CreateJobParams, JobStatus, WorkUnitStatus,
-};
+use super::types::{BatchConfig, CreateJobParams, JobStatus, WorkUnitStatus};
 
 /// Coordinates ingestion jobs and manages pipeline state
 pub struct IngestionCoordinator {
@@ -181,16 +179,19 @@ impl IngestionCoordinator {
                 "INSERT INTO ingestion_work_units (id, job_id, unit_type, batch_number, start_offset, end_offset, status, max_retries) "
             );
 
-            query_builder.push_values(chunk, |mut b, (id, batch_number, start_offset, end_offset)| {
-                b.push_bind(*id)
-                    .push_bind(job_id)
-                    .push_bind(unit_type)
-                    .push_bind(*batch_number)
-                    .push_bind(*start_offset)
-                    .push_bind(*end_offset)
-                    .push_bind(WorkUnitStatus::Pending.as_str())
-                    .push_bind(self.config.max_retries);
-            });
+            query_builder.push_values(
+                chunk,
+                |mut b, (id, batch_number, start_offset, end_offset)| {
+                    b.push_bind(*id)
+                        .push_bind(job_id)
+                        .push_bind(unit_type)
+                        .push_bind(*batch_number)
+                        .push_bind(*start_offset)
+                        .push_bind(*end_offset)
+                        .push_bind(WorkUnitStatus::Pending.as_str())
+                        .push_bind(self.config.max_retries);
+                },
+            );
 
             query_builder
                 .build()
@@ -219,13 +220,11 @@ impl IngestionCoordinator {
 
     /// Reclaim stale work units from dead workers
     pub async fn reclaim_stale_work_units(&self, worker_timeout_secs: i64) -> Result<i32> {
-        let result: (Option<i32>,) = sqlx::query_as(
-            "SELECT reclaim_stale_work_units($1)"
-        )
-        .bind(worker_timeout_secs as i32)
-        .fetch_one(&*self.pool)
-        .await
-        .context("Failed to reclaim stale work units")?;
+        let result: (Option<i32>,) = sqlx::query_as("SELECT reclaim_stale_work_units($1)")
+            .bind(worker_timeout_secs as i32)
+            .fetch_one(&*self.pool)
+            .await
+            .context("Failed to reclaim stale work units")?;
 
         Ok(result.0.unwrap_or(0))
     }
@@ -272,7 +271,7 @@ impl IngestionCoordinator {
                 "processing" => processing = count,
                 "completed" => completed = count,
                 "failed" => failed = count,
-                _ => {}
+                _ => {},
             }
         }
 

@@ -25,7 +25,8 @@ async fn main() -> Result<()> {
         ftp_stream.set_mode(Mode::Passive);
 
         info!("Downloading test file: /pub/databases/GO/goa/current_release_numbers.txt");
-        let cursor = ftp_stream.retr_as_buffer("/pub/databases/GO/goa/current_release_numbers.txt")?;
+        let cursor =
+            ftp_stream.retr_as_buffer("/pub/databases/GO/goa/current_release_numbers.txt")?;
 
         let data = cursor.into_inner();
         let size = data.len();
@@ -68,7 +69,10 @@ async fn main() -> Result<()> {
     }
 
     // Check for goa_uniprot_all.gaf.gz
-    if file_list.iter().any(|f| f.contains("goa_uniprot_all.gaf.gz")) {
+    if file_list
+        .iter()
+        .any(|f| f.contains("goa_uniprot_all.gaf.gz"))
+    {
         info!("\n✓ Found goa_uniprot_all.gaf.gz");
     } else {
         info!("\n✗ goa_uniprot_all.gaf.gz not found");

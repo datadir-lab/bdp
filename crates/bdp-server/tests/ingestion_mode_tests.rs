@@ -21,12 +21,8 @@
 //! cargo test --test ingestion_mode_tests test_config
 //! ```
 
-use bdp_server::ingest::config::{
-    HistoricalConfig, IngestionMode, UniProtConfig,
-};
-use bdp_server::ingest::uniprot::{
-    DiscoveredVersion, UniProtFtpConfig, VersionDiscovery,
-};
+use bdp_server::ingest::config::{HistoricalConfig, IngestionMode, UniProtConfig};
+use bdp_server::ingest::uniprot::{DiscoveredVersion, UniProtFtpConfig, VersionDiscovery};
 use chrono::NaiveDate;
 use serial_test::serial;
 use sqlx::PgPool;
@@ -178,7 +174,7 @@ fn test_config_parse_latest_mode() {
             assert_eq!(latest_cfg.check_interval_secs, 3600);
             assert_eq!(latest_cfg.auto_ingest, true);
             assert_eq!(latest_cfg.ignore_before, Some("2024_01".to_string()));
-        }
+        },
         _ => panic!("Expected IngestionMode::Latest, got {:?}", config.ingestion_mode),
     }
 
@@ -209,11 +205,8 @@ fn test_config_parse_historical_mode() {
             assert_eq!(historical_cfg.end_version, Some("2021_12".to_string()));
             assert_eq!(historical_cfg.batch_size, 5);
             assert_eq!(historical_cfg.skip_existing, false);
-        }
-        _ => panic!(
-            "Expected IngestionMode::Historical, got {:?}",
-            config.ingestion_mode
-        ),
+        },
+        _ => panic!("Expected IngestionMode::Historical, got {:?}", config.ingestion_mode),
     }
 
     // Clean up environment variables
@@ -306,11 +299,7 @@ async fn test_latest_mode_skips_when_current(pool: PgPool) {
     let new_versions = discovery.filter_new_versions(available, ingested_versions);
 
     // Assert: No ingestion needed (already up-to-date)
-    assert_eq!(
-        new_versions.len(),
-        0,
-        "Should not ingest any versions when already up-to-date"
-    );
+    assert_eq!(new_versions.len(), 0, "Should not ingest any versions when already up-to-date");
 
     cleanup_test_data(&pool, org_id).await;
 }
@@ -464,11 +453,8 @@ fn test_default_mode_is_latest() {
     match config.ingestion_mode {
         IngestionMode::Latest(_) => {
             // Success
-        }
-        _ => panic!(
-            "Expected default IngestionMode::Latest, got {:?}",
-            config.ingestion_mode
-        ),
+        },
+        _ => panic!("Expected default IngestionMode::Latest, got {:?}", config.ingestion_mode),
     }
 }
 
@@ -481,10 +467,7 @@ fn test_invalid_mode_returns_error() {
     let result = UniProtConfig::from_env();
 
     // Should return error for invalid mode
-    assert!(
-        result.is_err(),
-        "Should return error for invalid ingestion mode"
-    );
+    assert!(result.is_err(), "Should return error for invalid ingestion mode");
 
     let error_msg = result.unwrap_err().to_string();
     assert!(
@@ -513,15 +496,9 @@ fn test_latest_config_defaults() {
                 latest_cfg.check_interval_secs, 86400,
                 "Default check interval should be 86400 (1 day)"
             );
-            assert_eq!(
-                latest_cfg.auto_ingest, false,
-                "Default auto_ingest should be false"
-            );
-            assert_eq!(
-                latest_cfg.ignore_before, None,
-                "Default ignore_before should be None"
-            );
-        }
+            assert_eq!(latest_cfg.auto_ingest, false, "Default auto_ingest should be false");
+            assert_eq!(latest_cfg.ignore_before, None, "Default ignore_before should be None");
+        },
         _ => panic!("Expected IngestionMode::Latest"),
     }
 
@@ -546,19 +523,10 @@ fn test_historical_config_defaults() {
                 historical_cfg.start_version, "2020_01",
                 "Default start_version should be 2020_01"
             );
-            assert_eq!(
-                historical_cfg.end_version, None,
-                "Default end_version should be None"
-            );
-            assert_eq!(
-                historical_cfg.batch_size, 3,
-                "Default batch_size should be 3"
-            );
-            assert_eq!(
-                historical_cfg.skip_existing, true,
-                "Default skip_existing should be true"
-            );
-        }
+            assert_eq!(historical_cfg.end_version, None, "Default end_version should be None");
+            assert_eq!(historical_cfg.batch_size, 3, "Default batch_size should be 3");
+            assert_eq!(historical_cfg.skip_existing, true, "Default skip_existing should be true");
+        },
         _ => panic!("Expected IngestionMode::Historical"),
     }
 

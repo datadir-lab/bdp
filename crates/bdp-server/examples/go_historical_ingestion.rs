@@ -22,9 +22,7 @@
 
 use anyhow::{Context, Result};
 use bdp_server::config::load_config;
-use bdp_server::ingest::gene_ontology::{
-    GoHttpConfig, GoPipeline, VersionDiscovery,
-};
+use bdp_server::ingest::gene_ontology::{GoHttpConfig, GoPipeline, VersionDiscovery};
 use bdp_server::storage::Storage;
 use chrono::NaiveDate;
 use sqlx::PgPool;
@@ -62,7 +60,7 @@ async fn main() -> Result<()> {
             }
             let start_date = parse_date(&args[2])?;
             backfill_versions(start_date, None).await?;
-        }
+        },
         "backfill-range" => {
             if args.len() < 4 {
                 eprintln!("Error: backfill-range requires start and end dates (YYYY-MM-DD)");
@@ -72,7 +70,7 @@ async fn main() -> Result<()> {
             let start_date = parse_date(&args[2])?;
             let end_date = parse_date(&args[3])?;
             backfill_versions(start_date, Some(end_date)).await?;
-        }
+        },
         "ingest" => {
             if args.len() < 3 {
                 eprintln!("Error: ingest requires a version (YYYY-MM-DD)");
@@ -80,11 +78,11 @@ async fn main() -> Result<()> {
                 return Ok(());
             }
             ingest_version(&args[2]).await?;
-        }
+        },
         _ => {
             eprintln!("Error: Unknown command '{}'", command);
             print_usage();
-        }
+        },
     }
 
     Ok(())
@@ -110,7 +108,9 @@ fn print_usage() {
     eprintln!("    cargo run --example go_historical_ingestion -- discover");
     eprintln!("    cargo run --example go_historical_ingestion -- check");
     eprintln!("    cargo run --example go_historical_ingestion -- backfill 2024-01-01");
-    eprintln!("    cargo run --example go_historical_ingestion -- backfill-range 2024-01-01 2024-12-31");
+    eprintln!(
+        "    cargo run --example go_historical_ingestion -- backfill-range 2024-01-01 2024-12-31"
+    );
     eprintln!("    cargo run --example go_historical_ingestion -- ingest 2025-01-01");
 }
 
@@ -185,10 +185,7 @@ async fn check_for_new_versions() -> Result<()> {
         println!("\n✅ All available GO versions have been ingested!");
         println!();
     } else {
-        println!(
-            "\n📦 Found {} new versions to ingest:",
-            new_versions.len()
-        );
+        println!("\n📦 Found {} new versions to ingest:", new_versions.len());
         println!();
         println!("{:<15} {:<12}", "Version", "Date");
         println!("{:-<30}", "");
@@ -244,10 +241,7 @@ async fn backfill_versions(start_date: NaiveDate, end_date: Option<NaiveDate>) -
         return Ok(());
     }
 
-    println!(
-        "\n📦 Will ingest {} GO versions:",
-        versions.len()
-    );
+    println!("\n📦 Will ingest {} GO versions:", versions.len());
     for version in &versions {
         println!("  - {} ({})", version.external_version, version.release_date);
     }
@@ -276,14 +270,11 @@ async fn backfill_versions(start_date: NaiveDate, end_date: Option<NaiveDate>) -
                     "✅ Ingested {}: {} terms, {} relationships",
                     version.external_version, stats.terms_stored, stats.relationships_stored
                 );
-            }
+            },
             Err(e) => {
-                warn!(
-                    "❌ Failed to ingest {}: {}",
-                    version.external_version, e
-                );
+                warn!("❌ Failed to ingest {}: {}", version.external_version, e);
                 // Continue with next version instead of failing entirely
-            }
+            },
         }
     }
 
@@ -363,10 +354,8 @@ async fn get_go_organization_id(db: &PgPool) -> Result<Uuid> {
     match result {
         Some(record) => Ok(record.id),
         None => {
-            anyhow::bail!(
-                "GO organization not found. Please create it first using the server API."
-            )
-        }
+            anyhow::bail!("GO organization not found. Please create it first using the server API.")
+        },
     }
 }
 
@@ -390,6 +379,6 @@ async fn get_go_entry_id(db: &PgPool, organization_id: Uuid) -> Result<Uuid> {
             anyhow::bail!(
                 "GO registry entry not found. Please create it first using the server API."
             )
-        }
+        },
     }
 }

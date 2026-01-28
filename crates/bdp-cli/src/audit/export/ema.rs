@@ -179,9 +179,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_ema_report_structure() {
-        let audit = Arc::new(
-            LocalAuditLogger::new_in_memory("test-machine".to_string()).unwrap(),
-        ) as Arc<dyn AuditLogger>;
+        let audit = Arc::new(LocalAuditLogger::new_in_memory("test-machine".to_string()).unwrap())
+            as Arc<dyn AuditLogger>;
 
         let exporter = EmaExporter::new(audit);
 

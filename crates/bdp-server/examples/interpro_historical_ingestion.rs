@@ -26,16 +26,20 @@ async fn main() -> Result<()> {
 
     // Parse arguments
     let args: Vec<String> = env::args().collect();
-    let start_version = args
-        .get(1)
-        .map(|s| s.as_str())
-        .unwrap_or("96.0");
+    let start_version = args.get(1).map(|s| s.as_str()).unwrap_or("96.0");
     let single_version = args.contains(&"--single".to_string());
 
     tracing::info!("InterPro Historical Ingestion");
     tracing::info!("==============================");
     tracing::info!("Start version: {}", start_version);
-    tracing::info!("Mode: {}", if single_version { "single" } else { "historical" });
+    tracing::info!(
+        "Mode: {}",
+        if single_version {
+            "single"
+        } else {
+            "historical"
+        }
+    );
     tracing::info!("");
 
     // Load configuration
@@ -52,8 +56,7 @@ async fn main() -> Result<()> {
 
     // Create download directory
     let download_dir = std::path::PathBuf::from("./data/interpro_downloads");
-    std::fs::create_dir_all(&download_dir)
-        .context("Failed to create download directory")?;
+    std::fs::create_dir_all(&download_dir).context("Failed to create download directory")?;
 
     // Create pipeline
     let pipeline = InterProPipeline::new(pool.clone(), interpro_config, download_dir);
@@ -72,20 +75,17 @@ async fn main() -> Result<()> {
                 tracing::info!("  Signatures stored: {}", stats.signatures_stored);
                 tracing::info!("  Matches parsed: {}", stats.matches_parsed);
                 tracing::info!("  Matches stored: {}", stats.matches_stored);
-            }
+            },
             Err(e) => {
                 tracing::error!("Ingestion failed: {}", e);
                 return Err(e.into());
-            }
+            },
         }
     } else {
         // Ingest all versions from start_version onwards
         tracing::info!("Starting historical ingestion from version {}", start_version);
 
-        match pipeline
-            .ingest_from_version(start_version, true)
-            .await
-        {
+        match pipeline.ingest_from_version(start_version, true).await {
             Ok(results) => {
                 tracing::info!("");
                 tracing::info!("Historical ingestion complete!");
@@ -100,11 +100,11 @@ async fn main() -> Result<()> {
                     tracing::info!("  Signatures: {}", stats.signatures_stored);
                     tracing::info!("  Protein matches: {}", stats.matches_stored);
                 }
-            }
+            },
             Err(e) => {
                 tracing::error!("Historical ingestion failed: {}", e);
                 return Err(e.into());
-            }
+            },
         }
     }
 

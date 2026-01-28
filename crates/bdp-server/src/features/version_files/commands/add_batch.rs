@@ -206,10 +206,7 @@ mod tests {
             size_bytes: 100,
             compression: None,
         };
-        assert!(matches!(
-            file.validate(),
-            Err(AddVersionFilesError::FormatRequired)
-        ));
+        assert!(matches!(file.validate(), Err(AddVersionFilesError::FormatRequired)));
     }
 
     #[test]
@@ -221,10 +218,7 @@ mod tests {
             size_bytes: 100,
             compression: None,
         };
-        assert!(matches!(
-            file.validate(),
-            Err(AddVersionFilesError::InvalidFormat(_))
-        ));
+        assert!(matches!(file.validate(), Err(AddVersionFilesError::InvalidFormat(_))));
     }
 
     #[test]
@@ -236,10 +230,7 @@ mod tests {
             size_bytes: 100,
             compression: None,
         };
-        assert!(matches!(
-            file.validate(),
-            Err(AddVersionFilesError::S3KeyRequired)
-        ));
+        assert!(matches!(file.validate(), Err(AddVersionFilesError::S3KeyRequired)));
     }
 
     #[test]
@@ -251,10 +242,7 @@ mod tests {
             size_bytes: 100,
             compression: None,
         };
-        assert!(matches!(
-            file.validate(),
-            Err(AddVersionFilesError::S3KeyTooLong)
-        ));
+        assert!(matches!(file.validate(), Err(AddVersionFilesError::S3KeyTooLong)));
     }
 
     #[test]
@@ -266,10 +254,7 @@ mod tests {
             size_bytes: 100,
             compression: None,
         };
-        assert!(matches!(
-            file.validate(),
-            Err(AddVersionFilesError::ChecksumRequired)
-        ));
+        assert!(matches!(file.validate(), Err(AddVersionFilesError::ChecksumRequired)));
     }
 
     #[test]
@@ -281,10 +266,7 @@ mod tests {
             size_bytes: 100,
             compression: None,
         };
-        assert!(matches!(
-            file.validate(),
-            Err(AddVersionFilesError::ChecksumLength)
-        ));
+        assert!(matches!(file.validate(), Err(AddVersionFilesError::ChecksumLength)));
     }
 
     #[test]
@@ -296,10 +278,7 @@ mod tests {
             size_bytes: 0,
             compression: None,
         };
-        assert!(matches!(
-            file.validate(),
-            Err(AddVersionFilesError::InvalidSize)
-        ));
+        assert!(matches!(file.validate(), Err(AddVersionFilesError::InvalidSize)));
     }
 
     #[test]
@@ -311,10 +290,7 @@ mod tests {
             size_bytes: -1,
             compression: None,
         };
-        assert!(matches!(
-            file.validate(),
-            Err(AddVersionFilesError::InvalidSize)
-        ));
+        assert!(matches!(file.validate(), Err(AddVersionFilesError::InvalidSize)));
     }
 
     #[test]
@@ -326,10 +302,7 @@ mod tests {
             size_bytes: 100,
             compression: Some("invalid".to_string()),
         };
-        assert!(matches!(
-            file.validate(),
-            Err(AddVersionFilesError::InvalidCompression(_))
-        ));
+        assert!(matches!(file.validate(), Err(AddVersionFilesError::InvalidCompression(_))));
     }
 
     #[test]
@@ -342,11 +315,7 @@ mod tests {
                 size_bytes: 100,
                 compression: Some(compression.to_string()),
             };
-            assert!(
-                file.validate().is_ok(),
-                "Compression {} should be valid",
-                compression
-            );
+            assert!(file.validate().is_ok(), "Compression {} should be valid", compression);
         }
     }
 
@@ -356,10 +325,7 @@ mod tests {
             version_id: Uuid::new_v4(),
             files: vec![],
         };
-        assert!(matches!(
-            cmd.validate(),
-            Err(AddVersionFilesError::FilesRequired)
-        ));
+        assert!(matches!(cmd.validate(), Err(AddVersionFilesError::FilesRequired)));
     }
 
     #[test]
@@ -416,13 +382,12 @@ mod tests {
         let version_id = Uuid::new_v4();
         sqlx::query!(
             r#"
-            INSERT INTO versions (id, data_source_id, version_string, status)
-            VALUES ($1, $2, $3, $4)
+            INSERT INTO versions (id, entry_id, version)
+            VALUES ($1, $2, $3)
             "#,
             version_id,
             entry_id,
-            "1.0",
-            "published"
+            "1.0"
         )
         .execute(&pool)
         .await?;
@@ -484,13 +449,12 @@ mod tests {
         let version_id = Uuid::new_v4();
         sqlx::query!(
             r#"
-            INSERT INTO versions (id, data_source_id, version_string, status)
-            VALUES ($1, $2, $3, $4)
+            INSERT INTO versions (id, entry_id, version)
+            VALUES ($1, $2, $3)
             "#,
             version_id,
             entry_id,
-            "1.0",
-            "published"
+            "1.0"
         )
         .execute(&pool)
         .await?;
@@ -560,13 +524,12 @@ mod tests {
         let version_id = Uuid::new_v4();
         sqlx::query!(
             r#"
-            INSERT INTO versions (id, data_source_id, version_string, status)
-            VALUES ($1, $2, $3, $4)
+            INSERT INTO versions (id, entry_id, version)
+            VALUES ($1, $2, $3)
             "#,
             version_id,
             entry_id,
-            "1.0",
-            "published"
+            "1.0"
         )
         .execute(&pool)
         .await?;
@@ -627,10 +590,7 @@ mod tests {
         };
 
         let result = handle(pool.clone(), cmd).await;
-        assert!(matches!(
-            result,
-            Err(AddVersionFilesError::VersionNotFound(_))
-        ));
+        assert!(matches!(result, Err(AddVersionFilesError::VersionNotFound(_))));
         Ok(())
     }
 }

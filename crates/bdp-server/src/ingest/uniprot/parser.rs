@@ -105,7 +105,7 @@ impl DatParser {
                     Ok(entries) => {
                         tracing::info!("Successfully extracted and parsed DAT from tar archive");
                         Ok(entries)
-                    }
+                    },
                     Err(tar_err) => {
                         // Not a valid tar archive, try parsing as plain DAT file
                         tracing::info!(
@@ -113,14 +113,14 @@ impl DatParser {
                             "Failed to parse as tar, trying as plain DAT file"
                         );
                         self.parse_reader(&decompressed[..])
-                    }
+                    },
                 }
-            }
+            },
             Err(e) => {
                 tracing::warn!(error = %e, "Failed to decompress as gzip, trying plain DAT");
                 // Not gzipped, try parsing as plain DAT
                 self.parse_reader(data)
-            }
+            },
         }
     }
 
@@ -188,13 +188,13 @@ impl DatParser {
     /// * `data` - Raw DAT file data (will be decompressed if needed)
     /// * `start_offset` - Start parsing from this entry index (0-based)
     /// * `end_offset` - Stop parsing at this entry index (inclusive)
-    pub fn parse_range(&self, data: &[u8], start_offset: usize, end_offset: usize) -> Result<Vec<UniProtEntry>> {
-        tracing::info!(
-            start_offset,
-            end_offset,
-            input_size = data.len(),
-            "parse_range called"
-        );
+    pub fn parse_range(
+        &self,
+        data: &[u8],
+        start_offset: usize,
+        end_offset: usize,
+    ) -> Result<Vec<UniProtEntry>> {
+        tracing::info!(start_offset, end_offset, input_size = data.len(), "parse_range called");
 
         // First decompress/extract if needed (same as parse_bytes)
         let dat_data = self.extract_dat_data(data)?;
@@ -229,23 +229,27 @@ impl DatParser {
                         );
                     }
 
+                    #[allow(clippy::excessive_nesting)]
                     match current_entry.build()? {
                         Some(entry) => {
                             entries.push(entry);
-                            if entries.len() == 1 {
+                            let is_first_entry = entries.len() == 1;
+                            if is_first_entry {
                                 tracing::info!(entry_index, "Successfully built first entry!");
                             }
-                        }
+                        },
                         None => {
                             entries_skipped_no_build += 1;
-                            if entries_skipped_no_build <= 3 || entry_index == start_offset {
+                            let should_log =
+                                entries_skipped_no_build <= 3 || entry_index == start_offset;
+                            if should_log {
                                 tracing::warn!(
                                     entry_index,
                                     lines_processed_for_entry = lines_processed,
                                     "Entry skipped - build() returned None (missing required fields)"
                                 );
                             }
-                        }
+                        },
                     }
                 }
 
@@ -290,7 +294,12 @@ impl DatParser {
     /// * `dat_data` - Already decompressed DAT file data (plain text format)
     /// * `start_offset` - Start parsing from this entry index (0-based)
     /// * `end_offset` - Stop parsing at this entry index (inclusive)
-    pub fn parse_range_predecompressed(&self, dat_data: &[u8], start_offset: usize, end_offset: usize) -> Result<Vec<UniProtEntry>> {
+    pub fn parse_range_predecompressed(
+        &self,
+        dat_data: &[u8],
+        start_offset: usize,
+        end_offset: usize,
+    ) -> Result<Vec<UniProtEntry>> {
         tracing::info!(
             start_offset,
             end_offset,
@@ -300,11 +309,13 @@ impl DatParser {
 
         // Validate that this is actually DAT format
         if !dat_data.starts_with(b"ID   ") {
-            anyhow::bail!("Data does not appear to be decompressed DAT format (should start with 'ID   ')");
+            anyhow::bail!(
+                "Data does not appear to be decompressed DAT format (should start with 'ID   ')"
+            );
         }
 
         // Parse the requested range directly (no extraction needed)
-        let buf_reader = BufReader::new(&dat_data[..]);
+        let buf_reader = BufReader::new(dat_data);
         let mut entries = Vec::new();
         let mut current_entry = EntryBuilder::new();
         let mut in_sequence = false;
@@ -327,23 +338,27 @@ impl DatParser {
                         );
                     }
 
+                    #[allow(clippy::excessive_nesting)]
                     match current_entry.build()? {
                         Some(entry) => {
                             entries.push(entry);
-                            if entries.len() == 1 {
+                            let is_first_entry = entries.len() == 1;
+                            if is_first_entry {
                                 tracing::info!(entry_index, "Successfully built first entry!");
                             }
-                        }
+                        },
                         None => {
                             entries_skipped_no_build += 1;
-                            if entries_skipped_no_build <= 3 || entry_index == start_offset {
+                            let should_log =
+                                entries_skipped_no_build <= 3 || entry_index == start_offset;
+                            if should_log {
                                 tracing::warn!(
                                     entry_index,
                                     lines_processed_for_entry = lines_processed,
                                     "Entry skipped - build() returned None (missing required fields)"
                                 );
                             }
-                        }
+                        },
                     }
                 }
 
@@ -384,7 +399,7 @@ impl DatParser {
     /// This method assumes the data is already decompressed DAT format.
     /// Use this when reading from cache to avoid redundant decompression.
     pub fn count_entries_predecompressed(&self, dat_data: &[u8]) -> Result<usize> {
-        let buf_reader = BufReader::new(&dat_data[..]);
+        let buf_reader = BufReader::new(dat_data);
         let mut count = 0;
 
         for line in buf_reader.lines() {
@@ -425,7 +440,10 @@ impl DatParser {
                 // Try to extract from tar if it's an archive
                 match self.extract_from_tar(&decompressed) {
                     Ok(dat_content) => {
-                        tracing::debug!(size = dat_content.len(), "Successfully extracted DAT from tar");
+                        tracing::debug!(
+                            size = dat_content.len(),
+                            "Successfully extracted DAT from tar"
+                        );
                         Ok(dat_content)
                     },
                     Err(e) => {
@@ -434,19 +452,25 @@ impl DatParser {
                         if decompressed.starts_with(b"ID   ") {
                             Ok(decompressed)
                         } else {
-                            Err(anyhow!("Decompressed data is not DAT format and tar extraction failed: {}", e))
+                            Err(anyhow!(
+                                "Decompressed data is not DAT format and tar extraction failed: {}",
+                                e
+                            ))
                         }
-                    }
+                    },
                 }
-            }
+            },
             Err(e) => {
                 tracing::warn!(error = %e, "Not gzipped, trying tar extraction on raw data");
                 // Data is not gzipped - might be already decompressed tar archive
                 match self.extract_from_tar(data) {
                     Ok(dat_content) => {
-                        tracing::debug!(size = dat_content.len(), "Successfully extracted DAT from tar (raw)");
+                        tracing::debug!(
+                            size = dat_content.len(),
+                            "Successfully extracted DAT from tar (raw)"
+                        );
                         Ok(dat_content)
-                    }
+                    },
                     Err(tar_err) => {
                         tracing::warn!(error = %tar_err, "Failed to extract from tar, trying as plain DAT");
                         // Check if raw data looks like DAT
@@ -455,9 +479,9 @@ impl DatParser {
                         } else {
                             Err(anyhow!("Data is not gzipped, not a tar archive, and does not look like DAT format. Gzip error: {}, Tar error: {}", e, tar_err))
                         }
-                    }
+                    },
                 }
-            }
+            },
         }
     }
 
@@ -483,7 +507,8 @@ impl DatParser {
                 // Decompress the .dat.gz content
                 let mut decoder = GzDecoder::new(&compressed_content[..]);
                 let mut dat_content = Vec::new();
-                decoder.read_to_end(&mut dat_content)
+                decoder
+                    .read_to_end(&mut dat_content)
                     .context(format!("Failed to decompress {} from tar", path_str))?;
 
                 tracing::debug!(size = dat_content.len(), "Decompressed DAT content");
@@ -500,11 +525,20 @@ impl DatParser {
         }
 
         tracing::warn!(files = ?found_files, "Files found in tar archive (none with .dat or .dat.gz extension)");
-        Err(anyhow!("No .dat or .dat.gz file found in tar archive. Found {} files: {:?}", found_files.len(), found_files))
+        Err(anyhow!(
+            "No .dat or .dat.gz file found in tar archive. Found {} files: {:?}",
+            found_files.len(),
+            found_files
+        ))
     }
 
     /// Process a single line during parsing
-    fn process_line(&self, line: &str, current_entry: &mut EntryBuilder, in_sequence: &mut bool) -> Result<()> {
+    fn process_line(
+        &self,
+        line: &str,
+        current_entry: &mut EntryBuilder,
+        in_sequence: &mut bool,
+    ) -> Result<()> {
         // Skip empty lines
         if line.trim().is_empty() {
             return Ok(());
@@ -817,7 +851,8 @@ impl EntryBuilder {
         if let Some(start) = line.find("AltName: Full=") {
             let name_part = &line[start + 14..];
             if let Some(end) = name_part.find([';', '{']) {
-                self.alternative_names.push(name_part[..end].trim().to_string());
+                self.alternative_names
+                    .push(name_part[..end].trim().to_string());
             } else {
                 self.alternative_names.push(name_part.trim().to_string());
             }
@@ -827,7 +862,8 @@ impl EntryBuilder {
         if let Some(start) = line.find("SubName: Full=") {
             let name_part = &line[start + 14..];
             if let Some(end) = name_part.find([';', '{']) {
-                self.alternative_names.push(name_part[..end].trim().to_string());
+                self.alternative_names
+                    .push(name_part[..end].trim().to_string());
             } else {
                 self.alternative_names.push(name_part.trim().to_string());
             }
@@ -1085,7 +1121,10 @@ impl EntryBuilder {
 
     /// Parse OG line: OG   Mitochondrion.
     fn parse_og_line(&mut self, line: &str) -> Result<()> {
-        let og_part = line.trim_start_matches("OG   ").trim().trim_end_matches('.');
+        let og_part = line
+            .trim_start_matches("OG   ")
+            .trim()
+            .trim_end_matches('.');
         if !og_part.is_empty() && self.organelle.is_none() {
             self.organelle = Some(og_part.to_string());
         }
@@ -1097,7 +1136,10 @@ impl EntryBuilder {
         let oh_part = line.trim_start_matches("OH   ");
         // Extract organism name after semicolon
         if let Some(semicolon_pos) = oh_part.find(';') {
-            let host = oh_part[semicolon_pos + 1..].trim().trim_end_matches('.').to_string();
+            let host = oh_part[semicolon_pos + 1..]
+                .trim()
+                .trim_end_matches('.')
+                .to_string();
             if !host.is_empty() {
                 self.organism_hosts.push(host);
             }
@@ -1184,7 +1226,10 @@ impl EntryBuilder {
     /// Parse RG line: RG   The C. elegans sequencing consortium;
     fn parse_rg_line(&mut self, line: &str) -> Result<()> {
         if let Some(ref mut pub_builder) = self.current_publication {
-            let rg_part = line.trim_start_matches("RG   ").trim().trim_end_matches(';');
+            let rg_part = line
+                .trim_start_matches("RG   ")
+                .trim()
+                .trim_end_matches(';');
             if let Some(existing) = &mut pub_builder.author_group {
                 existing.push(' ');
                 existing.push_str(rg_part);
@@ -1346,8 +1391,7 @@ fn parse_date(date_str: &str) -> Result<NaiveDate> {
     };
     let year: i32 = parts[2].parse().context("Failed to parse year")?;
 
-    NaiveDate::from_ymd_opt(year, month, day)
-        .with_context(|| format!("Invalid date: {}", date_str))
+    NaiveDate::from_ymd_opt(year, month, day).with_context(|| format!("Invalid date: {}", date_str))
 }
 
 #[cfg(test)]
@@ -1390,7 +1434,9 @@ mod tests {
     #[test]
     fn test_entry_builder_id() {
         let mut builder = EntryBuilder::new();
-        builder.parse_id_line("ID   TEST_HUMAN     Reviewed;         100 AA.").unwrap();
+        builder
+            .parse_id_line("ID   TEST_HUMAN     Reviewed;         100 AA.")
+            .unwrap();
         assert_eq!(builder.entry_name, Some("TEST_HUMAN".to_string()));
     }
 
@@ -1415,7 +1461,9 @@ mod tests {
     #[test]
     fn test_entry_builder_gene_name() {
         let mut builder = EntryBuilder::new();
-        builder.parse_gn_line("GN   Name=TEST; Synonyms=TST;").unwrap();
+        builder
+            .parse_gn_line("GN   Name=TEST; Synonyms=TST;")
+            .unwrap();
         assert_eq!(builder.gene_name, Some("TEST".to_string()));
     }
 
@@ -1453,15 +1501,21 @@ mod tests {
     #[test]
     fn test_entry_builder_oc_line_single() {
         let mut builder = EntryBuilder::new();
-        builder.parse_oc_line("OC   Eukaryota; Metazoa; Chordata.").unwrap();
+        builder
+            .parse_oc_line("OC   Eukaryota; Metazoa; Chordata.")
+            .unwrap();
         assert_eq!(builder.taxonomy_lineage, vec!["Eukaryota", "Metazoa", "Chordata"]);
     }
 
     #[test]
     fn test_entry_builder_oc_line_multiline() {
         let mut builder = EntryBuilder::new();
-        builder.parse_oc_line("OC   Viruses; Riboviria; Orthornavirae; Kitrinoviricota;").unwrap();
-        builder.parse_oc_line("OC   Flasuviricetes; Amarillovirales; Flaviviridae; Flavivirus.").unwrap();
+        builder
+            .parse_oc_line("OC   Viruses; Riboviria; Orthornavirae; Kitrinoviricota;")
+            .unwrap();
+        builder
+            .parse_oc_line("OC   Flasuviricetes; Amarillovirales; Flaviviridae; Flavivirus.")
+            .unwrap();
         assert_eq!(
             builder.taxonomy_lineage,
             vec![
@@ -1480,7 +1534,9 @@ mod tests {
     #[test]
     fn test_entry_builder_oc_line_trailing_period() {
         let mut builder = EntryBuilder::new();
-        builder.parse_oc_line("OC   Bacteria; Proteobacteria; Gammaproteobacteria.").unwrap();
+        builder
+            .parse_oc_line("OC   Bacteria; Proteobacteria; Gammaproteobacteria.")
+            .unwrap();
         assert_eq!(
             builder.taxonomy_lineage,
             vec!["Bacteria", "Proteobacteria", "Gammaproteobacteria"]
@@ -1490,10 +1546,9 @@ mod tests {
     #[test]
     fn test_entry_builder_oc_line_archaea() {
         let mut builder = EntryBuilder::new();
-        builder.parse_oc_line("OC   Archaea; Euryarchaeota; Methanomicrobia.").unwrap();
-        assert_eq!(
-            builder.taxonomy_lineage,
-            vec!["Archaea", "Euryarchaeota", "Methanomicrobia"]
-        );
+        builder
+            .parse_oc_line("OC   Archaea; Euryarchaeota; Methanomicrobia.")
+            .unwrap();
+        assert_eq!(builder.taxonomy_lineage, vec!["Archaea", "Euryarchaeota", "Methanomicrobia"]);
     }
 }

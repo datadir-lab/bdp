@@ -190,10 +190,7 @@ pub async fn cascade_version_bump(
         return Ok(Vec::new());
     }
 
-    info!(
-        dependent_count = dependents.len(),
-        "Found dependents to cascade"
-    );
+    info!(dependent_count = dependents.len(), "Found dependents to cascade");
 
     // Get source version info for changelog
     let source_row = sqlx::query(
@@ -238,7 +235,7 @@ pub async fn cascade_version_bump(
                     "Cascaded version bump"
                 );
                 cascade_results.push(result);
-            }
+            },
             Err(e) => {
                 warn!(
                     dependent_slug = %dependent.slug,
@@ -246,14 +243,11 @@ pub async fn cascade_version_bump(
                     "Failed to cascade version bump to dependent"
                 );
                 // Continue with other dependents even if one fails
-            }
+            },
         }
     }
 
-    info!(
-        cascaded_count = cascade_results.len(),
-        "Version cascade complete"
-    );
+    info!(cascaded_count = cascade_results.len(), "Version cascade complete");
 
     Ok(cascade_results)
 }
@@ -327,10 +321,7 @@ fn create_cascade_changelog(
     source_version_id: Uuid,
     source_changelog: &VersionChangelog,
 ) -> VersionChangelog {
-    let description = format!(
-        "Updated dependency {} to version {}",
-        source_slug, source_version
-    );
+    let description = format!("Updated dependency {} to version {}", source_slug, source_version);
 
     let entries = vec![ChangelogEntry::dependency(
         "dependencies",
@@ -338,19 +329,9 @@ fn create_cascade_changelog(
         source_changelog.has_breaking_changes(),
     )];
 
-    let summary = ChangelogSummary::new(
-        0,
-        0,
-        0,
-        0,
-        0,
-        TriggerReason::UpstreamDependency,
-    );
+    let summary = ChangelogSummary::new(0, 0, 0, 0, 0, TriggerReason::UpstreamDependency);
 
-    let summary_text = format!(
-        "Dependency update ({} version bump): {}",
-        bump_type, description
-    );
+    let summary_text = format!("Dependency update ({} version bump): {}", bump_type, description);
 
     VersionChangelog::from_dependency(bump_type, entries, summary, summary_text, source_version_id)
 }

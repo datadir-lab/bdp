@@ -7,13 +7,11 @@ pub use refresh_search_index::{
 };
 
 pub use suggestions::{
-    SearchSuggestionItem, SearchSuggestionsError, SearchSuggestionsQuery,
-    SearchSuggestionsResponse,
+    SearchSuggestionItem, SearchSuggestionsError, SearchSuggestionsQuery, SearchSuggestionsResponse,
 };
 
 pub use unified_search::{
-    OrganismInfo, SearchResultItem, UnifiedSearchError, UnifiedSearchQuery,
-    UnifiedSearchResponse,
+    OrganismInfo, SearchResultItem, UnifiedSearchError, UnifiedSearchQuery, UnifiedSearchResponse,
 };
 // Re-export from shared module to avoid privacy issues
 pub use crate::features::shared::pagination::PaginationMetadata;

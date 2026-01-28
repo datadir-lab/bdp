@@ -23,14 +23,16 @@ pub fn data_source_download_url(
 
 /// Build data source details URL
 pub fn data_source_details_url(base_url: &str, org: &str, name: &str, version: &str) -> String {
-    format!(
-        "{}/api/v1/data-sources/{}/{}/{}",
-        base_url, org, name, version
-    )
+    format!("{}/api/v1/data-sources/{}/{}/{}", base_url, org, name, version)
 }
 
 /// Build search URL
-pub fn search_url(base_url: &str, query: &str, page: Option<i32>, page_size: Option<i32>) -> String {
+pub fn search_url(
+    base_url: &str,
+    query: &str,
+    page: Option<i32>,
+    page_size: Option<i32>,
+) -> String {
     let mut url = format!("{}/api/v1/search?q={}", base_url, query);
 
     if let Some(p) = page {
@@ -71,13 +73,8 @@ mod tests {
 
     #[test]
     fn test_data_source_download_url() {
-        let url = data_source_download_url(
-            "http://localhost:8000",
-            "uniprot",
-            "P01308",
-            "1.0",
-            "fasta",
-        );
+        let url =
+            data_source_download_url("http://localhost:8000", "uniprot", "P01308", "1.0", "fasta");
         assert_eq!(
             url,
             "http://localhost:8000/api/v1/data-sources/uniprot/P01308/1.0/download?format=fasta"
@@ -87,10 +84,7 @@ mod tests {
     #[test]
     fn test_data_source_details_url() {
         let url = data_source_details_url("http://localhost:8000", "uniprot", "P01308", "1.0");
-        assert_eq!(
-            url,
-            "http://localhost:8000/api/v1/data-sources/uniprot/P01308/1.0"
-        );
+        assert_eq!(url, "http://localhost:8000/api/v1/data-sources/uniprot/P01308/1.0");
     }
 
     #[test]

@@ -171,7 +171,8 @@ impl IngestStats {
     /// Get success rate as percentage
     pub fn success_rate(&self) -> f64 {
         if self.total_entries > 0 {
-            ((self.entries_inserted + self.entries_updated) as f64 / self.total_entries as f64) * 100.0
+            ((self.entries_inserted + self.entries_updated) as f64 / self.total_entries as f64)
+                * 100.0
         } else {
             0.0
         }

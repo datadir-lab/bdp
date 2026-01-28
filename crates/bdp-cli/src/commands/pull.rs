@@ -14,8 +14,12 @@ use colored::Colorize;
 /// Pull sources from manifest
 pub async fn run(server_url: String, force: bool) -> Result<()> {
     // Load manifest
-    let manifest = Manifest::load("bdp.yml")
-        .map_err(|_| CliError::NotInitialized("No bdp.yml found in current directory. Initialize a project with 'bdp init' first.".to_string()))?;
+    let manifest = Manifest::load("bdp.yml").map_err(|_| {
+        CliError::NotInitialized(
+            "No bdp.yml found in current directory. Initialize a project with 'bdp init' first."
+                .to_string(),
+        )
+    })?;
 
     if manifest.sources.is_empty() {
         println!("No sources to pull. Add sources with 'bdp source add'");
@@ -87,16 +91,15 @@ pub async fn run(server_url: String, force: bool) -> Result<()> {
 
         // Store in cache
         cache
-            .store(
-                spec,
-                &resolved_source.resolved,
-                format_str,
-                bytes,
-                &resolved_source.checksum,
-            )
+            .store(spec, &resolved_source.resolved, format_str, bytes, &resolved_source.checksum)
             .await?;
 
-        println!("{} {} ({}) verified", "✓".green(), spec, progress::format_bytes(resolved_source.size as u64));
+        println!(
+            "{} {} ({}) verified",
+            "✓".green(),
+            spec,
+            progress::format_bytes(resolved_source.size as u64)
+        );
 
         // Add to lockfile
         let entry = SourceEntry::new(

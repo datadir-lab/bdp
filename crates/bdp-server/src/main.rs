@@ -17,7 +17,9 @@ use tower_http::compression::CompressionLayer;
 use tracing::info;
 
 use bdp_server::{
-    audit, config::Config, features, ingest, middleware,
+    audit,
+    config::Config,
+    features, ingest, middleware,
     storage::{config::StorageConfig, Storage},
 };
 
@@ -218,31 +220,29 @@ async fn list_sources() -> impl IntoResponse {
 /// Get platform statistics
 async fn get_stats(State(state): State<AppState>) -> impl IntoResponse {
     // Query all stats in parallel
-    let datasources_result = sqlx::query!("SELECT COUNT(*) as count FROM data_sources")
-        .fetch_one(&state.db);
+    let datasources_result =
+        sqlx::query!("SELECT COUNT(*) as count FROM data_sources").fetch_one(&state.db);
 
-    let organizations_result = sqlx::query!("SELECT COUNT(*) as count FROM organizations")
-        .fetch_one(&state.db);
+    let organizations_result =
+        sqlx::query!("SELECT COUNT(*) as count FROM organizations").fetch_one(&state.db);
 
-    let downloads_result = sqlx::query!("SELECT COUNT(*) as count FROM downloads")
-        .fetch_one(&state.db);
+    let downloads_result =
+        sqlx::query!("SELECT COUNT(*) as count FROM downloads").fetch_one(&state.db);
 
     // Execute all queries concurrently
     let (datasources_res, organizations_res, downloads_res) =
         tokio::join!(datasources_result, organizations_result, downloads_result);
 
     match (datasources_res, organizations_res, downloads_res) {
-        (Ok(ds), Ok(orgs), Ok(dl)) => {
-            (
-                StatusCode::OK,
-                Json(json!({
-                    "datasources": ds.count.unwrap_or(0),
-                    "organizations": orgs.count.unwrap_or(0),
-                    "downloads": dl.count.unwrap_or(0)
-                })),
-            )
-                .into_response()
-        }
+        (Ok(ds), Ok(orgs), Ok(dl)) => (
+            StatusCode::OK,
+            Json(json!({
+                "datasources": ds.count.unwrap_or(0),
+                "organizations": orgs.count.unwrap_or(0),
+                "downloads": dl.count.unwrap_or(0)
+            })),
+        )
+            .into_response(),
         _ => {
             tracing::error!("Failed to fetch stats from database");
             (
@@ -250,7 +250,7 @@ async fn get_stats(State(state): State<AppState>) -> impl IntoResponse {
                 Json(json!({ "error": "Failed to fetch statistics" })),
             )
                 .into_response()
-        }
+        },
     }
 }
 
@@ -281,10 +281,10 @@ async fn shutdown_signal(timeout_secs: u64) {
         match signal::unix::signal(signal::unix::SignalKind::terminate()) {
             Ok(mut signal) => {
                 signal.recv().await;
-            }
+            },
             Err(e) => {
                 tracing::error!("Failed to install SIGTERM handler: {}", e);
-            }
+            },
         }
     };
 
@@ -310,12 +310,9 @@ async fn get_or_create_uniprot_org(pool: &sqlx::PgPool) -> Result<uuid::Uuid> {
     const UNIPROT_SLUG: &str = "uniprot";
 
     // Check for existing UniProt organization by slug
-    let result = sqlx::query!(
-        r#"SELECT id FROM organizations WHERE slug = $1"#,
-        UNIPROT_SLUG
-    )
-    .fetch_optional(pool)
-    .await?;
+    let result = sqlx::query!(r#"SELECT id FROM organizations WHERE slug = $1"#, UNIPROT_SLUG)
+        .fetch_optional(pool)
+        .await?;
 
     if let Some(record) = result {
         Ok(record.id)
@@ -338,12 +335,9 @@ async fn get_or_create_uniprot_org(pool: &sqlx::PgPool) -> Result<uuid::Uuid> {
         .await?;
 
         // Fetch the ID in case another process created it concurrently
-        let record = sqlx::query!(
-            r#"SELECT id FROM organizations WHERE slug = $1"#,
-            UNIPROT_SLUG
-        )
-        .fetch_one(pool)
-        .await?;
+        let record = sqlx::query!(r#"SELECT id FROM organizations WHERE slug = $1"#, UNIPROT_SLUG)
+            .fetch_one(pool)
+            .await?;
 
         Ok(record.id)
     }

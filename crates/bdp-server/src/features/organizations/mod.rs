@@ -9,9 +9,8 @@ pub use commands::{
 };
 
 pub use queries::{
-    GetOrganizationError, GetOrganizationQuery, GetOrganizationResponse,
-    ListOrganizationsError, ListOrganizationsQuery, ListOrganizationsResponse,
-    OrganizationListItem, PaginationMetadata,
+    GetOrganizationError, GetOrganizationQuery, GetOrganizationResponse, ListOrganizationsError,
+    ListOrganizationsQuery, ListOrganizationsResponse, OrganizationListItem, PaginationMetadata,
 };
 
 pub use routes::organizations_routes;

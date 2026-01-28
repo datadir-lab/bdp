@@ -17,8 +17,8 @@ use crate::ingest::interpro::helpers::{
     GoTermLookupHelper, InterProEntryLookupHelper, ProteinLookupHelper, SignatureLookupHelper,
 };
 use crate::ingest::interpro::models::{
-    ExternalReferenceData, GoMappingData, InterProEntry, InterProMetadata,
-    MemberSignatureData, ProteinMatch,
+    ExternalReferenceData, GoMappingData, InterProEntry, InterProMetadata, MemberSignatureData,
+    ProteinMatch,
 };
 use sqlx::PgPool;
 use std::collections::{HashMap, HashSet};
@@ -135,8 +135,14 @@ pub async fn store_interpro_entry(
 
     // Parse version (e.g., "96.0" → major=96, minor=0)
     let version_parts: Vec<&str> = version.split('.').collect();
-    let version_major: i32 = version_parts.get(0).and_then(|v| v.parse().ok()).unwrap_or(1);
-    let version_minor: i32 = version_parts.get(1).and_then(|v| v.parse().ok()).unwrap_or(0);
+    let version_major: i32 = version_parts
+        .get(0)
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(1);
+    let version_minor: i32 = version_parts
+        .get(1)
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(0);
 
     // Create version with actual InterPro release version
     let version_id: Uuid = sqlx::query_scalar!(
@@ -341,10 +347,7 @@ pub async fn store_go_mappings(
 
             stored_count += 1;
         } else {
-            warn!(
-                "GO term {} not found in database, skipping mapping",
-                mapping.go_id
-            );
+            warn!("GO term {} not found in database, skipping mapping", mapping.go_id);
         }
     }
 
@@ -435,9 +438,7 @@ pub async fn store_protein_matches_batch(
         .into_iter()
         .collect();
 
-    protein_helper
-        .load_batch(pool, &protein_accessions)
-        .await?;
+    protein_helper.load_batch(pool, &protein_accessions).await?;
 
     // OPTIMIZATION 2: Batch load all InterPro entries
     let interpro_ids: Vec<String> = matches
@@ -476,27 +477,22 @@ pub async fn store_protein_matches_batch(
 
         for match_data in chunk {
             // Lookup protein (from cache - O(1))
-            let (protein_ds_id, protein_ver_id) = match protein_helper.get(&match_data.uniprot_accession) {
-                Some(ids) => ids,
-                None => {
-                    warn!(
-                        "Protein {} not found, skipping match",
-                        match_data.uniprot_accession
-                    );
-                    continue;
-                }
-            };
+            let (protein_ds_id, protein_ver_id) =
+                match protein_helper.get(&match_data.uniprot_accession) {
+                    Some(ids) => ids,
+                    None => {
+                        warn!("Protein {} not found, skipping match", match_data.uniprot_accession);
+                        continue;
+                    },
+                };
 
             // Lookup InterPro entry (from cache - O(1))
             let interpro_ds_id = match interpro_helper.get(&match_data.interpro_id) {
                 Some(id) => id,
                 None => {
-                    warn!(
-                        "InterPro entry {} not found, skipping match",
-                        match_data.interpro_id
-                    );
+                    warn!("InterPro entry {} not found, skipping match", match_data.interpro_id);
                     continue;
-                }
+                },
             };
 
             // Get InterPro version (from cache - O(1))
@@ -508,12 +504,13 @@ pub async fn store_protein_matches_batch(
                         match_data.interpro_id
                     );
                     continue;
-                }
+                },
             };
 
             // Lookup signature (from cache - O(1))
             let sig_db = match_data.signature_database.to_string();
-            let signature_id = match signature_helper.get(&sig_db, &match_data.signature_accession) {
+            let signature_id = match signature_helper.get(&sig_db, &match_data.signature_accession)
+            {
                 Some(id) => id,
                 None => {
                     warn!(
@@ -521,7 +518,7 @@ pub async fn store_protein_matches_batch(
                         sig_db, match_data.signature_accession
                     );
                     continue;
-                }
+                },
             };
 
             // Insert match (with ON CONFLICT to handle duplicates)
@@ -577,13 +574,11 @@ pub async fn store_interpro_metadata(
     version: &str, // InterPro version
     go_helper: &mut GoTermLookupHelper,
 ) -> Result<(Uuid, Uuid), Error> {
-    info!(
-        "Storing complete metadata for InterPro entry {}",
-        metadata.entry.interpro_id
-    );
+    info!("Storing complete metadata for InterPro entry {}", metadata.entry.interpro_id);
 
     // Step 1: Store InterPro entry
-    let (interpro_ds_id, interpro_ver_id) = store_interpro_entry(pool, &metadata.entry, version).await?;
+    let (interpro_ds_id, interpro_ver_id) =
+        store_interpro_entry(pool, &metadata.entry, version).await?;
 
     // Step 2: Store signatures
     if !metadata.member_signatures.is_empty() {
@@ -604,14 +599,8 @@ pub async fn store_interpro_metadata(
 
     // Step 3: Store GO mappings
     if !metadata.go_mappings.is_empty() {
-        store_go_mappings(
-            pool,
-            interpro_ds_id,
-            interpro_ver_id,
-            &metadata.go_mappings,
-            go_helper,
-        )
-        .await?;
+        store_go_mappings(pool, interpro_ds_id, interpro_ver_id, &metadata.go_mappings, go_helper)
+            .await?;
     }
 
     // Step 4: Store external references

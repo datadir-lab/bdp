@@ -92,9 +92,7 @@ pub async fn handle(
     .unwrap_or(false);
 
     if !data_source_exists {
-        return Err(PublishVersionError::DataSourceNotFound(
-            command.data_source_id,
-        ));
+        return Err(PublishVersionError::DataSourceNotFound(command.data_source_id));
     }
 
     let result = sqlx::query_as!(
@@ -183,10 +181,7 @@ mod tests {
             size_bytes: None,
             additional_metadata: None,
         };
-        assert!(matches!(
-            cmd.validate(),
-            Err(PublishVersionError::VersionRequired)
-        ));
+        assert!(matches!(cmd.validate(), Err(PublishVersionError::VersionRequired)));
     }
 
     #[test]
@@ -199,10 +194,7 @@ mod tests {
             size_bytes: Some(-100),
             additional_metadata: None,
         };
-        assert!(matches!(
-            cmd.validate(),
-            Err(PublishVersionError::InvalidSize)
-        ));
+        assert!(matches!(cmd.validate(), Err(PublishVersionError::InvalidSize)));
     }
 
     #[sqlx::test]
@@ -310,10 +302,7 @@ mod tests {
             additional_metadata: None,
         };
         let result = handle(pool.clone(), cmd2).await;
-        assert!(matches!(
-            result,
-            Err(PublishVersionError::DuplicateVersion(_, _))
-        ));
+        assert!(matches!(result, Err(PublishVersionError::DuplicateVersion(_, _))));
         Ok(())
     }
 
@@ -329,10 +318,7 @@ mod tests {
         };
 
         let result = handle(pool.clone(), cmd).await;
-        assert!(matches!(
-            result,
-            Err(PublishVersionError::DataSourceNotFound(_))
-        ));
+        assert!(matches!(result, Err(PublishVersionError::DataSourceNotFound(_))));
         Ok(())
     }
 }

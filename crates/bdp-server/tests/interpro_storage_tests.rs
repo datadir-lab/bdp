@@ -9,8 +9,13 @@
 
 use bdp_server::db::create_pool;
 use bdp_server::ingest::interpro::{
-    helpers::{GoTermLookupHelper, InterProEntryLookupHelper, ProteinLookupHelper, SignatureLookupHelper},
-    models::{EntryType, ExternalReferenceData, GoMappingData, InterProEntry, InterProMetadata, MemberSignatureData, ProteinMatch, SignatureDatabase},
+    helpers::{
+        GoTermLookupHelper, InterProEntryLookupHelper, ProteinLookupHelper, SignatureLookupHelper,
+    },
+    models::{
+        EntryType, ExternalReferenceData, GoMappingData, InterProEntry, InterProMetadata,
+        MemberSignatureData, ProteinMatch, SignatureDatabase,
+    },
     storage::*,
 };
 use sqlx::PgPool;
@@ -24,7 +29,9 @@ async fn get_test_pool() -> PgPool {
     let database_url = env::var("DATABASE_URL")
         .unwrap_or_else(|_| "postgresql://bdp:bdp_dev_password@localhost:5432/bdp".to_string());
 
-    create_pool(&database_url, 5).await.expect("Failed to create test pool")
+    create_pool(&database_url, 5)
+        .await
+        .expect("Failed to create test pool")
 }
 
 fn create_test_entry() -> InterProEntry {
@@ -66,7 +73,7 @@ async fn test_store_interpro_entry() {
 
     // Verify entry was created in database
     let count = sqlx::query_scalar::<_, i64>(
-        "SELECT COUNT(*) FROM interpro_entry_metadata WHERE interpro_id = $1"
+        "SELECT COUNT(*) FROM interpro_entry_metadata WHERE interpro_id = $1",
     )
     .bind(&entry.interpro_id)
     .fetch_one(&pool)
@@ -151,7 +158,7 @@ async fn test_store_signature() {
 
     // Verify signature in database
     let count = sqlx::query_scalar::<_, i64>(
-        "SELECT COUNT(*) FROM protein_signatures WHERE accession = $1"
+        "SELECT COUNT(*) FROM protein_signatures WHERE accession = $1",
     )
     .bind(&signature.accession)
     .fetch_one(&pool)
@@ -231,7 +238,7 @@ async fn test_link_signatures_to_entry() {
 
     // Verify link created
     let count = sqlx::query_scalar::<_, i64>(
-        "SELECT COUNT(*) FROM interpro_member_signatures WHERE interpro_data_source_id = $1"
+        "SELECT COUNT(*) FROM interpro_member_signatures WHERE interpro_data_source_id = $1",
     )
     .bind(interpro_ds_id)
     .fetch_one(&pool)
@@ -287,7 +294,7 @@ async fn test_store_external_references() {
 
     // Verify in database
     let db_count = sqlx::query_scalar::<_, i64>(
-        "SELECT COUNT(*) FROM interpro_external_references WHERE interpro_data_source_id = $1"
+        "SELECT COUNT(*) FROM interpro_external_references WHERE interpro_data_source_id = $1",
     )
     .bind(interpro_ds_id)
     .fetch_one(&pool)
@@ -337,13 +344,11 @@ async fn test_store_complete_metadata() {
             },
         ],
         go_mappings: vec![], // Would need real GO terms
-        external_references: vec![
-            ExternalReferenceData {
-                database: "PDB".to_string(),
-                database_id: "2XYZ".to_string(),
-                description: Some("Test structure".to_string()),
-            },
-        ],
+        external_references: vec![ExternalReferenceData {
+            database: "PDB".to_string(),
+            database_id: "2XYZ".to_string(),
+            description: Some("Test structure".to_string()),
+        }],
     };
 
     let mut go_helper = GoTermLookupHelper::new();
@@ -357,7 +362,7 @@ async fn test_store_complete_metadata() {
 
     // Verify entry
     let entry_count = sqlx::query_scalar::<_, i64>(
-        "SELECT COUNT(*) FROM interpro_entry_metadata WHERE interpro_id = $1"
+        "SELECT COUNT(*) FROM interpro_entry_metadata WHERE interpro_id = $1",
     )
     .bind(&metadata.entry.interpro_id)
     .fetch_one(&pool)
@@ -367,7 +372,7 @@ async fn test_store_complete_metadata() {
 
     // Verify signatures
     let sig_count = sqlx::query_scalar::<_, i64>(
-        "SELECT COUNT(*) FROM interpro_member_signatures WHERE interpro_data_source_id = $1"
+        "SELECT COUNT(*) FROM interpro_member_signatures WHERE interpro_data_source_id = $1",
     )
     .bind(ds_id)
     .fetch_one(&pool)
@@ -377,7 +382,7 @@ async fn test_store_complete_metadata() {
 
     // Verify external references
     let ref_count = sqlx::query_scalar::<_, i64>(
-        "SELECT COUNT(*) FROM interpro_external_references WHERE interpro_data_source_id = $1"
+        "SELECT COUNT(*) FROM interpro_external_references WHERE interpro_data_source_id = $1",
     )
     .bind(ds_id)
     .fetch_one(&pool)
@@ -412,11 +417,7 @@ async fn test_helpers_no_n_plus_one() {
     // This test verifies helpers use batch queries, not N+1
 
     let mut protein_helper = ProteinLookupHelper::new();
-    let accessions = vec![
-        "P12345".to_string(),
-        "P67890".to_string(),
-        "Q99999".to_string(),
-    ];
+    let accessions = vec!["P12345".to_string(), "P67890".to_string(), "Q99999".to_string()];
 
     // Single batch load should handle all accessions
     let result = protein_helper.load_batch(&pool, &accessions).await;

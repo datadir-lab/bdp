@@ -29,8 +29,8 @@ async fn main() -> Result<()> {
     info!("🚀 Starting UniProt pipeline with version deduplication");
 
     // 1. Connect to database
-    let database_url = std::env::var("DATABASE_URL")
-        .unwrap_or_else(|_| "postgresql://localhost/bdp".to_string());
+    let database_url =
+        std::env::var("DATABASE_URL").unwrap_or_else(|_| "postgresql://localhost/bdp".to_string());
 
     info!("📊 Connecting to database...");
     let db_pool = PgPoolOptions::new()
@@ -104,32 +104,29 @@ async fn main() -> Result<()> {
             info!("✅ Previous version pipeline completed!");
             info!("   Total entries: {}", stats.total_entries);
             info!("   Entries inserted: {}", stats.entries_inserted);
-        }
+        },
         Err(e) => {
             info!("ℹ️  Previous version download skipped or failed: {}", e);
-        }
+        },
     }
 
     // 8. Verify data in database
     info!("\n📋 Database summary:");
 
-    let protein_count = sqlx::query_scalar::<_, i64>(
-        "SELECT COUNT(*) FROM protein_metadata"
-    )
-    .fetch_one(&db_pool)
-    .await?;
+    let protein_count = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM protein_metadata")
+        .fetch_one(&db_pool)
+        .await?;
     info!("   Total proteins: {}", protein_count);
 
-    let version_count = sqlx::query_scalar::<_, i64>(
-        "SELECT COUNT(DISTINCT external_version) FROM versions"
-    )
-    .fetch_one(&db_pool)
-    .await?;
+    let version_count =
+        sqlx::query_scalar::<_, i64>("SELECT COUNT(DISTINCT external_version) FROM versions")
+            .fetch_one(&db_pool)
+            .await?;
     info!("   Unique versions: {}", version_count);
 
     // List versions we have
     let versions = sqlx::query_scalar::<_, String>(
-        "SELECT DISTINCT external_version FROM versions ORDER BY external_version"
+        "SELECT DISTINCT external_version FROM versions ORDER BY external_version",
     )
     .fetch_all(&db_pool)
     .await?;
@@ -145,11 +142,10 @@ async fn main() -> Result<()> {
 
 async fn get_or_create_organization(db_pool: &sqlx::PgPool) -> Result<Uuid> {
     // Check if organization exists
-    let existing = sqlx::query_scalar::<_, Uuid>(
-        "SELECT id FROM organizations WHERE slug = 'uniprot'"
-    )
-    .fetch_optional(db_pool)
-    .await?;
+    let existing =
+        sqlx::query_scalar::<_, Uuid>("SELECT id FROM organizations WHERE slug = 'uniprot'")
+            .fetch_optional(db_pool)
+            .await?;
 
     if let Some(id) = existing {
         return Ok(id);

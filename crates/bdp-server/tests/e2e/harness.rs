@@ -123,10 +123,8 @@ impl E2EEnvironment {
             .await
             .context("Failed to get PostgreSQL port")?;
 
-        let postgres_conn_string = format!(
-            "postgresql://postgres:postgres@{}:{}/postgres",
-            postgres_host, postgres_port
-        );
+        let postgres_conn_string =
+            format!("postgresql://postgres:postgres@{}:{}/postgres", postgres_host, postgres_port);
 
         info!("PostgreSQL connection: {}", postgres_conn_string);
 
@@ -203,8 +201,8 @@ impl E2EEnvironment {
 
         // For now, we'll assume the BDP server is running externally
         // In a full implementation, we would build and start a Docker container
-        let server_url = std::env::var("BDP_SERVER_URL")
-            .unwrap_or_else(|_| "http://localhost:3000".to_string());
+        let server_url =
+            std::env::var("BDP_SERVER_URL").unwrap_or_else(|_| "http://localhost:3000".to_string());
 
         info!("BDP server URL: {}", server_url);
         warn!("Note: BDP server container auto-start not yet implemented");
@@ -294,11 +292,7 @@ impl E2EEnvironment {
         if !response.status().is_success() {
             let status = response.status();
             let body = response.text().await.unwrap_or_default();
-            bail!(
-                "Failed to trigger ingestion job: status={}, body={}",
-                status,
-                body
-            );
+            bail!("Failed to trigger ingestion job: status={}, body={}", status, body);
         }
 
         let job_response: serde_json::Value = response
@@ -354,25 +348,24 @@ impl E2EEnvironment {
                 "Done" | "Completed" => {
                     info!("Job completed successfully: job_id={}", job_id);
                     return Ok(status);
-                }
+                },
                 "Failed" => {
-                    error!(
-                        "Job failed: job_id={}, error={:?}",
-                        job_id, status.last_error
-                    );
+                    error!("Job failed: job_id={}, error={:?}", job_id, status.last_error);
                     bail!(
                         "Job failed: {}",
-                        status.last_error.unwrap_or_else(|| "Unknown error".to_string())
+                        status
+                            .last_error
+                            .unwrap_or_else(|| "Unknown error".to_string())
                     );
-                }
+                },
                 "Cancelled" => {
                     warn!("Job was cancelled: job_id={}", job_id);
                     bail!("Job was cancelled");
-                }
+                },
                 _ => {
                     // Job still running
                     tokio::time::sleep(poll_interval).await;
-                }
+                },
             }
         }
     }
@@ -520,11 +513,7 @@ impl E2EEnvironment {
     ///
     /// Returns an observability helper for debugging and monitoring tests.
     pub fn observability(&self) -> E2EObservability {
-        E2EObservability::new(
-            self.db_pool.clone(),
-            self.s3_client.clone(),
-            self.s3_bucket.clone(),
-        )
+        E2EObservability::new(self.db_pool.clone(), self.s3_client.clone(), self.s3_bucket.clone())
     }
 
     /// Get database pool

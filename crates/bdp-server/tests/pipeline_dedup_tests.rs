@@ -34,10 +34,7 @@ async fn test_pipeline_extracts_version_from_current() -> Result<()> {
     info!("🧪 Testing pipeline extracts version from current release");
 
     // Setup test database
-    let postgres_container = Postgres::default()
-        .with_tag("16-alpine")
-        .start()
-        .await?;
+    let postgres_container = Postgres::default().with_tag("16-alpine").start().await?;
 
     let host = postgres_container.get_host().await?;
     let port = postgres_container.get_host_port_ipv4(5432).await?;
@@ -70,7 +67,10 @@ async fn test_pipeline_extracts_version_from_current() -> Result<()> {
 
     info!("✅ Extracted version: {}", release_info.external_version);
     assert!(!release_info.external_version.is_empty());
-    assert!(release_info.external_version.contains("_"), "Version should be in YYYY_MM format");
+    assert!(
+        release_info.external_version.contains("_"),
+        "Version should be in YYYY_MM format"
+    );
 
     Ok(())
 }
@@ -82,10 +82,7 @@ async fn test_pipeline_version_deduplication() -> Result<()> {
     info!("🧪 Testing pipeline version deduplication");
 
     // Setup test database
-    let postgres_container = Postgres::default()
-        .with_tag("16-alpine")
-        .start()
-        .await?;
+    let postgres_container = Postgres::default().with_tag("16-alpine").start().await?;
 
     let host = postgres_container.get_host().await?;
     let port = postgres_container.get_host_port_ipv4(5432).await?;
@@ -113,7 +110,7 @@ async fn test_pipeline_version_deduplication() -> Result<()> {
     // Create minimal registry entry
     sqlx::query(
         "INSERT INTO registry_entries (id, organization_id, slug, name, entry_type)
-         VALUES ($1, $2, 'test-protein', 'Test Protein', 'data_source')"
+         VALUES ($1, $2, 'test-protein', 'Test Protein', 'data_source')",
     )
     .bind(entry_id)
     .bind(org_id)
@@ -123,7 +120,7 @@ async fn test_pipeline_version_deduplication() -> Result<()> {
     // Create version with the test version
     sqlx::query(
         "INSERT INTO versions (id, entry_id, version, external_version)
-         VALUES ($1, $2, '1.0', $3)"
+         VALUES ($1, $2, '1.0', $3)",
     )
     .bind(Uuid::new_v4())
     .bind(entry_id)

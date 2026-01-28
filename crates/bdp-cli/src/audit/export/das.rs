@@ -1,7 +1,7 @@
 //! Data Availability Statement generator
 
-use crate::audit::export::nih::NihExporter;
 use crate::audit::export::formats::ExportOptions;
+use crate::audit::export::nih::NihExporter;
 use crate::audit::logger::AuditLogger;
 use crate::error::Result;
 use std::path::PathBuf;
@@ -41,9 +41,8 @@ mod tests {
 
     #[test]
     fn test_das_exporter_creation() {
-        let audit = Arc::new(
-            LocalAuditLogger::new_in_memory("test-machine".to_string()).unwrap(),
-        ) as Arc<dyn AuditLogger>;
+        let audit = Arc::new(LocalAuditLogger::new_in_memory("test-machine".to_string()).unwrap())
+            as Arc<dyn AuditLogger>;
 
         let _exporter = DasExporter::new(audit);
         // Just test creation for now

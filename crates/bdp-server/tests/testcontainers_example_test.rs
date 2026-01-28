@@ -23,8 +23,8 @@
 
 mod common;
 
-use common::{init_test_tracing, TestEnvironment, TestMinio, TestPostgres, TestDataHelper};
 use anyhow::Result;
+use common::{init_test_tracing, TestDataHelper, TestEnvironment, TestMinio, TestPostgres};
 
 // ============================================================================
 // PostgreSQL-only Tests
@@ -61,13 +61,8 @@ async fn test_migrations_applied() {
         .expect("Failed to start PostgreSQL container");
 
     // Check that key tables exist after migrations
-    let tables = vec![
-        "organizations",
-        "registry_entries",
-        "versions",
-        "version_files",
-        "dependencies",
-    ];
+    let tables =
+        vec!["organizations", "registry_entries", "versions", "version_files", "dependencies"];
 
     for table in tables {
         let exists = sqlx::query_scalar(&format!(
@@ -78,11 +73,7 @@ async fn test_migrations_applied() {
         .await
         .expect("Failed to check table existence");
 
-        assert!(
-            exists.unwrap_or(false),
-            "Table '{}' should exist after migrations",
-            table
-        );
+        assert!(exists.unwrap_or(false), "Table '{}' should exist after migrations", table);
     }
 }
 
@@ -110,25 +101,20 @@ async fn test_organization_crud() {
     .expect("Failed to create organization");
 
     // Read
-    let org = sqlx::query!(
-        "SELECT slug, name, description FROM organizations WHERE id = $1",
-        org_id
-    )
-    .fetch_one(pool)
-    .await
-    .expect("Failed to read organization");
+    let org =
+        sqlx::query!("SELECT slug, name, description FROM organizations WHERE id = $1", org_id)
+            .fetch_one(pool)
+            .await
+            .expect("Failed to read organization");
 
     assert_eq!(org.slug, "test-org");
     assert_eq!(org.name, "Test Organization");
 
     // Update
-    sqlx::query!(
-        "UPDATE organizations SET name = 'Updated Organization' WHERE id = $1",
-        org_id
-    )
-    .execute(pool)
-    .await
-    .expect("Failed to update organization");
+    sqlx::query!("UPDATE organizations SET name = 'Updated Organization' WHERE id = $1", org_id)
+        .execute(pool)
+        .await
+        .expect("Failed to update organization");
 
     let updated = sqlx::query!("SELECT name FROM organizations WHERE id = $1", org_id)
         .fetch_one(pool)
@@ -169,13 +155,11 @@ async fn test_with_data_helper() {
         .expect("Failed to create test dataset");
 
     // Verify the relationships
-    let entry = sqlx::query!(
-        "SELECT organization_id FROM registry_entries WHERE id = $1",
-        entry_id
-    )
-    .fetch_one(pg.pool())
-    .await
-    .expect("Failed to fetch entry");
+    let entry =
+        sqlx::query!("SELECT organization_id FROM registry_entries WHERE id = $1", entry_id)
+            .fetch_one(pg.pool())
+            .await
+            .expect("Failed to fetch entry");
 
     assert_eq!(entry.organization_id, org_id);
 
@@ -243,7 +227,10 @@ async fn test_s3_multiple_files() {
     ];
 
     for (key, data) in &files {
-        minio.upload(key, data.clone()).await.expect("Upload failed");
+        minio
+            .upload(key, data.clone())
+            .await
+            .expect("Upload failed");
     }
 
     // List only proteins
@@ -335,17 +322,11 @@ async fn test_parallel_startup() {
         .expect("MinIO should be accessible");
 
     // Log startup time for performance tracking
-    tracing::info!(
-        startup_time_ms = startup_time.as_millis(),
-        "Test environment started"
-    );
+    tracing::info!(startup_time_ms = startup_time.as_millis(), "Test environment started");
 
     // Parallel startup should typically take less than sequential
     // (This is more of a documentation than a hard assertion)
-    assert!(
-        startup_time.as_secs() < 120,
-        "Startup should complete within 2 minutes"
-    );
+    assert!(startup_time.as_secs() < 120, "Startup should complete within 2 minutes");
 }
 
 // ============================================================================
@@ -413,7 +394,9 @@ mod isolation_tests {
     async fn test_isolation_a() {
         init_test_tracing();
 
-        let pg = TestPostgres::start().await.expect("Failed to start PostgreSQL");
+        let pg = TestPostgres::start()
+            .await
+            .expect("Failed to start PostgreSQL");
         let helper = TestDataHelper::new(pg.pool());
 
         // Create data specific to this test
@@ -435,7 +418,9 @@ mod isolation_tests {
     async fn test_isolation_b() {
         init_test_tracing();
 
-        let pg = TestPostgres::start().await.expect("Failed to start PostgreSQL");
+        let pg = TestPostgres::start()
+            .await
+            .expect("Failed to start PostgreSQL");
         let helper = TestDataHelper::new(pg.pool());
 
         // Create different data in this test

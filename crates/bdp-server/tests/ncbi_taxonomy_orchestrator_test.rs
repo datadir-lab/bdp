@@ -4,19 +4,17 @@
 //! Run with: cargo test --test ncbi_taxonomy_orchestrator_test -- --nocapture --ignored
 
 use anyhow::Result;
-use bdp_server::ingest::ncbi_taxonomy::{
-    NcbiTaxonomyFtpConfig, NcbiTaxonomyOrchestrator,
-};
+use bdp_server::ingest::ncbi_taxonomy::{NcbiTaxonomyFtpConfig, NcbiTaxonomyOrchestrator};
 use sqlx::postgres::PgPoolOptions;
 use uuid::Uuid;
 
 /// Helper to get test configuration
 fn get_test_config() -> Result<(String, Uuid)> {
-    let database_url = std::env::var("DATABASE_URL")
-        .expect("DATABASE_URL must be set for integration tests");
+    let database_url =
+        std::env::var("DATABASE_URL").expect("DATABASE_URL must be set for integration tests");
 
-    let org_id_str = std::env::var("TEST_ORG_ID")
-        .expect("TEST_ORG_ID must be set for integration tests");
+    let org_id_str =
+        std::env::var("TEST_ORG_ID").expect("TEST_ORG_ID must be set for integration tests");
 
     let org_id = Uuid::parse_str(&org_id_str)?;
 
@@ -75,7 +73,10 @@ async fn test_sequential_catchup_recent() -> Result<()> {
     println!("\n{'='*60}\n");
     println!("{}", NcbiTaxonomyOrchestrator::summarize_results(&results));
     println!("\nTotal time: {:.1} minutes", duration.as_secs_f64() / 60.0);
-    println!("Average per version: {:.1} minutes", duration.as_secs_f64() / 60.0 / results.len() as f64);
+    println!(
+        "Average per version: {:.1} minutes",
+        duration.as_secs_f64() / 60.0 / results.len() as f64
+    );
 
     // Validations
     assert_eq!(results.len(), 3, "Should process 3 versions");
@@ -120,7 +121,10 @@ async fn test_parallel_catchup_recent() -> Result<()> {
     println!("\n{'='*60}\n");
     println!("{}", NcbiTaxonomyOrchestrator::summarize_results(&results));
     println!("\nTotal time: {:.1} minutes", duration.as_secs_f64() / 60.0);
-    println!("Average per version: {:.1} minutes", duration.as_secs_f64() / 60.0 / results.len() as f64);
+    println!(
+        "Average per version: {:.1} minutes",
+        duration.as_secs_f64() / 60.0 / results.len() as f64
+    );
     println!("Expected speedup: ~2x vs sequential");
 
     // Validations
@@ -183,15 +187,21 @@ async fn test_full_historical_catchup_dry_run() -> Result<()> {
     let versions = orchestrator.list_available_versions().await?;
 
     println!("Total historical versions available: {}", versions.len());
-    println!("Date range: {} to {}",
-        versions.first().unwrap(),
-        versions.last().unwrap()
-    );
+    println!("Date range: {} to {}", versions.first().unwrap(), versions.last().unwrap());
 
     println!("\nEstimated catchup time:");
-    println!("  Sequential (with batch ops): {:.1} hours", versions.len() as f64 * 10.0 / 60.0);
-    println!("  Parallel (concurrency=2): {:.1} hours", versions.len() as f64 * 10.0 / 60.0 / 2.0);
-    println!("  Parallel (concurrency=4): {:.1} hours", versions.len() as f64 * 10.0 / 60.0 / 4.0);
+    println!(
+        "  Sequential (with batch ops): {:.1} hours",
+        versions.len() as f64 * 10.0 / 60.0
+    );
+    println!(
+        "  Parallel (concurrency=2): {:.1} hours",
+        versions.len() as f64 * 10.0 / 60.0 / 2.0
+    );
+    println!(
+        "  Parallel (concurrency=4): {:.1} hours",
+        versions.len() as f64 * 10.0 / 60.0 / 4.0
+    );
 
     println!("\n⚠️  To run full catchup, use:");
     println!("  cargo run --bin ncbi_taxonomy_full_catchup -- --org-id <UUID> --concurrency 4");
@@ -203,10 +213,7 @@ async fn test_full_historical_catchup_dry_run() -> Result<()> {
 
 #[test]
 fn test_result_summarization() {
-    use bdp_server::ingest::ncbi_taxonomy::{
-        pipeline::PipelineResult,
-        storage::StorageStats,
-    };
+    use bdp_server::ingest::ncbi_taxonomy::{pipeline::PipelineResult, storage::StorageStats};
 
     println!("\n=== Testing Result Summarization ===\n");
 
@@ -286,11 +293,18 @@ fn test_performance_expectations() {
 
     println!("\nBatch + Parallel (concurrency=4):");
     let parallel_time_minutes = new_time_minutes / 4.0;
-    println!("  Time: {:.0} minutes ({:.1} hours)", parallel_time_minutes, parallel_time_minutes / 60.0);
+    println!(
+        "  Time: {:.0} minutes ({:.1} hours)",
+        parallel_time_minutes,
+        parallel_time_minutes / 60.0
+    );
     println!("  Total speedup: {:.0}x", old_time_hours / (parallel_time_minutes / 60.0));
 
     // Assertions
-    assert!(new_total_queries < old_total_queries / 600, "Should reduce queries by at least 600x");
+    assert!(
+        new_total_queries < old_total_queries / 600,
+        "Should reduce queries by at least 600x"
+    );
     assert!(parallel_time_minutes < 300.0, "Should complete in under 5 hours with parallel");
 
     println!("\n✓ Performance expectations validated\n");

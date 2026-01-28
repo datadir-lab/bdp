@@ -127,8 +127,8 @@ impl std::str::FromStr for SignatureDatabase {
 pub struct InterProEntryMetadata {
     pub id: Uuid,
     pub data_source_id: Uuid,
-    pub interpro_id: String,        // IPR000001
-    pub entry_type: String,         // Stored as VARCHAR in DB
+    pub interpro_id: String, // IPR000001
+    pub entry_type: String,  // Stored as VARCHAR in DB
     pub name: String,
     pub short_name: Option<String>,
     pub description: Option<String>,
@@ -149,11 +149,11 @@ impl InterProEntryMetadata {
 #[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
 pub struct ProteinSignature {
     pub id: Uuid,
-    pub database: String,           // 'Pfam', 'SMART', etc.
-    pub accession: String,          // 'PF00051', 'SM00130', etc.
+    pub database: String,  // 'Pfam', 'SMART', etc.
+    pub accession: String, // 'PF00051', 'SM00130', etc.
     pub name: Option<String>,
     pub description: Option<String>,
-    pub clan_accession: Option<String>,  // Pfam-specific
+    pub clan_accession: Option<String>, // Pfam-specific
     pub clan_name: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -185,7 +185,7 @@ pub struct InterProGoMapping {
     pub interpro_version_id: Uuid,
     pub go_data_source_id: Uuid,
     pub go_version_id: Uuid,
-    pub evidence_code: Option<String>,  // 'IEA', etc.
+    pub evidence_code: Option<String>, // 'IEA', etc.
     pub created_at: DateTime<Utc>,
 }
 
@@ -197,7 +197,7 @@ pub struct ProteinInterProMatch {
     pub interpro_version_id: Uuid,
     pub protein_data_source_id: Uuid,
     pub protein_version_id: Uuid,
-    pub uniprot_accession: String,  // Denormalized for fast lookup
+    pub uniprot_accession: String, // Denormalized for fast lookup
     pub signature_id: Uuid,
     pub start_position: i32,
     pub end_position: i32,
@@ -211,7 +211,7 @@ pub struct ProteinInterProMatch {
 pub struct InterProExternalReference {
     pub id: Uuid,
     pub interpro_data_source_id: Uuid,
-    pub database: String,           // 'PDB', 'CATH', 'Wikipedia', etc.
+    pub database: String, // 'PDB', 'CATH', 'Wikipedia', etc.
     pub database_id: String,
     pub description: Option<String>,
     pub created_at: DateTime<Utc>,
@@ -318,8 +318,8 @@ pub struct MemberSignatureData {
 /// GO mapping data for insertion
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GoMappingData {
-    pub go_id: String,          // GO:0005515
-    pub evidence_code: String,  // IEA, IDA, etc.
+    pub go_id: String,         // GO:0005515
+    pub evidence_code: String, // IEA, IDA, etc.
 }
 
 /// External reference data for insertion
@@ -349,7 +349,10 @@ mod tests {
     fn test_entry_type_from_string() {
         assert_eq!("Family".parse::<EntryType>().unwrap(), EntryType::Family);
         assert_eq!("Domain".parse::<EntryType>().unwrap(), EntryType::Domain);
-        assert_eq!("Homologous_superfamily".parse::<EntryType>().unwrap(), EntryType::HomologousSuperfamily);
+        assert_eq!(
+            "Homologous_superfamily".parse::<EntryType>().unwrap(),
+            EntryType::HomologousSuperfamily
+        );
         assert!("InvalidType".parse::<EntryType>().is_err());
     }
 

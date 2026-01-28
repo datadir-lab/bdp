@@ -4,7 +4,6 @@
 /// to verify scalability and identify bottlenecks.
 ///
 /// Run with: cargo test --test search_load_tests -- --nocapture --test-threads=1
-
 use bdp_server::{
     db::{create_pool, DbConfig},
     features::search::queries::{
@@ -18,7 +17,10 @@ use std::time::{Duration, Instant};
 use tokio::time::sleep;
 
 /// Helper to create test data
-async fn create_load_test_data(pool: &PgPool, count: usize) -> Result<(), Box<dyn std::error::Error>> {
+async fn create_load_test_data(
+    pool: &PgPool,
+    count: usize,
+) -> Result<(), Box<dyn std::error::Error>> {
     println!("Creating {} test entries for load testing...", count);
 
     // Create organization
@@ -203,10 +205,7 @@ impl LoadTestStats {
         println!("Failed: {}", self.failed);
         println!("Total time: {:?}", self.total_duration);
         if self.successful > 0 {
-            println!(
-                "Avg: {:?}",
-                self.total_duration / self.successful as u32
-            );
+            println!("Avg: {:?}", self.total_duration / self.successful as u32);
             println!("Min: {:?}", self.min_duration);
             println!("p50: {:?}", self.p50_duration);
             println!("p95: {:?}", self.p95_duration);
@@ -284,10 +283,10 @@ async fn test_concurrent_searches() -> Result<(), Box<dyn std::error::Error>> {
                 {
                     Ok(_) => {
                         user_durations.push(query_start.elapsed());
-                    }
+                    },
                     Err(_) => {
                         user_failed += 1;
-                    }
+                    },
                 }
 
                 // Small delay to simulate user think time
@@ -321,14 +320,8 @@ async fn test_concurrent_searches() -> Result<(), Box<dyn std::error::Error>> {
     stats.print("Concurrent Search Load Test");
 
     // Assertions
-    assert!(
-        stats.failed < stats.successful / 100,
-        "More than 1% of queries failed"
-    );
-    assert!(
-        stats.p95_duration < Duration::from_millis(500),
-        "p95 latency exceeded 500ms"
-    );
+    assert!(stats.failed < stats.successful / 100, "More than 1% of queries failed");
+    assert!(stats.p95_duration < Duration::from_millis(500), "p95 latency exceeded 500ms");
 
     Ok(())
 }
@@ -394,10 +387,10 @@ async fn test_concurrent_suggestions() -> Result<(), Box<dyn std::error::Error>>
                 {
                     Ok(_) => {
                         user_durations.push(query_start.elapsed());
-                    }
+                    },
                     Err(_) => {
                         user_failed += 1;
-                    }
+                    },
                 }
 
                 // Very small delay for autocomplete
@@ -430,10 +423,7 @@ async fn test_concurrent_suggestions() -> Result<(), Box<dyn std::error::Error>>
     stats.print("Concurrent Suggestions Load Test");
 
     // Assertions
-    assert!(
-        stats.failed < stats.successful / 100,
-        "More than 1% of queries failed"
-    );
+    assert!(stats.failed < stats.successful / 100, "More than 1% of queries failed");
     assert!(
         stats.p95_duration < Duration::from_millis(100),
         "p95 latency exceeded 100ms for suggestions"
@@ -513,10 +503,10 @@ async fn test_search_under_mv_refresh() -> Result<(), Box<dyn std::error::Error>
                 {
                     Ok(_) => {
                         user_durations.push(query_start.elapsed());
-                    }
+                    },
                     Err(_) => {
                         user_failed += 1;
-                    }
+                    },
                 }
 
                 sleep(Duration::from_millis(50)).await;
@@ -614,10 +604,10 @@ async fn test_sustained_load() -> Result<(), Box<dyn std::error::Error>> {
                 {
                     Ok(_) => {
                         user_durations.push(query_start.elapsed());
-                    }
+                    },
                     Err(_) => {
                         user_failed += 1;
-                    }
+                    },
                 }
 
                 query_count += 1;

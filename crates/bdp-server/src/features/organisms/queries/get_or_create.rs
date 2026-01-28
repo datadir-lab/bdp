@@ -69,10 +69,7 @@ mod tests {
         let query = GetOrCreateOrganismQuery {
             slug: "".to_string(),
         };
-        assert!(matches!(
-            query.validate(),
-            Err(GetOrCreateOrganismError::SlugRequired)
-        ));
+        assert!(matches!(query.validate(), Err(GetOrCreateOrganismError::SlugRequired)));
     }
 
     #[test]
@@ -80,10 +77,7 @@ mod tests {
         let query = GetOrCreateOrganismQuery {
             slug: "   ".to_string(),
         };
-        assert!(matches!(
-            query.validate(),
-            Err(GetOrCreateOrganismError::SlugRequired)
-        ));
+        assert!(matches!(query.validate(), Err(GetOrCreateOrganismError::SlugRequired)));
     }
 
     #[sqlx::test]
@@ -119,10 +113,7 @@ mod tests {
         };
 
         let result = handle(pool.clone(), query).await;
-        assert!(matches!(
-            result,
-            Err(GetOrCreateOrganismError::NotFound(_))
-        ));
+        assert!(matches!(result, Err(GetOrCreateOrganismError::NotFound(_))));
         Ok(())
     }
 
@@ -148,10 +139,7 @@ mod tests {
 
         let result = handle(pool.clone(), query).await;
         // Should not find it since slug is case-sensitive
-        assert!(matches!(
-            result,
-            Err(GetOrCreateOrganismError::NotFound(_))
-        ));
+        assert!(matches!(result, Err(GetOrCreateOrganismError::NotFound(_))));
         Ok(())
     }
 

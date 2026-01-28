@@ -261,10 +261,7 @@ mod tests {
             logo_url: None,
             is_system: false,
         };
-        assert!(matches!(
-            cmd.validate(),
-            Err(CreateOrganizationError::SlugValidation(_))
-        ));
+        assert!(matches!(cmd.validate(), Err(CreateOrganizationError::SlugValidation(_))));
     }
 
     #[test]
@@ -277,10 +274,7 @@ mod tests {
             logo_url: None,
             is_system: false,
         };
-        assert!(matches!(
-            cmd.validate(),
-            Err(CreateOrganizationError::SlugValidation(_))
-        ));
+        assert!(matches!(cmd.validate(), Err(CreateOrganizationError::SlugValidation(_))));
     }
 
     #[test]
@@ -338,10 +332,7 @@ mod tests {
             logo_url: None,
             is_system: false,
         };
-        assert!(matches!(
-            cmd.validate(),
-            Err(CreateOrganizationError::NameValidation(_))
-        ));
+        assert!(matches!(cmd.validate(), Err(CreateOrganizationError::NameValidation(_))));
     }
 
     #[test]
@@ -354,10 +345,7 @@ mod tests {
             logo_url: None,
             is_system: false,
         };
-        assert!(matches!(
-            cmd.validate(),
-            Err(CreateOrganizationError::NameValidation(_))
-        ));
+        assert!(matches!(cmd.validate(), Err(CreateOrganizationError::NameValidation(_))));
     }
 
     #[test]
@@ -370,10 +358,7 @@ mod tests {
             logo_url: None,
             is_system: false,
         };
-        assert!(matches!(
-            cmd.validate(),
-            Err(CreateOrganizationError::UrlValidation(_))
-        ));
+        assert!(matches!(cmd.validate(), Err(CreateOrganizationError::UrlValidation(_))));
     }
 
     #[test]
@@ -386,10 +371,7 @@ mod tests {
             logo_url: Some("not-a-url".to_string()),
             is_system: false,
         };
-        assert!(matches!(
-            cmd.validate(),
-            Err(CreateOrganizationError::UrlValidation(_))
-        ));
+        assert!(matches!(cmd.validate(), Err(CreateOrganizationError::UrlValidation(_))));
     }
 
     #[sqlx::test]
@@ -433,10 +415,7 @@ mod tests {
             is_system: false,
         };
         let result = handle(pool.clone(), cmd2).await;
-        assert!(matches!(
-            result,
-            Err(CreateOrganizationError::DuplicateSlug(_))
-        ));
+        assert!(matches!(result, Err(CreateOrganizationError::DuplicateSlug(_))));
         Ok(())
     }
 }

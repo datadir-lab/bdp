@@ -21,10 +21,7 @@ struct ParserTestEnv {
 impl ParserTestEnv {
     async fn new() -> Result<Self> {
         // Start PostgreSQL
-        let postgres_container = Postgres::default()
-            .with_tag("16-alpine")
-            .start()
-            .await?;
+        let postgres_container = Postgres::default().with_tag("16-alpine").start().await?;
 
         let host = postgres_container.get_host().await?;
         let port = postgres_container.get_host_port_ipv4(5432).await?;
@@ -40,9 +37,7 @@ impl ParserTestEnv {
 
         // Run migrations
         info!("Running migrations");
-        sqlx::migrate!("../../migrations")
-            .run(&db_pool)
-            .await?;
+        sqlx::migrate!("../../migrations").run(&db_pool).await?;
 
         Ok(Self {
             _postgres_container: postgres_container,
@@ -62,8 +57,8 @@ async fn test_parse_ci_sample() -> Result<()> {
     init_tracing();
     info!("🧪 Testing DAT parser with CI sample");
 
-    let fixture_path = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/fixtures/uniprot_ci_sample.dat");
+    let fixture_path =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/uniprot_ci_sample.dat");
 
     info!("Reading DAT file: {}", fixture_path.display());
 
@@ -104,8 +99,8 @@ async fn test_parse_and_store() -> Result<()> {
     info!("Created organization: {}", org_id);
 
     // Parse DAT file
-    let fixture_path = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/fixtures/uniprot_ci_sample.dat");
+    let fixture_path =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/uniprot_ci_sample.dat");
 
     let parser = DatParser::new();
     let entries = parser.parse_file(&fixture_path)?;
@@ -114,12 +109,8 @@ async fn test_parse_and_store() -> Result<()> {
     assert_eq!(entries.len(), 3);
 
     // Store parsed entries
-    let storage = UniProtStorage::new(
-        env.pool().clone(),
-        org_id,
-        "1.0".to_string(),
-        "2024_01".to_string(),
-    );
+    let storage =
+        UniProtStorage::new(env.pool().clone(), org_id, "1.0".to_string(), "2024_01".to_string());
     let stored_count = storage.store_entries(&entries).await?;
 
     info!("Stored {} entries", stored_count);
@@ -130,7 +121,7 @@ async fn test_parse_and_store() -> Result<()> {
         "SELECT COUNT(*) FROM protein_metadata pm
          JOIN data_sources ds ON ds.id = pm.data_source_id
          JOIN registry_entries re ON re.id = ds.id
-         WHERE re.organization_id = $1"
+         WHERE re.organization_id = $1",
     )
     .bind(org_id)
     .fetch_one(env.pool())
@@ -142,7 +133,7 @@ async fn test_parse_and_store() -> Result<()> {
     let protein = sqlx::query_as::<_, (String, String, Option<i32>)>(
         "SELECT pm.accession, pm.entry_name, pm.sequence_length
          FROM protein_metadata pm
-         WHERE pm.accession = 'Q6GZX4'"
+         WHERE pm.accession = 'Q6GZX4'",
     )
     .fetch_one(env.pool())
     .await?;
@@ -157,7 +148,7 @@ async fn test_parse_and_store() -> Result<()> {
          JOIN versions v ON v.id = vf.version_id
          JOIN registry_entries re ON re.id = v.entry_id
          WHERE re.organization_id = $1
-         ORDER BY vf.format"
+         ORDER BY vf.format",
     )
     .bind(org_id)
     .fetch_all(env.pool())
@@ -182,7 +173,7 @@ async fn test_parse_and_store() -> Result<()> {
         "SELECT re.slug, v.dependency_count
          FROM registry_entries re
          JOIN versions v ON v.entry_id = re.id
-         WHERE re.id = $1"
+         WHERE re.id = $1",
     )
     .bind(aggregate_id)
     .fetch_one(env.pool())
@@ -195,7 +186,7 @@ async fn test_parse_and_store() -> Result<()> {
     let dep_count = sqlx::query_scalar::<_, i64>(
         "SELECT COUNT(*) FROM dependencies WHERE version_id = (
             SELECT id FROM versions WHERE entry_id = $1
-        )"
+        )",
     )
     .bind(aggregate_id)
     .fetch_one(env.pool())
@@ -229,11 +220,11 @@ async fn test_parse_invalid_data() -> Result<()> {
             info!("Parser returned {} entries from invalid data", entries.len());
             // Should return empty or minimal results, not crash
             assert!(entries.is_empty() || entries.len() < 3);
-        }
+        },
         Err(e) => {
             info!("Parser returned error (expected): {}", e);
             // Error is also acceptable
-        }
+        },
     }
 
     info!("✅ Error handling test passed!");

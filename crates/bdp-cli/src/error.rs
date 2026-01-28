@@ -86,7 +86,9 @@ pub enum CliError {
     NotInitialized(String),
 
     /// Source is already in the manifest
-    #[error("Source '{0}' already exists in manifest. Use 'bdp source list' to see current sources.")]
+    #[error(
+        "Source '{0}' already exists in manifest. Use 'bdp source list' to see current sources."
+    )]
     SourceExists(String),
 
     /// Source not found in manifest or registry

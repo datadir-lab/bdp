@@ -223,8 +223,9 @@ impl UniProtStorage {
                             &entry_clone,
                             org_id,
                             &int_ver_clone,
-                            &"",
-                        ).await;
+                            "",
+                        )
+                        .await;
                         (entry_clone.accession.clone(), result)
                     };
 
@@ -252,14 +253,18 @@ impl UniProtStorage {
         // Process entries in micro-batches (10 at a time) with separate transactions
         // This balances between transaction overhead and failure isolation
         for chunk in entries.chunks(DB_MICRO_BATCH_SIZE) {
-            let mut tx = self.db.begin().await.context("Failed to begin transaction")?;
+            let mut tx = self
+                .db
+                .begin()
+                .await
+                .context("Failed to begin transaction")?;
 
             let mut chunk_success = true;
             for entry in chunk {
                 match self.store_entry_tx(&mut tx, entry).await {
                     Ok(_) => {
                         stored_count += 1;
-                    }
+                    },
                     Err(e) => {
                         // On error, rollback this transaction and retry entries individually
                         chunk_success = false;
@@ -269,24 +274,33 @@ impl UniProtStorage {
                             "Failed to store entry in batch, will retry individually"
                         );
                         break;
-                    }
+                    },
                 }
             }
 
             if chunk_success {
                 // Commit the successful batch
-                tx.commit().await.context("Failed to commit batch transaction")?;
+                tx.commit()
+                    .await
+                    .context("Failed to commit batch transaction")?;
             } else {
                 // Rollback and retry failed entries one-by-one
                 drop(tx); // Explicit rollback by dropping
 
                 for entry in chunk {
-                    let mut retry_tx = self.db.begin().await.context("Failed to begin retry transaction")?;
+                    let mut retry_tx = self
+                        .db
+                        .begin()
+                        .await
+                        .context("Failed to begin retry transaction")?;
                     match self.store_entry_tx(&mut retry_tx, entry).await {
                         Ok(_) => {
-                            retry_tx.commit().await.context("Failed to commit retry transaction")?;
+                            retry_tx
+                                .commit()
+                                .await
+                                .context("Failed to commit retry transaction")?;
                             stored_count += 1;
-                        }
+                        },
                         Err(e) => {
                             error_count += 1;
                             error!(
@@ -297,10 +311,12 @@ impl UniProtStorage {
                             );
 
                             // Collect first 5 errors for debugging
-                            if errors.len() < 5 {
+                            const MAX_ERRORS_TO_COLLECT: usize = 5;
+                            #[allow(clippy::excessive_nesting)]
+                            if errors.len() < MAX_ERRORS_TO_COLLECT {
                                 errors.push((entry.accession.clone(), format!("{:#}", e)));
                             }
-                        }
+                        },
                     }
                 }
             }
@@ -324,10 +340,7 @@ impl UniProtStorage {
             }
 
             if error_count > 5 {
-                error!(
-                    additional_errors = error_count - 5,
-                    "Additional errors not shown"
-                );
+                error!(additional_errors = error_count - 5, "Additional errors not shown");
             }
         }
 
@@ -338,7 +351,11 @@ impl UniProtStorage {
     /// Store a single entry within a transaction
     ///
     /// Creates: registry_entry -> data_source -> protein_metadata -> version -> version_file
-    async fn store_entry_tx(&self, tx: &mut sqlx::Transaction<'_, sqlx::Postgres>, entry: &UniProtEntry) -> Result<()> {
+    async fn store_entry_tx(
+        &self,
+        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+        entry: &UniProtEntry,
+    ) -> Result<()> {
         debug!("Storing protein: {}", entry.accession);
 
         // 1. Get or create organism
@@ -348,10 +365,12 @@ impl UniProtStorage {
         let entry_id = self.create_registry_entry_tx(tx, entry).await?;
 
         // 3. Create data source with validation
-        self.create_data_source_tx(tx, entry_id, entry, organism_id).await?;
+        self.create_data_source_tx(tx, entry_id, entry, organism_id)
+            .await?;
 
         // 4. Create protein metadata (with sequence deduplication and organism reference)
-        self.create_protein_metadata_tx(tx, entry_id, entry, organism_id).await?;
+        self.create_protein_metadata_tx(tx, entry_id, entry, organism_id)
+            .await?;
 
         // 5. Create version with semantic versioning
         let version_id = self.create_version_tx(tx, entry_id).await?;
@@ -374,12 +393,16 @@ impl UniProtStorage {
     /// - Returns the data_source_id for use as a foreign key
     ///
     /// Note: Taxonomy stub creation happens outside the transaction for isolation
-    async fn get_or_create_organism_tx(&self, tx: &mut sqlx::Transaction<'_, sqlx::Postgres>, entry: &UniProtEntry) -> Result<Uuid> {
+    async fn get_or_create_organism_tx(
+        &self,
+        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+        entry: &UniProtEntry,
+    ) -> Result<Uuid> {
         let ncbi_taxonomy_id = entry.taxonomy_id;
 
         // Check if taxonomy already exists (most common case - fast path)
         let existing = sqlx::query_scalar::<_, Uuid>(
-            "SELECT data_source_id FROM taxonomy_metadata WHERE taxonomy_id = $1"
+            "SELECT data_source_id FROM taxonomy_metadata WHERE taxonomy_id = $1",
         )
         .bind(ncbi_taxonomy_id)
         .fetch_optional(&mut **tx)
@@ -393,11 +416,7 @@ impl UniProtStorage {
         // (This happens outside the current transaction for isolation)
         let mut taxonomy_helper = TaxonomyHelper::new(self.db.clone(), self.organization_id);
         let data_source_id = taxonomy_helper
-            .get_or_create_taxonomy(
-                ncbi_taxonomy_id,
-                &entry.organism_name,
-                &entry.taxonomy_lineage,
-            )
+            .get_or_create_taxonomy(ncbi_taxonomy_id, &entry.organism_name, &entry.taxonomy_lineage)
             .await
             .context("Failed to get or create taxonomy via TaxonomyHelper")?;
 
@@ -405,7 +424,11 @@ impl UniProtStorage {
     }
 
     /// Create registry entry for the protein (within transaction)
-    async fn create_registry_entry_tx(&self, tx: &mut sqlx::Transaction<'_, sqlx::Postgres>, entry: &UniProtEntry) -> Result<Uuid> {
+    async fn create_registry_entry_tx(
+        &self,
+        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+        entry: &UniProtEntry,
+    ) -> Result<Uuid> {
         let slug = &entry.accession;
         let name = format!("{} [{}]", entry.protein_name, entry.organism_name);
         let description = format!("UniProt protein: {}", entry.protein_name);
@@ -416,7 +439,7 @@ impl UniProtStorage {
             VALUES ($1, $2, $3, $4, 'data_source')
             ON CONFLICT (slug) DO UPDATE SET updated_at = NOW()
             RETURNING id
-            "#
+            "#,
         )
         .bind(self.organization_id)
         .bind(slug)
@@ -437,12 +460,11 @@ impl UniProtStorage {
         entry: &UniProtEntry,
         _taxonomy_id: Uuid,
     ) -> Result<()> {
-        debug!("Creating data_source for protein: {} with entry_id: {}", entry.accession, entry_id);
-        // Validate source_type is not empty
+        debug!(
+            "Creating data_source for protein: {} with entry_id: {}",
+            entry.accession, entry_id
+        );
         let source_type = "protein";
-        if source_type.is_empty() {
-            anyhow::bail!("source_type cannot be empty");
-        }
 
         // Note: organism_id column was removed in migration 20260119000003
         // The relationship is now through protein_metadata.organism_id foreign key
@@ -451,24 +473,32 @@ impl UniProtStorage {
             INSERT INTO data_sources (id, source_type, external_id)
             VALUES ($1, $2, $3)
             ON CONFLICT (id) DO NOTHING
-            "#
+            "#,
         )
         .bind(entry_id)
         .bind(source_type)
         .bind(&entry.accession)
         .execute(&mut **tx)
         .await
-        .with_context(|| format!(
-            "Failed to create data_source for accession {} with id {}",
-            entry.accession, entry_id
-        ))?;
+        .with_context(|| {
+            format!(
+                "Failed to create data_source for accession {} with id {}",
+                entry.accession, entry_id
+            )
+        })?;
 
         debug!("Successfully created data_source for protein: {}", entry.accession);
         Ok(())
     }
 
     /// Create protein_metadata record with deduplicated sequence (within transaction)
-    async fn create_protein_metadata_tx(&self, tx: &mut sqlx::Transaction<'_, sqlx::Postgres>, data_source_id: Uuid, entry: &UniProtEntry, taxonomy_id: Uuid) -> Result<()> {
+    async fn create_protein_metadata_tx(
+        &self,
+        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+        data_source_id: Uuid,
+        entry: &UniProtEntry,
+        taxonomy_id: Uuid,
+    ) -> Result<()> {
         // 1. Get or create deduplicated sequence
         let sequence_id = self.get_or_create_sequence_tx(tx, entry).await?;
 
@@ -529,13 +559,15 @@ impl UniProtStorage {
         self.store_features_tx(tx, data_source_id, entry).await?;
 
         // 5. Insert cross-references
-        self.store_cross_references_tx(tx, data_source_id, entry).await?;
+        self.store_cross_references_tx(tx, data_source_id, entry)
+            .await?;
 
         // 6. Insert comments
         self.store_comments_tx(tx, data_source_id, entry).await?;
 
         // 7. Insert publications
-        self.store_publications_tx(tx, data_source_id, entry).await?;
+        self.store_publications_tx(tx, data_source_id, entry)
+            .await?;
 
         Ok(())
     }
@@ -601,7 +633,8 @@ impl UniProtStorage {
             );
 
             query_builder.push_values(chunk, |mut b, xref| {
-                let metadata_json = serde_json::to_value(&xref.metadata).unwrap_or(serde_json::json!([]));
+                let metadata_json =
+                    serde_json::to_value(&xref.metadata).unwrap_or(serde_json::json!([]));
                 b.push_bind(protein_id)
                     .push_bind(&xref.database)
                     .push_bind(&xref.database_id)
@@ -633,9 +666,8 @@ impl UniProtStorage {
 
         // Batch insert comments (max 100 at a time)
         for chunk in entry.comments.chunks(MAX_INSERT_BATCH_SIZE) {
-            let mut query_builder = sqlx::QueryBuilder::new(
-                "INSERT INTO protein_comments (protein_id, topic, text) "
-            );
+            let mut query_builder =
+                sqlx::QueryBuilder::new("INSERT INTO protein_comments (protein_id, topic, text) ");
 
             query_builder.push_values(chunk, |mut b, comment| {
                 b.push_bind(protein_id)
@@ -692,7 +724,11 @@ impl UniProtStorage {
     }
 
     /// Get or create deduplicated protein sequence (within transaction)
-    async fn get_or_create_sequence_tx(&self, tx: &mut sqlx::Transaction<'_, sqlx::Postgres>, entry: &UniProtEntry) -> Result<Uuid> {
+    async fn get_or_create_sequence_tx(
+        &self,
+        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+        entry: &UniProtEntry,
+    ) -> Result<Uuid> {
         // Compute sequence hash (SHA256)
         let mut hasher = Sha256::new();
         hasher.update(entry.sequence.as_bytes());
@@ -700,7 +736,7 @@ impl UniProtStorage {
 
         // Check if sequence already exists
         let existing = sqlx::query_scalar::<_, Uuid>(
-            "SELECT id FROM protein_sequences WHERE sequence_hash = $1"
+            "SELECT id FROM protein_sequences WHERE sequence_hash = $1",
         )
         .bind(&sequence_hash)
         .fetch_optional(&mut **tx)
@@ -721,7 +757,7 @@ impl UniProtStorage {
             VALUES ($1, $2, $3, $4)
             ON CONFLICT (sequence_hash) DO UPDATE SET sequence_hash = EXCLUDED.sequence_hash
             RETURNING id
-            "#
+            "#,
         )
         .bind(&entry.sequence)
         .bind(&sequence_hash)
@@ -736,12 +772,25 @@ impl UniProtStorage {
     }
 
     /// Create version record with semantic versioning (within transaction)
-    async fn create_version_tx(&self, tx: &mut sqlx::Transaction<'_, sqlx::Postgres>, entry_id: Uuid) -> Result<Uuid> {
+    async fn create_version_tx(
+        &self,
+        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+        entry_id: Uuid,
+    ) -> Result<Uuid> {
         // Parse internal version (e.g., "1.0" → major=1, minor=0, patch=0)
         let version_parts: Vec<&str> = self.internal_version.split('.').collect();
-        let version_major = version_parts.first().and_then(|v| v.parse::<i32>().ok()).unwrap_or(1);
-        let version_minor = version_parts.get(1).and_then(|v| v.parse::<i32>().ok()).unwrap_or(0);
-        let version_patch = version_parts.get(2).and_then(|v| v.parse::<i32>().ok()).unwrap_or(0);
+        let version_major = version_parts
+            .first()
+            .and_then(|v| v.parse::<i32>().ok())
+            .unwrap_or(1);
+        let version_minor = version_parts
+            .get(1)
+            .and_then(|v| v.parse::<i32>().ok())
+            .unwrap_or(0);
+        let version_patch = version_parts
+            .get(2)
+            .and_then(|v| v.parse::<i32>().ok())
+            .unwrap_or(0);
 
         let version_id = sqlx::query_scalar::<_, Uuid>(
             r#"
@@ -757,7 +806,7 @@ impl UniProtStorage {
                 version_patch = EXCLUDED.version_patch,
                 updated_at = NOW()
             RETURNING id
-            "#
+            "#,
         )
         .bind(entry_id)
         .bind(&self.internal_version)
@@ -778,7 +827,14 @@ impl UniProtStorage {
     #[allow(dead_code)]
     async fn upload_entry_to_s3(&self, entry: &UniProtEntry) -> Result<()> {
         if let Some(ref s3) = self.s3 {
-            Self::upload_entry_to_s3_static(s3, entry, self.organization_id, &self.internal_version, &self.external_version).await
+            Self::upload_entry_to_s3_static(
+                s3,
+                entry,
+                self.organization_id,
+                &self.internal_version,
+                &self.external_version,
+            )
+            .await
         } else {
             Ok(())
         }
@@ -797,21 +853,34 @@ impl UniProtStorage {
         // Upload DAT
         let dat_content = entry.sequence.as_bytes().to_vec();
         let dat_key = format!("{}/{}.dat", base_path, entry.accession);
-        if let Err(e) = s3.upload(&dat_key, dat_content, Some("text/plain".to_string())).await {
+        if let Err(e) = s3
+            .upload(&dat_key, dat_content, Some("text/plain".to_string()))
+            .await
+        {
             warn!(accession = %entry.accession, error = %e, "Failed to upload DAT to S3");
         }
 
         // Upload FASTA
         let fasta_content = entry.to_fasta();
         let fasta_key = format!("{}/{}.fasta", base_path, entry.accession);
-        if let Err(e) = s3.upload(&fasta_key, fasta_content.as_bytes().to_vec(), Some("text/plain".to_string())).await {
+        if let Err(e) = s3
+            .upload(&fasta_key, fasta_content.as_bytes().to_vec(), Some("text/plain".to_string()))
+            .await
+        {
             warn!(accession = %entry.accession, error = %e, "Failed to upload FASTA to S3");
         }
 
         // Upload JSON
         let json_content = entry.to_json()?;
         let json_key = format!("{}/{}.json", base_path, entry.accession);
-        if let Err(e) = s3.upload(&json_key, json_content.as_bytes().to_vec(), Some("application/json".to_string())).await {
+        if let Err(e) = s3
+            .upload(
+                &json_key,
+                json_content.as_bytes().to_vec(),
+                Some("application/json".to_string()),
+            )
+            .await
+        {
             warn!(accession = %entry.accession, error = %e, "Failed to upload JSON to S3");
         }
 
@@ -821,7 +890,12 @@ impl UniProtStorage {
     /// Create version_file records for multiple formats (within transaction)
     ///
     /// NOTE: S3 uploads MUST be done BEFORE calling this (see upload_entry_to_s3)
-    async fn create_version_files_tx(&self, tx: &mut sqlx::Transaction<'_, sqlx::Postgres>, entry: &UniProtEntry, version_id: Uuid) -> Result<()> {
+    async fn create_version_files_tx(
+        &self,
+        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+        entry: &UniProtEntry,
+        version_id: Uuid,
+    ) -> Result<()> {
         let base_path = format!("proteins/uniprot/{}/{}", entry.accession, self.internal_version);
 
         // 1. DAT format - just create DB record (S3 upload already done)
@@ -887,7 +961,7 @@ impl UniProtStorage {
             INSERT INTO version_files (version_id, format, s3_key, checksum, size_bytes)
             VALUES ($1, $2, $3, $4, $5)
             ON CONFLICT (version_id, format) DO NOTHING
-            "#
+            "#,
         )
         .bind(version_id)
         .bind(format)
@@ -932,7 +1006,7 @@ impl UniProtStorage {
                 description = EXCLUDED.description,
                 updated_at = NOW()
             RETURNING id
-            "#
+            "#,
         )
         .bind(self.organization_id)
         .bind(slug)
@@ -950,7 +1024,7 @@ impl UniProtStorage {
             INSERT INTO data_sources (id, source_type)
             VALUES ($1, 'bundle')
             ON CONFLICT (id) DO NOTHING
-            "#
+            "#,
         )
         .bind(entry_id)
         .execute(&self.db)
@@ -959,9 +1033,18 @@ impl UniProtStorage {
 
         // 3. Create version with semantic versioning
         let version_parts: Vec<&str> = self.internal_version.split('.').collect();
-        let version_major = version_parts.first().and_then(|v| v.parse::<i32>().ok()).unwrap_or(1);
-        let version_minor = version_parts.get(1).and_then(|v| v.parse::<i32>().ok()).unwrap_or(0);
-        let version_patch = version_parts.get(2).and_then(|v| v.parse::<i32>().ok()).unwrap_or(0);
+        let version_major = version_parts
+            .first()
+            .and_then(|v| v.parse::<i32>().ok())
+            .unwrap_or(1);
+        let version_minor = version_parts
+            .get(1)
+            .and_then(|v| v.parse::<i32>().ok())
+            .unwrap_or(0);
+        let version_patch = version_parts
+            .get(2)
+            .and_then(|v| v.parse::<i32>().ok())
+            .unwrap_or(0);
 
         let version_id = sqlx::query_scalar::<_, Uuid>(
             r#"
@@ -978,7 +1061,7 @@ impl UniProtStorage {
                 version_patch = EXCLUDED.version_patch,
                 updated_at = NOW()
             RETURNING id
-            "#
+            "#,
         )
         .bind(entry_id)
         .bind(&self.internal_version)
@@ -1014,7 +1097,7 @@ impl UniProtStorage {
             WHERE re.organization_id = $1
               AND re.entry_type = 'data_source'
               AND re.slug != 'uniprot-all'
-            "#
+            "#,
         )
         .bind(self.organization_id)
         .fetch_all(&self.db)
@@ -1147,7 +1230,7 @@ impl UniProtStorage {
                 description = EXCLUDED.description,
                 updated_at = NOW()
             RETURNING id
-            "#
+            "#,
         )
         .bind(self.organization_id)
         .bind(slug)
@@ -1165,7 +1248,7 @@ impl UniProtStorage {
             INSERT INTO data_sources (id, source_type)
             VALUES ($1, $2)
             ON CONFLICT (id) DO UPDATE SET source_type = EXCLUDED.source_type
-            "#
+            "#,
         )
         .bind(entry_id)
         .bind(source_type)
@@ -1175,9 +1258,18 @@ impl UniProtStorage {
 
         // 3. Create version with semantic versioning
         let version_parts: Vec<&str> = self.internal_version.split('.').collect();
-        let version_major = version_parts.first().and_then(|v| v.parse::<i32>().ok()).unwrap_or(1);
-        let version_minor = version_parts.get(1).and_then(|v| v.parse::<i32>().ok()).unwrap_or(0);
-        let version_patch = version_parts.get(2).and_then(|v| v.parse::<i32>().ok()).unwrap_or(0);
+        let version_major = version_parts
+            .first()
+            .and_then(|v| v.parse::<i32>().ok())
+            .unwrap_or(1);
+        let version_minor = version_parts
+            .get(1)
+            .and_then(|v| v.parse::<i32>().ok())
+            .unwrap_or(0);
+        let version_patch = version_parts
+            .get(2)
+            .and_then(|v| v.parse::<i32>().ok())
+            .unwrap_or(0);
 
         let version_id = sqlx::query_scalar::<_, Uuid>(
             r#"
@@ -1194,7 +1286,7 @@ impl UniProtStorage {
                 version_patch = EXCLUDED.version_patch,
                 updated_at = NOW()
             RETURNING id
-            "#
+            "#,
         )
         .bind(entry_id)
         .bind(&self.internal_version)
@@ -1210,7 +1302,8 @@ impl UniProtStorage {
         debug!("Created bundle version: {}", version_id);
 
         // 4. Create dependencies to all proteins
-        self.create_bundle_dependencies(version_id, protein_slugs).await?;
+        self.create_bundle_dependencies(version_id, protein_slugs)
+            .await?;
 
         info!("Created bundle: {}", slug);
         Ok(entry_id)
@@ -1236,9 +1329,8 @@ impl UniProtStorage {
         // Process in batches to avoid parameter limits
         for chunk in protein_slugs.chunks(DEPENDENCY_BATCH_SIZE) {
             // Build query to get entry IDs for these slugs
-            let mut query_builder = sqlx::QueryBuilder::new(
-                "SELECT id FROM registry_entries WHERE organization_id = "
-            );
+            let mut query_builder =
+                sqlx::QueryBuilder::new("SELECT id FROM registry_entries WHERE organization_id = ");
             query_builder.push_bind(self.organization_id);
             query_builder.push(" AND slug IN (");
 

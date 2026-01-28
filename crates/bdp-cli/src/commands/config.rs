@@ -16,7 +16,7 @@ pub async fn get(key: String) -> Result<()> {
         "verbose" => println!("{}", config.is_verbose()),
         _ => {
             return Err(CliError::config(format!("Unknown config key: {}", key)));
-        }
+        },
     }
 
     Ok(())

@@ -61,11 +61,7 @@ impl GenbankPipeline {
             .await
             .context("Failed to download division files")?;
 
-        info!(
-            "Downloaded {} files for division {}",
-            files.len(),
-            division.as_str()
-        );
+        info!("Downloaded {} files for division {}", files.len(), division.as_str());
 
         // Step 2: Parse all files
         let parser = GenbankParser::new(self.config.source_database);
@@ -104,13 +100,16 @@ impl GenbankPipeline {
             self.db.clone(),
             self.s3.clone(),
             organization_id,
-            "1.0".to_string(), // Internal version
+            "1.0".to_string(),   // Internal version
             release.to_string(), // External version
             release.to_string(),
         );
 
         // Set up citation policy (idempotent)
-        storage.setup_citations().await.context("Failed to setup citation policy")?;
+        storage
+            .setup_citations()
+            .await
+            .context("Failed to setup citation policy")?;
 
         let stats = storage
             .store_records(&all_records)
@@ -185,7 +184,10 @@ impl GenbankPipeline {
         );
 
         // Set up citation policy (idempotent)
-        storage.setup_citations().await.context("Failed to setup citation policy")?;
+        storage
+            .setup_citations()
+            .await
+            .context("Failed to setup citation policy")?;
 
         let stats = storage
             .store_records(&records)
@@ -249,17 +251,8 @@ mod tests {
 
     #[test]
     fn test_extract_division_from_filename() {
-        assert_eq!(
-            GenbankPipeline::extract_division_from_filename("gbvrl1.seq.gz"),
-            "viral"
-        );
-        assert_eq!(
-            GenbankPipeline::extract_division_from_filename("gbbct1.seq.gz"),
-            "bacterial"
-        );
-        assert_eq!(
-            GenbankPipeline::extract_division_from_filename("gbphg1.seq.gz"),
-            "phage"
-        );
+        assert_eq!(GenbankPipeline::extract_division_from_filename("gbvrl1.seq.gz"), "viral");
+        assert_eq!(GenbankPipeline::extract_division_from_filename("gbbct1.seq.gz"), "bacterial");
+        assert_eq!(GenbankPipeline::extract_division_from_filename("gbphg1.seq.gz"), "phage");
     }
 }

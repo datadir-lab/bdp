@@ -35,7 +35,7 @@ pub async fn run(command: &AuditCommand) -> Result<()> {
                 project_version.as_deref(),
             )
             .await
-        }
+        },
     }
 }
 
@@ -48,11 +48,16 @@ async fn list(limit: usize, source_filter: Option<&str>) -> Result<()> {
         return Ok(());
     }
 
-    let conn = Connection::open(&db_path)
-        .map_err(|e| CliError::audit(format!("Failed to open audit database at '{}': {}. The database file may be corrupted.", db_path.display(), e)))?;
+    let conn = Connection::open(&db_path).map_err(|e| {
+        CliError::audit(format!(
+            "Failed to open audit database at '{}': {}. The database file may be corrupted.",
+            db_path.display(),
+            e
+        ))
+    })?;
 
-    let mut query = "SELECT id, timestamp, event_type, source_spec, details FROM audit_events"
-        .to_string();
+    let mut query =
+        "SELECT id, timestamp, event_type, source_spec, details FROM audit_events".to_string();
 
     if source_filter.is_some() {
         query.push_str(" WHERE source_spec = ?1");
@@ -101,7 +106,11 @@ async fn list(limit: usize, source_filter: Option<&str>) -> Result<()> {
     for (id, timestamp, event_type, source_spec, details) in events.iter().rev() {
         let ts = DateTime::parse_from_rfc3339(timestamp)
             .ok()
-            .map(|dt| dt.with_timezone(&Utc).format("%Y-%m-%d %H:%M:%S UTC").to_string())
+            .map(|dt| {
+                dt.with_timezone(&Utc)
+                    .format("%Y-%m-%d %H:%M:%S UTC")
+                    .to_string()
+            })
             .unwrap_or_else(|| timestamp.clone());
 
         println!("{} {} {}", format!("#{}", id).bright_black(), event_type.bold(), ts.dimmed());
@@ -114,15 +123,18 @@ async fn list(limit: usize, source_filter: Option<&str>) -> Result<()> {
         if let Ok(details_json) = serde_json::from_str::<serde_json::Value>(details) {
             if let Some(obj) = details_json.as_object() {
                 for (key, value) in obj {
-                    if !key.starts_with('_') && key != "timestamp" {
-                        // Skip internal fields
-                        let value_str = match value {
-                            serde_json::Value::String(s) => s.clone(),
-                            _ => value.to_string(),
-                        };
-                        if value_str.len() < 100 {
-                            println!("  {} {}", format!("{}:", key).dimmed(), value_str);
-                        }
+                    // Skip internal fields
+                    if key.starts_with('_') || key == "timestamp" {
+                        continue;
+                    }
+
+                    let value_str = match value {
+                        serde_json::Value::String(s) => s.clone(),
+                        _ => value.to_string(),
+                    };
+
+                    if value_str.len() < 100 {
+                        println!("  {} {}", format!("{}:", key).dimmed(), value_str);
                     }
                 }
             }
@@ -158,10 +170,7 @@ async fn verify() -> Result<()> {
     } else {
         println!("{} Audit trail verification FAILED", "✗".red().bold());
         println!("  {} Hash chain is broken", "→".yellow());
-        println!(
-            "  {} Possible tampering or data corruption",
-            "→".yellow()
-        );
+        println!("  {} Possible tampering or data corruption", "→".yellow());
     }
 
     Ok(())
@@ -196,7 +205,7 @@ async fn export(
                 "Unknown export format: {}. Valid formats: fda, nih, ema, das, json",
                 format
             )))
-        }
+        },
     };
 
     // Parse date range

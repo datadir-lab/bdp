@@ -99,25 +99,13 @@ pub fn init_schema(conn: &Connection) -> Result<()> {
     )?;
 
     // Create indexes
-    conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_events_timestamp ON audit_events(timestamp)",
-        [],
-    )?;
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_events_timestamp ON audit_events(timestamp)", [])?;
 
-    conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_events_source ON audit_events(source_spec)",
-        [],
-    )?;
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_events_source ON audit_events(source_spec)", [])?;
 
-    conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_events_type ON audit_events(event_type)",
-        [],
-    )?;
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_events_type ON audit_events(event_type)", [])?;
 
-    conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_files_source ON files(source_spec)",
-        [],
-    )?;
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_files_source ON files(source_spec)", [])?;
 
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_generated_source ON generated_files(source_file_id)",

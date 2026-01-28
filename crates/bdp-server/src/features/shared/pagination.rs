@@ -190,10 +190,7 @@ mod tests {
         assert_eq!(invalid_page.validate(), Err("Page must be greater than 0"));
 
         let invalid_per_page = PaginationParams::new(Some(1), Some(101));
-        assert_eq!(
-            invalid_per_page.validate(),
-            Err("Per page must be between 1 and 100")
-        );
+        assert_eq!(invalid_per_page.validate(), Err("Per page must be between 1 and 100"));
     }
 
     #[test]
@@ -224,10 +221,7 @@ mod tests {
 
     #[test]
     fn test_paginated_map() {
-        let paginated = Paginated::new(
-            vec![1, 2, 3],
-            PaginationMetadata::new(1, 10, 3),
-        );
+        let paginated = Paginated::new(vec![1, 2, 3], PaginationMetadata::new(1, 10, 3));
 
         let mapped = paginated.map(|x| x * 2);
         assert_eq!(mapped.items, vec![2, 4, 6]);

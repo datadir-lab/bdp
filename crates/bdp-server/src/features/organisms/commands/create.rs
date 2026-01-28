@@ -127,10 +127,7 @@ mod tests {
             scientific_name: "Test".to_string(),
             common_name: None,
         };
-        assert!(matches!(
-            cmd.validate(),
-            Err(CreateOrganismError::InvalidTaxonomyId)
-        ));
+        assert!(matches!(cmd.validate(), Err(CreateOrganismError::InvalidTaxonomyId)));
     }
 
     #[test]
@@ -140,10 +137,7 @@ mod tests {
             scientific_name: "Test".to_string(),
             common_name: None,
         };
-        assert!(matches!(
-            cmd.validate(),
-            Err(CreateOrganismError::InvalidTaxonomyId)
-        ));
+        assert!(matches!(cmd.validate(), Err(CreateOrganismError::InvalidTaxonomyId)));
     }
 
     #[test]
@@ -153,10 +147,7 @@ mod tests {
             scientific_name: "".to_string(),
             common_name: None,
         };
-        assert!(matches!(
-            cmd.validate(),
-            Err(CreateOrganismError::ScientificNameRequired)
-        ));
+        assert!(matches!(cmd.validate(), Err(CreateOrganismError::ScientificNameRequired)));
     }
 
     #[test]
@@ -166,10 +157,7 @@ mod tests {
             scientific_name: "   ".to_string(),
             common_name: None,
         };
-        assert!(matches!(
-            cmd.validate(),
-            Err(CreateOrganismError::ScientificNameRequired)
-        ));
+        assert!(matches!(cmd.validate(), Err(CreateOrganismError::ScientificNameRequired)));
     }
 
     #[test]
@@ -179,10 +167,7 @@ mod tests {
             scientific_name: "a".repeat(256),
             common_name: None,
         };
-        assert!(matches!(
-            cmd.validate(),
-            Err(CreateOrganismError::ScientificNameLength)
-        ));
+        assert!(matches!(cmd.validate(), Err(CreateOrganismError::ScientificNameLength)));
     }
 
     #[test]
@@ -259,6 +244,7 @@ mod tests {
             scientific_name: "Drosophila melanogaster".to_string(),
             common_name: Some("Fruit fly".to_string()),
         };
+        // NOTE: Clone is necessary in tests because PgPool and cmd are consumed by handle()
         let first_result = handle(pool.clone(), cmd.clone()).await.unwrap();
         let first_id = first_result.id;
 

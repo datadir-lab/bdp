@@ -94,7 +94,11 @@ impl TaxonomyHelper {
         scientific_name: &str,
         lineage: &[String],
     ) -> Result<Uuid> {
-        let mut tx = self.db.begin().await.context("Failed to begin transaction")?;
+        let mut tx = self
+            .db
+            .begin()
+            .await
+            .context("Failed to begin transaction")?;
 
         // 1. Create registry entry
         let slug = format!("{}", taxonomy_id);
@@ -262,14 +266,14 @@ impl TaxonomyHelper {
             {
                 Ok(data_source_id) => {
                     result.insert(*taxonomy_id, data_source_id);
-                }
+                },
                 Err(e) => {
                     tracing::warn!(
                         taxonomy_id = taxonomy_id,
                         error = %e,
                         "Failed to create taxonomy stub"
                     );
-                }
+                },
             }
         }
 

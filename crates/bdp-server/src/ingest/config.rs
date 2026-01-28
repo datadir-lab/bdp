@@ -28,7 +28,8 @@ pub const DEFAULT_JOB_TIMEOUT_SECS: u64 = 3600;
 pub const DEFAULT_UNIPROT_FTP_HOST: &str = "ftp.uniprot.org";
 
 /// Default UniProt FTP path.
-pub const DEFAULT_UNIPROT_FTP_PATH: &str = "/pub/databases/uniprot/current_release/knowledgebase/complete";
+pub const DEFAULT_UNIPROT_FTP_PATH: &str =
+    "/pub/databases/uniprot/current_release/knowledgebase/complete";
 
 /// Default oldest UniProt version to consider.
 pub const DEFAULT_UNIPROT_OLDEST_VERSION: &str = "2020_01";
@@ -215,8 +216,8 @@ impl UniProtConfig {
     /// Load UniProt configuration from environment variables
     pub fn from_env() -> anyhow::Result<Self> {
         // Parse ingestion mode
-        let mode_str = std::env::var("INGEST_UNIPROT_MODE")
-            .unwrap_or_else(|_| "latest".to_string());
+        let mode_str =
+            std::env::var("INGEST_UNIPROT_MODE").unwrap_or_else(|_| "latest".to_string());
 
         let ingestion_mode = match mode_str.as_str() {
             "latest" => {
@@ -230,21 +231,19 @@ impl UniProtConfig {
                     .and_then(|s| s.parse().ok())
                     .unwrap_or(false);
 
-                let ignore_before = std::env::var("INGEST_UNIPROT_IGNORE_BEFORE")
-                    .ok();
+                let ignore_before = std::env::var("INGEST_UNIPROT_IGNORE_BEFORE").ok();
 
                 IngestionMode::Latest(LatestConfig {
                     check_interval_secs,
                     auto_ingest,
                     ignore_before,
                 })
-            }
+            },
             "historical" => {
                 let start_version = std::env::var("INGEST_UNIPROT_HISTORICAL_START")
                     .unwrap_or_else(|_| DEFAULT_UNIPROT_OLDEST_VERSION.to_string());
 
-                let end_version = std::env::var("INGEST_UNIPROT_HISTORICAL_END")
-                    .ok();
+                let end_version = std::env::var("INGEST_UNIPROT_HISTORICAL_END").ok();
 
                 let batch_size = std::env::var("INGEST_UNIPROT_HISTORICAL_BATCH_SIZE")
                     .ok()
@@ -262,10 +261,13 @@ impl UniProtConfig {
                     batch_size,
                     skip_existing,
                 })
-            }
+            },
             _ => {
-                anyhow::bail!("Invalid INGEST_UNIPROT_MODE: {}. Must be 'latest' or 'historical'", mode_str);
-            }
+                anyhow::bail!(
+                    "Invalid INGEST_UNIPROT_MODE: {}. Must be 'latest' or 'historical'",
+                    mode_str
+                );
+            },
         };
 
         // Get cache directory from env or use platform-specific default

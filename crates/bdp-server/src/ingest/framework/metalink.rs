@@ -48,8 +48,8 @@ pub struct MetalinkInfo {
 impl MetalinkInfo {
     /// Parse metalink XML content
     pub fn parse(content: &str) -> Result<Self> {
-        let metalink: Metalink = quick_xml::de::from_str(content)
-            .context("Failed to parse metalink XML")?;
+        let metalink: Metalink =
+            quick_xml::de::from_str(content).context("Failed to parse metalink XML")?;
 
         let mut file_md5s = HashMap::new();
 
@@ -115,14 +115,8 @@ mod tests {
         let info = MetalinkInfo::parse(xml).unwrap();
 
         assert_eq!(info.file_md5s.len(), 2);
-        assert_eq!(
-            info.get_md5("uniprot_sprot.dat.gz"),
-            Some("e3cd39d0c48231aa5abb3eca81b3c62a")
-        );
-        assert_eq!(
-            info.find_md5("fasta"),
-            Some("1234567890abcdef1234567890abcdef")
-        );
+        assert_eq!(info.get_md5("uniprot_sprot.dat.gz"), Some("e3cd39d0c48231aa5abb3eca81b3c62a"));
+        assert_eq!(info.find_md5("fasta"), Some("1234567890abcdef1234567890abcdef"));
     }
 
     #[test]

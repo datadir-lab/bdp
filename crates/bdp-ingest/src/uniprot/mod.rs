@@ -73,7 +73,7 @@ async fn download_datasets(version: &str, output_dir: &Path) -> Result<()> {
 
     for dataset in datasets {
         let url = format!("{}/{}", UNIPROT_RELEASE_URL, dataset);
-        let filename = dataset.split('/').last().unwrap();
+        let filename = dataset.split('/').next_back().unwrap();
         let output_file = output_dir.join(filename);
 
         info!("Downloading {} ...", filename);

@@ -1,8 +1,6 @@
 //! Integration tests for UniProt version checking database methods
 
-use bdp_server::ingest::uniprot::{
-    config::UniProtFtpConfig, version_discovery::VersionDiscovery,
-};
+use bdp_server::ingest::uniprot::{config::UniProtFtpConfig, version_discovery::VersionDiscovery};
 use sqlx::PgPool;
 use uuid::Uuid;
 
@@ -14,7 +12,7 @@ async fn create_test_organization(pool: &PgPool) -> Uuid {
         r#"
         INSERT INTO organizations (id, name, key, description)
         VALUES ($1, 'Test Org', 'test_org', 'Test organization for version checking')
-        "#
+        "#,
     )
     .bind(org_id)
     .execute(pool)
@@ -36,7 +34,7 @@ async fn insert_sync_status(
         VALUES ($1, $2, 'completed')
         ON CONFLICT (organization_id)
         DO UPDATE SET last_external_version = EXCLUDED.last_external_version
-        "#
+        "#,
     )
     .bind(organization_id)
     .bind(last_external_version)
@@ -51,7 +49,7 @@ async fn insert_version(pool: &PgPool, entry_id: Uuid, external_version: &str) {
         r#"
         INSERT INTO versions (entry_id, version, external_version, release_date)
         VALUES ($1, '1.0', $2, CURRENT_DATE)
-        "#
+        "#,
     )
     .bind(entry_id)
     .bind(external_version)
@@ -72,7 +70,7 @@ async fn create_registry_entry(pool: &PgPool) -> Uuid {
         SELECT $1, 'UniProt', 'uniprot', 'data_source', id, 'UniProt data source'
         FROM organizations
         LIMIT 1
-        "#
+        "#,
     )
     .bind(entry_id)
     .execute(pool)
@@ -107,7 +105,7 @@ async fn insert_ingestion_job(
             'completed',
             jsonb_build_object('is_current', $3)
         )
-        "#
+        "#,
     )
     .bind(organization_id)
     .bind(external_version)
@@ -129,9 +127,7 @@ async fn test_check_for_newer_version_when_none_ingested(pool: PgPool) {
     let discovery = VersionDiscovery::new(config);
 
     // No previous ingestion recorded
-    let result = discovery
-        .check_for_newer_version(&pool, org_id)
-        .await;
+    let result = discovery.check_for_newer_version(&pool, org_id).await;
 
     // Since we're mocking FTP, this will return whatever discover_all_versions returns
     // In a real test, we'd mock the FTP calls

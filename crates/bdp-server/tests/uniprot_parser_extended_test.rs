@@ -93,8 +93,12 @@ fn test_parse_all_de_fields() {
 
     // Alternative names
     assert_eq!(entry.alternative_names.len(), 2);
-    assert!(entry.alternative_names.contains(&"Proto-oncogene c-ErbB-1".to_string()));
-    assert!(entry.alternative_names.contains(&"Receptor tyrosine-protein kinase erbB-1".to_string()));
+    assert!(entry
+        .alternative_names
+        .contains(&"Proto-oncogene c-ErbB-1".to_string()));
+    assert!(entry
+        .alternative_names
+        .contains(&"Receptor tyrosine-protein kinase erbB-1".to_string()));
 
     // EC numbers
     assert_eq!(entry.ec_numbers.len(), 1);
@@ -113,24 +117,40 @@ fn test_parse_ft_features() {
     assert_eq!(entry.features.len(), 5);
 
     // Check DOMAIN feature
-    let domain1 = entry.features.iter().find(|f| f.description.contains("Receptor L domain 1")).unwrap();
+    let domain1 = entry
+        .features
+        .iter()
+        .find(|f| f.description.contains("Receptor L domain 1"))
+        .unwrap();
     assert_eq!(domain1.feature_type, "DOMAIN");
     assert_eq!(domain1.start_pos, Some(57));
     assert_eq!(domain1.end_pos, Some(167));
 
     // Check BINDING feature
-    let binding = entry.features.iter().find(|f| f.feature_type == "BINDING").unwrap();
+    let binding = entry
+        .features
+        .iter()
+        .find(|f| f.feature_type == "BINDING")
+        .unwrap();
     assert_eq!(binding.start_pos, Some(745));
     assert_eq!(binding.end_pos, Some(745));
     assert!(binding.description.contains("ATP binding site"));
 
     // Check MOD_RES feature
-    let mod_res = entry.features.iter().find(|f| f.feature_type == "MOD_RES").unwrap();
+    let mod_res = entry
+        .features
+        .iter()
+        .find(|f| f.feature_type == "MOD_RES")
+        .unwrap();
     assert_eq!(mod_res.start_pos, Some(1068));
     assert!(mod_res.description.contains("Phosphothreonine"));
 
     // Check VARIANT feature
-    let variant = entry.features.iter().find(|f| f.feature_type == "VARIANT").unwrap();
+    let variant = entry
+        .features
+        .iter()
+        .find(|f| f.feature_type == "VARIANT")
+        .unwrap();
     assert_eq!(variant.start_pos, Some(521));
     assert!(variant.description.contains("R -> K"));
 }
@@ -147,30 +167,54 @@ fn test_parse_dr_cross_references() {
     assert!(entry.cross_references.len() >= 10);
 
     // Check EMBL reference
-    let embl = entry.cross_references.iter().find(|r| r.database == "EMBL").unwrap();
+    let embl = entry
+        .cross_references
+        .iter()
+        .find(|r| r.database == "EMBL")
+        .unwrap();
     assert_eq!(embl.database_id, "M28668");
     assert_eq!(embl.metadata[0], "AAA35808.1");
 
     // Check PDB references
-    let pdb_refs: Vec<_> = entry.cross_references.iter().filter(|r| r.database == "PDB").collect();
+    let pdb_refs: Vec<_> = entry
+        .cross_references
+        .iter()
+        .filter(|r| r.database == "PDB")
+        .collect();
     assert_eq!(pdb_refs.len(), 2);
     assert_eq!(pdb_refs[0].database_id, "1IVO");
     assert_eq!(pdb_refs[0].metadata[0], "X-ray");
 
     // Check GO references
-    let go_refs: Vec<_> = entry.cross_references.iter().filter(|r| r.database == "GO").collect();
+    let go_refs: Vec<_> = entry
+        .cross_references
+        .iter()
+        .filter(|r| r.database == "GO")
+        .collect();
     assert_eq!(go_refs.len(), 2);
 
     // Check InterPro references
-    let interpro_refs: Vec<_> = entry.cross_references.iter().filter(|r| r.database == "InterPro").collect();
+    let interpro_refs: Vec<_> = entry
+        .cross_references
+        .iter()
+        .filter(|r| r.database == "InterPro")
+        .collect();
     assert_eq!(interpro_refs.len(), 2);
 
     // Check Pfam references
-    let pfam_refs: Vec<_> = entry.cross_references.iter().filter(|r| r.database == "Pfam").collect();
+    let pfam_refs: Vec<_> = entry
+        .cross_references
+        .iter()
+        .filter(|r| r.database == "Pfam")
+        .collect();
     assert_eq!(pfam_refs.len(), 2);
 
     // Check PROSITE reference
-    let prosite = entry.cross_references.iter().find(|r| r.database == "PROSITE").unwrap();
+    let prosite = entry
+        .cross_references
+        .iter()
+        .find(|r| r.database == "PROSITE")
+        .unwrap();
     assert_eq!(prosite.database_id, "PS00022");
 }
 
@@ -186,30 +230,58 @@ fn test_parse_cc_comments() {
     assert_eq!(entry.comments.len(), 6);
 
     // Check FUNCTION comment
-    let function = entry.comments.iter().find(|c| c.topic == "FUNCTION").unwrap();
-    assert!(function.text.contains("Receptor for epidermal growth factor"));
+    let function = entry
+        .comments
+        .iter()
+        .find(|c| c.topic == "FUNCTION")
+        .unwrap();
+    assert!(function
+        .text
+        .contains("Receptor for epidermal growth factor"));
     assert!(function.text.contains("TGF-alpha"));
 
     // Check CATALYTIC ACTIVITY comment
-    let catalytic = entry.comments.iter().find(|c| c.topic == "CATALYTIC ACTIVITY").unwrap();
+    let catalytic = entry
+        .comments
+        .iter()
+        .find(|c| c.topic == "CATALYTIC ACTIVITY")
+        .unwrap();
     assert!(catalytic.text.contains("ATP + a [protein]-L-tyrosine"));
 
     // Check SUBUNIT comment
-    let subunit = entry.comments.iter().find(|c| c.topic == "SUBUNIT").unwrap();
+    let subunit = entry
+        .comments
+        .iter()
+        .find(|c| c.topic == "SUBUNIT")
+        .unwrap();
     assert!(subunit.text.contains("ERRFI1"));
 
     // Check SUBCELLULAR LOCATION comment
-    let location = entry.comments.iter().find(|c| c.topic == "SUBCELLULAR LOCATION").unwrap();
+    let location = entry
+        .comments
+        .iter()
+        .find(|c| c.topic == "SUBCELLULAR LOCATION")
+        .unwrap();
     assert!(location.text.contains("Cell membrane"));
-    assert!(location.text.contains("Single-pass type I membrane protein"));
+    assert!(location
+        .text
+        .contains("Single-pass type I membrane protein"));
 
     // Check DISEASE comment
-    let disease = entry.comments.iter().find(|c| c.topic == "DISEASE").unwrap();
+    let disease = entry
+        .comments
+        .iter()
+        .find(|c| c.topic == "DISEASE")
+        .unwrap();
     assert!(disease.text.contains("lung cancer"));
     assert!(disease.text.contains("LNCR"));
 
     // Check SIMILARITY comment
-    let similarity = entry.comments.iter().find(|c| c.topic == "SIMILARITY").unwrap();
+    let similarity = entry
+        .comments
+        .iter()
+        .find(|c| c.topic == "SIMILARITY")
+        .unwrap();
     assert!(similarity.text.contains("protein kinase superfamily"));
 }
 
@@ -241,7 +313,9 @@ fn test_parse_kw_keywords() {
     assert!(entry.keywords.contains(&"ATP-binding".to_string()));
     assert!(entry.keywords.contains(&"Kinase".to_string()));
     assert!(entry.keywords.contains(&"Receptor".to_string()));
-    assert!(entry.keywords.contains(&"Tyrosine-protein kinase".to_string()));
+    assert!(entry
+        .keywords
+        .contains(&"Tyrosine-protein kinase".to_string()));
     assert!(entry.keywords.contains(&"Transmembrane".to_string()));
 }
 
@@ -267,8 +341,12 @@ fn test_parse_oh_organism_hosts() {
 
     // Should have 2 organism hosts
     assert_eq!(entry.organism_hosts.len(), 2);
-    assert!(entry.organism_hosts.contains(&"Bos taurus (Bovine)".to_string()));
-    assert!(entry.organism_hosts.contains(&"Canis lupus familiaris (Dog)".to_string()));
+    assert!(entry
+        .organism_hosts
+        .contains(&"Bos taurus (Bovine)".to_string()));
+    assert!(entry
+        .organism_hosts
+        .contains(&"Canis lupus familiaris (Dog)".to_string()));
 }
 
 #[test]
@@ -382,7 +460,8 @@ SQ   SEQUENCE   150 AA;  17000 MW;  1234ABCD5678EFGH CRC64;
 #[test]
 fn test_protein_existence_levels() {
     for level in 1..=5 {
-        let entry = format!(r#"ID   PE{}_TEST               Reviewed;         100 AA.
+        let entry = format!(
+            r#"ID   PE{}_TEST               Reviewed;         100 AA.
 AC   P3333{};
 DT   01-JAN-2000, integrated into UniProtKB/Swiss-Prot.
 DE   RecName: Full=PE level {} test;
@@ -394,7 +473,9 @@ SQ   SEQUENCE   100 AA;  11000 MW;  1234567890ABCDEF CRC64;
      MKTIIALSYI FCLVFADYKD DDDKMKTIII ALSYIFCLVF ADYKDDDDKM KTIIALSYIF
      CLVFADYKDD DDKMKTIIAL SYIFCLVFAD YKDDDDKMKT
 //
-"#, level, level, level, level);
+"#,
+            level, level, level, level
+        );
 
         let parser = DatParser::new();
         let entries = parser.parse_dat_string(&entry).unwrap();
@@ -429,5 +510,7 @@ SQ   SEQUENCE   100 AA;  11000 MW;  1234567890ABCDEF CRC64;
     // Should have the feature even without position
     assert_eq!(entry.features.len(), 1);
     assert_eq!(entry.features[0].feature_type, "CHAIN");
-    assert!(entry.features[0].description.contains("General description"));
+    assert!(entry.features[0]
+        .description
+        .contains("General description"));
 }

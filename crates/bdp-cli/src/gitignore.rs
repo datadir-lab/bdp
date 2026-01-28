@@ -274,10 +274,7 @@ mod tests {
         let gitignore = temp.path().join(".gitignore");
 
         // Create .gitignore with incomplete BDP section
-        let initial_content = format!(
-            "{}\n.bdp/cache/\n.bdp/bdp.db\n",
-            BDP_SECTION_MARKER
-        );
+        let initial_content = format!("{}\n.bdp/cache/\n.bdp/bdp.db\n", BDP_SECTION_MARKER);
         fs::write(&gitignore, initial_content).unwrap();
 
         // Update should add missing entries

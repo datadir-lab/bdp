@@ -52,13 +52,8 @@ impl Storage {
     pub async fn new(config: config::StorageConfig) -> Result<Self> {
         debug!("Initializing storage with config: {:?}", config);
 
-        let credentials = Credentials::new(
-            &config.access_key,
-            &config.secret_key,
-            None,
-            None,
-            "bdp-storage",
-        );
+        let credentials =
+            Credentials::new(&config.access_key, &config.secret_key, None, None, "bdp-storage");
 
         let mut s3_config_builder = aws_sdk_s3::Config::builder()
             .credentials_provider(credentials)
@@ -72,10 +67,7 @@ impl Storage {
         let s3_config = s3_config_builder.build();
         let client = Client::from_conf(s3_config);
 
-        info!(
-            "Storage client initialized for bucket: {}",
-            config.bucket
-        );
+        info!("Storage client initialized for bucket: {}", config.bucket);
 
         Ok(Self {
             client,
@@ -154,10 +146,7 @@ impl Storage {
         content_type: Option<String>,
         size_hint: Option<i64>,
     ) -> Result<String> {
-        debug!(
-            "Uploading stream to s3://{}/{} (size hint: {:?})",
-            self.bucket, key, size_hint
-        );
+        debug!("Uploading stream to s3://{}/{} (size hint: {:?})", self.bucket, key, size_hint);
 
         let mut request = self
             .client
@@ -174,12 +163,12 @@ impl Storage {
             request = request.content_length(size);
         }
 
-        request.send().await.context("Failed to upload stream to S3")?;
+        request
+            .send()
+            .await
+            .context("Failed to upload stream to S3")?;
 
-        info!(
-            "Successfully uploaded stream to s3://{}/{}",
-            self.bucket, key
-        );
+        info!("Successfully uploaded stream to s3://{}/{}", self.bucket, key);
 
         Ok(key.to_string())
     }
@@ -291,7 +280,7 @@ impl Storage {
                 } else {
                     Err(anyhow!("Failed to check S3 object existence: {}", e))
                 }
-            }
+            },
         }
     }
 
@@ -344,11 +333,7 @@ impl Storage {
     ///
     /// Returns an error if URL generation fails.
     #[instrument(skip(self))]
-    pub async fn generate_presigned_url(
-        &self,
-        key: &str,
-        expires_in: Duration,
-    ) -> Result<String> {
+    pub async fn generate_presigned_url(&self, key: &str, expires_in: Duration) -> Result<String> {
         debug!(
             "Generating presigned URL for s3://{}/{} (expires in: {:?})",
             self.bucket, key, expires_in
@@ -389,10 +374,7 @@ impl Storage {
     /// Returns an error if listing fails.
     #[instrument(skip(self))]
     pub async fn list(&self, prefix: &str, max_keys: Option<i32>) -> Result<Vec<String>> {
-        debug!(
-            "Listing objects in s3://{}/{} (max: {:?})",
-            self.bucket, prefix, max_keys
-        );
+        debug!("Listing objects in s3://{}/{} (max: {:?})", self.bucket, prefix, max_keys);
 
         let mut request = self
             .client
@@ -404,10 +386,7 @@ impl Storage {
             request = request.max_keys(max);
         }
 
-        let response = request
-            .send()
-            .await
-            .context("Failed to list S3 objects")?;
+        let response = request.send().await.context("Failed to list S3 objects")?;
 
         let keys = response
             .contents()
@@ -513,10 +492,7 @@ mod tests {
         };
 
         let key = storage.build_key("uniprot", "human-insulin", "1.0.0", "data.fasta");
-        assert_eq!(
-            key,
-            "data-sources/uniprot/human-insulin/1.0.0/data.fasta"
-        );
+        assert_eq!(key, "data-sources/uniprot/human-insulin/1.0.0/data.fasta");
     }
 
     #[test]
@@ -534,9 +510,6 @@ mod tests {
     fn test_calculate_sha256() {
         let data = b"Hello, World!";
         let checksum = calculate_sha256(data);
-        assert_eq!(
-            checksum,
-            "dffd6021bb2bd5b0af676290809ec3a53191dd81c7f70a4b28688a362182986f"
-        );
+        assert_eq!(checksum, "dffd6021bb2bd5b0af676290809ec3a53191dd81c7f70a4b28688a362182986f");
     }
 }

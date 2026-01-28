@@ -110,7 +110,6 @@ pub struct OrganismInfo {
     pub ncbi_taxonomy_id: Option<i32>,
 }
 
-
 /// Errors that can occur during unified search
 #[derive(Debug, thiserror::Error)]
 pub enum UnifiedSearchError {
@@ -228,8 +227,9 @@ pub async fn handle(
     let offset = query.offset();
 
     let type_filter = query.type_filter.as_ref();
-    let has_org_filter = type_filter.map_or(false, |types| types.contains(&"organization".to_string()));
-    let has_entry_filter = type_filter.map_or(true, |types| {
+    let has_org_filter =
+        type_filter.is_some_and(|types| types.contains(&"organization".to_string()));
+    let has_entry_filter = type_filter.is_none_or(|types| {
         types.contains(&"data_source".to_string()) || types.contains(&"tool".to_string())
     });
 
@@ -261,7 +261,8 @@ pub async fn handle(
 
     // Sort by rank - organizations and entries are ranked separately, so we need to merge
     all_results.sort_by(|a, b| {
-        b.rank.partial_cmp(&a.rank)
+        b.rank
+            .partial_cmp(&a.rank)
             .unwrap_or(std::cmp::Ordering::Equal)
             .then_with(|| b.total_downloads.cmp(&a.total_downloads))
             .then_with(|| std::cmp::Ordering::Equal)
@@ -272,7 +273,11 @@ pub async fn handle(
     // If searching both types, we need to paginate in memory after sorting
     // Otherwise, pagination was already done in the query
     let items: Vec<SearchResultItem> = if searching_both_types {
-        all_results.into_iter().skip(offset as usize).take(per_page as usize).collect()
+        all_results
+            .into_iter()
+            .skip(offset as usize)
+            .take(per_page as usize)
+            .collect()
     } else {
         all_results
     };
@@ -446,8 +451,9 @@ async fn count_search_results(
     query: &UnifiedSearchQuery,
 ) -> Result<i64, sqlx::Error> {
     let type_filter = query.type_filter.as_ref();
-    let has_org_filter = type_filter.map_or(false, |types| types.contains(&"organization".to_string()));
-    let has_entry_filter = type_filter.map_or(true, |types| {
+    let has_org_filter =
+        type_filter.is_some_and(|types| types.contains(&"organization".to_string()));
+    let has_entry_filter = type_filter.is_none_or(|types| {
         types.contains(&"data_source".to_string()) || types.contains(&"tool".to_string())
     });
 
@@ -566,10 +572,7 @@ mod tests {
             format: None,
             pagination: PaginationParams::default(),
         };
-        assert!(matches!(
-            query.validate(),
-            Err(UnifiedSearchError::QueryRequired)
-        ));
+        assert!(matches!(query.validate(), Err(UnifiedSearchError::QueryRequired)));
     }
 
     #[test]
@@ -582,10 +585,7 @@ mod tests {
             format: None,
             pagination: PaginationParams::new(Some(1), Some(101)),
         };
-        assert!(matches!(
-            query.validate(),
-            Err(UnifiedSearchError::InvalidPerPage)
-        ));
+        assert!(matches!(query.validate(), Err(UnifiedSearchError::InvalidPerPage)));
     }
 
     #[test]
@@ -598,10 +598,7 @@ mod tests {
             format: None,
             pagination: PaginationParams::new(Some(0), Some(20)),
         };
-        assert!(matches!(
-            query.validate(),
-            Err(UnifiedSearchError::InvalidPage)
-        ));
+        assert!(matches!(query.validate(), Err(UnifiedSearchError::InvalidPage)));
     }
 
     #[test]
@@ -614,10 +611,7 @@ mod tests {
             format: None,
             pagination: PaginationParams::default(),
         };
-        assert!(matches!(
-            query.validate(),
-            Err(UnifiedSearchError::InvalidTypeFilter(_))
-        ));
+        assert!(matches!(query.validate(), Err(UnifiedSearchError::InvalidTypeFilter(_))));
     }
 
     #[test]
@@ -630,10 +624,7 @@ mod tests {
             format: None,
             pagination: PaginationParams::default(),
         };
-        assert!(matches!(
-            query.validate(),
-            Err(UnifiedSearchError::InvalidSourceTypeFilter(_))
-        ));
+        assert!(matches!(query.validate(), Err(UnifiedSearchError::InvalidSourceTypeFilter(_))));
     }
 
     #[test]
@@ -729,11 +720,9 @@ mod tests {
         .execute(&pool)
         .await?;
 
-        let org_id = sqlx::query_scalar!(
-            r#"SELECT id FROM organizations WHERE slug = 'test-org'"#
-        )
-        .fetch_one(&pool)
-        .await?;
+        let org_id = sqlx::query_scalar!(r#"SELECT id FROM organizations WHERE slug = 'test-org'"#)
+            .fetch_one(&pool)
+            .await?;
 
         sqlx::query!(
             r#"

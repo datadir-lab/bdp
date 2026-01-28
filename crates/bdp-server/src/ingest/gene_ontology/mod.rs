@@ -30,13 +30,13 @@ pub mod version_discovery;
 pub use config::GoHttpConfig;
 pub use downloader::GoDownloader;
 pub use models::{
-    EntityType, EvidenceCode, GoAnnotation, GoTerm, GoRelationship, Namespace, RelationshipType,
+    EntityType, EvidenceCode, GoAnnotation, GoRelationship, GoTerm, Namespace, RelationshipType,
     Synonym, SynonymScope,
 };
-pub use parser::{GoParser, OboParser, GafParser, ParsedObo};
+pub use parser::{GafParser, GoParser, OboParser, ParsedObo};
 pub use pipeline::{GoPipeline, PipelineStats};
 pub use storage::{GoStorage, StorageStats};
-pub use version_discovery::{VersionDiscovery, DiscoveredVersion};
+pub use version_discovery::{DiscoveredVersion, VersionDiscovery};
 
 // Batch size constants
 pub const DEFAULT_TERM_CHUNK_SIZE: usize = 500;

@@ -1,7 +1,7 @@
 // Gene Ontology Integration Test
 
 use bdp_server::ingest::gene_ontology::{
-    GoHttpConfig, GoPipeline, GoParser, GoTerm, Namespace, RelationshipType,
+    GoHttpConfig, GoParser, GoPipeline, GoTerm, Namespace, RelationshipType,
 };
 use sqlx::PgPool;
 use std::env;
@@ -108,10 +108,10 @@ async fn test_ontology_download_and_parse() {
             println!("Successfully parsed {} terms", stats.terms_stored);
             assert!(stats.terms_stored > 0);
             assert!(stats.relationships_stored > 0);
-        }
+        },
         Err(e) => {
             println!("Download/parse failed (expected in CI): {}", e);
-        }
+        },
     }
 }
 
@@ -172,18 +172,9 @@ async fn test_config_builder() {
 #[tokio::test]
 #[ignore] // Requires database
 async fn test_namespace_parsing() {
-    assert_eq!(
-        Namespace::from_str("biological_process").unwrap(),
-        Namespace::BiologicalProcess
-    );
-    assert_eq!(
-        Namespace::from_str("molecular_function").unwrap(),
-        Namespace::MolecularFunction
-    );
-    assert_eq!(
-        Namespace::from_str("cellular_component").unwrap(),
-        Namespace::CellularComponent
-    );
+    assert_eq!(Namespace::from_str("biological_process").unwrap(), Namespace::BiologicalProcess);
+    assert_eq!(Namespace::from_str("molecular_function").unwrap(), Namespace::MolecularFunction);
+    assert_eq!(Namespace::from_str("cellular_component").unwrap(), Namespace::CellularComponent);
 
     assert!(Namespace::from_str("invalid").is_err());
 }
@@ -191,18 +182,9 @@ async fn test_namespace_parsing() {
 #[tokio::test]
 #[ignore] // Requires database
 async fn test_relationship_type_parsing() {
-    assert_eq!(
-        RelationshipType::from_str("is_a").unwrap(),
-        RelationshipType::IsA
-    );
-    assert_eq!(
-        RelationshipType::from_str("part_of").unwrap(),
-        RelationshipType::PartOf
-    );
-    assert_eq!(
-        RelationshipType::from_str("regulates").unwrap(),
-        RelationshipType::Regulates
-    );
+    assert_eq!(RelationshipType::from_str("is_a").unwrap(), RelationshipType::IsA);
+    assert_eq!(RelationshipType::from_str("part_of").unwrap(), RelationshipType::PartOf);
+    assert_eq!(RelationshipType::from_str("regulates").unwrap(), RelationshipType::Regulates);
 
     assert!(RelationshipType::from_str("invalid").is_err());
 }

@@ -11,9 +11,7 @@
 //    Format: ENTRY_AC ENTRY_TYPE ENTRY_NAME
 //    Example: IPR000001 Domain Kringle
 
-use crate::ingest::interpro::models::{
-    EntryType, InterProEntry, ProteinMatch, SignatureDatabase,
-};
+use crate::ingest::interpro::models::{EntryType, InterProEntry, ProteinMatch, SignatureDatabase};
 use flate2::read::GzDecoder;
 use std::io::{BufRead, BufReader, Read};
 use std::path::Path;
@@ -91,19 +89,12 @@ impl Protein2IprParser {
                 Ok(protein_match) => matches.push(protein_match),
                 Err(e) => {
                     // Log error but continue parsing
-                    warn!(
-                        "Skipping line {} due to parse error: {}",
-                        self.line_number, e
-                    );
-                }
+                    warn!("Skipping line {} due to parse error: {}", self.line_number, e);
+                },
             }
         }
 
-        debug!(
-            "Parsed {} protein matches from {} lines",
-            matches.len(),
-            self.line_number
-        );
+        debug!("Parsed {} protein matches from {} lines", matches.len(), self.line_number);
 
         Ok(matches)
     }
@@ -143,39 +134,43 @@ impl Protein2IprParser {
             None
         };
 
-        let start_position = fields[8].parse::<i32>().map_err(|e| {
-            ParserError::InvalidInteger {
+        let start_position = fields[8]
+            .parse::<i32>()
+            .map_err(|e| ParserError::InvalidInteger {
                 line: self.line_number,
                 message: format!("Failed to parse start position: {}", e),
-            }
-        })?;
+            })?;
 
-        let end_position = fields[9].parse::<i32>().map_err(|e| {
-            ParserError::InvalidInteger {
+        let end_position = fields[9]
+            .parse::<i32>()
+            .map_err(|e| ParserError::InvalidInteger {
                 line: self.line_number,
                 message: format!("Failed to parse end position: {}", e),
-            }
-        })?;
+            })?;
 
         // E-value and score are optional
         let e_value = if fields.len() > 10 && !fields[10].is_empty() {
-            Some(fields[10].parse::<f64>().map_err(|e| {
-                ParserError::InvalidFloat {
-                    line: self.line_number,
-                    message: format!("Failed to parse e-value: {}", e),
-                }
-            })?)
+            Some(
+                fields[10]
+                    .parse::<f64>()
+                    .map_err(|e| ParserError::InvalidFloat {
+                        line: self.line_number,
+                        message: format!("Failed to parse e-value: {}", e),
+                    })?,
+            )
         } else {
             None
         };
 
         let score = if fields.len() > 11 && !fields[11].is_empty() {
-            Some(fields[11].parse::<f64>().map_err(|e| {
-                ParserError::InvalidFloat {
-                    line: self.line_number,
-                    message: format!("Failed to parse score: {}", e),
-                }
-            })?)
+            Some(
+                fields[11]
+                    .parse::<f64>()
+                    .map_err(|e| ParserError::InvalidFloat {
+                        line: self.line_number,
+                        message: format!("Failed to parse score: {}", e),
+                    })?,
+            )
         } else {
             None
         };
@@ -241,19 +236,12 @@ impl EntryListParser {
             match self.parse_line(&line) {
                 Ok(entry) => entries.push(entry),
                 Err(e) => {
-                    warn!(
-                        "Skipping line {} due to parse error: {}",
-                        self.line_number, e
-                    );
-                }
+                    warn!("Skipping line {} due to parse error: {}", self.line_number, e);
+                },
             }
         }
 
-        debug!(
-            "Parsed {} InterPro entries from {} lines",
-            entries.len(),
-            self.line_number
-        );
+        debug!("Parsed {} InterPro entries from {} lines", entries.len(), self.line_number);
 
         Ok(entries)
     }
@@ -417,7 +405,8 @@ mod tests {
         ];
 
         for (db_str, expected) in databases {
-            let line = format!("P12345\tabc\t100\tIPR000001\tTest\t{}\tSIG001\tTest sig\t10\t50", db_str);
+            let line =
+                format!("P12345\tabc\t100\tIPR000001\tTest\t{}\tSIG001\tTest sig\t10\t50", db_str);
             let result = parser.parse_line(&line);
             assert!(result.is_ok());
             assert_eq!(result.unwrap().signature_database, expected);

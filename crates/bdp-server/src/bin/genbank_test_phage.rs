@@ -8,6 +8,8 @@
 //
 // Expected runtime: 2-5 minutes (depending on network and CPU)
 
+#![allow(clippy::type_complexity)]
+
 use anyhow::{Context, Result};
 use bdp_server::ingest::{GenbankFtpConfig, GenbankOrchestrator};
 use bdp_server::storage::Storage;
@@ -80,8 +82,10 @@ async fn main() -> Result<()> {
     info!("Protein mappings: {}", result.mappings_created);
     info!("Bytes uploaded: {} MB", result.bytes_uploaded / 1_000_000);
     info!("Duration: {:.2} seconds", result.duration_seconds);
-    info!("Throughput: {:.0} records/second",
-        result.records_processed as f64 / result.duration_seconds);
+    info!(
+        "Throughput: {:.0} records/second",
+        result.records_processed as f64 / result.duration_seconds
+    );
 
     // Verify data
     verify_data(&db, result.sequences_inserted).await?;
@@ -93,11 +97,10 @@ async fn main() -> Result<()> {
 /// Get or create test organization
 async fn get_or_create_test_org(db: &PgPool) -> Result<Uuid> {
     // Try to find existing test org
-    let existing: Option<(Uuid,)> = sqlx::query_as(
-        "SELECT id FROM organizations WHERE slug = 'genbank-test' LIMIT 1"
-    )
-    .fetch_optional(db)
-    .await?;
+    let existing: Option<(Uuid,)> =
+        sqlx::query_as("SELECT id FROM organizations WHERE slug = 'genbank-test' LIMIT 1")
+            .fetch_optional(db)
+            .await?;
 
     if let Some((org_id,)) = existing {
         Ok(org_id)
@@ -105,7 +108,7 @@ async fn get_or_create_test_org(db: &PgPool) -> Result<Uuid> {
         // Create new test org
         let id = Uuid::new_v4();
         sqlx::query(
-            "INSERT INTO organizations (id, name, slug, is_public) VALUES ($1, $2, $3, $4)"
+            "INSERT INTO organizations (id, name, slug, is_public) VALUES ($1, $2, $3, $4)",
         )
         .bind(id)
         .bind("GenBank Test")
@@ -137,7 +140,11 @@ async fn verify_data(db: &PgPool, expected_count: usize) -> Result<()> {
     if actual_count >= expected_count {
         info!("  ✓ Data verified");
     } else {
-        anyhow::bail!("Data verification failed: expected {}, found {}", expected_count, actual_count);
+        anyhow::bail!(
+            "Data verification failed: expected {}, found {}",
+            expected_count,
+            actual_count
+        );
     }
 
     // Sample some records

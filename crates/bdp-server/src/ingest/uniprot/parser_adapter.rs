@@ -13,6 +13,12 @@ pub struct UniProtParser {
     parser: DatParser,
 }
 
+impl Default for UniProtParser {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl UniProtParser {
     pub fn new() -> Self {
         Self {
@@ -30,7 +36,9 @@ impl DataSourceParser for UniProtParser {
         end_offset: usize,
     ) -> Result<Vec<GenericRecord>> {
         // Parse all entries from the data
-        let all_entries = self.parser.parse_bytes(data)
+        let all_entries = self
+            .parser
+            .parse_bytes(data)
             .context("Failed to parse UniProt DAT data")?;
 
         // Get the requested range
@@ -95,11 +103,10 @@ fn entry_to_generic_record(entry: &UniProtEntry, offset: usize) -> GenericRecord
     let content_md5 = {
         use crate::ingest::framework::compute_md5;
         // record_data is a serde_json::Value that we just created, serialization should not fail
-        let json_str = serde_json::to_string(&record_data)
-            .unwrap_or_else(|e| {
-                tracing::error!("Failed to serialize record_data for MD5: {}", e);
-                String::new()
-            });
+        let json_str = serde_json::to_string(&record_data).unwrap_or_else(|e| {
+            tracing::error!("Failed to serialize record_data for MD5: {}", e);
+            String::new()
+        });
         compute_md5(json_str.as_bytes())
     };
 
@@ -170,14 +177,14 @@ impl RecordFormatter for UniProtFormatter {
                 );
 
                 Ok((fasta.into_bytes(), "text/plain".to_string()))
-            }
+            },
 
             "json" => {
                 let json = serde_json::to_string_pretty(&record.record_data)
                     .context("Failed to serialize to JSON")?;
 
                 Ok((json.into_bytes(), "application/json".to_string()))
-            }
+            },
 
             "dat" => {
                 // For DAT format, we would need to reconstruct the original format
@@ -186,7 +193,7 @@ impl RecordFormatter for UniProtFormatter {
                     .context("Failed to serialize to JSON")?;
 
                 Ok((json.into_bytes(), "text/plain".to_string()))
-            }
+            },
 
             _ => anyhow::bail!("Unsupported format: {}", format),
         }

@@ -109,12 +109,12 @@ async fn main() -> Result<()> {
             info!("✓ Ontology ingestion succeeded");
             info!("  Terms stored: {}", stats.terms_stored);
             info!("  Relationships stored: {}", stats.relationships_stored);
-        }
+        },
         Err(e) => {
             warn!("✗ Ontology ingestion failed: {}", e);
             error!("Stopping test due to ontology ingestion failure");
             return Err(e.into());
-        }
+        },
     }
 
     info!("");
@@ -125,10 +125,10 @@ async fn main() -> Result<()> {
         Ok(stats) => {
             info!("✓ Annotations ingestion succeeded");
             info!("  Annotations stored: {}", stats.annotations_stored);
-        }
+        },
         Err(e) => {
             warn!("✗ Annotations ingestion failed: {}", e);
-        }
+        },
     }
 
     info!("");

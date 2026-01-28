@@ -23,9 +23,7 @@ pub fn create_spinner(message: &str) -> ProgressBar {
     let pb = ProgressBar::new_spinner();
     // Template is a static string, so template() should not fail.
     // If it does, fall back to default style.
-    if let Ok(style) = ProgressStyle::default_spinner()
-        .template("{spinner:.green} {msg}")
-    {
+    if let Ok(style) = ProgressStyle::default_spinner().template("{spinner:.green} {msg}") {
         pb.set_style(style);
     }
     pb.set_message(message.to_string());
@@ -38,9 +36,9 @@ pub fn create_progress_bar(total: u64, message: &str) -> ProgressBar {
     let pb = ProgressBar::new(total);
     // Template is a static string, so template() should not fail.
     // If it does, fall back to default style.
-    if let Ok(style) = ProgressStyle::default_bar()
-        .template("{msg}\n{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {pos}/{len} ({eta})")
-    {
+    if let Ok(style) = ProgressStyle::default_bar().template(
+        "{msg}\n{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {pos}/{len} ({eta})",
+    ) {
         pb.set_style(style.progress_chars("#>-"));
     }
     pb.set_message(message.to_string());

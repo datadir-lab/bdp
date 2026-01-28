@@ -24,9 +24,7 @@ fn test_parse_sample_file_complete() {
     let data = fs::read_to_string(sample_path).expect("Failed to read sample file");
 
     let parser = GenbankParser::new(SourceDatabase::Genbank);
-    let records = parser
-        .parse_all(data.as_bytes())
-        .expect("Failed to parse");
+    let records = parser.parse_all(data.as_bytes()).expect("Failed to parse");
 
     assert_eq!(records.len(), 1, "Should parse exactly 1 record");
 
@@ -54,7 +52,10 @@ fn test_parse_sample_file_complete() {
     assert_eq!(record.sequence.len(), 1140, "Sequence length should match ORIGIN section");
 
     // Verify calculated fields
-    assert!(record.gc_content > 0.0 && record.gc_content <= 100.0, "GC content should be valid percentage");
+    assert!(
+        record.gc_content > 0.0 && record.gc_content <= 100.0,
+        "GC content should be valid percentage"
+    );
     assert_eq!(record.sequence_hash.len(), 64, "SHA256 hash should be 64 hex chars");
 
     // Verify FASTA generation
@@ -72,11 +73,15 @@ fn test_parse_with_limit() {
     let parser = GenbankParser::new(SourceDatabase::Genbank);
 
     // Test with limit
-    let records = parser.parse_with_limit(data.as_bytes(), 1).expect("Failed to parse");
+    let records = parser
+        .parse_with_limit(data.as_bytes(), 1)
+        .expect("Failed to parse");
     assert_eq!(records.len(), 1, "Should respect limit");
 
     // Test with higher limit than available
-    let records = parser.parse_with_limit(data.as_bytes(), 100).expect("Failed to parse");
+    let records = parser
+        .parse_with_limit(data.as_bytes(), 100)
+        .expect("Failed to parse");
     assert_eq!(records.len(), 1, "Should return all available records when limit is higher");
 }
 
@@ -215,16 +220,22 @@ fn test_gc_content_calculation_accuracy() {
 
     // Test with known sequences
     let test_cases = vec![
-        ("AAAA", 0.0),    // 0% GC
-        ("GGCC", 100.0),  // 100% GC
-        ("ATGC", 50.0),   // 50% GC
+        ("AAAA", 0.0),      // 0% GC
+        ("GGCC", 100.0),    // 100% GC
+        ("ATGC", 50.0),     // 50% GC
         ("AAATGC", 33.333), // 33.33% GC (2/6)
     ];
 
     for (seq, expected_gc) in test_cases {
-        let calculated = bdp_server::ingest::genbank::parser::GenbankParser::calculate_gc_content(seq);
-        assert!((calculated - expected_gc).abs() < 0.01,
-            "GC content for {} should be ~{}, got {}", seq, expected_gc, calculated);
+        let calculated =
+            bdp_server::ingest::genbank::parser::GenbankParser::calculate_gc_content(seq);
+        assert!(
+            (calculated - expected_gc).abs() < 0.01,
+            "GC content for {} should be ~{}, got {}",
+            seq,
+            expected_gc,
+            calculated
+        );
     }
 }
 
@@ -240,8 +251,10 @@ fn test_hash_deterministic() {
     let records2 = parser.parse_all(data.as_bytes()).expect("Failed to parse");
 
     // Hashes should be identical
-    assert_eq!(records1[0].sequence_hash, records2[0].sequence_hash,
-        "Hash should be deterministic");
+    assert_eq!(
+        records1[0].sequence_hash, records2[0].sequence_hash,
+        "Hash should be deterministic"
+    );
 }
 
 #[test]

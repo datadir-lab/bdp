@@ -64,7 +64,7 @@ impl NihExporter {
                 if let Some(size) = info.get("size_bytes") {
                     md.push_str(&format!("- **Size**: {} bytes\n", size));
                 }
-                md.push_str("\n");
+                md.push('\n');
             }
         }
 
@@ -108,12 +108,15 @@ impl NihExporter {
     }
 
     /// Extract data sources from audit events
-    fn extract_data_sources(&self, events: &[AuditEvent]) -> HashMap<String, HashMap<String, String>> {
+    fn extract_data_sources(
+        &self,
+        events: &[AuditEvent],
+    ) -> HashMap<String, HashMap<String, String>> {
         let mut sources: HashMap<String, HashMap<String, String>> = HashMap::new();
 
         for event in events {
             if let Some(source_spec) = &event.source_spec {
-                let entry = sources.entry(source_spec.clone()).or_insert_with(HashMap::new);
+                let entry = sources.entry(source_spec.clone()).or_default();
 
                 // Extract information from event details
                 if let Some(downloaded_at) = event.details.get("downloaded_at") {
@@ -122,17 +125,18 @@ impl NihExporter {
                         downloaded_at.as_str().unwrap_or("").to_string(),
                     );
                 }
-                if let Some(checksum) = event.details.get("checksum").or_else(|| event.details.get("sha256")) {
+                if let Some(checksum) = event
+                    .details
+                    .get("checksum")
+                    .or_else(|| event.details.get("sha256"))
+                {
                     entry.insert(
                         "checksum".to_string(),
                         checksum.as_str().unwrap_or("").to_string(),
                     );
                 }
                 if let Some(size) = event.details.get("size_bytes") {
-                    entry.insert(
-                        "size_bytes".to_string(),
-                        size.to_string(),
-                    );
+                    entry.insert("size_bytes".to_string(), size.to_string());
                 }
 
                 // Add timestamp from event
@@ -160,28 +164,33 @@ impl NihExporter {
             .query_map([], |row: &rusqlite::Row| {
                 let timestamp_str = row.get::<_, String>(1)?;
                 let timestamp = chrono::DateTime::parse_from_rfc3339(&timestamp_str)
-                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(
-                        1,
-                        rusqlite::types::Type::Text,
-                        Box::new(e),
-                    ))?
+                    .map_err(|e| {
+                        rusqlite::Error::FromSqlConversionFailure(
+                            1,
+                            rusqlite::types::Type::Text,
+                            Box::new(e),
+                        )
+                    })?
                     .with_timezone(&chrono::Utc);
 
                 let event_type_str = row.get::<_, String>(2)?;
-                let event_type = serde_json::from_str(&format!("\"{}\"", event_type_str))
-                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(
-                        2,
-                        rusqlite::types::Type::Text,
-                        Box::new(e),
-                    ))?;
+                let event_type =
+                    serde_json::from_str(&format!("\"{}\"", event_type_str)).map_err(|e| {
+                        rusqlite::Error::FromSqlConversionFailure(
+                            2,
+                            rusqlite::types::Type::Text,
+                            Box::new(e),
+                        )
+                    })?;
 
                 let details_str = row.get::<_, String>(4)?;
-                let details = serde_json::from_str(&details_str)
-                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(
+                let details = serde_json::from_str(&details_str).map_err(|e| {
+                    rusqlite::Error::FromSqlConversionFailure(
                         4,
                         rusqlite::types::Type::Text,
                         Box::new(e),
-                    ))?;
+                    )
+                })?;
 
                 Ok(AuditEvent {
                     id: Some(row.get::<_, i64>(0)?),
@@ -198,7 +207,8 @@ impl NihExporter {
             })
             .map_err(|e| CliError::audit(format!("Failed to query events: {}", e)))?;
 
-        let events: Vec<AuditEvent> = events.collect::<std::result::Result<Vec<_>, _>>()
+        let events: Vec<AuditEvent> = events
+            .collect::<std::result::Result<Vec<_>, _>>()
             .map_err(|e| CliError::audit(format!("Failed to collect events: {}", e)))?;
 
         Ok(events)
@@ -215,9 +225,8 @@ mod tests {
 
     #[test]
     fn test_extract_data_sources() {
-        let audit = Arc::new(
-            LocalAuditLogger::new_in_memory("test-machine".to_string()).unwrap(),
-        ) as Arc<dyn AuditLogger>;
+        let audit = Arc::new(LocalAuditLogger::new_in_memory("test-machine".to_string()).unwrap())
+            as Arc<dyn AuditLogger>;
 
         let exporter = NihExporter::new(audit);
 

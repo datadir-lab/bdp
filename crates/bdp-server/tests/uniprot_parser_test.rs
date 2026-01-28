@@ -1,7 +1,7 @@
 //! Integration tests for UniProt DAT parser
 
-use std::path::PathBuf;
 use bdp_server::ingest::uniprot::{models::UniProtEntry, parser::DatParser};
+use std::path::PathBuf;
 
 fn fixture_path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -35,7 +35,9 @@ fn test_parse_gzipped_dat_file() {
     let parser = DatParser::new();
     let path = fixture_path().join("uniprot_sample_10.dat.gz");
 
-    let entries = parser.parse_file(&path).expect("Failed to parse gzipped DAT file");
+    let entries = parser
+        .parse_file(&path)
+        .expect("Failed to parse gzipped DAT file");
 
     assert_eq!(entries.len(), 10);
 
@@ -174,8 +176,8 @@ fn test_json_generation() {
         assert!(json.contains(&entry.organism_name));
 
         // Should be valid JSON
-        let parsed: serde_json::Value = serde_json::from_str(&json)
-            .expect("Generated JSON is not valid");
+        let parsed: serde_json::Value =
+            serde_json::from_str(&json).expect("Generated JSON is not valid");
 
         assert_eq!(parsed["accession"], entry.accession);
         assert_eq!(parsed["taxonomy_id"], entry.taxonomy_id);
@@ -238,7 +240,9 @@ fn test_parse_gzipped_bytes() {
     let path = fixture_path().join("uniprot_sample_10.dat.gz");
     let data = std::fs::read(&path).expect("Failed to read file");
 
-    let entries = parser.parse_bytes(&data).expect("Failed to parse gzipped bytes");
+    let entries = parser
+        .parse_bytes(&data)
+        .expect("Failed to parse gzipped bytes");
 
     assert_eq!(entries.len(), 10);
 }

@@ -4,8 +4,8 @@
 
 use crate::error::{CliError, Result};
 use sqlx::{sqlite::SqlitePool, Row};
-use std::path::PathBuf;
 use std::fs;
+use std::path::PathBuf;
 
 /// Cache manager with SQLite backend
 pub struct CacheManager {
@@ -115,7 +115,7 @@ impl CacheManager {
                 // Update last_accessed
                 let _ = self.update_last_accessed(spec).await;
                 Ok(Some(PathBuf::from(path)))
-            }
+            },
             None => Ok(None),
         }
     }

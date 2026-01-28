@@ -194,7 +194,10 @@ impl TestDataSource {
         .execute(pool)
         .await?;
 
-        Ok(Self { id: entry_id, ..self })
+        Ok(Self {
+            id: entry_id,
+            ..self
+        })
     }
 }
 

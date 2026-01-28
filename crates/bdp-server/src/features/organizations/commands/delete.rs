@@ -144,10 +144,7 @@ mod tests {
         let cmd = DeleteOrganizationCommand {
             slug: "".to_string(),
         };
-        assert!(matches!(
-            cmd.validate(),
-            Err(DeleteOrganizationError::SlugRequired)
-        ));
+        assert!(matches!(cmd.validate(), Err(DeleteOrganizationError::SlugRequired)));
     }
 
     #[sqlx::test]
@@ -183,10 +180,7 @@ mod tests {
         };
 
         let result = handle(pool.clone(), cmd).await;
-        assert!(matches!(
-            result,
-            Err(DeleteOrganizationError::NotFound(_))
-        ));
+        assert!(matches!(result, Err(DeleteOrganizationError::NotFound(_))));
         Ok(())
     }
 }

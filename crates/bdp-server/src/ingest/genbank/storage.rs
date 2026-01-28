@@ -7,7 +7,7 @@
 
 use anyhow::{Context, Result};
 use serde_json::json;
-use sqlx::{PgPool, QueryBuilder, Postgres, Row};
+use sqlx::{PgPool, Postgres, QueryBuilder, Row};
 use std::collections::HashMap;
 use tracing::{debug, info, warn};
 use uuid::Uuid;
@@ -95,14 +95,15 @@ impl GenbankStorage {
             self.release
         );
 
-        let mut tx = self.db.begin().await.context("Failed to begin transaction")?;
+        let mut tx = self
+            .db
+            .begin()
+            .await
+            .context("Failed to begin transaction")?;
 
         // Check for existing records by hash (deduplication)
         let existing_hashes = self.get_existing_hashes(&mut tx, records).await?;
-        info!(
-            "Found {} existing records (deduplication)",
-            existing_hashes.len()
-        );
+        info!("Found {} existing records (deduplication)", existing_hashes.len());
 
         // Filter out duplicates
         let new_records: Vec<&GenbankRecord> = records
@@ -193,7 +194,7 @@ impl GenbankStorage {
         // Query in chunks to avoid parameter limits
         for chunk in hashes.chunks(500) {
             let mut query_builder = QueryBuilder::new(
-                "SELECT sequence_hash FROM sequence_metadata WHERE sequence_hash IN ("
+                "SELECT sequence_hash FROM sequence_metadata WHERE sequence_hash IN (",
             );
 
             let mut separated = query_builder.separated(", ");
@@ -232,7 +233,7 @@ impl GenbankStorage {
                 id, organization_id, name, source_type, description,
                 internal_version, external_version, parsed_at
             )
-            "#
+            "#,
         );
 
         query_builder.push_values(records.iter(), |mut b, record| {
@@ -274,7 +275,7 @@ impl GenbankStorage {
                 gene_name, locus_tag, protein_id, product, features, gc_content,
                 sequence_hash, s3_key, source_database, division
             )
-            "#
+            "#,
         );
 
         query_builder.push_values(
@@ -343,7 +344,11 @@ impl GenbankStorage {
 
                 async move {
                     self.s3
-                        .upload(&s3_key, fasta_content.as_bytes().to_vec(), Some("text/plain".to_string()))
+                        .upload(
+                            &s3_key,
+                            fasta_content.as_bytes().to_vec(),
+                            Some("text/plain".to_string()),
+                        )
                         .await
                         .context(format!("Failed to upload {}", s3_key))?;
                     Ok::<u64, anyhow::Error>(bytes)
@@ -363,11 +368,7 @@ impl GenbankStorage {
             }
         }
 
-        debug!(
-            "Uploaded {} FASTA files ({} bytes)",
-            records.len(),
-            successful_bytes
-        );
+        debug!("Uploaded {} FASTA files ({} bytes)", records.len(), successful_bytes);
         Ok(successful_bytes)
     }
 
@@ -422,7 +423,7 @@ impl GenbankStorage {
                             prot_ds_id,
                             cds.start,
                             cds.end,
-                            cds.strand.as_ref().map(|s| s.as_str()),
+                            cds.strand.as_deref(),
                             cds.codon_start,
                             cds.transl_table,
                         ));
@@ -442,7 +443,7 @@ impl GenbankStorage {
                 sequence_data_source_id, protein_data_source_id, mapping_type,
                 cds_start, cds_end, strand, codon_start, transl_table
             )
-            "#
+            "#,
         );
 
         query_builder.push_values(mappings.iter(), |mut b, mapping| {
@@ -484,7 +485,7 @@ impl GenbankStorage {
                 FROM protein_metadata pm
                 JOIN data_sources ds ON pm.data_source_id = ds.id
                 WHERE pm.accession IN (
-                "#
+                "#,
             );
 
             let mut separated = query_builder.separated(", ");

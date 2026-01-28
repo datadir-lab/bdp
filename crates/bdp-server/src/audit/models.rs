@@ -275,6 +275,7 @@ impl AuditEntryBuilder {
     ///
     /// # Panics
     /// Panics if action or resource_type are not set. Use `try_build()` for fallible construction.
+    #[allow(clippy::expect_used)]
     pub fn build(self) -> CreateAuditEntry {
         self.try_build()
             .expect("AuditEntryBuilder: action and resource_type are required")

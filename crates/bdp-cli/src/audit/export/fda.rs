@@ -174,7 +174,8 @@ impl FdaExporter {
             conditions.push("timestamp >= ?1".to_string());
         }
         if options.to.is_some() {
-            conditions.push(format!("timestamp <= ?{}", if options.from.is_some() { 2 } else { 1 }));
+            conditions
+                .push(format!("timestamp <= ?{}", if options.from.is_some() { 2 } else { 1 }));
         }
 
         if !conditions.is_empty() {
@@ -196,34 +197,40 @@ impl FdaExporter {
             params.push(to.to_rfc3339());
         }
 
-        let param_refs: Vec<&dyn rusqlite::ToSql> = params.iter().map(|p| p as &dyn rusqlite::ToSql).collect();
+        let param_refs: Vec<&dyn rusqlite::ToSql> =
+            params.iter().map(|p| p as &dyn rusqlite::ToSql).collect();
 
         let events = stmt
             .query_map(param_refs.as_slice(), |row: &rusqlite::Row| {
                 let timestamp_str = row.get::<_, String>(1)?;
                 let timestamp = chrono::DateTime::parse_from_rfc3339(&timestamp_str)
-                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(
-                        1,
-                        rusqlite::types::Type::Text,
-                        Box::new(e),
-                    ))?
+                    .map_err(|e| {
+                        rusqlite::Error::FromSqlConversionFailure(
+                            1,
+                            rusqlite::types::Type::Text,
+                            Box::new(e),
+                        )
+                    })?
                     .with_timezone(&chrono::Utc);
 
                 let event_type_str = row.get::<_, String>(2)?;
-                let event_type = serde_json::from_str(&format!("\"{}\"", event_type_str))
-                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(
-                        2,
-                        rusqlite::types::Type::Text,
-                        Box::new(e),
-                    ))?;
+                let event_type =
+                    serde_json::from_str(&format!("\"{}\"", event_type_str)).map_err(|e| {
+                        rusqlite::Error::FromSqlConversionFailure(
+                            2,
+                            rusqlite::types::Type::Text,
+                            Box::new(e),
+                        )
+                    })?;
 
                 let details_str = row.get::<_, String>(4)?;
-                let details = serde_json::from_str(&details_str)
-                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(
+                let details = serde_json::from_str(&details_str).map_err(|e| {
+                    rusqlite::Error::FromSqlConversionFailure(
                         4,
                         rusqlite::types::Type::Text,
                         Box::new(e),
-                    ))?;
+                    )
+                })?;
 
                 Ok(AuditEvent {
                     id: Some(row.get::<_, i64>(0)?),
@@ -240,7 +247,8 @@ impl FdaExporter {
             })
             .map_err(|e| CliError::audit(format!("Failed to query events: {}", e)))?;
 
-        let events: Vec<AuditEvent> = events.collect::<std::result::Result<Vec<_>, _>>()
+        let events: Vec<AuditEvent> = events
+            .collect::<std::result::Result<Vec<_>, _>>()
             .map_err(|e| CliError::audit(format!("Failed to collect events: {}", e)))?;
 
         Ok(events)
@@ -274,9 +282,8 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let output = temp_dir.path().join("audit-fda.json");
 
-        let audit = Arc::new(
-            LocalAuditLogger::new_in_memory("test-machine".to_string()).unwrap(),
-        ) as Arc<dyn AuditLogger>;
+        let audit = Arc::new(LocalAuditLogger::new_in_memory("test-machine".to_string()).unwrap())
+            as Arc<dyn AuditLogger>;
 
         // Log some events
         for i in 0..3 {
@@ -301,9 +308,8 @@ mod tests {
 
     #[test]
     fn test_verify_no_gaps() {
-        let audit = Arc::new(
-            LocalAuditLogger::new_in_memory("test-machine".to_string()).unwrap(),
-        ) as Arc<dyn AuditLogger>;
+        let audit = Arc::new(LocalAuditLogger::new_in_memory("test-machine".to_string()).unwrap())
+            as Arc<dyn AuditLogger>;
 
         let exporter = FdaExporter::new(audit);
 

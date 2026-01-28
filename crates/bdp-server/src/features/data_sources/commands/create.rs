@@ -156,9 +156,7 @@ pub async fn handle(
     .unwrap_or(false);
 
     if !org_exists {
-        return Err(CreateDataSourceError::OrganizationNotFound(
-            command.organization_id,
-        ));
+        return Err(CreateDataSourceError::OrganizationNotFound(command.organization_id));
     }
 
     // NOTE: organism_id validation removed - organisms are now referenced in *_metadata tables
@@ -272,10 +270,7 @@ mod tests {
             source_type: "protein".to_string(),
             external_id: None,
         };
-        assert!(matches!(
-            cmd.validate(),
-            Err(CreateDataSourceError::SlugValidation(_))
-        ));
+        assert!(matches!(cmd.validate(), Err(CreateDataSourceError::SlugValidation(_))));
     }
 
     #[test]
@@ -288,10 +283,7 @@ mod tests {
             source_type: "invalid".to_string(),
             external_id: None,
         };
-        assert!(matches!(
-            cmd.validate(),
-            Err(CreateDataSourceError::SourceTypeValidation(_))
-        ));
+        assert!(matches!(cmd.validate(), Err(CreateDataSourceError::SourceTypeValidation(_))));
     }
 
     #[sqlx::test]
@@ -362,10 +354,7 @@ mod tests {
             // additional_metadata: None,
         };
         let result = handle(pool.clone(), cmd2).await;
-        assert!(matches!(
-            result,
-            Err(CreateDataSourceError::DuplicateSlug(_))
-        ));
+        assert!(matches!(result, Err(CreateDataSourceError::DuplicateSlug(_))));
         Ok(())
     }
 
@@ -383,10 +372,7 @@ mod tests {
         };
 
         let result = handle(pool.clone(), cmd).await;
-        assert!(matches!(
-            result,
-            Err(CreateDataSourceError::OrganizationNotFound(_))
-        ));
+        assert!(matches!(result, Err(CreateDataSourceError::OrganizationNotFound(_))));
         Ok(())
     }
 }

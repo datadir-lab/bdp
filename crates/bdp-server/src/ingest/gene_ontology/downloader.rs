@@ -17,7 +17,9 @@ pub struct GoDownloader {
 impl GoDownloader {
     /// Create new downloader with configuration
     pub fn new(config: GoHttpConfig) -> Result<Self> {
-        config.validate().map_err(|e| crate::ingest::gene_ontology::GoError::Validation(e))?;
+        config
+            .validate()
+            .map_err(|e| crate::ingest::gene_ontology::GoError::Validation(e))?;
 
         let client = Client::builder()
             .timeout(Duration::from_secs(config.timeout_secs))
@@ -62,11 +64,7 @@ impl GoDownloader {
         let text = String::from_utf8(content)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
 
-        info!(
-            "Downloaded GO ontology: {} bytes ({} KB)",
-            text.len(),
-            text.len() / 1024
-        );
+        info!("Downloaded GO ontology: {} bytes ({} KB)", text.len(), text.len() / 1024);
 
         Ok(text)
     }
@@ -85,10 +83,7 @@ impl GoDownloader {
         let discovery = VersionDiscovery::new(self.config.clone())?;
         let versions = discovery.discover_all_versions().await?;
 
-        Ok(versions
-            .into_iter()
-            .map(|v| v.external_version)
-            .collect())
+        Ok(versions.into_iter().map(|v| v.external_version).collect())
     }
 
     /// Download GOA UniProt annotations (gzipped GAF file)
@@ -151,10 +146,7 @@ impl GoDownloader {
             match result {
                 Ok(content) => return Ok(content),
                 Err(e) => {
-                    warn!(
-                        "Download attempt {}/{} failed: {}",
-                        attempt, self.config.max_retries, e
-                    );
+                    warn!("Download attempt {}/{} failed: {}", attempt, self.config.max_retries, e);
                     last_error = Some(e);
 
                     if attempt < self.config.max_retries {
@@ -163,7 +155,7 @@ impl GoDownloader {
                         info!("Retrying in {} seconds...", backoff_secs);
                         tokio::time::sleep(Duration::from_secs(backoff_secs)).await;
                     }
-                }
+                },
             }
         }
 
@@ -201,7 +193,9 @@ impl GoDownloader {
             std::io::Error::new(std::io::ErrorKind::InvalidInput, "Invalid FTP URL")
         })?;
 
-        let (server_and_path, _) = url_without_protocol.split_once('/').unwrap_or((url_without_protocol, ""));
+        let (server_and_path, _) = url_without_protocol
+            .split_once('/')
+            .unwrap_or((url_without_protocol, ""));
         let server = server_and_path.split('/').next().unwrap_or(server_and_path);
         let path = url.strip_prefix(&format!("ftp://{}", server)).unwrap_or("");
 

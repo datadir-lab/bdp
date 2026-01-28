@@ -75,10 +75,7 @@ impl TaxonomyEntry {
             "Taxonomy ID must be positive, got {}",
             self.taxonomy_id
         );
-        anyhow::ensure!(
-            !self.scientific_name.is_empty(),
-            "Scientific name cannot be empty"
-        );
+        anyhow::ensure!(!self.scientific_name.is_empty(), "Scientific name cannot be empty");
         anyhow::ensure!(!self.rank.is_empty(), "Rank cannot be empty");
         anyhow::ensure!(!self.lineage.is_empty(), "Lineage cannot be empty");
 
@@ -242,10 +239,7 @@ mod tests {
     #[test]
     fn test_tsv_header() {
         let header = TaxonomyEntry::tsv_header();
-        assert_eq!(
-            header,
-            "taxonomy_id\tscientific_name\tcommon_name\trank\tlineage"
-        );
+        assert_eq!(header, "taxonomy_id\tscientific_name\tcommon_name\trank\tlineage");
     }
 
     #[test]
@@ -323,12 +317,8 @@ mod tests {
         let entry = sample_entry();
         let merged = MergedTaxon::new(123, 456);
         let deleted = DeletedTaxon::new(789);
-        let data = TaxdumpData::new(
-            vec![entry],
-            vec![merged],
-            vec![deleted],
-            "2026-01-15".to_string(),
-        );
+        let data =
+            TaxdumpData::new(vec![entry], vec![merged], vec![deleted], "2026-01-15".to_string());
 
         let stats = data.stats();
         assert_eq!(stats.total_entries, 1);

@@ -4,7 +4,6 @@
 /// and compare materialized view vs direct table queries.
 ///
 /// Run with: cargo bench --bench search_performance
-
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use sqlx::PgPool;
 use std::time::Duration;
@@ -172,7 +171,9 @@ async fn create_benchmark_data(
 
 async fn setup_pool() -> PgPool {
     let db_config = DbConfig::from_env().expect("Database config");
-    create_pool(&db_config).await.expect("Failed to create pool")
+    create_pool(&db_config)
+        .await
+        .expect("Failed to create pool")
 }
 
 fn bench_search_simple_query(c: &mut Criterion) {
@@ -198,12 +199,9 @@ fn bench_search_simple_query(c: &mut Criterion) {
                     per_page: Some(20),
                 };
 
-                bdp_server::features::search::queries::unified_search::handle(
-                    pool.clone(),
-                    query,
-                )
-                .await
-                .unwrap()
+                bdp_server::features::search::queries::unified_search::handle(pool.clone(), query)
+                    .await
+                    .unwrap()
             });
         });
     }
@@ -388,12 +386,9 @@ fn bench_pagination(c: &mut Criterion) {
                     per_page: Some(20),
                 };
 
-                bdp_server::features::search::queries::unified_search::handle(
-                    pool.clone(),
-                    query,
-                )
-                .await
-                .unwrap()
+                bdp_server::features::search::queries::unified_search::handle(pool.clone(), query)
+                    .await
+                    .unwrap()
             });
         });
     }

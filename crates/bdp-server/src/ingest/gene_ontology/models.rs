@@ -61,7 +61,9 @@ impl GoTerm {
 
     /// Validate GO ID format
     pub fn validate_go_id(go_id: &str) -> bool {
-        go_id.starts_with("GO:") && go_id.len() == 10 && go_id[3..].chars().all(|c| c.is_ascii_digit())
+        go_id.starts_with("GO:")
+            && go_id.len() == 10
+            && go_id[3..].chars().all(|c| c.is_ascii_digit())
     }
 
     /// Create new GoTerm with validation
@@ -468,18 +470,9 @@ mod tests {
 
     #[test]
     fn test_relationship_type_from_str() {
-        assert_eq!(
-            RelationshipType::from_str("is_a").unwrap(),
-            RelationshipType::IsA
-        );
-        assert_eq!(
-            RelationshipType::from_str("part_of").unwrap(),
-            RelationshipType::PartOf
-        );
-        assert_eq!(
-            RelationshipType::from_str("regulates").unwrap(),
-            RelationshipType::Regulates
-        );
+        assert_eq!(RelationshipType::from_str("is_a").unwrap(), RelationshipType::IsA);
+        assert_eq!(RelationshipType::from_str("part_of").unwrap(), RelationshipType::PartOf);
+        assert_eq!(RelationshipType::from_str("regulates").unwrap(), RelationshipType::Regulates);
         assert!(RelationshipType::from_str("invalid").is_err());
     }
 

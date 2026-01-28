@@ -48,24 +48,24 @@ impl IntoResponse for ResolveApiError {
             | ResolveApiError::ResolveError(ResolveManifestError::InvalidToolSpec(msg)) => {
                 let error = ErrorResponse::new("VALIDATION_ERROR", msg);
                 (StatusCode::BAD_REQUEST, Json(error)).into_response()
-            }
+            },
             ResolveApiError::ResolveError(ResolveManifestError::SourceNotFound(msg))
             | ResolveApiError::ResolveError(ResolveManifestError::ToolNotFound(msg))
             | ResolveApiError::ResolveError(ResolveManifestError::VersionNotFound(msg))
             | ResolveApiError::ResolveError(ResolveManifestError::FormatNotAvailable(msg)) => {
                 let error = ErrorResponse::new("NOT_FOUND", msg);
                 (StatusCode::NOT_FOUND, Json(error)).into_response()
-            }
+            },
             ResolveApiError::ResolveError(ResolveManifestError::DependencyConflict(msg))
             | ResolveApiError::ResolveError(ResolveManifestError::CircularDependency(msg)) => {
                 let error = ErrorResponse::new("CONFLICT", msg);
                 (StatusCode::CONFLICT, Json(error)).into_response()
-            }
+            },
             ResolveApiError::ResolveError(ResolveManifestError::Database(_)) => {
                 tracing::error!("Database error during manifest resolution: {}", self);
                 let error = ErrorResponse::new("INTERNAL_ERROR", "A database error occurred");
                 (StatusCode::INTERNAL_SERVER_ERROR, Json(error)).into_response()
-            }
+            },
         }
     }
 }

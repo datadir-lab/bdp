@@ -39,10 +39,7 @@ pub enum GetJobError {
 
 impl Request<Result<JobDetails, GetJobError>> for GetJobQuery {}
 
-pub async fn handle(
-    pool: PgPool,
-    query: GetJobQuery,
-) -> Result<JobDetails, GetJobError> {
+pub async fn handle(pool: PgPool, query: GetJobQuery) -> Result<JobDetails, GetJobError> {
     let job = sqlx::query_as::<_, JobDetails>(
         r#"
         SELECT id::text, job_type, status, started_at, completed_at, created_at,

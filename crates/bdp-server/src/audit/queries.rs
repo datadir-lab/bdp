@@ -4,8 +4,8 @@ use sqlx::PgPool;
 use tracing::debug;
 
 use super::models::{
-    AuditEntry, AuditQuery, CreateAuditEntry, ResourceType,
-    DEFAULT_AUDIT_QUERY_LIMIT, MAX_AUDIT_QUERY_LIMIT,
+    AuditEntry, AuditQuery, CreateAuditEntry, ResourceType, DEFAULT_AUDIT_QUERY_LIMIT,
+    MAX_AUDIT_QUERY_LIMIT,
 };
 use crate::error::ServerResult;
 
@@ -145,7 +145,9 @@ pub async fn get_audit_trail(
     resource_id: uuid::Uuid,
     limit: Option<i64>,
 ) -> ServerResult<Vec<AuditEntry>> {
-    let limit = limit.unwrap_or(DEFAULT_AUDIT_QUERY_LIMIT).min(MAX_AUDIT_QUERY_LIMIT);
+    let limit = limit
+        .unwrap_or(DEFAULT_AUDIT_QUERY_LIMIT)
+        .min(MAX_AUDIT_QUERY_LIMIT);
 
     let records = sqlx::query_as::<_, AuditEntry>(
         r#"
@@ -181,7 +183,9 @@ pub async fn get_user_audit_logs(
     user_id: uuid::Uuid,
     limit: Option<i64>,
 ) -> ServerResult<Vec<AuditEntry>> {
-    let limit = limit.unwrap_or(DEFAULT_AUDIT_QUERY_LIMIT).min(MAX_AUDIT_QUERY_LIMIT);
+    let limit = limit
+        .unwrap_or(DEFAULT_AUDIT_QUERY_LIMIT)
+        .min(MAX_AUDIT_QUERY_LIMIT);
 
     let records = sqlx::query_as::<_, AuditEntry>(
         r#"
@@ -210,6 +214,7 @@ pub async fn get_user_audit_logs(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::audit::AuditAction;
     use serde_json::json;
     use uuid::Uuid;
 

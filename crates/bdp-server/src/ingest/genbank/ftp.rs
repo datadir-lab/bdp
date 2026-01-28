@@ -43,11 +43,7 @@ impl GenbankFtp {
         let base_path = self.config.get_base_path();
         let pattern = self.config.get_division_file_pattern(division);
 
-        info!(
-            "Listing files for division {} (pattern: {})",
-            division.as_str(),
-            pattern
-        );
+        info!("Listing files for division {} (pattern: {})", division.as_str(), pattern);
 
         let mut ftp = self.connect().await?;
         ftp.cwd(base_path)
@@ -75,11 +71,7 @@ impl GenbankFtp {
             }
         }
 
-        info!(
-            "Found {} files for division {}",
-            files.len(),
-            division.as_str()
-        );
+        info!("Found {} files for division {}", files.len(), division.as_str());
 
         Ok(files)
     }
@@ -96,11 +88,7 @@ impl GenbankFtp {
     /// Download and decompress a GenBank file
     pub async fn download_and_decompress(&self, filename: &str) -> Result<Vec<u8>> {
         let compressed = self.download_division_file(filename).await?;
-        info!(
-            "Decompressing {} ({} bytes compressed)",
-            filename,
-            compressed.len()
-        );
+        info!("Decompressing {} ({} bytes compressed)", filename, compressed.len());
 
         let cursor = Cursor::new(compressed);
         let mut decoder = GzDecoder::new(cursor);
@@ -109,11 +97,7 @@ impl GenbankFtp {
             .read_to_end(&mut decompressed)
             .context("Failed to decompress file")?;
 
-        info!(
-            "Decompressed {} ({} bytes decompressed)",
-            filename,
-            decompressed.len()
-        );
+        info!("Decompressed {} ({} bytes decompressed)", filename, decompressed.len());
 
         Ok(decompressed)
     }
@@ -124,20 +108,15 @@ impl GenbankFtp {
         let mut results = Vec::new();
 
         for (filename, size) in files {
-            info!(
-                "Downloading {} for division {} ({} bytes)",
-                filename,
-                division.as_str(),
-                size
-            );
+            info!("Downloading {} for division {} ({} bytes)", filename, division.as_str(), size);
 
             match self.download_and_decompress(&filename).await {
                 Ok(data) => {
                     results.push((filename, data));
-                }
+                },
                 Err(e) => {
                     warn!("Failed to download {}: {}", filename, e);
-                }
+                },
             }
         }
 
@@ -159,13 +138,13 @@ impl GenbankFtp {
                         attempts, MAX_RETRIES, path, e
                     );
                     tokio::time::sleep(Duration::from_secs(RETRY_DELAY_SECS)).await;
-                }
+                },
                 Err(e) => {
                     return Err(e).context(format!(
                         "Failed to download {} after {} attempts",
                         path, MAX_RETRIES
                     ))
-                }
+                },
             }
         }
     }
@@ -218,21 +197,14 @@ impl GenbankFtp {
             }
         }
 
-        info!(
-            "Found {} directories in {}",
-            directories.len(),
-            base_path
-        );
+        info!("Found {} directories in {}", directories.len(), base_path);
 
         Ok(directories)
     }
 
     /// Connect to FTP server
     async fn connect(&self) -> Result<FtpStream> {
-        debug!(
-            "Connecting to FTP server: {}:{}",
-            self.config.host, self.config.port
-        );
+        debug!("Connecting to FTP server: {}:{}", self.config.host, self.config.port);
 
         let mut ftp = FtpStream::connect(format!("{}:{}", self.config.host, self.config.port))
             .context("Failed to connect to FTP server")?;
@@ -265,13 +237,7 @@ mod tests {
     #[test]
     fn test_division_pattern() {
         let config = GenbankFtpConfig::new();
-        assert_eq!(
-            config.get_division_file_pattern(&Division::Viral),
-            "gbvrl*.seq.gz"
-        );
-        assert_eq!(
-            config.get_division_file_pattern(&Division::Phage),
-            "gbphg*.seq.gz"
-        );
+        assert_eq!(config.get_division_file_pattern(&Division::Viral), "gbvrl*.seq.gz");
+        assert_eq!(config.get_division_file_pattern(&Division::Phage), "gbphg*.seq.gz");
     }
 }

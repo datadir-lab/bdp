@@ -12,12 +12,10 @@ use sqlx::PgPool;
 use super::{
     commands::{
         CreateDataSourceCommand, CreateDataSourceError, DeleteDataSourceCommand,
-        DeleteDataSourceError, PublishVersionCommand, PublishVersionError,
-        UpdateDataSourceCommand, UpdateDataSourceError,
+        DeleteDataSourceError, PublishVersionCommand, PublishVersionError, UpdateDataSourceCommand,
+        UpdateDataSourceError,
     },
-    queries::{
-        GetDataSourceQuery, GetVersionQuery, ListDataSourcesQuery, ListDependenciesQuery,
-    },
+    queries::{GetDataSourceQuery, GetVersionQuery, ListDataSourcesQuery, ListDependenciesQuery},
 };
 
 pub fn data_sources_routes() -> Router<PgPool> {
@@ -34,10 +32,7 @@ pub fn data_sources_routes() -> Router<PgPool> {
             "/:org/:slug/:version/protein-metadata",
             get(super::queries::get_protein_metadata::get_protein_metadata),
         )
-        .route(
-            "/:org/:slug/:version/dependencies",
-            get(list_dependencies),
-        )
+        .route("/:org/:slug/:version/dependencies", get(list_dependencies))
 }
 
 #[tracing::instrument(skip(pool, command), fields(slug = %command.slug, name = %command.name))]
@@ -131,9 +126,7 @@ async fn get_data_source(
 }
 
 #[tracing::instrument(skip(pool))]
-async fn get_source_types(
-    State(pool): State<PgPool>,
-) -> Result<Response, DataSourceApiError> {
+async fn get_source_types(State(pool): State<PgPool>) -> Result<Response, DataSourceApiError> {
     let source_types = sqlx::query_scalar!(
         r#"
         SELECT DISTINCT source_type
@@ -143,12 +136,11 @@ async fn get_source_types(
     )
     .fetch_all(&pool)
     .await
-    .map_err(|e| DataSourceApiError::ListError(super::queries::ListDataSourcesError::Database(e)))?;
+    .map_err(|e| {
+        DataSourceApiError::ListError(super::queries::ListDataSourcesError::Database(e))
+    })?;
 
-    tracing::debug!(
-        count = source_types.len(),
-        "Source types retrieved via API"
-    );
+    tracing::debug!(count = source_types.len(), "Source types retrieved via API");
 
     Ok((StatusCode::OK, Json(ApiResponse::success(source_types))).into_response())
 }
@@ -170,11 +162,10 @@ async fn list_data_sources(
         "pagination": response.pagination
     });
 
-    Ok((
-        StatusCode::OK,
-        Json(ApiResponse::success_with_meta(response.items, meta)),
+    Ok(
+        (StatusCode::OK, Json(ApiResponse::success_with_meta(response.items, meta)))
+            .into_response(),
     )
-        .into_response())
 }
 
 #[tracing::instrument(skip(pool), fields(org = %org, slug = %slug, version = %version))]
@@ -211,23 +202,17 @@ async fn list_dependencies(
 
     let response = super::queries::list_dependencies::handle(pool, query).await?;
 
-    tracing::debug!(
-        dependency_count = response.dependency_count,
-        "Dependencies listed via API"
-    );
+    tracing::debug!(dependency_count = response.dependency_count, "Dependencies listed via API");
 
     let meta = json!({
         "pagination": response.pagination
     });
 
-    Ok((
-        StatusCode::OK,
-        Json(ApiResponse::success_with_meta(response, meta)),
-    )
-        .into_response())
+    Ok((StatusCode::OK, Json(ApiResponse::success_with_meta(response, meta))).into_response())
 }
 
 #[derive(Debug)]
+#[allow(clippy::enum_variant_names)]
 enum DataSourceApiError {
     CreateError(CreateDataSourceError),
     UpdateError(UpdateDataSourceError),
@@ -295,132 +280,159 @@ impl IntoResponse for DataSourceApiError {
             | DataSourceApiError::CreateError(CreateDataSourceError::SourceTypeValidation(_)) => {
                 let error = ErrorResponse::new("VALIDATION_ERROR", self.to_string());
                 (StatusCode::BAD_REQUEST, Json(error)).into_response()
-            }
+            },
             DataSourceApiError::CreateError(CreateDataSourceError::OrganizationNotFound(_))
             | DataSourceApiError::CreateError(CreateDataSourceError::OrganismNotFound(_)) => {
                 let error = ErrorResponse::new("NOT_FOUND", self.to_string());
                 (StatusCode::NOT_FOUND, Json(error)).into_response()
-            }
+            },
             DataSourceApiError::CreateError(CreateDataSourceError::DuplicateSlug(_)) => {
                 let error = ErrorResponse::new("CONFLICT", self.to_string());
                 (StatusCode::CONFLICT, Json(error)).into_response()
-            }
+            },
             DataSourceApiError::CreateError(CreateDataSourceError::Database(_)) => {
                 tracing::error!("Database error during data source creation: {}", self);
                 let error = ErrorResponse::new("INTERNAL_ERROR", "A database error occurred");
                 (StatusCode::INTERNAL_SERVER_ERROR, Json(error)).into_response()
-            }
+            },
 
             DataSourceApiError::UpdateError(UpdateDataSourceError::NoFieldsToUpdate)
             | DataSourceApiError::UpdateError(UpdateDataSourceError::NameLength)
             | DataSourceApiError::UpdateError(UpdateDataSourceError::NameEmpty) => {
                 let error = ErrorResponse::new("VALIDATION_ERROR", self.to_string());
                 (StatusCode::BAD_REQUEST, Json(error)).into_response()
-            }
+            },
             DataSourceApiError::UpdateError(UpdateDataSourceError::NotFound(_))
             | DataSourceApiError::UpdateError(UpdateDataSourceError::OrganismNotFound(_)) => {
                 let error = ErrorResponse::new("NOT_FOUND", self.to_string());
                 (StatusCode::NOT_FOUND, Json(error)).into_response()
-            }
+            },
             DataSourceApiError::UpdateError(UpdateDataSourceError::Database(_)) => {
                 tracing::error!("Database error during data source update: {}", self);
                 let error = ErrorResponse::new("INTERNAL_ERROR", "A database error occurred");
                 (StatusCode::INTERNAL_SERVER_ERROR, Json(error)).into_response()
-            }
+            },
 
             DataSourceApiError::DeleteError(DeleteDataSourceError::NotFound(_)) => {
                 let error = ErrorResponse::new("NOT_FOUND", self.to_string());
                 (StatusCode::NOT_FOUND, Json(error)).into_response()
-            }
+            },
             DataSourceApiError::DeleteError(DeleteDataSourceError::HasVersions(_)) => {
                 let error = ErrorResponse::new("CONFLICT", self.to_string());
                 (StatusCode::CONFLICT, Json(error)).into_response()
-            }
+            },
             DataSourceApiError::DeleteError(DeleteDataSourceError::Database(_)) => {
                 tracing::error!("Database error during data source deletion: {}", self);
                 let error = ErrorResponse::new("INTERNAL_ERROR", "A database error occurred");
                 (StatusCode::INTERNAL_SERVER_ERROR, Json(error)).into_response()
-            }
+            },
 
             DataSourceApiError::PublishError(PublishVersionError::VersionRequired)
             | DataSourceApiError::PublishError(PublishVersionError::VersionLength)
             | DataSourceApiError::PublishError(PublishVersionError::InvalidSize) => {
                 let error = ErrorResponse::new("VALIDATION_ERROR", self.to_string());
                 (StatusCode::BAD_REQUEST, Json(error)).into_response()
-            }
+            },
             DataSourceApiError::PublishError(PublishVersionError::DataSourceNotFound(_)) => {
                 let error = ErrorResponse::new("NOT_FOUND", self.to_string());
                 (StatusCode::NOT_FOUND, Json(error)).into_response()
-            }
+            },
             DataSourceApiError::PublishError(PublishVersionError::DuplicateVersion(_, _)) => {
                 let error = ErrorResponse::new("CONFLICT", self.to_string());
                 (StatusCode::CONFLICT, Json(error)).into_response()
-            }
+            },
             DataSourceApiError::PublishError(PublishVersionError::Database(_)) => {
                 tracing::error!("Database error during version publish: {}", self);
                 let error = ErrorResponse::new("INTERNAL_ERROR", "A database error occurred");
                 (StatusCode::INTERNAL_SERVER_ERROR, Json(error)).into_response()
-            }
+            },
 
-            DataSourceApiError::GetError(super::queries::GetDataSourceError::OrganizationSlugRequired)
+            DataSourceApiError::GetError(
+                super::queries::GetDataSourceError::OrganizationSlugRequired,
+            )
             | DataSourceApiError::GetError(super::queries::GetDataSourceError::SlugRequired) => {
                 let error = ErrorResponse::new("VALIDATION_ERROR", self.to_string());
                 (StatusCode::BAD_REQUEST, Json(error)).into_response()
-            }
+            },
             DataSourceApiError::GetError(super::queries::GetDataSourceError::NotFound(_, _)) => {
                 let error = ErrorResponse::new("NOT_FOUND", self.to_string());
                 (StatusCode::NOT_FOUND, Json(error)).into_response()
-            }
+            },
             DataSourceApiError::GetError(super::queries::GetDataSourceError::Database(_)) => {
                 tracing::error!("Database error during data source retrieval: {}", self);
                 let error = ErrorResponse::new("INTERNAL_ERROR", "A database error occurred");
                 (StatusCode::INTERNAL_SERVER_ERROR, Json(error)).into_response()
-            }
+            },
 
             DataSourceApiError::ListError(super::queries::ListDataSourcesError::InvalidPage)
-            | DataSourceApiError::ListError(super::queries::ListDataSourcesError::InvalidPerPage) => {
+            | DataSourceApiError::ListError(super::queries::ListDataSourcesError::InvalidPerPage) =>
+            {
                 let error = ErrorResponse::new("VALIDATION_ERROR", self.to_string());
                 (StatusCode::BAD_REQUEST, Json(error)).into_response()
-            }
+            },
             DataSourceApiError::ListError(super::queries::ListDataSourcesError::Database(_)) => {
                 tracing::error!("Database error during data sources listing: {}", self);
                 let error = ErrorResponse::new("INTERNAL_ERROR", "A database error occurred");
                 (StatusCode::INTERNAL_SERVER_ERROR, Json(error)).into_response()
-            }
+            },
 
-            DataSourceApiError::GetVersionError(super::queries::GetVersionError::OrganizationSlugRequired)
-            | DataSourceApiError::GetVersionError(super::queries::GetVersionError::DataSourceSlugRequired)
-            | DataSourceApiError::GetVersionError(super::queries::GetVersionError::VersionRequired) => {
+            DataSourceApiError::GetVersionError(
+                super::queries::GetVersionError::OrganizationSlugRequired,
+            )
+            | DataSourceApiError::GetVersionError(
+                super::queries::GetVersionError::DataSourceSlugRequired,
+            )
+            | DataSourceApiError::GetVersionError(
+                super::queries::GetVersionError::VersionRequired,
+            ) => {
                 let error = ErrorResponse::new("VALIDATION_ERROR", self.to_string());
                 (StatusCode::BAD_REQUEST, Json(error)).into_response()
-            }
-            DataSourceApiError::GetVersionError(super::queries::GetVersionError::NotFound(_, _, _)) => {
+            },
+            DataSourceApiError::GetVersionError(super::queries::GetVersionError::NotFound(
+                _,
+                _,
+                _,
+            )) => {
                 let error = ErrorResponse::new("NOT_FOUND", self.to_string());
                 (StatusCode::NOT_FOUND, Json(error)).into_response()
-            }
+            },
             DataSourceApiError::GetVersionError(super::queries::GetVersionError::Database(_)) => {
                 tracing::error!("Database error during version retrieval: {}", self);
                 let error = ErrorResponse::new("INTERNAL_ERROR", "A database error occurred");
                 (StatusCode::INTERNAL_SERVER_ERROR, Json(error)).into_response()
-            }
+            },
 
-            DataSourceApiError::ListDependenciesError(super::queries::ListDependenciesError::OrganizationSlugRequired)
-            | DataSourceApiError::ListDependenciesError(super::queries::ListDependenciesError::DataSourceSlugRequired)
-            | DataSourceApiError::ListDependenciesError(super::queries::ListDependenciesError::VersionRequired)
-            | DataSourceApiError::ListDependenciesError(super::queries::ListDependenciesError::InvalidPage)
-            | DataSourceApiError::ListDependenciesError(super::queries::ListDependenciesError::InvalidPerPage) => {
+            DataSourceApiError::ListDependenciesError(
+                super::queries::ListDependenciesError::OrganizationSlugRequired,
+            )
+            | DataSourceApiError::ListDependenciesError(
+                super::queries::ListDependenciesError::DataSourceSlugRequired,
+            )
+            | DataSourceApiError::ListDependenciesError(
+                super::queries::ListDependenciesError::VersionRequired,
+            )
+            | DataSourceApiError::ListDependenciesError(
+                super::queries::ListDependenciesError::InvalidPage,
+            )
+            | DataSourceApiError::ListDependenciesError(
+                super::queries::ListDependenciesError::InvalidPerPage,
+            ) => {
                 let error = ErrorResponse::new("VALIDATION_ERROR", self.to_string());
                 (StatusCode::BAD_REQUEST, Json(error)).into_response()
-            }
-            DataSourceApiError::ListDependenciesError(super::queries::ListDependenciesError::NotFound(_, _, _)) => {
+            },
+            DataSourceApiError::ListDependenciesError(
+                super::queries::ListDependenciesError::NotFound(_, _, _),
+            ) => {
                 let error = ErrorResponse::new("NOT_FOUND", self.to_string());
                 (StatusCode::NOT_FOUND, Json(error)).into_response()
-            }
-            DataSourceApiError::ListDependenciesError(super::queries::ListDependenciesError::Database(_)) => {
+            },
+            DataSourceApiError::ListDependenciesError(
+                super::queries::ListDependenciesError::Database(_),
+            ) => {
                 tracing::error!("Database error during dependencies listing: {}", self);
                 let error = ErrorResponse::new("INTERNAL_ERROR", "A database error occurred");
                 (StatusCode::INTERNAL_SERVER_ERROR, Json(error)).into_response()
-            }
+            },
         }
     }
 }

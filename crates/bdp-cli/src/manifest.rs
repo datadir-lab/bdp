@@ -138,9 +138,7 @@ impl Manifest {
         }
 
         if self.project.version.is_empty() {
-            return Err(CliError::invalid_manifest(
-                "Project version cannot be empty",
-            ));
+            return Err(CliError::invalid_manifest("Project version cannot be empty"));
         }
 
         // Validate source specifications
@@ -331,7 +329,8 @@ mod tests {
         assert_eq!(version, "1.0");
         assert_eq!(format, Some("fasta".to_string()));
 
-        let (registry, identifier, version, format) = parse_source_spec("ncbi:blast@2.14.0").unwrap();
+        let (registry, identifier, version, format) =
+            parse_source_spec("ncbi:blast@2.14.0").unwrap();
         assert_eq!(registry, "ncbi");
         assert_eq!(identifier, "blast");
         assert_eq!(version, "2.14.0");

@@ -16,7 +16,9 @@ use uuid::Uuid;
 
 use super::queries::{
     get_job::handle as handle_get_job,
-    get_sync_status::{handle_get as handle_get_sync_status, handle_list as handle_list_sync_status},
+    get_sync_status::{
+        handle_get as handle_get_sync_status, handle_list as handle_list_sync_status,
+    },
     list_jobs::handle as handle_list_jobs,
     GetJobQuery, GetSyncStatusQuery, ListJobsQuery, ListSyncStatusQuery,
 };
@@ -47,7 +49,7 @@ async fn list_jobs(
         Err(e) => {
             tracing::error!("Failed to list jobs: {:?}", e);
             Err(StatusCode::INTERNAL_SERVER_ERROR)
-        }
+        },
     }
 }
 
@@ -65,7 +67,7 @@ async fn get_job(
         Err(e) => {
             tracing::debug!("Job not found or error: {:?}", e);
             Err(StatusCode::NOT_FOUND)
-        }
+        },
     }
 }
 
@@ -81,7 +83,7 @@ async fn list_sync_status(
         Err(e) => {
             tracing::error!("Failed to list sync statuses: {:?}", e);
             Err(StatusCode::INTERNAL_SERVER_ERROR)
-        }
+        },
     }
 }
 
@@ -99,7 +101,7 @@ async fn get_sync_status(
         Err(e) => {
             tracing::debug!("Sync status not found or error: {:?}", e);
             Err(StatusCode::NOT_FOUND)
-        }
+        },
     }
 }
 

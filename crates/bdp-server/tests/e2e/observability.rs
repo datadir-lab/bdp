@@ -68,10 +68,7 @@ impl E2EObservability {
     /// container logs directly through its API.
     pub async fn get_container_logs(&self, container_name: &str) -> Result<String> {
         info!("Container logs requested for: {}", container_name);
-        Ok(format!(
-            "Container logs for {} (not yet implemented)",
-            container_name
-        ))
+        Ok(format!("Container logs for {} (not yet implemented)", container_name))
     }
 
     /// Query all jobs from apalis.jobs table
@@ -131,10 +128,7 @@ impl E2EObservability {
                 request = request.continuation_token(token);
             }
 
-            let response = request
-                .send()
-                .await
-                .context("Failed to list S3 objects")?;
+            let response = request.send().await.context("Failed to list S3 objects")?;
 
             if let Some(contents) = response.contents() {
                 for obj in contents {
@@ -299,10 +293,7 @@ impl E2EObservability {
     /// This is currently a placeholder for future implementation.
     pub async fn tail_server_logs(&self, lines: usize) -> Result<Vec<String>> {
         info!("Requested {} lines of server logs", lines);
-        Ok(vec![format!(
-            "Server logs (last {} lines - not yet implemented)",
-            lines
-        )])
+        Ok(vec![format!("Server logs (last {} lines - not yet implemented)", lines)])
     }
 
     /// Get sync status for all organizations
@@ -475,10 +466,7 @@ impl E2EObservability {
             request = request.prefix(p);
         }
 
-        let response = request
-            .send()
-            .await
-            .context("Failed to list S3 objects")?;
+        let response = request.send().await.context("Failed to list S3 objects")?;
 
         let objects = response
             .contents()

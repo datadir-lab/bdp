@@ -8,10 +8,7 @@
 //! Usage: cargo run --example test_interpro_historical
 
 use bdp_server::db::{create_pool, DbConfig};
-use bdp_server::ingest::interpro::{
-    config::InterProConfig,
-    pipeline::InterProPipeline,
-};
+use bdp_server::ingest::interpro::{config::InterProConfig, pipeline::InterProPipeline};
 use std::env;
 use std::path::PathBuf;
 use tracing::{info, Level};
@@ -52,38 +49,43 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Test 1: Discover all available versions from FTP
     info!("=== Test 1: Version Discovery ===");
     info!("Connecting to InterPro FTP server...");
-    
+
     match pipeline.discover_versions().await {
         Ok(versions) => {
             info!("✓ Found {} InterPro versions on FTP", versions.len());
             info!("");
-            
+
             // Show first few versions
             info!("Latest 5 versions:");
             for version in versions.iter().rev().take(5) {
-                info!("  • Version {} (released ~{}, {})", 
+                info!(
+                    "  • Version {} (released ~{}, {})",
                     version.external_version,
                     version.release_date,
-                    if version.is_current { "CURRENT" } else { "archive" }
+                    if version.is_current {
+                        "CURRENT"
+                    } else {
+                        "archive"
+                    }
                 );
             }
             info!("");
-            
+
             // Show oldest few versions
             info!("Oldest 5 versions:");
             for version in versions.iter().take(5) {
-                info!("  • Version {} (released ~{})", 
-                    version.external_version,
-                    version.release_date
+                info!(
+                    "  • Version {} (released ~{})",
+                    version.external_version, version.release_date
                 );
             }
             info!("");
-        }
+        },
         Err(e) => {
             info!("✗ Failed to discover versions: {}", e);
             info!("Note: This requires internet connection to ftp.ebi.ac.uk");
             return Ok(());
-        }
+        },
     }
 
     // Test 2: Check what versions are already ingested
@@ -91,7 +93,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     match pipeline.discover_new_versions().await {
         Ok(new_versions) => {
             info!("✓ Found {} new versions to ingest", new_versions.len());
-            
+
             if new_versions.is_empty() {
                 info!("  All available versions are already ingested!");
             } else {
@@ -105,10 +107,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
             info!("");
-        }
+        },
         Err(e) => {
             info!("✗ Failed to check new versions: {}", e);
-        }
+        },
     }
 
     // Test 3: Simulate historical ingestion from a version
@@ -133,14 +135,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             info!("✓ Ingested new version: {}", version);
             info!("  - Entries stored: {}", stats.entries_stored);
             info!("  - Signatures stored: {}", stats.signatures_stored);
-        }
+        },
         Ok(None) => {
             info!("✓ Already up-to-date with latest version");
-        }
+        },
         Err(e) => {
             info!("✗ Failed to check latest: {}", e);
             info!("  (This is expected if FTP is not accessible)");
-        }
+        },
     }
     info!("");
 

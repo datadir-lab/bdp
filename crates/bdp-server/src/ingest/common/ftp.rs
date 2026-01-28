@@ -117,7 +117,7 @@ impl FtpClient {
                 Ok(Ok(result)) => {
                     info!("Successfully downloaded {} ({} bytes)", path, result.data.len());
                     return Ok(result);
-                }
+                },
                 Ok(Err(e)) => {
                     if attempt < MAX_RETRIES {
                         let delay = RETRY_DELAY_SECS * attempt as u64;
@@ -131,10 +131,10 @@ impl FtpClient {
                             format!("Failed to download {} after {} attempts", path, MAX_RETRIES)
                         });
                     }
-                }
+                },
                 Err(e) => {
                     return Err(anyhow::anyhow!("FTP download task panicked: {}", e));
-                }
+                },
             }
         }
 
@@ -165,7 +165,7 @@ impl FtpClient {
                 Ok(Ok(entries)) => {
                     info!("Successfully listed {} ({} entries)", path, entries.len());
                     return Ok(entries);
-                }
+                },
                 Ok(Err(e)) => {
                     if attempt < MAX_RETRIES {
                         let delay = RETRY_DELAY_SECS * attempt as u64;
@@ -179,10 +179,10 @@ impl FtpClient {
                             format!("Failed to list {} after {} attempts", path, MAX_RETRIES)
                         });
                     }
-                }
+                },
                 Err(e) => {
                     return Err(anyhow::anyhow!("FTP LIST task panicked: {}", e));
-                }
+                },
             }
         }
 
@@ -331,8 +331,8 @@ mod tests {
 
     #[test]
     fn test_parse_directory_entry() {
-        let entry = FtpEntry::parse("drwxr-xr-x   2 ftp ftp  4096 Jan 15 12:00 release-2025_01")
-            .unwrap();
+        let entry =
+            FtpEntry::parse("drwxr-xr-x   2 ftp ftp  4096 Jan 15 12:00 release-2025_01").unwrap();
         assert_eq!(entry.name, "release-2025_01");
         assert!(entry.is_directory);
         assert_eq!(entry.size, Some(4096));
@@ -340,8 +340,8 @@ mod tests {
 
     #[test]
     fn test_parse_file_entry() {
-        let entry = FtpEntry::parse("-rw-r--r--   1 ftp ftp  123456 Jan 15 12:00 data.txt")
-            .unwrap();
+        let entry =
+            FtpEntry::parse("-rw-r--r--   1 ftp ftp  123456 Jan 15 12:00 data.txt").unwrap();
         assert_eq!(entry.name, "data.txt");
         assert!(!entry.is_directory);
         assert_eq!(entry.size, Some(123456));

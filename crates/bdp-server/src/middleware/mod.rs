@@ -87,7 +87,6 @@ pub fn tracing_layer(
         )
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -127,5 +126,4 @@ mod tests {
         let _layer = cors_layer(&config);
         // Layer is created successfully
     }
-
 }

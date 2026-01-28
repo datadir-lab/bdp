@@ -82,21 +82,19 @@ async fn execute_command(cli: &Cli) -> bdp_cli::Result<()> {
                 *force,
             )
             .await
-        }
+        },
 
         Commands::Source { command } => match command {
-            SourceCommand::Add { source } => {
-                bdp_cli::commands::source::add(source.clone()).await
-            }
+            SourceCommand::Add { source } => bdp_cli::commands::source::add(source.clone()).await,
             SourceCommand::Remove { source } => {
                 bdp_cli::commands::source::remove(source.clone()).await
-            }
+            },
             SourceCommand::List => bdp_cli::commands::source::list().await,
         },
 
         Commands::Pull { force } => {
             bdp_cli::commands::pull::run(cli.server_url.clone(), *force).await
-        }
+        },
 
         Commands::Status => bdp_cli::commands::status::run().await,
 
@@ -105,15 +103,14 @@ async fn execute_command(cli: &Cli) -> bdp_cli::Result<()> {
         Commands::Clean { all } => bdp_cli::commands::clean::run(*all).await,
 
         Commands::Config { command } => match command {
+            // NOTE: Clone is necessary because we're matching on &command (borrowed)
             ConfigCommand::Get { key } => bdp_cli::commands::config::get(key.clone()).await,
             ConfigCommand::Set { key, value } => {
                 bdp_cli::commands::config::set(key.clone(), value.clone()).await
-            }
+            },
             ConfigCommand::Show => bdp_cli::commands::config::show().await,
         },
 
-        Commands::Uninstall { yes, purge } => {
-            bdp_cli::commands::uninstall::run(*yes, *purge).await
-        }
+        Commands::Uninstall { yes, purge } => bdp_cli::commands::uninstall::run(*yes, *purge).await,
     }
 }

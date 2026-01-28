@@ -37,11 +37,7 @@ pub async fn run(yes: bool, purge: bool) -> Result<()> {
     if !yes {
         println!("{}", "This will remove BDP from your system.".yellow());
         if purge && cache_exists {
-            println!(
-                "{}",
-                "The --purge flag will also remove all cache and data."
-                    .yellow()
-            );
+            println!("{}", "The --purge flag will also remove all cache and data.".yellow());
         }
         println!();
 
@@ -64,9 +60,8 @@ pub async fn run(yes: bool, purge: bool) -> Result<()> {
     // Remove cache if purge is enabled
     if purge && cache_exists {
         println!("Removing cache directory...");
-        fs::remove_dir_all(&cache_dir).map_err(|e| {
-            CliError::cache(format!("Failed to remove cache directory: {}", e))
-        })?;
+        fs::remove_dir_all(&cache_dir)
+            .map_err(|e| CliError::cache(format!("Failed to remove cache directory: {}", e)))?;
         println!("{} Cache removed", "✓".green());
     }
 
@@ -93,10 +88,7 @@ fn remove_self_unix(exe_path: &PathBuf) -> Result<()> {
 
     // We can't delete ourselves while running, so we spawn a shell command
     // that waits for us to exit and then deletes the file
-    let script = format!(
-        r#"(sleep 1 && rm -f '{}') &"#,
-        exe_path.display()
-    );
+    let script = format!(r#"(sleep 1 && rm -f '{}') &"#, exe_path.display());
 
     Command::new("sh")
         .arg("-c")
@@ -107,10 +99,7 @@ fn remove_self_unix(exe_path: &PathBuf) -> Result<()> {
     println!("{} BDP has been uninstalled!", "✓".green());
     println!();
     println!("The binary will be removed momentarily.");
-    println!(
-        "To reinstall BDP, visit: {}",
-        "https://github.com/datadir-lab/bdp"
-    );
+    println!("To reinstall BDP, visit: https://github.com/datadir-lab/bdp");
 
     Ok(())
 }
@@ -152,7 +141,7 @@ exit"#,
             println!("{} BDP has been uninstalled!", "✓".green());
             println!();
             println!("The binary will be removed momentarily.");
-        }
+        },
         Err(_) => {
             // Rename failed - Windows has the file locked
             // Fallback: Schedule deletion on next reboot
@@ -162,14 +151,15 @@ exit"#,
             println!("  1. Restart your computer (recommended)");
             println!("  2. Manually delete: {}", exe_path.display());
             println!();
-            println!("{}", "Note: BDP is no longer in your PATH and won't run after closing this window.".yellow());
-        }
+            println!(
+                "{}",
+                "Note: BDP is no longer in your PATH and won't run after closing this window."
+                    .yellow()
+            );
+        },
     }
 
-    println!(
-        "To reinstall BDP, visit: {}",
-        "https://github.com/datadir-lab/bdp"
-    );
+    println!("To reinstall BDP, visit: https://github.com/datadir-lab/bdp");
 
     Ok(())
 }

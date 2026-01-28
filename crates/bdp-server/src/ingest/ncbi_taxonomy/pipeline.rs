@@ -64,7 +64,11 @@ impl NcbiTaxonomyPipeline {
     ///   - `Some("2024-01-01")` for historical version (skips version discovery)
     ///
     /// Returns: Statistics about what was stored
-    pub async fn run_version(&self, organization_id: Uuid, version: Option<&str>) -> Result<PipelineResult> {
+    pub async fn run_version(
+        &self,
+        organization_id: Uuid,
+        version: Option<&str>,
+    ) -> Result<PipelineResult> {
         if let Some(ver) = version {
             info!("Starting NCBI Taxonomy ingestion pipeline for version {}", ver);
         } else {
@@ -78,7 +82,8 @@ impl NcbiTaxonomyPipeline {
         } else {
             // Current version - do version discovery
             info!("Phase 1: Version Discovery");
-            let version_discovery = TaxonomyVersionDiscovery::new(self.config.clone(), self.db.clone());
+            let version_discovery =
+                TaxonomyVersionDiscovery::new(self.config.clone(), self.db.clone());
 
             let discovered_version = match version_discovery.discover_current_version().await? {
                 Some(v) => v,
@@ -90,7 +95,7 @@ impl NcbiTaxonomyPipeline {
                         storage_stats: None,
                         skipped: true,
                     });
-                }
+                },
             };
 
             info!(
@@ -119,11 +124,7 @@ impl NcbiTaxonomyPipeline {
         // 3. Parse taxdump
         info!("Phase 3: Parsing taxdump files");
         let parser = if let Some(limit) = self.config.parse_limit {
-            warn!(
-                limit = limit,
-                "Parse limit is set, will only process {} entries",
-                limit
-            );
+            warn!(limit = limit, "Parse limit is set, will only process {} entries", limit);
             TaxdumpParser::with_limit(limit)
         } else {
             TaxdumpParser::new()
@@ -180,7 +181,10 @@ impl NcbiTaxonomyPipeline {
         };
 
         // Set up citation policy (idempotent)
-        storage.setup_citations().await.context("Failed to setup citation policy")?;
+        storage
+            .setup_citations()
+            .await
+            .context("Failed to setup citation policy")?;
 
         let storage_stats = storage
             .store(&taxdump_data)
@@ -248,11 +252,9 @@ impl PipelineResult {
     pub fn summary(&self) -> String {
         if self.skipped {
             "Ingestion skipped - no new version available".to_string()
-        } else if let (Some(ext), Some(int), Some(stats)) = (
-            &self.external_version,
-            &self.internal_version,
-            &self.storage_stats,
-        ) {
+        } else if let (Some(ext), Some(int), Some(stats)) =
+            (&self.external_version, &self.internal_version, &self.storage_stats)
+        {
             format!(
                 "Successfully ingested {} → {} ({} stored, {} updated, {} failed)",
                 ext, int, stats.stored, stats.updated, stats.failed
@@ -276,10 +278,7 @@ mod tests {
             storage_stats: None,
             skipped: true,
         };
-        assert_eq!(
-            result.summary(),
-            "Ingestion skipped - no new version available"
-        );
+        assert_eq!(result.summary(), "Ingestion skipped - no new version available");
         assert!(!result.is_success());
 
         // Successful result

@@ -14,6 +14,10 @@ use uuid::Uuid;
 
 use super::config::GoHttpConfig;
 use super::{GoError, Result};
+use crate::impl_version_ordering;
+use crate::ingest::common::version_discovery::{
+    DiscoveredVersion as DiscoveredVersionTrait, VersionFilter,
+};
 
 /// Discovered Gene Ontology version from HTTP archive
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -26,21 +30,21 @@ pub struct DiscoveredVersion {
     pub release_url: String,
 }
 
-impl PartialOrd for DiscoveredVersion {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
+impl DiscoveredVersionTrait for DiscoveredVersion {
+    fn external_version(&self) -> &str {
+        &self.external_version
+    }
+
+    fn release_date(&self) -> NaiveDate {
+        self.release_date
+    }
+
+    fn release_url(&self) -> Option<&str> {
+        Some(&self.release_url)
     }
 }
 
-impl Ord for DiscoveredVersion {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        // Sort by release date, then by version string
-        match self.release_date.cmp(&other.release_date) {
-            std::cmp::Ordering::Equal => self.external_version.cmp(&other.external_version),
-            other => other,
-        }
-    }
-}
+impl_version_ordering!(DiscoveredVersion);
 
 /// Gene Ontology version discovery service
 pub struct VersionDiscovery {
@@ -55,7 +59,10 @@ impl VersionDiscovery {
             .user_agent("BDP-Gene-Ontology-Ingester/1.0")
             .build()?;
 
-        Ok(Self { _config: config, client })
+        Ok(Self {
+            _config: config,
+            client,
+        })
     }
 
     /// Discover all available versions from HTTP release archive
@@ -73,11 +80,7 @@ impl VersionDiscovery {
         // Parse the HTML to extract dated directories
         let versions = self.parse_directory_listing(&html, base_url)?;
 
-        info!(
-            count = versions.len(),
-            "Discovered {} GO release versions",
-            versions.len()
-        );
+        info!(count = versions.len(), "Discovered {} GO release versions", versions.len());
 
         Ok(versions)
     }
@@ -103,11 +106,16 @@ impl VersionDiscovery {
     /// Parse HTML directory listing to extract dated releases
     ///
     /// Looks for links matching the YYYY-MM-DD pattern
-    fn parse_directory_listing(&self, html: &str, base_url: &str) -> Result<Vec<DiscoveredVersion>> {
+    fn parse_directory_listing(
+        &self,
+        html: &str,
+        base_url: &str,
+    ) -> Result<Vec<DiscoveredVersion>> {
         let document = Html::parse_document(html);
 
         // Try multiple selectors to handle different HTML structures
         // AWS S3, Apache, nginx all have different HTML formats
+        #[allow(clippy::unwrap_used)]
         let link_selector = Selector::parse("a").unwrap();
 
         // Regex for matching YYYY-MM-DD format
@@ -165,7 +173,10 @@ impl VersionDiscovery {
     ///
     /// Only returns versions released on or after the specified date.
     /// Useful for limiting historical ingestion.
-    pub async fn discover_versions_since(&self, cutoff_date: NaiveDate) -> Result<Vec<DiscoveredVersion>> {
+    pub async fn discover_versions_since(
+        &self,
+        cutoff_date: NaiveDate,
+    ) -> Result<Vec<DiscoveredVersion>> {
         let all_versions = self.discover_all_versions().await?;
 
         let filtered: Vec<_> = all_versions
@@ -190,10 +201,7 @@ impl VersionDiscovery {
         discovered: Vec<DiscoveredVersion>,
         ingested_versions: Vec<String>,
     ) -> Vec<DiscoveredVersion> {
-        discovered
-            .into_iter()
-            .filter(|v| !ingested_versions.contains(&v.external_version))
-            .collect()
+        VersionFilter::filter_new_versions(discovered, &ingested_versions)
     }
 
     // ========================================================================
@@ -203,7 +211,11 @@ impl VersionDiscovery {
     /// Get all ingested GO versions from database
     ///
     /// Queries the versions table for GO term data sources
-    pub async fn get_ingested_versions(&self, pool: &PgPool, entry_id: Uuid) -> Result<Vec<String>> {
+    pub async fn get_ingested_versions(
+        &self,
+        pool: &PgPool,
+        entry_id: Uuid,
+    ) -> Result<Vec<String>> {
         let records = sqlx::query!(
             r#"
             SELECT external_version
@@ -295,18 +307,18 @@ impl VersionDiscovery {
                     "Newer GO version available"
                 );
                 Ok(Some(newest.clone()))
-            }
+            },
             (None, Some(newest)) => {
                 info!(
                     version = %newest.external_version,
                     "First GO ingestion"
                 );
                 Ok(Some(newest.clone()))
-            }
+            },
             _ => {
                 info!("GO is up-to-date");
                 Ok(None)
-            }
+            },
         }
     }
 
@@ -350,6 +362,7 @@ impl VersionDiscovery {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 
@@ -464,7 +477,9 @@ mod tests {
         // Check format of a version
         if let Some(first) = versions.first() {
             assert!(first.external_version.contains('-'));
-            assert!(first.release_url.starts_with("http://release.geneontology.org/"));
+            assert!(first
+                .release_url
+                .starts_with("http://release.geneontology.org/"));
         }
     }
 }

@@ -59,7 +59,11 @@ impl StorageOrchestrator {
     }
 
     /// Fetch staged records ready for storage
-    pub async fn fetch_staged_records(&self, job_id: Uuid, limit: i64) -> Result<Vec<StagedRecord>> {
+    pub async fn fetch_staged_records(
+        &self,
+        job_id: Uuid,
+        limit: i64,
+    ) -> Result<Vec<StagedRecord>> {
         let records = sqlx::query_as!(
             StagedRecordRow,
             r#"
@@ -127,12 +131,13 @@ impl StorageOrchestrator {
         for (record_id, result) in upload_results {
             match result {
                 Ok(_) => {
-                    self.mark_status(record_id, RecordStatus::FilesUploaded).await?;
+                    self.mark_status(record_id, RecordStatus::FilesUploaded)
+                        .await?;
                     successful_ids.push(record_id);
-                }
+                },
                 Err(e) => {
                     self.mark_failed(record_id, &e.to_string()).await?;
-                }
+                },
             }
         }
 
@@ -170,7 +175,7 @@ impl StorageOrchestrator {
                 self.update_job_stored_count(job_id, count as i64).await?;
 
                 Ok(count)
-            }
+            },
             Err(e) => {
                 // Mark all as failed in parallel
                 let error_msg = e.to_string();
@@ -180,7 +185,7 @@ impl StorageOrchestrator {
                     .collect();
                 let _ = futures::future::join_all(fail_futures).await;
                 Err(e)
-            }
+            },
         }
     }
 

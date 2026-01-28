@@ -8,8 +8,8 @@ use sqlx::PgPool;
 use std::sync::Arc;
 use uuid::Uuid;
 
-use crate::ingest::framework::{compute_md5, RecordFormatter, StagedRecord, StorageAdapter};
 use super::parser_adapter::UniProtFormatter;
+use crate::ingest::framework::{compute_md5, RecordFormatter, StagedRecord, StorageAdapter};
 
 /// UniProt storage adapter
 pub struct UniProtStorageAdapter {
@@ -48,7 +48,11 @@ impl StorageAdapter for UniProtStorageAdapter {
     }
 
     async fn store_batch(&self, records: Vec<StagedRecord>) -> Result<Vec<Uuid>> {
-        let mut tx = self.pool.begin().await.context("Failed to start transaction")?;
+        let mut tx = self
+            .pool
+            .begin()
+            .await
+            .context("Failed to start transaction")?;
 
         let mut stored_ids = Vec::new();
 
@@ -67,10 +71,7 @@ impl StorageAdapter for UniProtStorageAdapter {
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_lowercase());
 
-            let _organism = record
-                .record_data
-                .get("organism")
-                .and_then(|v| v.as_str());
+            let _organism = record.record_data.get("organism").and_then(|v| v.as_str());
 
             let _taxonomy_id = record
                 .record_data
@@ -78,10 +79,7 @@ impl StorageAdapter for UniProtStorageAdapter {
                 .and_then(|v| v.as_i64())
                 .map(|i| i as i32);
 
-            let _sequence = record
-                .record_data
-                .get("sequence")
-                .and_then(|v| v.as_str());
+            let _sequence = record.record_data.get("sequence").and_then(|v| v.as_str());
 
             let _sequence_length = record
                 .record_data
@@ -91,7 +89,7 @@ impl StorageAdapter for UniProtStorageAdapter {
 
             // Check if registry_entry exists
             let registry_entry_id: Option<Uuid> = sqlx::query_scalar(
-                "SELECT id FROM registry_entries WHERE slug = $1 AND organization_id = $2"
+                "SELECT id FROM registry_entries WHERE slug = $1 AND organization_id = $2",
             )
             .bind(&accession)
             .bind(self.organization_id)
@@ -109,7 +107,7 @@ impl StorageAdapter for UniProtStorageAdapter {
                         id, organization_id, slug, name, entry_type
                     )
                     VALUES ($1, $2, $3, $4, 'data_source')
-                    "#
+                    "#,
                 )
                 .bind(entry_id)
                 .bind(self.organization_id)
@@ -126,7 +124,7 @@ impl StorageAdapter for UniProtStorageAdapter {
                         id, source_type, external_id
                     )
                     VALUES ($1, 'protein', $2)
-                    "#
+                    "#,
                 )
                 .bind(entry_id)
                 .bind(&accession)
@@ -149,7 +147,11 @@ impl StorageAdapter for UniProtStorageAdapter {
         Ok(stored_ids)
     }
 
-    async fn upload_files(&self, staged_record_id: Uuid, formats: Vec<String>) -> Result<Vec<Uuid>> {
+    async fn upload_files(
+        &self,
+        staged_record_id: Uuid,
+        formats: Vec<String>,
+    ) -> Result<Vec<Uuid>> {
         // Fetch the staged record (dynamic query)
         let record: (String, serde_json::Value, Uuid) = sqlx::query_as(
             "SELECT record_identifier, record_data, job_id FROM ingestion_staged_records WHERE id = $1"
@@ -162,13 +164,12 @@ impl StorageAdapter for UniProtStorageAdapter {
         let (record_identifier, record_data, job_id) = record;
 
         // Get internal version from job (dynamic query)
-        let internal_version: String = sqlx::query_scalar(
-            "SELECT internal_version FROM ingestion_jobs WHERE id = $1"
-        )
-        .bind(job_id)
-        .fetch_one(&*self.pool)
-        .await
-        .context("Failed to fetch job")?;
+        let internal_version: String =
+            sqlx::query_scalar("SELECT internal_version FROM ingestion_jobs WHERE id = $1")
+                .bind(job_id)
+                .fetch_one(&*self.pool)
+                .await
+                .context("Failed to fetch job")?;
 
         // Convert to GenericRecord
         let generic_record = crate::ingest::framework::GenericRecord {
@@ -196,13 +197,12 @@ impl StorageAdapter for UniProtStorageAdapter {
             let md5 = compute_md5(&content);
 
             // Get organization slug from database
-            let org_slug: String = sqlx::query_scalar(
-                "SELECT slug FROM organizations WHERE id = $1"
-            )
-            .bind(self.organization_id)
-            .fetch_one(&*self.pool)
-            .await
-            .context("Failed to fetch organization slug")?;
+            let org_slug: String =
+                sqlx::query_scalar("SELECT slug FROM organizations WHERE id = $1")
+                    .bind(self.organization_id)
+                    .fetch_one(&*self.pool)
+                    .await
+                    .context("Failed to fetch organization slug")?;
 
             // S3 key: {org}/{accession}/{version}/{accession}.{format}
             let s3_key = format!(
@@ -230,7 +230,7 @@ impl StorageAdapter for UniProtStorageAdapter {
                     size_bytes, md5_checksum, content_type, status, uploaded_at
                 )
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'uploaded', NOW())
-                "#
+                "#,
             )
             .bind(upload_id)
             .bind(job_id)

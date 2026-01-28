@@ -33,7 +33,9 @@ impl UniProtFtp {
     /// # Returns
     /// The contents of the relnotes.txt file
     pub async fn download_release_notes(&self, version: Option<&str>) -> Result<String> {
-        let path = self.config.release_notes_path(version)
+        let path = self
+            .config
+            .release_notes_path(version)
             .context("Failed to build release notes path")?;
         let data = self.download_file(&path).await?;
         String::from_utf8(data).context("Release notes are not valid UTF-8")
@@ -71,22 +73,22 @@ impl UniProtFtp {
             if line.contains("consists of") && line.contains("sequence entries") {
                 let parts: Vec<&str> = line.split_whitespace().collect();
                 for i in 0..parts.len() {
-                    if parts[i] == "of" && i + 1 < parts.len() {
-                        if let Ok(count) = parts[i + 1].parse::<u64>() {
-                            swissprot_count = Some(count);
-                            break;
-                        }
+                    if parts[i] != "of" || i + 1 >= parts.len() {
+                        continue;
+                    }
+                    if let Ok(count) = parts[i + 1].parse::<u64>() {
+                        swissprot_count = Some(count);
+                        break;
                     }
                 }
             }
         }
 
-        let external_version = external_version
-            .context("Could not find release version in release notes")?;
-        let release_date = release_date
-            .context("Could not find release date in release notes")?;
-        let swissprot_count = swissprot_count
-            .context("Could not find SwissProt count in release notes")?;
+        let external_version =
+            external_version.context("Could not find release version in release notes")?;
+        let release_date = release_date.context("Could not find release date in release notes")?;
+        let swissprot_count =
+            swissprot_count.context("Could not find SwissProt count in release notes")?;
 
         Ok(ReleaseInfo::new(external_version, release_date, swissprot_count))
     }
@@ -103,8 +105,14 @@ impl UniProtFtp {
     ///
     /// # Returns
     /// Decompressed DAT file contents
-    pub async fn download_dat_file(&self, version: Option<&str>, dataset: Option<&str>) -> Result<Vec<u8>> {
-        let path = self.config.dat_file_path(version, dataset)
+    pub async fn download_dat_file(
+        &self,
+        version: Option<&str>,
+        dataset: Option<&str>,
+    ) -> Result<Vec<u8>> {
+        let path = self
+            .config
+            .dat_file_path(version, dataset)
             .context("Failed to build DAT file path")?;
         let compressed = self.download_file(&path).await?;
 
@@ -125,7 +133,9 @@ impl UniProtFtp {
     ///   - `None` for current release (always exists)
     ///   - `Some("2024_01")` to check if specific previous release exists
     pub async fn check_version_exists(&self, version: Option<&str>) -> Result<bool> {
-        let path = self.config.release_notes_path(version)
+        let path = self
+            .config
+            .release_notes_path(version)
             .context("Failed to build release notes path")?;
 
         // Try to download release notes - if it exists, version exists
@@ -154,7 +164,7 @@ impl UniProtFtp {
                 Ok(Ok(data)) => {
                     info!("Successfully downloaded {} ({} bytes)", path, data.len());
                     return Ok(data);
-                }
+                },
                 Ok(Err(e)) => {
                     if attempt < MAX_RETRIES {
                         warn!(
@@ -168,10 +178,10 @@ impl UniProtFtp {
                             format!("Failed to download {} after {} attempts", path, MAX_RETRIES)
                         });
                     }
-                }
+                },
                 Err(e) => {
                     return Err(anyhow::anyhow!("FTP download task panicked: {}", e));
-                }
+                },
             }
         }
 
@@ -255,7 +265,7 @@ impl UniProtFtp {
                 Ok(Ok(dirs)) => {
                     info!("Successfully listed {} directories in {}", dirs.len(), path);
                     return Ok(dirs);
-                }
+                },
                 Ok(Err(e)) => {
                     if attempt < MAX_RETRIES {
                         warn!(
@@ -269,10 +279,10 @@ impl UniProtFtp {
                             format!("Failed to list {} after {} attempts", path, MAX_RETRIES)
                         });
                     }
-                }
+                },
                 Err(e) => {
                     return Err(anyhow::anyhow!("FTP LIST task panicked: {}", e));
-                }
+                },
             }
         }
 
@@ -373,6 +383,7 @@ impl UniProtFtp {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::Datelike;
 
     #[test]
     fn test_parse_release_date() {

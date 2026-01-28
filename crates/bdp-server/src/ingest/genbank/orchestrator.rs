@@ -114,11 +114,7 @@ impl GenbankOrchestrator {
             ftp.get_current_release().await?
         };
 
-        info!(
-            "Processing {} divisions for release {}",
-            divisions.len(),
-            release
-        );
+        info!("Processing {} divisions for release {}", divisions.len(), release);
 
         // Process divisions in parallel
         let results = self
@@ -163,11 +159,8 @@ impl GenbankOrchestrator {
         // Create pipeline for each division
         let results: Vec<Option<PipelineResult>> = stream::iter(divisions.iter().enumerate())
             .map(|(index, division): (usize, &Division)| {
-                let pipeline = GenbankPipeline::new(
-                    self.config.clone(),
-                    self.db.clone(),
-                    self.s3.clone(),
-                );
+                let pipeline =
+                    GenbankPipeline::new(self.config.clone(), self.db.clone(), self.s3.clone());
                 let division = division.clone();
                 let release = release.to_string();
                 let org_id = organization_id;
@@ -175,14 +168,12 @@ impl GenbankOrchestrator {
                 async move {
                     let div_name = division.as_str();
 
-                    info!(
-                        "Starting division {} ({} / {})",
-                        div_name,
-                        index + 1,
-                        divisions.len()
-                    );
+                    info!("Starting division {} ({} / {})", div_name, index + 1, divisions.len());
 
-                    match pipeline.run_division(org_id, division.clone(), &release).await {
+                    match pipeline
+                        .run_division(org_id, division.clone(), &release)
+                        .await
+                    {
                         Ok(result) => {
                             info!(
                                 "Completed division {} ({} / {}): {} records in {:.2}s",
@@ -193,7 +184,7 @@ impl GenbankOrchestrator {
                                 result.duration_seconds
                             );
                             Some(result)
-                        }
+                        },
                         Err(e) => {
                             error!(
                                 "Failed division {} ({} / {}): {}",
@@ -203,7 +194,7 @@ impl GenbankOrchestrator {
                                 e
                             );
                             None
-                        }
+                        },
                     }
                 }
             })
@@ -241,7 +232,9 @@ impl GenbankOrchestrator {
 
         // Run pipeline
         let pipeline = GenbankPipeline::new(self.config.clone(), self.db.clone(), self.s3.clone());
-        pipeline.run_division(organization_id, division, &release).await
+        pipeline
+            .run_division(organization_id, division, &release)
+            .await
     }
 
     /// Run ingestion for test division (phage - smallest)
@@ -249,7 +242,8 @@ impl GenbankOrchestrator {
         info!("Running test ingestion (phage division)");
 
         let test_division = GenbankFtpConfig::get_test_division();
-        self.run_single_division(organization_id, test_division).await
+        self.run_single_division(organization_id, test_division)
+            .await
     }
 
     /// Run historical ingestion for all available versions
@@ -317,11 +311,7 @@ impl GenbankOrchestrator {
             );
 
             match self
-                .run_divisions(
-                    organization_id,
-                    &divisions,
-                    Some(version.external_version.clone()),
-                )
+                .run_divisions(organization_id, &divisions, Some(version.external_version.clone()))
                 .await
             {
                 Ok(result) => {
@@ -333,15 +323,12 @@ impl GenbankOrchestrator {
                         result.duration_seconds
                     );
                     results.push(result);
-                }
+                },
                 Err(e) => {
-                    warn!(
-                        "Failed to ingest {}: {}",
-                        version.external_version, e
-                    );
+                    warn!("Failed to ingest {}: {}", version.external_version, e);
                     // Continue with next version
                     continue;
-                }
+                },
             }
         }
 

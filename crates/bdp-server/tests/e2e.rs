@@ -41,8 +41,8 @@ mod e2e {
     pub mod assertions;
     pub mod fixtures;
     pub mod harness;
-    pub mod observability;
     mod ingestion_tests;
+    pub mod observability;
 
     // Re-export main types for convenience
     pub use assertions::E2EAssertions;

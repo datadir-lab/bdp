@@ -227,11 +227,10 @@ async fn cleanup_test_data(pool: &PgPool) -> Result<(), Box<dyn std::error::Erro
     info!("  - Deleted {} test entries", deleted_entries.rows_affected());
 
     // Delete test signatures
-    let deleted_sigs = sqlx::query!(
-        "DELETE FROM protein_signatures WHERE accession LIKE '%_TEST_%'"
-    )
-    .execute(pool)
-    .await?;
+    let deleted_sigs =
+        sqlx::query!("DELETE FROM protein_signatures WHERE accession LIKE '%_TEST_%'")
+            .execute(pool)
+            .await?;
 
     info!("  - Deleted {} test signatures", deleted_sigs.rows_affected());
 

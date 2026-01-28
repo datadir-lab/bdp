@@ -14,11 +14,7 @@ use super::{
 };
 
 pub fn files_routes() -> Router<Storage> {
-    Router::new()
-        .route(
-            "/:org/:name/:version/:filename",
-            post(upload_file).get(download_file),
-        )
+    Router::new().route("/:org/:name/:version/:filename", post(upload_file).get(download_file))
 }
 
 #[tracing::instrument(skip(storage, multipart), fields(org = %org, name = %name, version = %version, filename = %filename))]
@@ -129,12 +125,12 @@ impl IntoResponse for FileApiError {
             | FileApiError::UploadError(UploadFileError::ContentRequired) => {
                 let error = ErrorResponse::new("VALIDATION_ERROR", self.to_string());
                 (StatusCode::BAD_REQUEST, Json(error)).into_response()
-            }
+            },
             FileApiError::UploadError(UploadFileError::Storage(_)) => {
                 tracing::error!("Storage error during file upload: {}", self);
                 let error = ErrorResponse::new("STORAGE_ERROR", "A storage error occurred");
                 (StatusCode::INTERNAL_SERVER_ERROR, Json(error)).into_response()
-            }
+            },
 
             FileApiError::DownloadError(DownloadFileError::OrgRequired)
             | FileApiError::DownloadError(DownloadFileError::NameRequired)
@@ -142,16 +138,16 @@ impl IntoResponse for FileApiError {
             | FileApiError::DownloadError(DownloadFileError::FilenameRequired) => {
                 let error = ErrorResponse::new("VALIDATION_ERROR", self.to_string());
                 (StatusCode::BAD_REQUEST, Json(error)).into_response()
-            }
+            },
             FileApiError::DownloadError(DownloadFileError::NotFound) => {
                 let error = ErrorResponse::new("NOT_FOUND", "File not found");
                 (StatusCode::NOT_FOUND, Json(error)).into_response()
-            }
+            },
             FileApiError::DownloadError(DownloadFileError::Storage(_)) => {
                 tracing::error!("Storage error during file download: {}", self);
                 let error = ErrorResponse::new("STORAGE_ERROR", "A storage error occurred");
                 (StatusCode::INTERNAL_SERVER_ERROR, Json(error)).into_response()
-            }
+            },
         }
     }
 }

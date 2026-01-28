@@ -184,7 +184,13 @@ impl SourceEntry {
 
 impl ToolEntry {
     /// Create a new tool entry
-    pub fn new(resolved: String, version: String, url: String, checksum: String, size: i64) -> Self {
+    pub fn new(
+        resolved: String,
+        version: String,
+        url: String,
+        checksum: String,
+        size: i64,
+    ) -> Self {
         Self {
             resolved,
             version,

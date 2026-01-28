@@ -3,10 +3,8 @@
 //! Usage: cargo run --example run_uniprot_ingestion
 
 use anyhow::Result;
-use bdp_server::ingest::uniprot::{
-    UniProtFtpConfig, IdempotentUniProtPipeline, VersionDiscovery,
-};
 use bdp_server::ingest::framework::BatchConfig;
+use bdp_server::ingest::uniprot::{IdempotentUniProtPipeline, UniProtFtpConfig, VersionDiscovery};
 use bdp_server::storage::{config::StorageConfig, Storage};
 use sqlx::postgres::PgPoolOptions;
 use std::{sync::Arc, time::Duration};
@@ -90,7 +88,7 @@ async fn main() -> Result<()> {
                 failed = stats.failed_count,
                 "Statistics"
             );
-        }
+        },
         None => {
             let last = discovery.get_last_ingested_version(&pool, org_id).await?;
             match last {
@@ -100,9 +98,9 @@ async fn main() -> Result<()> {
                     warn!("  - FTP connection issues");
                     warn!("  - No data available");
                     warn!("  - Configuration problems");
-                }
+                },
             }
-        }
+        },
     }
 
     Ok(())
@@ -112,12 +110,9 @@ async fn get_or_create_organization(pool: &sqlx::PgPool) -> Result<Uuid> {
     const UNIPROT_SLUG: &str = "uniprot";
 
     // Check for existing UniProt organization by slug (unique identifier)
-    let result = sqlx::query!(
-        r#"SELECT id FROM organizations WHERE slug = $1"#,
-        UNIPROT_SLUG
-    )
-    .fetch_optional(pool)
-    .await?;
+    let result = sqlx::query!(r#"SELECT id FROM organizations WHERE slug = $1"#, UNIPROT_SLUG)
+        .fetch_optional(pool)
+        .await?;
 
     if let Some(record) = result {
         Ok(record.id)
@@ -155,12 +150,9 @@ async fn get_or_create_organization(pool: &sqlx::PgPool) -> Result<Uuid> {
         .await?;
 
         // Fetch the ID in case another process created it concurrently
-        let record = sqlx::query!(
-            r#"SELECT id FROM organizations WHERE slug = $1"#,
-            UNIPROT_SLUG
-        )
-        .fetch_one(pool)
-        .await?;
+        let record = sqlx::query!(r#"SELECT id FROM organizations WHERE slug = $1"#, UNIPROT_SLUG)
+            .fetch_one(pool)
+            .await?;
 
         Ok(record.id)
     }

@@ -80,15 +80,15 @@ async fn main() -> Result<()> {
         "genbank" => {
             info!("Historical ingestion for GenBank");
             GenbankFtpConfig::new().with_genbank()
-        }
+        },
         "refseq" => {
             info!("Historical ingestion for RefSeq");
             GenbankFtpConfig::new().with_refseq()
-        }
+        },
         _ => {
             eprintln!("Invalid database type. Use 'genbank' or 'refseq'");
             std::process::exit(1);
-        }
+        },
     };
 
     // Apply parse limit if specified
@@ -104,7 +104,7 @@ async fn main() -> Result<()> {
         _ => {
             eprintln!("Invalid division. Use 'phage', 'viral', or 'bacterial'");
             std::process::exit(1);
-        }
+        },
     };
 
     // Discover versions
@@ -175,15 +175,12 @@ async fn main() -> Result<()> {
                     result.sequences_inserted,
                     result.duration_seconds
                 );
-            }
+            },
             Err(e) => {
-                warn!(
-                    "Failed to ingest {}: {}",
-                    version.external_version, e
-                );
+                warn!("Failed to ingest {}: {}", version.external_version, e);
                 // Continue with next version
                 continue;
-            }
+            },
         }
     }
 

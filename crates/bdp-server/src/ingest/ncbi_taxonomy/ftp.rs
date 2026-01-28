@@ -64,11 +64,7 @@ impl NcbiTaxonomyFtp {
             file_timestamp
         };
 
-        info!(
-            "Downloaded taxdump version {} ({} bytes)",
-            external_version,
-            compressed.len()
-        );
+        info!("Downloaded taxdump version {} ({} bytes)", external_version, compressed.len());
 
         info!("Decompressing and extracting taxdump archive");
         let taxdump_files = if is_zip {
@@ -143,7 +139,7 @@ impl NcbiTaxonomyFtp {
                 Ok(Ok(files)) => {
                     info!("Successfully listed directory {} ({} files)", path, files.len());
                     return Ok(files);
-                }
+                },
                 Ok(Err(e)) => {
                     if attempt < MAX_RETRIES {
                         warn!(
@@ -157,10 +153,10 @@ impl NcbiTaxonomyFtp {
                             format!("Failed to list {} after {} attempts", path, MAX_RETRIES)
                         });
                     }
-                }
+                },
                 Err(e) => {
                     return Err(anyhow::anyhow!("FTP list task panicked: {}", e));
-                }
+                },
             }
         }
 
@@ -225,39 +221,43 @@ impl NcbiTaxonomyFtp {
         for entry in archive.entries().context("Failed to read tar archive")? {
             let mut entry = entry.context("Failed to read tar entry")?;
             let path = entry.path().context("Failed to get entry path")?;
-            let filename = path.file_name()
+            let filename = path
+                .file_name()
                 .and_then(|n| n.to_str())
                 .context("Invalid filename in archive")?;
 
             match filename {
                 "rankedlineage.dmp" => {
                     let mut content = String::new();
-                    entry.read_to_string(&mut content)
+                    entry
+                        .read_to_string(&mut content)
                         .context("Failed to read rankedlineage.dmp")?;
                     let len = content.len();
                     rankedlineage = Some(content);
                     debug!("Extracted rankedlineage.dmp ({} bytes)", len);
-                }
+                },
                 "merged.dmp" => {
                     let mut content = String::new();
-                    entry.read_to_string(&mut content)
+                    entry
+                        .read_to_string(&mut content)
                         .context("Failed to read merged.dmp")?;
                     let len = content.len();
                     merged = Some(content);
                     debug!("Extracted merged.dmp ({} bytes)", len);
-                }
+                },
                 "delnodes.dmp" => {
                     let mut content = String::new();
-                    entry.read_to_string(&mut content)
+                    entry
+                        .read_to_string(&mut content)
                         .context("Failed to read delnodes.dmp")?;
                     let len = content.len();
                     delnodes = Some(content);
                     debug!("Extracted delnodes.dmp ({} bytes)", len);
-                }
+                },
                 _ => {
                     // Skip other files
                     debug!("Skipping file: {}", filename);
-                }
+                },
             }
 
             // Early exit if we have all required files
@@ -279,8 +279,7 @@ impl NcbiTaxonomyFtp {
         let cursor = Cursor::new(compressed);
 
         // Open zip archive
-        let mut archive = ZipArchive::new(cursor)
-            .context("Failed to open zip archive")?;
+        let mut archive = ZipArchive::new(cursor).context("Failed to open zip archive")?;
 
         let mut rankedlineage = None;
         let mut merged = None;
@@ -288,13 +287,12 @@ impl NcbiTaxonomyFtp {
 
         // Iterate through files in zip
         for i in 0..archive.len() {
-            let mut file = archive.by_index(i)
-                .context("Failed to read zip entry")?;
+            let mut file = archive.by_index(i).context("Failed to read zip entry")?;
 
             let filename = file.name().to_string();
 
             // Extract just the filename (handle paths like "taxdump/rankedlineage.dmp")
-            let basename = filename.split('/').last().unwrap_or(&filename);
+            let basename = filename.split('/').next_back().unwrap_or(&filename);
 
             match basename {
                 "rankedlineage.dmp" => {
@@ -304,7 +302,7 @@ impl NcbiTaxonomyFtp {
                     let len = content.len();
                     rankedlineage = Some(content);
                     debug!("Extracted rankedlineage.dmp ({} bytes)", len);
-                }
+                },
                 "merged.dmp" => {
                     let mut content = String::new();
                     file.read_to_string(&mut content)
@@ -312,7 +310,7 @@ impl NcbiTaxonomyFtp {
                     let len = content.len();
                     merged = Some(content);
                     debug!("Extracted merged.dmp ({} bytes)", len);
-                }
+                },
                 "delnodes.dmp" => {
                     let mut content = String::new();
                     file.read_to_string(&mut content)
@@ -320,11 +318,11 @@ impl NcbiTaxonomyFtp {
                     let len = content.len();
                     delnodes = Some(content);
                     debug!("Extracted delnodes.dmp ({} bytes)", len);
-                }
+                },
                 _ => {
                     // Skip other files
                     debug!("Skipping file: {}", basename);
-                }
+                },
             }
 
             // Early exit if we have all required files
@@ -359,7 +357,7 @@ impl NcbiTaxonomyFtp {
                 Ok(Ok(result)) => {
                     info!("Successfully downloaded {} ({} bytes)", path, result.0.len());
                     return Ok(result);
-                }
+                },
                 Ok(Err(e)) => {
                     if attempt < MAX_RETRIES {
                         warn!(
@@ -373,10 +371,10 @@ impl NcbiTaxonomyFtp {
                             format!("Failed to download {} after {} attempts", path, MAX_RETRIES)
                         });
                     }
-                }
+                },
                 Err(e) => {
                     return Err(anyhow::anyhow!("FTP download task panicked: {}", e));
-                }
+                },
             }
         }
 
@@ -384,7 +382,10 @@ impl NcbiTaxonomyFtp {
     }
 
     /// Synchronous FTP download with timestamp retrieval
-    fn download_file_with_timestamp_sync(config: &NcbiTaxonomyFtpConfig, path: &str) -> Result<(Vec<u8>, String)> {
+    fn download_file_with_timestamp_sync(
+        config: &NcbiTaxonomyFtpConfig,
+        path: &str,
+    ) -> Result<(Vec<u8>, String)> {
         debug!("Connecting to FTP server: {}:{}", config.ftp_host, config.ftp_port);
 
         // Connect to FTP server
@@ -410,12 +411,8 @@ impl NcbiTaxonomyFtp {
             .context("Failed to get file modification time")?;
 
         // Format timestamp as YYYY-MM-DD
-        let external_version = format!(
-            "{:04}-{:02}-{:02}",
-            timestamp.year(),
-            timestamp.month(),
-            timestamp.day()
-        );
+        let external_version =
+            format!("{:04}-{:02}-{:02}", timestamp.year(), timestamp.month(), timestamp.day());
 
         debug!("File modification time: {}", external_version);
 
@@ -460,7 +457,7 @@ mod tests {
     fn test_extract_taxdump_format() {
         // Test that we can create the config and paths
         let config = NcbiTaxonomyFtpConfig::new();
-        let ftp = NcbiTaxonomyFtp::new(config.clone());
+        let _ftp = NcbiTaxonomyFtp::new(config.clone());
 
         // Verify paths are constructed correctly
         assert!(config.taxdump_path().contains("new_taxdump.tar.gz"));

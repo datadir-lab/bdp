@@ -161,10 +161,7 @@ mod tests {
             version: "1.0.0".to_string(),
             filename: "data.fasta".to_string(),
         };
-        assert!(matches!(
-            query.validate(),
-            Err(DownloadFileError::OrgRequired)
-        ));
+        assert!(matches!(query.validate(), Err(DownloadFileError::OrgRequired)));
     }
 
     #[test]
@@ -175,10 +172,7 @@ mod tests {
             version: "1.0.0".to_string(),
             filename: "data.fasta".to_string(),
         };
-        assert!(matches!(
-            query.validate(),
-            Err(DownloadFileError::NameRequired)
-        ));
+        assert!(matches!(query.validate(), Err(DownloadFileError::NameRequired)));
     }
 
     #[test]
@@ -189,10 +183,7 @@ mod tests {
             version: "".to_string(),
             filename: "data.fasta".to_string(),
         };
-        assert!(matches!(
-            query.validate(),
-            Err(DownloadFileError::VersionRequired)
-        ));
+        assert!(matches!(query.validate(), Err(DownloadFileError::VersionRequired)));
     }
 
     #[test]
@@ -203,9 +194,6 @@ mod tests {
             version: "1.0.0".to_string(),
             filename: "".to_string(),
         };
-        assert!(matches!(
-            query.validate(),
-            Err(DownloadFileError::FilenameRequired)
-        ));
+        assert!(matches!(query.validate(), Err(DownloadFileError::FilenameRequired)));
     }
 }

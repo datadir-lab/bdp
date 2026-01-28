@@ -128,8 +128,9 @@ impl StorageConfig {
     pub fn for_aws(region: impl Into<String>, bucket: impl Into<String>) -> anyhow::Result<Self> {
         let access_key = env::var("AWS_ACCESS_KEY_ID")
             .map_err(|_| anyhow::anyhow!("AWS_ACCESS_KEY_ID environment variable must be set"))?;
-        let secret_key = env::var("AWS_SECRET_ACCESS_KEY")
-            .map_err(|_| anyhow::anyhow!("AWS_SECRET_ACCESS_KEY environment variable must be set"))?;
+        let secret_key = env::var("AWS_SECRET_ACCESS_KEY").map_err(|_| {
+            anyhow::anyhow!("AWS_SECRET_ACCESS_KEY environment variable must be set")
+        })?;
 
         Ok(Self {
             endpoint: None,

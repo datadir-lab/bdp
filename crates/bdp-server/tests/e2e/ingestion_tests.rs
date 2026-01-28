@@ -21,11 +21,7 @@ async fn test_ingestion_happy_path_ci() -> Result<()> {
 
     // Get test data info
     let test_info = data_manager.get_info();
-    info!(
-        "Test data: {:?} mode, size: {}",
-        test_info.mode,
-        test_info.size_human()
-    );
+    info!("Test data: {:?} mode, size: {}", test_info.mode, test_info.size_human());
 
     // Step 1: Upload test data to S3
     info!("📤 Step 1: Uploading test data to S3");
@@ -43,12 +39,16 @@ async fn test_ingestion_happy_path_ci() -> Result<()> {
 
     // Step 2: Create organization
     info!("🏢 Step 2: Creating organization");
-    let org_id = env.create_organization("uniprot", "UniProt Consortium").await?;
+    let org_id = env
+        .create_organization("uniprot", "UniProt Consortium")
+        .await?;
     info!("✓ Organization created: {}", org_id);
 
     // Step 3: Trigger ingestion job
     info!("⚙️  Step 3: Triggering ingestion job");
-    let job_id = env.trigger_ingestion_job(org_id, "uniprot_test.dat").await?;
+    let job_id = env
+        .trigger_ingestion_job(org_id, "uniprot_test.dat")
+        .await?;
     info!("✓ Job triggered: {}", job_id);
 
     // Step 4: Wait for job completion
@@ -76,12 +76,10 @@ async fn test_ingestion_happy_path_ci() -> Result<()> {
 
     // Check proteins were ingested
     // CI sample has 3 proteins
-    let protein_count = assertions.count_proteins(data_source_id, version_id).await?;
-    assert_eq!(
-        protein_count, 3,
-        "Expected 3 proteins from CI sample, found {}",
-        protein_count
-    );
+    let protein_count = assertions
+        .count_proteins(data_source_id, version_id)
+        .await?;
+    assert_eq!(protein_count, 3, "Expected 3 proteins from CI sample, found {}", protein_count);
     info!("✓ {} proteins ingested", protein_count);
 
     // Step 6: Verify specific protein data
@@ -100,10 +98,7 @@ async fn test_ingestion_happy_path_ci() -> Result<()> {
     // Step 7: Verify S3 state
     info!("📦 Step 7: Verifying S3 state");
     let s3_objects = obs.list_s3_objects(Some("processed/")).await?;
-    assert!(
-        !s3_objects.is_empty(),
-        "Processed data should be stored in S3"
-    );
+    assert!(!s3_objects.is_empty(), "Processed data should be stored in S3");
     info!("✓ {} processed files in S3", s3_objects.len());
 
     // Step 8: Print observability summary
@@ -140,21 +135,21 @@ async fn test_ingestion_with_real_data() -> Result<()> {
     info!("🧪 Starting E2E ingestion test (Real mode)");
 
     let test_info = data_manager.get_info();
-    info!(
-        "Test data: {:?} mode, size: {}",
-        test_info.mode,
-        test_info.size_human()
-    );
+    info!("Test data: {:?} mode, size: {}", test_info.mode, test_info.size_human());
 
     // Upload real data
     let dat_path = data_manager.get_uniprot_dat_path()?;
     env.upload_test_data(&dat_path, "uniprot_real.dat").await?;
 
     // Create organization
-    let org_id = env.create_organization("uniprot", "UniProt Consortium").await?;
+    let org_id = env
+        .create_organization("uniprot", "UniProt Consortium")
+        .await?;
 
     // Trigger ingestion with longer timeout for real data
-    let job_id = env.trigger_ingestion_job(org_id, "uniprot_real.dat").await?;
+    let job_id = env
+        .trigger_ingestion_job(org_id, "uniprot_real.dat")
+        .await?;
 
     // Wait with extended timeout (real data takes longer)
     let timeout = std::time::Duration::from_secs(300); // 5 minutes
@@ -193,10 +188,13 @@ async fn test_ingestion_invalid_dat_format() -> Result<()> {
     let invalid_dat = b"This is not a valid UniProt DAT file\nJust random text\n";
 
     // Upload invalid data
-    env.upload_test_data_bytes(invalid_dat, "invalid.dat").await?;
+    env.upload_test_data_bytes(invalid_dat, "invalid.dat")
+        .await?;
 
     // Create organization
-    let org_id = env.create_organization("uniprot", "UniProt Consortium").await?;
+    let org_id = env
+        .create_organization("uniprot", "UniProt Consortium")
+        .await?;
 
     // Trigger ingestion job
     let job_id = env.trigger_ingestion_job(org_id, "invalid.dat").await?;
@@ -206,10 +204,7 @@ async fn test_ingestion_invalid_dat_format() -> Result<()> {
     let result = env.wait_for_job_completion(job_id, timeout).await;
 
     // Job should fail
-    assert!(
-        result.is_err(),
-        "Job should fail with invalid DAT format"
-    );
+    assert!(result.is_err(), "Job should fail with invalid DAT format");
 
     // Verify job status is failed
     let obs = env.observability();
@@ -228,11 +223,7 @@ async fn test_ingestion_invalid_dat_format() -> Result<()> {
         .await
         .unwrap_or_default();
 
-    assert_eq!(
-        data_sources.len(),
-        0,
-        "No data sources should be created from invalid data"
-    );
+    assert_eq!(data_sources.len(), 0, "No data sources should be created from invalid data");
 
     env.cleanup().await?;
 
@@ -249,7 +240,9 @@ async fn test_ingestion_missing_s3_file() -> Result<()> {
     info!("🧪 Testing error handling: Missing S3 file");
 
     // Create organization
-    let org_id = env.create_organization("uniprot", "UniProt Consortium").await?;
+    let org_id = env
+        .create_organization("uniprot", "UniProt Consortium")
+        .await?;
 
     // Trigger ingestion job for non-existent file
     let job_id = env
@@ -261,10 +254,7 @@ async fn test_ingestion_missing_s3_file() -> Result<()> {
     let result = env.wait_for_job_completion(job_id, timeout).await;
 
     // Job should fail
-    assert!(
-        result.is_err(),
-        "Job should fail when S3 file is missing"
-    );
+    assert!(result.is_err(), "Job should fail when S3 file is missing");
 
     // Verify error message
     let obs = env.observability();
@@ -296,7 +286,9 @@ async fn test_ingestion_resume_after_failure() -> Result<()> {
     env.upload_test_data(&dat_path, "resume_test.dat").await?;
 
     // Create organization
-    let org_id = env.create_organization("uniprot", "UniProt Consortium").await?;
+    let org_id = env
+        .create_organization("uniprot", "UniProt Consortium")
+        .await?;
 
     // Trigger first job
     let job_id = env.trigger_ingestion_job(org_id, "resume_test.dat").await?;
@@ -323,10 +315,7 @@ async fn test_ingestion_resume_after_failure() -> Result<()> {
         .count_proteins(data_sources[0].id, data_sources[0].latest_version.unwrap())
         .await?;
 
-    assert_eq!(
-        protein_count, 3,
-        "Should have exactly 3 proteins (no duplicates)"
-    );
+    assert_eq!(protein_count, 3, "Should have exactly 3 proteins (no duplicates)");
 
     env.cleanup().await?;
 
@@ -348,7 +337,9 @@ async fn test_ingestion_performance() -> Result<()> {
     let file_size = std::fs::metadata(&dat_path)?.len();
 
     env.upload_test_data(&dat_path, "perf_test.dat").await?;
-    let org_id = env.create_organization("uniprot", "UniProt Consortium").await?;
+    let org_id = env
+        .create_organization("uniprot", "UniProt Consortium")
+        .await?;
 
     // Measure ingestion time
     let start = std::time::Instant::now();

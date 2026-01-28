@@ -37,11 +37,7 @@ impl AuditExporter {
     }
 
     /// Export audit trail to specified format
-    pub async fn export(
-        &self,
-        format: ExportFormat,
-        options: ExportOptions,
-    ) -> Result<PathBuf> {
+    pub async fn export(&self, format: ExportFormat, options: ExportOptions) -> Result<PathBuf> {
         // Create snapshot
         let snapshot_id = self.snapshot_manager.create_snapshot(&format).await?;
 
@@ -50,24 +46,24 @@ impl AuditExporter {
             ExportFormat::Fda => {
                 let exporter = FdaExporter::new(self.audit.clone());
                 exporter.export(&options).await?
-            }
+            },
             ExportFormat::Nih => {
                 let exporter = NihExporter::new(self.audit.clone());
                 exporter.export(&options).await?
-            }
+            },
             ExportFormat::Ema => {
                 let exporter = EmaExporter::new(self.audit.clone());
                 exporter.export(&options).await?
-            }
+            },
             ExportFormat::Das => {
                 let exporter = DasExporter::new(self.audit.clone());
                 exporter.export(&options).await?
-            }
+            },
             ExportFormat::Json => {
                 // Raw JSON export
                 let exporter = FdaExporter::new(self.audit.clone());
                 exporter.export_raw_json(&options).await?
-            }
+            },
         };
 
         // Update snapshot with output path

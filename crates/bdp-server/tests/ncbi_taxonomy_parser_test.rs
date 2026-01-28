@@ -110,7 +110,9 @@ fn test_taxdump_data_get_entry() {
     let merged = "";
     let delnodes = "";
 
-    let taxdump = parser.parse(rankedlineage, merged, delnodes, "2026-01-15".to_string()).unwrap();
+    let taxdump = parser
+        .parse(rankedlineage, merged, delnodes, "2026-01-15".to_string())
+        .unwrap();
 
     assert!(taxdump.get_entry(9606).is_some());
     assert!(taxdump.get_entry(9999).is_none());
@@ -124,7 +126,9 @@ fn test_taxdump_data_is_merged() {
     let merged = "123\t|\t456\t|";
     let delnodes = "";
 
-    let taxdump = parser.parse(rankedlineage, merged, delnodes, "2026-01-15".to_string()).unwrap();
+    let taxdump = parser
+        .parse(rankedlineage, merged, delnodes, "2026-01-15".to_string())
+        .unwrap();
 
     assert_eq!(taxdump.is_merged(123), Some(456));
     assert_eq!(taxdump.is_merged(456), None);
@@ -138,7 +142,9 @@ fn test_taxdump_data_is_deleted() {
     let merged = "";
     let delnodes = "789\t|";
 
-    let taxdump = parser.parse(rankedlineage, merged, delnodes, "2026-01-15".to_string()).unwrap();
+    let taxdump = parser
+        .parse(rankedlineage, merged, delnodes, "2026-01-15".to_string())
+        .unwrap();
 
     assert!(taxdump.is_deleted(789));
     assert!(!taxdump.is_deleted(123));

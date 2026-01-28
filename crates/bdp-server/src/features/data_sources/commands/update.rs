@@ -54,10 +54,7 @@ impl crate::cqrs::middleware::Command for UpdateDataSourceCommand {}
 
 impl UpdateDataSourceCommand {
     pub fn validate(&self) -> Result<(), UpdateDataSourceError> {
-        if self.name.is_none()
-            && self.description.is_none()
-            && self.external_id.is_none()
-        {
+        if self.name.is_none() && self.description.is_none() && self.external_id.is_none() {
             return Err(UpdateDataSourceError::NoFieldsToUpdate);
         }
         if let Some(ref name) = self.name {
@@ -101,7 +98,10 @@ pub async fn handle(
     .ok_or_else(|| UpdateDataSourceError::NotFound(command.id))?;
 
     let new_name = command.name.as_ref().unwrap_or(&current.name);
-    let new_description = command.description.as_ref().or(current.description.as_ref());
+    let new_description = command
+        .description
+        .as_ref()
+        .or(current.description.as_ref());
 
     sqlx::query!(
         r#"
@@ -116,7 +116,10 @@ pub async fn handle(
     .execute(&mut *tx)
     .await?;
 
-    let new_external_id = command.external_id.as_ref().or(current.external_id.as_ref());
+    let new_external_id = command
+        .external_id
+        .as_ref()
+        .or(current.external_id.as_ref());
 
     sqlx::query!(
         r#"
@@ -201,10 +204,7 @@ mod tests {
             // organism_id: None,
             // additional_metadata: None,
         };
-        assert!(matches!(
-            cmd.validate(),
-            Err(UpdateDataSourceError::NoFieldsToUpdate)
-        ));
+        assert!(matches!(cmd.validate(), Err(UpdateDataSourceError::NoFieldsToUpdate)));
     }
 
     #[test]
@@ -217,10 +217,7 @@ mod tests {
             // organism_id: None,
             // additional_metadata: None,
         };
-        assert!(matches!(
-            cmd.validate(),
-            Err(UpdateDataSourceError::NameEmpty)
-        ));
+        assert!(matches!(cmd.validate(), Err(UpdateDataSourceError::NameEmpty)));
     }
 
     #[sqlx::test]
@@ -270,10 +267,7 @@ mod tests {
         assert!(result.is_ok());
         let response = result.unwrap();
         assert_eq!(response.name, "Updated Name");
-        assert_eq!(
-            response.description,
-            Some("Updated description".to_string())
-        );
+        assert_eq!(response.description, Some("Updated description".to_string()));
         assert_eq!(response.external_id, Some("P12345".to_string()));
         Ok(())
     }

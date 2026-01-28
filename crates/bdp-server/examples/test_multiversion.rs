@@ -48,7 +48,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("✓ Version 98.0 stored - DS: {}, Ver: {}", ds_id_98, ver_id_98);
 
     println!();
-    
+
     // Verify data source ID is the same across versions
     if ds_id_96 == ds_id_97 && ds_id_97 == ds_id_98 {
         println!("✓ Same data source ID across all versions: {}", ds_id_96);
@@ -74,7 +74,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         JOIN data_sources ds ON ds.id = v.entry_id
         JOIN interpro_entry_metadata iem ON iem.data_source_id = ds.id
         WHERE iem.interpro_id = $1
-        "#
+        "#,
     )
     .bind(&entry.interpro_id)
     .fetch_one(&pool)

@@ -7,9 +7,7 @@
 //!   cargo run --bin ncbi_taxonomy_test_small
 
 use anyhow::Result;
-use bdp_server::ingest::ncbi_taxonomy::{
-    NcbiTaxonomyFtpConfig, NcbiTaxonomyPipeline,
-};
+use bdp_server::ingest::ncbi_taxonomy::{NcbiTaxonomyFtpConfig, NcbiTaxonomyPipeline};
 use sqlx::postgres::PgPoolOptions;
 use tracing::{error, info, warn, Level};
 use tracing_subscriber::FmtSubscriber;
@@ -27,8 +25,7 @@ async fn main() -> Result<()> {
         .compact()
         .finish();
 
-    tracing::subscriber::set_global_default(subscriber)
-        .expect("Failed to set tracing subscriber");
+    tracing::subscriber::set_global_default(subscriber).expect("Failed to set tracing subscriber");
 
     info!("NCBI Taxonomy Small Dataset Test");
     info!("This will download and parse 1,000 taxonomy entries to verify the implementation works correctly.");
@@ -50,8 +47,7 @@ async fn main() -> Result<()> {
 
     // Configure with parse limit for small test
     info!(parse_limit = 1000, "Configuring pipeline with entry limit");
-    let config = NcbiTaxonomyFtpConfig::new()
-        .with_parse_limit(1000);
+    let config = NcbiTaxonomyFtpConfig::new().with_parse_limit(1000);
 
     let pipeline = NcbiTaxonomyPipeline::new(config, db);
 
@@ -90,11 +86,11 @@ async fn main() -> Result<()> {
             }
 
             info!("Test completed successfully! You can now run full ingestion with more data.");
-        }
+        },
         Err(e) => {
             error!(error = %e, "Ingestion failed");
             return Err(e);
-        }
+        },
     }
 
     Ok(())

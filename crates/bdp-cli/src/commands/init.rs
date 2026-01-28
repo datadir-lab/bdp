@@ -2,8 +2,8 @@
 //!
 //! Initializes a new BDP project with audit logging.
 
-use crate::audit::{execute_with_audit, get_machine_id, AuditLogger, LocalAuditLogger};
 use crate::audit::types::EventType;
+use crate::audit::{execute_with_audit, get_machine_id, AuditLogger, LocalAuditLogger};
 use crate::error::{CliError, Result};
 use crate::gitignore;
 use crate::manifest::Manifest;
@@ -49,15 +49,7 @@ pub async fn run(
             "description": &description,
             "force": force
         }),
-        || async {
-            run_init_command(
-                &project_dir,
-                name,
-                version,
-                description,
-                force,
-            ).await
-        },
+        || async { run_init_command(&project_dir, name, version, description, force).await },
     )
     .await
 }
@@ -163,10 +155,7 @@ mod tests {
         let manifest = Manifest::load(&manifest_path).unwrap();
         assert_eq!(manifest.project.name, "test-project");
         assert_eq!(manifest.project.version, "0.1.0");
-        assert_eq!(
-            manifest.project.description,
-            Some("Test description".to_string())
-        );
+        assert_eq!(manifest.project.description, Some("Test description".to_string()));
     }
 
     #[tokio::test]
@@ -175,18 +164,13 @@ mod tests {
         let path = temp_dir.path().to_string_lossy().to_string();
 
         // First init
-        run(
-            path.clone(),
-            Some("test".to_string()),
-            "0.1.0".to_string(),
-            None,
-            false,
-        )
-        .await
-        .unwrap();
+        run(path.clone(), Some("test".to_string()), "0.1.0".to_string(), None, false)
+            .await
+            .unwrap();
 
         // Second init without force
-        let result = run(path.clone(), Some("test".to_string()), "0.1.0".to_string(), None, false).await;
+        let result =
+            run(path.clone(), Some("test".to_string()), "0.1.0".to_string(), None, false).await;
         assert!(result.is_err());
 
         // Second init with force
@@ -199,15 +183,9 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let path = temp_dir.path().to_string_lossy().to_string();
 
-        run(
-            path.clone(),
-            Some("test".to_string()),
-            "0.1.0".to_string(),
-            None,
-            false,
-        )
-        .await
-        .unwrap();
+        run(path.clone(), Some("test".to_string()), "0.1.0".to_string(), None, false)
+            .await
+            .unwrap();
 
         // Verify audit database exists and has events
         let audit_db_path = temp_dir.path().join(".bdp/bdp.db");

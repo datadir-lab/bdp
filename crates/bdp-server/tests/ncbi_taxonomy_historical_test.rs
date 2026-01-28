@@ -3,9 +3,7 @@
 //! These tests verify FTP archive discovery and historical version downloads.
 //! Run with: cargo test --test ncbi_taxonomy_historical_test -- --nocapture --ignored
 
-use bdp_server::ingest::ncbi_taxonomy::{
-    NcbiTaxonomyFtpConfig, NcbiTaxonomyFtp, TaxdumpParser,
-};
+use bdp_server::ingest::ncbi_taxonomy::{NcbiTaxonomyFtp, NcbiTaxonomyFtpConfig, TaxdumpParser};
 
 #[tokio::test]
 #[ignore] // Requires FTP access
@@ -16,7 +14,9 @@ async fn test_list_available_versions() {
     let ftp = NcbiTaxonomyFtp::new(config);
 
     // List all available versions
-    let versions = ftp.list_available_versions().await
+    let versions = ftp
+        .list_available_versions()
+        .await
         .expect("Failed to list available versions");
 
     println!("Found {} archive versions", versions.len());
@@ -47,14 +47,15 @@ async fn test_list_available_versions() {
 async fn test_download_current_version() {
     println!("\n=== Testing Current Version Download ===\n");
 
-    let config = NcbiTaxonomyFtpConfig::new()
-        .with_parse_limit(10); // Only parse 10 entries for speed
+    let config = NcbiTaxonomyFtpConfig::new().with_parse_limit(10); // Only parse 10 entries for speed
 
     let ftp = NcbiTaxonomyFtp::new(config.clone());
 
     // Download current version (None)
     println!("Downloading current version...");
-    let taxdump_files = ftp.download_taxdump_version(None).await
+    let taxdump_files = ftp
+        .download_taxdump_version(None)
+        .await
         .expect("Failed to download current version");
 
     println!("Current version: {}", taxdump_files.external_version);
@@ -69,12 +70,14 @@ async fn test_download_current_version() {
     // Parse a few entries
     println!("\nParsing first 10 entries...");
     let parser = TaxdumpParser::with_limit(10);
-    let taxdump = parser.parse(
-        &taxdump_files.rankedlineage,
-        &taxdump_files.merged,
-        &taxdump_files.delnodes,
-        taxdump_files.external_version.clone(),
-    ).expect("Failed to parse taxdump");
+    let taxdump = parser
+        .parse(
+            &taxdump_files.rankedlineage,
+            &taxdump_files.merged,
+            &taxdump_files.delnodes,
+            taxdump_files.external_version.clone(),
+        )
+        .expect("Failed to parse taxdump");
 
     println!("Parsed:");
     println!("  - {} taxonomy entries", taxdump.entries.len());
@@ -99,30 +102,34 @@ async fn test_download_current_version() {
 async fn test_download_historical_version() {
     println!("\n=== Testing Historical Version Download ===\n");
 
-    let config = NcbiTaxonomyFtpConfig::new()
-        .with_parse_limit(10); // Only parse 10 entries for speed
+    let config = NcbiTaxonomyFtpConfig::new().with_parse_limit(10); // Only parse 10 entries for speed
 
     let ftp = NcbiTaxonomyFtp::new(config.clone());
 
     // First, list available versions to pick one
-    let versions = ftp.list_available_versions().await
+    let versions = ftp
+        .list_available_versions()
+        .await
         .expect("Failed to list versions");
 
     assert!(versions.len() > 0, "Should have at least one version");
 
     // Pick a recent version (but not the newest, to ensure it's historical)
+    // PERFORMANCE: Use reference instead of cloning the entire string
     let test_version = if versions.len() > 3 {
         // Pick 3rd from last (definitely historical)
-        versions[versions.len() - 3].clone()
+        &versions[versions.len() - 3]
     } else {
-        versions.first().unwrap().clone()
+        versions.first().expect("At least one version should exist")
     };
 
     println!("Testing with historical version: {}", test_version);
 
     // Download historical version
     println!("Downloading historical version...");
-    let taxdump_files = ftp.download_taxdump_version(Some(&test_version)).await
+    let taxdump_files = ftp
+        .download_taxdump_version(Some(test_version))
+        .await
         .expect("Failed to download historical version");
 
     println!("Downloaded version: {}", taxdump_files.external_version);
@@ -133,7 +140,7 @@ async fn test_download_historical_version() {
 
     // Verify external_version matches what we requested
     assert_eq!(
-        taxdump_files.external_version, test_version,
+        &taxdump_files.external_version, test_version,
         "External version should match requested version"
     );
 
@@ -142,12 +149,14 @@ async fn test_download_historical_version() {
     // Parse a few entries
     println!("\nParsing first 10 entries...");
     let parser = TaxdumpParser::with_limit(10);
-    let taxdump = parser.parse(
-        &taxdump_files.rankedlineage,
-        &taxdump_files.merged,
-        &taxdump_files.delnodes,
-        taxdump_files.external_version.clone(),
-    ).expect("Failed to parse taxdump");
+    let taxdump = parser
+        .parse(
+            &taxdump_files.rankedlineage,
+            &taxdump_files.merged,
+            &taxdump_files.delnodes,
+            taxdump_files.external_version.clone(),
+        )
+        .expect("Failed to parse taxdump");
 
     println!("Parsed:");
     println!("  - {} taxonomy entries", taxdump.entries.len());
@@ -164,13 +173,14 @@ async fn test_download_historical_version() {
 async fn test_compare_versions() {
     println!("\n=== Testing Version Comparison ===\n");
 
-    let config = NcbiTaxonomyFtpConfig::new()
-        .with_parse_limit(5); // Only parse 5 entries for speed
+    let config = NcbiTaxonomyFtpConfig::new().with_parse_limit(5); // Only parse 5 entries for speed
 
     let ftp = NcbiTaxonomyFtp::new(config.clone());
 
     // Get available versions
-    let versions = ftp.list_available_versions().await
+    let versions = ftp
+        .list_available_versions()
+        .await
         .expect("Failed to list versions");
 
     if versions.len() < 2 {
@@ -187,9 +197,13 @@ async fn test_compare_versions() {
     println!("  - Version 2: {}", version2);
 
     // Download both
-    let taxdump1 = ftp.download_taxdump_version(Some(version1)).await
+    let taxdump1 = ftp
+        .download_taxdump_version(Some(version1))
+        .await
         .expect("Failed to download version 1");
-    let taxdump2 = ftp.download_taxdump_version(Some(version2)).await
+    let taxdump2 = ftp
+        .download_taxdump_version(Some(version2))
+        .await
         .expect("Failed to download version 2");
 
     println!("\nVersion 1 ({}):", taxdump1.external_version);

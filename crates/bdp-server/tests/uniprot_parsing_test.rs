@@ -99,21 +99,11 @@ fn test_parse_sample_dat_entry() {
     );
 
     // Validate gene name
-    assert_eq!(
-        entry.gene_name,
-        Some("GOT2".to_string()),
-        "Gene name should be GOT2"
-    );
+    assert_eq!(entry.gene_name, Some("GOT2".to_string()), "Gene name should be GOT2");
 
     // Validate sequence
-    assert!(
-        entry.sequence.len() > 0,
-        "Sequence should not be empty"
-    );
-    assert_eq!(
-        entry.sequence_length, 401,
-        "Sequence length should be 401"
-    );
+    assert!(entry.sequence.len() > 0, "Sequence should not be empty");
+    assert_eq!(entry.sequence_length, 401, "Sequence length should be 401");
 
     // Validate sequence only contains valid amino acid characters
     assert!(
@@ -122,10 +112,7 @@ fn test_parse_sample_dat_entry() {
     );
 
     // Validate mass
-    assert_eq!(
-        entry.mass_da, 47476,
-        "Molecular mass should be 47476 Da"
-    );
+    assert_eq!(entry.mass_da, 47476, "Molecular mass should be 47476 Da");
 }
 
 #[test]
@@ -264,22 +251,13 @@ fn test_fasta_generation() {
     assert!(fasta.starts_with('>'), "FASTA should start with >");
 
     // Should contain accession
-    assert!(
-        fasta.contains("P00505"),
-        "FASTA should contain accession"
-    );
+    assert!(fasta.contains("P00505"), "FASTA should contain accession");
 
     // Should contain entry name
-    assert!(
-        fasta.contains("AATM_HUMAN"),
-        "FASTA should contain entry name"
-    );
+    assert!(fasta.contains("AATM_HUMAN"), "FASTA should contain entry name");
 
     // Should contain organism
-    assert!(
-        fasta.contains("Homo sapiens"),
-        "FASTA should contain organism"
-    );
+    assert!(fasta.contains("Homo sapiens"), "FASTA should contain organism");
 
     // Should contain taxonomy ID
     assert!(fasta.contains("9606"), "FASTA should contain taxonomy ID");
@@ -295,10 +273,7 @@ fn test_fasta_generation() {
     for line in &lines[1..] {
         // Skip header
         if !line.is_empty() {
-            assert!(
-                line.len() <= 60,
-                "Sequence lines should be ≤60 characters"
-            );
+            assert!(line.len() <= 60, "Sequence lines should be ≤60 characters");
         }
     }
 }

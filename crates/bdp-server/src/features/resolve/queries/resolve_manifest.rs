@@ -167,7 +167,9 @@ pub enum ResolveManifestError {
     SourceNotFound(String),
     #[error("Tool '{0}' not found in registry. Check the organization name and tool identifier.")]
     ToolNotFound(String),
-    #[error("Version '{0}' not available. Use the API to list available versions for this source.")]
+    #[error(
+        "Version '{0}' not available. Use the API to list available versions for this source."
+    )]
     VersionNotFound(String),
     #[error("Format '{0}' not available for this data source. Check available formats with the data source details endpoint.")]
     FormatNotAvailable(String),
@@ -205,16 +207,15 @@ pub async fn handle(
     let mut resolved_tools = HashMap::new();
 
     for source_spec_str in &query.sources {
-        let spec = SourceSpec::parse(source_spec_str)
-            .map_err(|e| ResolveManifestError::InvalidSourceSpec(e))?;
+        let spec =
+            SourceSpec::parse(source_spec_str).map_err(ResolveManifestError::InvalidSourceSpec)?;
 
         let resolved = resolve_source(&pool, &spec).await?;
         resolved_sources.insert(source_spec_str.clone(), resolved);
     }
 
     for tool_spec_str in &query.tools {
-        let spec = ToolSpec::parse(tool_spec_str)
-            .map_err(|e| ResolveManifestError::InvalidToolSpec(e))?;
+        let spec = ToolSpec::parse(tool_spec_str).map_err(ResolveManifestError::InvalidToolSpec)?;
 
         let resolved = resolve_tool(&pool, &spec).await?;
         resolved_tools.insert(tool_spec_str.clone(), resolved);
@@ -413,7 +414,7 @@ fn detect_conflicts(
     let mut version_map: HashMap<String, HashSet<String>> = HashMap::new();
     let mut visited: HashSet<String> = HashSet::new();
 
-    for (_key, source) in resolved_sources {
+    for source in resolved_sources.values() {
         let base_key = source.resolved.clone();
 
         if visited.contains(&base_key) {
@@ -426,7 +427,7 @@ fn detect_conflicts(
         if parts.len() == 2 {
             version_map
                 .entry(parts[0].to_string())
-                .or_insert_with(HashSet::new)
+                .or_default()
                 .insert(parts[1].to_string());
         }
 
@@ -460,7 +461,7 @@ fn check_dependencies(
 
             version_map
                 .entry(base.clone())
-                .or_insert_with(HashSet::new)
+                .or_default()
                 .insert(version.clone());
         }
     }

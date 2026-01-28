@@ -1,5 +1,5 @@
 use anyhow::Result;
-use tracing::{info, error};
+use tracing::{error, info};
 
 fn main() -> Result<()> {
     // Enable logging
@@ -66,10 +66,10 @@ SQ   SEQUENCE   123 AA;  14447 MW;  4C8345D5C7B42E60 CRC64;
                     "Entry"
                 );
             }
-        }
+        },
         Err(e) => {
             error!(error = %e, "parse_bytes failed");
-        }
+        },
     }
 
     info!("=== Testing parse_range (first entry only) ===");
@@ -86,10 +86,10 @@ SQ   SEQUENCE   123 AA;  14447 MW;  4C8345D5C7B42E60 CRC64;
                     "Entry"
                 );
             }
-        }
+        },
         Err(e) => {
             error!(error = %e, "parse_range failed");
-        }
+        },
     }
 
     info!("=== Testing parse_range (second entry only) ===");
@@ -106,10 +106,10 @@ SQ   SEQUENCE   123 AA;  14447 MW;  4C8345D5C7B42E60 CRC64;
                     "Entry"
                 );
             }
-        }
+        },
         Err(e) => {
             error!(error = %e, "parse_range failed");
-        }
+        },
     }
 
     info!("=== Testing parse_range (both entries) ===");
@@ -126,10 +126,10 @@ SQ   SEQUENCE   123 AA;  14447 MW;  4C8345D5C7B42E60 CRC64;
                     "Entry"
                 );
             }
-        }
+        },
         Err(e) => {
             error!(error = %e, "parse_range failed");
-        }
+        },
     }
 
     Ok(())

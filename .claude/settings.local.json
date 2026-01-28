@@ -209,7 +209,14 @@
       "Bash(cargo outdated:*)",
       "Bash(git rm:*)",
       "Bash(cargo update:*)",
-      "Bash(Select-String -Pattern \"test_validation\")"
+      "Bash(Select-String -Pattern \"test_validation\")",
+      "WebFetch(domain:alphafold.com)",
+      "WebFetch(domain:commons.wikimedia.org)",
+      "Bash(git grep:*)",
+      "Bash(while [ ! -f \"C:\\\\Users\\\\sebas\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\D--dev-datadir-bdp\\\\tasks\\\\b870420.output\" ])",
+      "Bash(pgrep:*)",
+      "Bash(do sleep 2)",
+      "mcp__plugin_linear_linear__get_issue"
     ]
   }
 }

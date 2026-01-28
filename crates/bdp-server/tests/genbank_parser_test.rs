@@ -27,9 +27,7 @@ fn test_parse_sample_genbank_file() {
     assert_eq!(record.molecule_type, "DNA");
 
     // Verify DEFINITION
-    assert!(record
-        .definition
-        .contains("Enterobacteria phage lambda"));
+    assert!(record.definition.contains("Enterobacteria phage lambda"));
 
     // Verify ACCESSION
     assert_eq!(record.accession, "NC_001416");
@@ -39,10 +37,7 @@ fn test_parse_sample_genbank_file() {
     assert_eq!(record.version_number, Some(1));
 
     // Verify ORGANISM
-    assert_eq!(
-        record.organism,
-        Some("Enterobacteria phage lambda".to_string())
-    );
+    assert_eq!(record.organism, Some("Enterobacteria phage lambda".to_string()));
 
     // Verify taxonomy ID extraction
     assert_eq!(record.taxonomy_id, Some(10710));
@@ -114,18 +109,9 @@ fn test_extract_methods() {
 
     // Test extraction methods
     assert_eq!(record.extract_gene_name(), Some("cI".to_string()));
-    assert_eq!(
-        record.extract_locus_tag(),
-        Some("LAMBDA_00001".to_string())
-    );
-    assert_eq!(
-        record.extract_protein_id(),
-        Some("NP_040606.1".to_string())
-    );
-    assert_eq!(
-        record.extract_product(),
-        Some("lambda repressor CI".to_string())
-    );
+    assert_eq!(record.extract_locus_tag(), Some("LAMBDA_00001".to_string()));
+    assert_eq!(record.extract_protein_id(), Some("NP_040606.1".to_string()));
+    assert_eq!(record.extract_product(), Some("lambda repressor CI".to_string()));
 
     println!("✓ Extraction methods work");
 }

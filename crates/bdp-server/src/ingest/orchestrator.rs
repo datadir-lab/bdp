@@ -7,13 +7,13 @@ use anyhow::Result;
 use sqlx::PgPool;
 use std::sync::Arc;
 use tokio::time::{sleep, Duration};
-use tracing::{info, warn, error};
+use tracing::{error, info, warn};
 use uuid::Uuid;
 
 use super::{
     config::IngestConfig,
-    uniprot::{UniProtFtpConfig, UniProtPipeline, VersionDiscovery, DiscoveredVersion},
     framework::BatchConfig,
+    uniprot::{DiscoveredVersion, UniProtFtpConfig, UniProtPipeline, VersionDiscovery},
 };
 use crate::storage::Storage;
 
@@ -27,12 +27,7 @@ pub struct IngestOrchestrator {
 
 impl IngestOrchestrator {
     /// Create new orchestrator
-    pub fn new(
-        config: IngestConfig,
-        db: Arc<PgPool>,
-        storage: Storage,
-        org_id: Uuid,
-    ) -> Self {
+    pub fn new(config: IngestConfig, db: Arc<PgPool>, storage: Storage, org_id: Uuid) -> Self {
         Self {
             config,
             db,
@@ -121,14 +116,16 @@ impl IngestOrchestrator {
 
             match pipeline.ingest_version(&version).await {
                 Ok(job_id) => {
-                    info!("✓ Version {} ingested successfully (job: {})",
-                          version.external_version, job_id);
+                    info!(
+                        "✓ Version {} ingested successfully (job: {})",
+                        version.external_version, job_id
+                    );
                     succeeded += 1;
-                }
+                },
                 Err(e) => {
                     error!("✗ Version {} failed: {}", version.external_version, e);
                     failed += 1;
-                }
+                },
             }
         }
 

@@ -20,11 +20,7 @@ async fn main() -> Result<()> {
 
     // Create configuration
     let config = InterProConfig::from_env();
-    tracing::info!(
-        "FTP: {}{}",
-        config.ftp_host,
-        config.ftp_path
-    );
+    tracing::info!("FTP: {}{}", config.ftp_host, config.ftp_path);
 
     // Create version discovery service
     let discovery = VersionDiscovery::new(config);
@@ -64,7 +60,7 @@ async fn main() -> Result<()> {
             if filtered.len() > 5 {
                 tracing::info!("  ... and {} more", filtered.len() - 5);
             }
-        }
+        },
         Err(e) => {
             tracing::error!("Version discovery failed: {}", e);
             tracing::error!("Possible causes:");
@@ -72,7 +68,7 @@ async fn main() -> Result<()> {
             tracing::error!("  2. Network/firewall blocking FTP passive mode");
             tracing::error!("  3. InterPro FTP directory structure changed");
             return Err(e);
-        }
+        },
     }
 
     tracing::info!("");

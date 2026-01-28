@@ -64,11 +64,7 @@ impl InsertProteinMetadataCommand {
         if self.accession.len() > 50 {
             return Err(InsertProteinMetadataError::AccessionLength);
         }
-        if !self
-            .accession
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric())
-        {
+        if !self.accession.chars().all(|c| c.is_ascii_alphanumeric()) {
             return Err(InsertProteinMetadataError::AccessionFormat);
         }
         if let Some(ref entry_name) = self.entry_name {
@@ -111,9 +107,7 @@ pub async fn handle(
     .unwrap_or(false);
 
     if !data_source_exists {
-        return Err(InsertProteinMetadataError::DataSourceNotFound(
-            command.data_source_id,
-        ));
+        return Err(InsertProteinMetadataError::DataSourceNotFound(command.data_source_id));
     }
 
     // Insert or update protein metadata
@@ -189,10 +183,7 @@ mod tests {
             mass_da: None,
             sequence_checksum: None,
         };
-        assert!(matches!(
-            cmd.validate(),
-            Err(InsertProteinMetadataError::AccessionRequired)
-        ));
+        assert!(matches!(cmd.validate(), Err(InsertProteinMetadataError::AccessionRequired)));
     }
 
     #[test]
@@ -207,10 +198,7 @@ mod tests {
             mass_da: None,
             sequence_checksum: None,
         };
-        assert!(matches!(
-            cmd.validate(),
-            Err(InsertProteinMetadataError::AccessionFormat)
-        ));
+        assert!(matches!(cmd.validate(), Err(InsertProteinMetadataError::AccessionFormat)));
     }
 
     #[test]
@@ -225,10 +213,7 @@ mod tests {
             mass_da: None,
             sequence_checksum: None,
         };
-        assert!(matches!(
-            cmd.validate(),
-            Err(InsertProteinMetadataError::AccessionLength)
-        ));
+        assert!(matches!(cmd.validate(), Err(InsertProteinMetadataError::AccessionLength)));
     }
 
     #[test]
@@ -258,10 +243,7 @@ mod tests {
             mass_da: None,
             sequence_checksum: None,
         };
-        assert!(matches!(
-            cmd.validate(),
-            Err(InsertProteinMetadataError::AccessionRequired)
-        ));
+        assert!(matches!(cmd.validate(), Err(InsertProteinMetadataError::AccessionRequired)));
     }
 
     #[test]
@@ -291,10 +273,7 @@ mod tests {
             mass_da: None,
             sequence_checksum: None,
         };
-        assert!(matches!(
-            cmd.validate(),
-            Err(InsertProteinMetadataError::EntryNameLength)
-        ));
+        assert!(matches!(cmd.validate(), Err(InsertProteinMetadataError::EntryNameLength)));
     }
 
     #[test]
@@ -324,10 +303,7 @@ mod tests {
             mass_da: None,
             sequence_checksum: None,
         };
-        assert!(matches!(
-            cmd.validate(),
-            Err(InsertProteinMetadataError::GeneNameLength)
-        ));
+        assert!(matches!(cmd.validate(), Err(InsertProteinMetadataError::GeneNameLength)));
     }
 
     #[test]
@@ -357,10 +333,7 @@ mod tests {
             mass_da: None,
             sequence_checksum: Some("a".repeat(65)),
         };
-        assert!(matches!(
-            cmd.validate(),
-            Err(InsertProteinMetadataError::ChecksumLength)
-        ));
+        assert!(matches!(cmd.validate(), Err(InsertProteinMetadataError::ChecksumLength)));
     }
 
     #[test]
@@ -460,10 +433,7 @@ mod tests {
         };
 
         let result = handle(pool.clone(), cmd).await;
-        assert!(matches!(
-            result,
-            Err(InsertProteinMetadataError::DataSourceNotFound(_))
-        ));
+        assert!(matches!(result, Err(InsertProteinMetadataError::DataSourceNotFound(_))));
         Ok(())
     }
 

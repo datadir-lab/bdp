@@ -14,11 +14,15 @@ use sqlx::PgPool;
 use tower::ServiceExt;
 use uuid::Uuid;
 
-async fn test_create_handler(Json(payload): Json<serde_json::Value>) -> impl axum::response::IntoResponse {
+async fn test_create_handler(
+    Json(payload): Json<serde_json::Value>,
+) -> impl axum::response::IntoResponse {
     (StatusCode::CREATED, Json(json!({"id": Uuid::new_v4(), "data": payload})))
 }
 
-async fn test_update_handler(Json(_payload): Json<serde_json::Value>) -> impl axum::response::IntoResponse {
+async fn test_update_handler(
+    Json(_payload): Json<serde_json::Value>,
+) -> impl axum::response::IntoResponse {
     (StatusCode::OK, Json(json!({"updated": true})))
 }
 
@@ -432,10 +436,7 @@ async fn test_failed_requests_not_audited(pool: PgPool) -> sqlx::Result<()> {
         .await?
         .unwrap_or(0);
 
-    assert_eq!(
-        count_before, count_after,
-        "Failed requests should not create audit logs"
-    );
+    assert_eq!(count_before, count_after, "Failed requests should not create audit logs");
 
     Ok(())
 }

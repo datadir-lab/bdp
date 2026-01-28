@@ -17,8 +17,7 @@ async fn main() -> Result<()> {
     // Initialize tracing
     tracing_subscriber::fmt()
         .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "info".into()),
+            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()),
         )
         .init();
 
@@ -63,10 +62,7 @@ async fn main() -> Result<()> {
 
     // Test 2: Filter by date
     let cutoff_date = NaiveDate::from_ymd_opt(2024, 1, 1).unwrap();
-    println!(
-        "Test 2: Filtering versions since {}...",
-        cutoff_date
-    );
+    println!("Test 2: Filtering versions since {}...", cutoff_date);
 
     let filtered = discovery.discover_versions_since(cutoff_date).await?;
     println!("✅ Found {} versions since {}", filtered.len(), cutoff_date);
@@ -76,20 +72,13 @@ async fn main() -> Result<()> {
     println!("Test 3: Filtering out already-ingested versions...");
 
     // Simulate some already-ingested versions
-    let ingested = vec![
-        "2024-01-01".to_string(),
-        "2024-02-01".to_string(),
-        "2024-03-01".to_string(),
-    ];
+    let ingested =
+        vec!["2024-01-01".to_string(), "2024-02-01".to_string(), "2024-03-01".to_string()];
 
     println!("Simulated ingested versions: {:?}", ingested);
 
     let new_versions = discovery.filter_new_versions(filtered.clone(), ingested);
-    println!(
-        "✅ Found {} new versions (out of {} total)",
-        new_versions.len(),
-        filtered.len()
-    );
+    println!("✅ Found {} new versions (out of {} total)", new_versions.len(), filtered.len());
     println!();
 
     // Test 4: Check version ordering

@@ -11,9 +11,7 @@ use uuid::Uuid;
 
 use super::checksum::compute_md5;
 use super::parser::DataSourceParser;
-use super::types::{
-    BatchConfig, ClaimedWorkUnit, GenericRecord, RecordStatus, WorkUnitStatus,
-};
+use super::types::{BatchConfig, ClaimedWorkUnit, GenericRecord, RecordStatus, WorkUnitStatus};
 
 /// Worker for processing ingestion work units
 pub struct IngestionWorker {
@@ -82,10 +80,7 @@ impl IngestionWorker {
     }
 
     /// Start heartbeat task for a work unit
-    pub fn start_heartbeat_task(
-        &self,
-        work_unit_id: Uuid,
-    ) -> tokio::task::JoinHandle<Result<()>> {
+    pub fn start_heartbeat_task(&self, work_unit_id: Uuid) -> tokio::task::JoinHandle<Result<()>> {
         let pool = self.pool.clone();
         let interval_secs = self.config.heartbeat_interval_secs;
 
@@ -143,11 +138,7 @@ impl IngestionWorker {
 
         // Parse the batch
         let records = parser
-            .parse_range(
-                raw_data,
-                work_unit.start_offset as usize,
-                work_unit.end_offset as usize,
-            )
+            .parse_range(raw_data, work_unit.start_offset as usize, work_unit.end_offset as usize)
             .await
             .context("Failed to parse records")?;
 
@@ -159,13 +150,8 @@ impl IngestionWorker {
         }
 
         // Update work unit progress
-        self.update_work_unit_progress(
-            work_unit.id,
-            records.len() as i32,
-            records.len() as i32,
-            0,
-        )
-        .await?;
+        self.update_work_unit_progress(work_unit.id, records.len() as i32, records.len() as i32, 0)
+            .await?;
 
         // Mark work unit as completed
         self.complete_work_unit(work_unit.id).await?;
@@ -188,19 +174,23 @@ impl IngestionWorker {
         }
 
         // Prepare all record data first (ID generation and MD5 computation)
+        // PERFORMANCE: Use as_ref() instead of clone() when computing MD5 for existing checksums
         let prepared: Vec<_> = records
             .iter()
             .map(|record| {
                 let record_id = Uuid::new_v4();
-                let content_md5 = record.content_md5.clone().unwrap_or_else(|| {
-                    // record_data is a serde_json::Value, serialization should not fail
-                    let json_str = serde_json::to_string(&record.record_data)
-                        .unwrap_or_else(|e| {
-                            tracing::error!("Failed to serialize record_data for MD5: {}", e);
-                            String::new()
-                        });
-                    compute_md5(json_str.as_bytes())
-                });
+                let content_md5 = match &record.content_md5 {
+                    Some(md5) => md5.clone(),
+                    None => {
+                        // record_data is a serde_json::Value, serialization should not fail
+                        let json_str =
+                            serde_json::to_string(&record.record_data).unwrap_or_else(|e| {
+                                tracing::error!("Failed to serialize record_data for MD5: {}", e);
+                                String::new()
+                            });
+                        compute_md5(json_str.as_bytes())
+                    },
+                };
                 (record_id, record, content_md5)
             })
             .collect();
@@ -362,7 +352,7 @@ impl IngestionWorker {
                 None => {
                     tracing::info!(job_id = %job_id, "No more work units available");
                     break;
-                }
+                },
             };
 
             tracing::info!(
@@ -374,17 +364,20 @@ impl IngestionWorker {
             );
 
             // Process the work unit
-            match self.process_work_unit(job_id, &work_unit, parser, raw_data).await {
+            match self
+                .process_work_unit(job_id, &work_unit, parser, raw_data)
+                .await
+            {
                 Ok(staged_ids) => {
                     tracing::info!(
                         work_unit_id = %work_unit.id,
                         records_staged = staged_ids.len(),
                         "Work unit completed successfully"
                     );
-                }
+                },
                 Err(e) => {
                     self.fail_work_unit(work_unit.id, &e.to_string()).await?;
-                }
+                },
             }
         }
 

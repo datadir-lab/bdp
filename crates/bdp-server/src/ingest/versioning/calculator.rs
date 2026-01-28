@@ -21,7 +21,11 @@ pub struct SemanticVersion {
 impl SemanticVersion {
     /// Create a new semantic version
     pub fn new(major: i32, minor: i32, patch: i32) -> Self {
-        Self { major, minor, patch }
+        Self {
+            major,
+            minor,
+            patch,
+        }
     }
 
     /// Parse a version string like "1.5" or "2.0.1"
@@ -37,7 +41,11 @@ impl SemanticVersion {
         let minor = parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(0);
         let patch = parts.get(2).and_then(|s| s.parse().ok()).unwrap_or(0);
 
-        Some(Self { major, minor, patch })
+        Some(Self {
+            major,
+            minor,
+            patch,
+        })
     }
 
     /// Format as a version string (major.minor format by default)
@@ -189,7 +197,10 @@ pub struct VersionDetails {
 
 /// Get version details by version ID
 #[instrument(skip(pool))]
-pub async fn get_version_details(pool: &PgPool, version_id: Uuid) -> Result<Option<VersionDetails>> {
+pub async fn get_version_details(
+    pool: &PgPool,
+    version_id: Uuid,
+) -> Result<Option<VersionDetails>> {
     let row = sqlx::query(
         r#"
         SELECT
@@ -332,18 +343,9 @@ mod tests {
 
     #[test]
     fn test_semantic_version_parse() {
-        assert_eq!(
-            SemanticVersion::parse("1.5"),
-            Some(SemanticVersion::new(1, 5, 0))
-        );
-        assert_eq!(
-            SemanticVersion::parse("2.0.1"),
-            Some(SemanticVersion::new(2, 0, 1))
-        );
-        assert_eq!(
-            SemanticVersion::parse("3"),
-            Some(SemanticVersion::new(3, 0, 0))
-        );
+        assert_eq!(SemanticVersion::parse("1.5"), Some(SemanticVersion::new(1, 5, 0)));
+        assert_eq!(SemanticVersion::parse("2.0.1"), Some(SemanticVersion::new(2, 0, 1)));
+        assert_eq!(SemanticVersion::parse("3"), Some(SemanticVersion::new(3, 0, 0)));
         assert_eq!(SemanticVersion::parse(""), None);
         assert_eq!(SemanticVersion::parse("invalid"), None);
     }

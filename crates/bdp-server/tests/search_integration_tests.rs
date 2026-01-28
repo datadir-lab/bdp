@@ -2,7 +2,6 @@
 ///
 /// These tests verify that the search optimizations work correctly
 /// with the materialized view and various filters.
-
 use bdp_server::{
     db::{create_pool, DbConfig},
     features::search::queries::{
@@ -28,17 +27,14 @@ async fn create_test_data(pool: &PgPool) -> Result<(), Box<dyn std::error::Error
     .await?;
 
     // Get organization IDs
-    let test_org_id = sqlx::query_scalar!(
-        r#"SELECT id FROM organizations WHERE slug = 'test-org'"#
-    )
-    .fetch_one(pool)
-    .await?;
+    let test_org_id =
+        sqlx::query_scalar!(r#"SELECT id FROM organizations WHERE slug = 'test-org'"#)
+            .fetch_one(pool)
+            .await?;
 
-    let uniprot_id = sqlx::query_scalar!(
-        r#"SELECT id FROM organizations WHERE slug = 'uniprot'"#
-    )
-    .fetch_one(pool)
-    .await?;
+    let uniprot_id = sqlx::query_scalar!(r#"SELECT id FROM organizations WHERE slug = 'uniprot'"#)
+        .fetch_one(pool)
+        .await?;
 
     // Create taxonomy metadata for testing organism filters
     let taxonomy_entry_id = sqlx::query_scalar!(
@@ -260,8 +256,14 @@ async fn test_search_basic_query(pool: PgPool) -> sqlx::Result<()> {
         .unwrap();
 
     assert!(response.items.len() >= 2, "Should find at least 2 insulin entries");
-    assert!(response.items.iter().any(|i| i.name.contains("Human Insulin")));
-    assert!(response.items.iter().any(|i| i.name.contains("Mouse Insulin")));
+    assert!(response
+        .items
+        .iter()
+        .any(|i| i.name.contains("Human Insulin")));
+    assert!(response
+        .items
+        .iter()
+        .any(|i| i.name.contains("Mouse Insulin")));
 
     Ok(())
 }
@@ -282,9 +284,10 @@ async fn test_search_with_type_filter(pool: PgPool) -> sqlx::Result<()> {
         per_page: Some(20),
     };
 
-    let response = bdp_server::features::search::queries::unified_search::handle(pool.clone(), query)
-        .await
-        .unwrap();
+    let response =
+        bdp_server::features::search::queries::unified_search::handle(pool.clone(), query)
+            .await
+            .unwrap();
 
     assert!(response.items.len() > 0, "Should find human data sources");
     assert!(response.items.iter().all(|i| i.entry_type == "data_source"));
@@ -327,12 +330,16 @@ async fn test_search_with_source_type_filter(pool: PgPool) -> sqlx::Result<()> {
         per_page: Some(20),
     };
 
-    let response = bdp_server::features::search::queries::unified_search::handle(pool.clone(), query)
-        .await
-        .unwrap();
+    let response =
+        bdp_server::features::search::queries::unified_search::handle(pool.clone(), query)
+            .await
+            .unwrap();
 
     assert!(response.items.len() > 0, "Should find protein sources");
-    assert!(response.items.iter().all(|i| i.source_type.as_deref() == Some("protein")));
+    assert!(response
+        .items
+        .iter()
+        .all(|i| i.source_type.as_deref() == Some("protein")));
 
     // Search only genome sources
     let query = UnifiedSearchQuery {
@@ -371,13 +378,16 @@ async fn test_search_with_organism_filter(pool: PgPool) -> sqlx::Result<()> {
         per_page: Some(20),
     };
 
-    let response = bdp_server::features::search::queries::unified_search::handle(pool.clone(), query)
-        .await
-        .unwrap();
+    let response =
+        bdp_server::features::search::queries::unified_search::handle(pool.clone(), query)
+            .await
+            .unwrap();
 
     assert!(response.items.len() > 0, "Should find human insulin");
     assert!(response.items.iter().all(|i| {
-        i.organism.as_ref().map_or(false, |o| o.scientific_name.contains("sapiens"))
+        i.organism
+            .as_ref()
+            .map_or(false, |o| o.scientific_name.contains("sapiens"))
     }));
 
     // Search by common name
@@ -416,12 +426,16 @@ async fn test_search_with_format_filter(pool: PgPool) -> sqlx::Result<()> {
         per_page: Some(20),
     };
 
-    let response = bdp_server::features::search::queries::unified_search::handle(pool.clone(), query)
-        .await
-        .unwrap();
+    let response =
+        bdp_server::features::search::queries::unified_search::handle(pool.clone(), query)
+            .await
+            .unwrap();
 
     assert!(response.items.len() > 0, "Should find entries with FASTA format");
-    assert!(response.items.iter().all(|i| i.available_formats.contains(&"fasta".to_string())));
+    assert!(response
+        .items
+        .iter()
+        .all(|i| i.available_formats.contains(&"fasta".to_string())));
 
     // Search for entries with JSON format
     let query = UnifiedSearchQuery {
@@ -439,7 +453,10 @@ async fn test_search_with_format_filter(pool: PgPool) -> sqlx::Result<()> {
         .unwrap();
 
     assert!(response.items.len() > 0, "Should find entries with JSON format");
-    assert!(response.items.iter().all(|i| i.available_formats.contains(&"json".to_string())));
+    assert!(response
+        .items
+        .iter()
+        .all(|i| i.available_formats.contains(&"json".to_string())));
 
     Ok(())
 }
@@ -576,7 +593,10 @@ async fn test_suggestions_basic(pool: PgPool) -> sqlx::Result<()> {
         .unwrap();
 
     assert!(response.suggestions.len() > 0, "Should find suggestions for 'ins'");
-    assert!(response.suggestions.iter().any(|s| s.name.to_lowercase().contains("insulin")));
+    assert!(response
+        .suggestions
+        .iter()
+        .any(|s| s.name.to_lowercase().contains("insulin")));
 
     Ok(())
 }
@@ -599,7 +619,10 @@ async fn test_suggestions_with_filters(pool: PgPool) -> sqlx::Result<()> {
         .unwrap();
 
     assert!(response.suggestions.len() > 0, "Should find protein suggestions");
-    assert!(response.suggestions.iter().all(|s| s.source_type.as_deref() == Some("protein")));
+    assert!(response
+        .suggestions
+        .iter()
+        .all(|s| s.source_type.as_deref() == Some("protein")));
 
     Ok(())
 }
@@ -640,11 +663,9 @@ async fn test_materialized_view_refresh(pool: PgPool) -> sqlx::Result<()> {
     .await?;
 
     // Add a new entry
-    let org_id = sqlx::query_scalar!(
-        r#"SELECT id FROM organizations WHERE slug = 'test-org'"#
-    )
-    .fetch_one(&pool)
-    .await?;
+    let org_id = sqlx::query_scalar!(r#"SELECT id FROM organizations WHERE slug = 'test-org'"#)
+        .fetch_one(&pool)
+        .await?;
 
     let new_entry_id = sqlx::query_scalar!(
         r#"
@@ -706,7 +727,10 @@ async fn test_combined_filters(pool: PgPool) -> sqlx::Result<()> {
     for item in response.items {
         assert_eq!(item.entry_type, "data_source");
         assert_eq!(item.source_type.as_deref(), Some("protein"));
-        assert!(item.organism.as_ref().map_or(false, |o| o.scientific_name.contains("sapiens")));
+        assert!(item
+            .organism
+            .as_ref()
+            .map_or(false, |o| o.scientific_name.contains("sapiens")));
         assert!(item.available_formats.contains(&"fasta".to_string()));
     }
 

@@ -86,10 +86,7 @@ impl InterProPipeline {
         stats.matches_stored = matches_stored;
         info!("Stored {} protein matches", matches_stored);
 
-        info!(
-            "InterPro ingestion complete! Stats: {:?}",
-            stats
-        );
+        info!("InterPro ingestion complete! Stats: {:?}", stats);
 
         Ok(stats)
     }
@@ -169,10 +166,7 @@ impl InterProPipeline {
         let (ds_id, ver_id) = store_interpro_entry(&self.pool, &test_entry, test_version).await?;
         stats.entries_stored = 1;
 
-        info!(
-            "Test entry stored: {} (ds: {}, ver: {})",
-            test_entry.interpro_id, ds_id, ver_id
-        );
+        info!("Test entry stored: {} (ds: {}, ver: {})", test_entry.interpro_id, ds_id, ver_id);
 
         Ok(stats)
     }
@@ -210,10 +204,7 @@ impl InterProPipeline {
         // 3. Filter to only new versions
         let new_versions = discovery.filter_new_versions(all_versions, ingested);
 
-        info!(
-            "Found {} new InterPro versions to ingest",
-            new_versions.len()
-        );
+        info!("Found {} new InterPro versions to ingest", new_versions.len());
 
         Ok(new_versions)
     }
@@ -231,10 +222,7 @@ impl InterProPipeline {
         start_version: &str,
         skip_existing: bool,
     ) -> Result<Vec<(String, PipelineStats)>, Error> {
-        info!(
-            "Starting historical ingestion from version {}",
-            start_version
-        );
+        info!("Starting historical ingestion from version {}", start_version);
 
         let discovery = VersionDiscovery::new(self.config.clone());
 
@@ -283,15 +271,12 @@ impl InterProPipeline {
                         version.external_version, stats
                     );
                     results.push((version.external_version.clone(), stats));
-                }
+                },
                 Err(e) => {
-                    warn!(
-                        "Failed to ingest version {}: {}",
-                        version.external_version, e
-                    );
+                    warn!("Failed to ingest version {}: {}", version.external_version, e);
                     // Continue with next version instead of failing entire process
                     continue;
-                }
+                },
             }
         }
 
@@ -322,18 +307,15 @@ impl InterProPipeline {
             .map_err(|e| Error::Other(format!("Failed to check for newer version: {}", e)))?
         {
             Some(version) => {
-                info!(
-                    "New InterPro version available: {}",
-                    version.external_version
-                );
+                info!("New InterPro version available: {}", version.external_version);
 
                 let stats = self.run(&version.external_version).await?;
                 Ok(Some((version.external_version, stats)))
-            }
+            },
             None => {
                 info!("InterPro is already up-to-date");
                 Ok(None)
-            }
+            },
         }
     }
 }

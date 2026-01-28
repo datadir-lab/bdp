@@ -22,10 +22,10 @@ pub fn get_machine_id() -> Result<String> {
                 if !trimmed.is_empty() {
                     return Ok(trimmed);
                 }
-            }
+            },
             Err(_) => {
                 // Fall through to generate new ID
-            }
+            },
         }
     }
 

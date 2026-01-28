@@ -15,7 +15,7 @@ impl fmt::Display for UniProtConfigError {
         match self {
             UniProtConfigError::MissingVersion => {
                 write!(f, "release_type=Previous requires version to be specified")
-            }
+            },
         }
     }
 }
@@ -123,20 +123,13 @@ impl UniProtFtpConfig {
         // If version is explicitly provided, use Previous release path
         // This allows downloading historical versions regardless of config
         if let Some(ver) = version {
-            return Ok(format!(
-                "{}/previous_releases/release-{}",
-                self.ftp_base_path, ver
-            ));
+            return Ok(format!("{}/previous_releases/release-{}", self.ftp_base_path, ver));
         }
 
         // Otherwise, use the configured release type
         match self.release_type {
-            ReleaseType::Current => {
-                Ok(format!("{}/current_release", self.ftp_base_path))
-            }
-            ReleaseType::Previous => {
-                Err(UniProtConfigError::MissingVersion)
-            }
+            ReleaseType::Current => Ok(format!("{}/current_release", self.ftp_base_path)),
+            ReleaseType::Previous => Err(UniProtConfigError::MissingVersion),
         }
     }
 
@@ -164,22 +157,20 @@ impl UniProtFtpConfig {
     ///
     /// # Errors
     /// Returns an error if `release_type` is `Previous` but no version is provided.
-    pub fn dat_file_path(&self, version: Option<&str>, dataset: Option<&str>) -> Result<String, UniProtConfigError> {
+    pub fn dat_file_path(
+        &self,
+        version: Option<&str>,
+        dataset: Option<&str>,
+    ) -> Result<String, UniProtConfigError> {
         let base = self.release_base_path(version)?;
         let dataset = dataset.unwrap_or("sprot");
 
         if let Some(ver) = version {
             // Historical releases use tar.gz with different naming
-            Ok(format!(
-                "{}/knowledgebase/uniprot_{}-only{}.tar.gz",
-                base, dataset, ver
-            ))
+            Ok(format!("{}/knowledgebase/uniprot_{}-only{}.tar.gz", base, dataset, ver))
         } else {
             // Current release uses dat.gz in complete subdirectory
-            Ok(format!(
-                "{}/knowledgebase/complete/uniprot_{}.dat.gz",
-                base, dataset
-            ))
+            Ok(format!("{}/knowledgebase/complete/uniprot_{}.dat.gz", base, dataset))
         }
     }
 
@@ -187,26 +178,28 @@ impl UniProtFtpConfig {
     ///
     /// # Errors
     /// Returns an error if `release_type` is `Previous` but no version is provided.
-    pub fn fasta_file_path(&self, version: Option<&str>, dataset: Option<&str>) -> Result<String, UniProtConfigError> {
+    pub fn fasta_file_path(
+        &self,
+        version: Option<&str>,
+        dataset: Option<&str>,
+    ) -> Result<String, UniProtConfigError> {
         let base = self.release_base_path(version)?;
         let dataset = dataset.unwrap_or("sprot");
-        Ok(format!(
-            "{}/knowledgebase/complete/uniprot_{}.fasta.gz",
-            base, dataset
-        ))
+        Ok(format!("{}/knowledgebase/complete/uniprot_{}.fasta.gz", base, dataset))
     }
 
     /// Get the full FTP path for XML file
     ///
     /// # Errors
     /// Returns an error if `release_type` is `Previous` but no version is provided.
-    pub fn xml_file_path(&self, version: Option<&str>, dataset: Option<&str>) -> Result<String, UniProtConfigError> {
+    pub fn xml_file_path(
+        &self,
+        version: Option<&str>,
+        dataset: Option<&str>,
+    ) -> Result<String, UniProtConfigError> {
         let base = self.release_base_path(version)?;
         let dataset = dataset.unwrap_or("sprot");
-        Ok(format!(
-            "{}/knowledgebase/complete/uniprot_{}.xml.gz",
-            base, dataset
-        ))
+        Ok(format!("{}/knowledgebase/complete/uniprot_{}.xml.gz", base, dataset))
     }
 }
 
@@ -227,10 +220,7 @@ mod tests {
     fn test_release_notes_path_current() {
         let config = UniProtFtpConfig::default().with_release_type(ReleaseType::Current);
         let path = config.release_notes_path(None).unwrap();
-        assert_eq!(
-            path,
-            "/pub/databases/uniprot/current_release/knowledgebase/relnotes.txt"
-        );
+        assert_eq!(path, "/pub/databases/uniprot/current_release/knowledgebase/relnotes.txt");
     }
 
     #[test]

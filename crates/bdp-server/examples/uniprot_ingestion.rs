@@ -15,7 +15,7 @@ use anyhow::Result;
 use bdp_server::ingest::uniprot::{DatParser, UniProtStorage};
 use sqlx::postgres::PgPoolOptions;
 use std::path::Path;
-use tracing::{info, error, Level};
+use tracing::{error, info, Level};
 use tracing_subscriber::FmtSubscriber;
 use uuid::Uuid;
 
@@ -30,8 +30,8 @@ async fn main() -> Result<()> {
     info!("Starting UniProt ingestion pipeline");
 
     // 1. Connect to database
-    let database_url = std::env::var("DATABASE_URL")
-        .unwrap_or_else(|_| "postgresql://localhost/bdp".to_string());
+    let database_url =
+        std::env::var("DATABASE_URL").unwrap_or_else(|_| "postgresql://localhost/bdp".to_string());
 
     info!("Connecting to database...");
     let db_pool = PgPoolOptions::new()
@@ -63,12 +63,8 @@ async fn main() -> Result<()> {
 
     // 4. Store in database
     info!("Storing proteins in database...");
-    let storage = UniProtStorage::new(
-        db_pool.clone(),
-        org_id,
-        "1.0".to_string(),
-        "2024_01".to_string(),
-    );
+    let storage =
+        UniProtStorage::new(db_pool.clone(), org_id, "1.0".to_string(), "2024_01".to_string());
 
     let stored_count = storage.store_entries(&entries).await?;
     info!(stored = stored_count, "Stored proteins");
@@ -81,32 +77,26 @@ async fn main() -> Result<()> {
     // 6. Query results
     info!("Summary:");
 
-    let protein_count = sqlx::query_scalar::<_, i64>(
-        "SELECT COUNT(*) FROM protein_metadata"
-    )
-    .fetch_one(&db_pool)
-    .await?;
+    let protein_count = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM protein_metadata")
+        .fetch_one(&db_pool)
+        .await?;
     info!(proteins = protein_count, "Proteins in database");
 
-    let version_file_count = sqlx::query_scalar::<_, i64>(
-        "SELECT COUNT(*) FROM version_files"
-    )
-    .fetch_one(&db_pool)
-    .await?;
+    let version_file_count = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM version_files")
+        .fetch_one(&db_pool)
+        .await?;
     info!(version_files = version_file_count, "Version files created");
 
-    let dependency_count = sqlx::query_scalar::<_, i64>(
-        "SELECT COUNT(*) FROM dependencies"
-    )
-    .fetch_one(&db_pool)
-    .await?;
+    let dependency_count = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM dependencies")
+        .fetch_one(&db_pool)
+        .await?;
     info!(dependencies = dependency_count, "Dependencies created");
 
     // List some proteins
     let proteins = sqlx::query_as::<_, (String, String, i32)>(
         "SELECT accession, protein_name, sequence_length
          FROM protein_metadata
-         LIMIT 5"
+         LIMIT 5",
     )
     .fetch_all(&db_pool)
     .await?;
@@ -127,11 +117,10 @@ async fn main() -> Result<()> {
 
 async fn get_or_create_organization(db_pool: &sqlx::PgPool) -> Result<Uuid> {
     // Check if organization exists
-    let existing = sqlx::query_scalar::<_, Uuid>(
-        "SELECT id FROM organizations WHERE slug = 'uniprot'"
-    )
-    .fetch_optional(db_pool)
-    .await?;
+    let existing =
+        sqlx::query_scalar::<_, Uuid>("SELECT id FROM organizations WHERE slug = 'uniprot'")
+            .fetch_optional(db_pool)
+            .await?;
 
     if let Some(id) = existing {
         return Ok(id);

@@ -26,12 +26,7 @@ mod tests {
         let app = create_test_router(pool);
 
         let response = app
-            .oneshot(
-                Request::builder()
-                    .uri("/jobs")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
+            .oneshot(Request::builder().uri("/jobs").body(Body::empty()).unwrap())
             .await
             .unwrap();
 
@@ -174,7 +169,8 @@ mod tests {
         assert_eq!(response.status(), StatusCode::OK);
 
         // Parse response body
-        let body = hyper::body::to_bytes(response.into_body()).await.unwrap();
+        use axum::body::to_bytes;
+        let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
 
         // Verify data

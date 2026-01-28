@@ -6,8 +6,8 @@ pub mod types;
 pub use commands::{
     CreateDataSourceCommand, CreateDataSourceError, CreateDataSourceResponse,
     DeleteDataSourceCommand, DeleteDataSourceError, DeleteDataSourceResponse,
-    PublishVersionCommand, PublishVersionError, PublishVersionResponse,
-    UpdateDataSourceCommand, UpdateDataSourceError, UpdateDataSourceResponse,
+    PublishVersionCommand, PublishVersionError, PublishVersionResponse, UpdateDataSourceCommand,
+    UpdateDataSourceError, UpdateDataSourceResponse,
 };
 
 pub use queries::{

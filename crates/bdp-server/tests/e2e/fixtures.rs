@@ -3,8 +3,8 @@
 //! Handles both CI fixtures (committed) and real UniProt data (downloaded, cached).
 
 use anyhow::{Context, Result};
-use std::path::{Path, PathBuf};
 use std::fs;
+use std::path::{Path, PathBuf};
 use tracing::{info, warn};
 
 /// Test data mode
@@ -39,10 +39,7 @@ impl TestDataManager {
             .join("tests")
             .join("fixtures");
 
-        Self {
-            mode,
-            fixtures_dir,
-        }
+        Self { mode, fixtures_dir }
     }
 
     /// Get the UniProt DAT file path
@@ -54,7 +51,7 @@ impl TestDataManager {
                     anyhow::bail!("CI sample data not found at {:?}", path);
                 }
                 Ok(path)
-            }
+            },
             TestDataMode::Real => {
                 let real_dir = self.fixtures_dir.join("real");
 
@@ -65,8 +62,8 @@ impl TestDataManager {
                 }
 
                 // Look for any .dat or .dat.gz file
-                let entries = fs::read_dir(&real_dir)
-                    .context("Failed to read real data directory")?;
+                let entries =
+                    fs::read_dir(&real_dir).context("Failed to read real data directory")?;
 
                 for entry in entries {
                     let entry = entry?;
@@ -84,17 +81,19 @@ impl TestDataManager {
                 warn!("Falling back to CI sample");
 
                 // Fallback to CI mode
-                self.fixtures_dir.join("uniprot_ci_sample.dat")
+                self.fixtures_dir
+                    .join("uniprot_ci_sample.dat")
                     .canonicalize()
                     .context("Failed to find CI sample data")
-            }
+            },
         }
     }
 
     /// Get test data info
     pub fn get_info(&self) -> TestDataInfo {
         let dat_path = self.get_uniprot_dat_path().ok();
-        let size = dat_path.as_ref()
+        let size = dat_path
+            .as_ref()
             .and_then(|p| fs::metadata(p).ok())
             .map(|m| m.len());
 
@@ -119,10 +118,9 @@ impl TestDataManager {
                     .filter_map(Result::ok)
                     .any(|e| {
                         let path = e.path();
-                        path.extension()
-                            .map(|ext| ext == "dat")
-                            .unwrap_or(false)
-                            || path.to_str()
+                        path.extension().map(|ext| ext == "dat").unwrap_or(false)
+                            || path
+                                .to_str()
                                 .map(|s| s.ends_with(".dat.gz"))
                                 .unwrap_or(false)
                     })
@@ -152,7 +150,7 @@ impl TestDataInfo {
                 } else {
                     format!("{:.1} MB", bytes as f64 / (1024.0 * 1024.0))
                 }
-            }
+            },
             None => "unknown".to_string(),
         }
     }

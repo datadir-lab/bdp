@@ -106,7 +106,7 @@ impl SearchSuggestionsQuery {
         }
 
         let limit = self.limit();
-        if limit < 1 || limit > 20 {
+        if !(1..=20).contains(&limit) {
             return Err(SearchSuggestionsError::InvalidLimit);
         }
 
@@ -120,7 +120,19 @@ impl SearchSuggestionsQuery {
 
         if let Some(ref source_types) = self.source_type_filter {
             for st in source_types {
-                if !matches!(st.as_str(), "protein" | "genome" | "organism" | "taxonomy" | "bundle" | "transcript" | "annotation" | "structure" | "pathway" | "other") {
+                if !matches!(
+                    st.as_str(),
+                    "protein"
+                        | "genome"
+                        | "organism"
+                        | "taxonomy"
+                        | "bundle"
+                        | "transcript"
+                        | "annotation"
+                        | "structure"
+                        | "pathway"
+                        | "other"
+                ) {
                     return Err(SearchSuggestionsError::InvalidSourceTypeFilter(st.clone()));
                 }
             }
@@ -167,8 +179,9 @@ pub async fn handle(
     let search_term = query.q.trim();
 
     let type_filter = query.type_filter.as_ref();
-    let has_org_filter = type_filter.map_or(false, |types| types.contains(&"organization".to_string()));
-    let has_entry_filter = type_filter.map_or(true, |types| {
+    let has_org_filter =
+        type_filter.is_some_and(|types| types.contains(&"organization".to_string()));
+    let has_entry_filter = type_filter.is_none_or(|types| {
         types.contains(&"data_source".to_string()) || types.contains(&"tool".to_string())
     });
 
@@ -195,13 +208,22 @@ pub async fn handle(
             }
         });
 
-        let entry_suggestions = search_entries_autocomplete(&pool, search_term, entry_types, query.source_type_filter.clone(), limit).await?;
+        let entry_suggestions = search_entries_autocomplete(
+            &pool,
+            search_term,
+            entry_types,
+            query.source_type_filter.clone(),
+            limit,
+        )
+        .await?;
         all_suggestions.extend(entry_suggestions);
     }
 
     // Sort by match score descending
     all_suggestions.sort_by(|a, b| {
-        b.match_score.partial_cmp(&a.match_score).unwrap_or(std::cmp::Ordering::Equal)
+        b.match_score
+            .partial_cmp(&a.match_score)
+            .unwrap_or(std::cmp::Ordering::Equal)
     });
 
     // Limit to requested number
@@ -343,10 +365,7 @@ mod tests {
             type_filter: None,
             source_type_filter: None,
         };
-        assert!(matches!(
-            query.validate(),
-            Err(SearchSuggestionsError::QueryTooShort)
-        ));
+        assert!(matches!(query.validate(), Err(SearchSuggestionsError::QueryTooShort)));
     }
 
     #[test]
@@ -357,10 +376,7 @@ mod tests {
             type_filter: None,
             source_type_filter: None,
         };
-        assert!(matches!(
-            query.validate(),
-            Err(SearchSuggestionsError::InvalidLimit)
-        ));
+        assert!(matches!(query.validate(), Err(SearchSuggestionsError::InvalidLimit)));
     }
 
     #[test]
@@ -371,10 +387,7 @@ mod tests {
             type_filter: Some(vec!["invalid".to_string()]),
             source_type_filter: None,
         };
-        assert!(matches!(
-            query.validate(),
-            Err(SearchSuggestionsError::InvalidTypeFilter(_))
-        ));
+        assert!(matches!(query.validate(), Err(SearchSuggestionsError::InvalidTypeFilter(_))));
     }
 
     #[sqlx::test]
@@ -438,7 +451,10 @@ mod tests {
         assert!(result.is_ok());
         let response = result.unwrap();
         assert!(response.suggestions.len() > 0);
-        assert!(response.suggestions.iter().any(|s| s.slug == "insulin-data"));
+        assert!(response
+            .suggestions
+            .iter()
+            .any(|s| s.slug == "insulin-data"));
         Ok(())
     }
 
@@ -575,8 +591,14 @@ mod tests {
         assert!(result.is_ok());
         let response = result.unwrap();
         assert!(response.suggestions.len() > 0);
-        assert!(response.suggestions.iter().all(|s| s.source_type.as_deref() == Some("protein")));
-        assert!(!response.suggestions.iter().any(|s| s.slug == "organism-data"));
+        assert!(response
+            .suggestions
+            .iter()
+            .all(|s| s.source_type.as_deref() == Some("protein")));
+        assert!(!response
+            .suggestions
+            .iter()
+            .any(|s| s.slug == "organism-data"));
         Ok(())
     }
 
@@ -648,8 +670,14 @@ mod tests {
         assert!(result.is_ok());
         let response = result.unwrap();
         assert!(response.suggestions.len() > 0);
-        assert!(response.suggestions.iter().all(|s| s.source_type.as_deref() == Some("organism")));
-        assert!(!response.suggestions.iter().any(|s| s.slug == "protein-data"));
+        assert!(response
+            .suggestions
+            .iter()
+            .all(|s| s.source_type.as_deref() == Some("organism")));
+        assert!(!response
+            .suggestions
+            .iter()
+            .any(|s| s.slug == "protein-data"));
         Ok(())
     }
 
@@ -741,9 +769,11 @@ mod tests {
         assert!(result.is_ok());
         let response = result.unwrap();
         assert!(response.suggestions.len() >= 2);
-        assert!(response.suggestions.iter().all(|s|
-            s.source_type.as_deref() == Some("protein") || s.source_type.as_deref() == Some("organism")
-        ));
+        assert!(response
+            .suggestions
+            .iter()
+            .all(|s| s.source_type.as_deref() == Some("protein")
+                || s.source_type.as_deref() == Some("organism")));
         assert!(!response.suggestions.iter().any(|s| s.slug == "genome-data"));
         Ok(())
     }

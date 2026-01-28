@@ -14,8 +14,7 @@ use tracing::{debug, info, instrument, warn};
 use uuid::Uuid;
 
 use super::types::{
-    BumpType, ChangelogEntry, ChangelogSummary, TriggerReason, VersionChangelog,
-    VersioningStrategy,
+    BumpType, ChangelogEntry, ChangelogSummary, TriggerReason, VersionChangelog, VersioningStrategy,
 };
 
 /// Fetch the organization's versioning strategy for a data source
@@ -57,14 +56,14 @@ pub async fn get_organization_versioning_strategy(
                 "Using organization's custom versioning strategy"
             );
             Ok(Some(strategy))
-        }
+        },
         _ => {
             debug!(
                 data_source_id = %data_source_id,
                 "No custom versioning strategy defined, using detector defaults"
             );
             Ok(None)
-        }
+        },
     }
 }
 
@@ -110,10 +109,13 @@ pub trait VersionBumpDetector: Send + Sync {
         previous_version_id: Option<Uuid>,
     ) -> Result<VersionChangelog> {
         // First get the changelog using the detector's default logic
-        let mut changelog = self.detect_changes(pool, data_source_id, previous_version_id).await?;
+        let mut changelog = self
+            .detect_changes(pool, data_source_id, previous_version_id)
+            .await?;
 
         // Try to get the organization's custom strategy
-        if let Ok(Some(strategy)) = get_organization_versioning_strategy(pool, data_source_id).await {
+        if let Ok(Some(strategy)) = get_organization_versioning_strategy(pool, data_source_id).await
+        {
             // Re-determine the bump type using the custom strategy
             let new_bump_type = strategy.determine_bump_from_entries(&changelog.entries);
             if new_bump_type != changelog.bump_type {
@@ -293,12 +295,7 @@ impl UniProtBumpDetector {
         let summary = ChangelogSummary::initial(count);
         let summary_text = format!("Initial release with {} proteins", count);
 
-        Ok(VersionChangelog::new(
-            BumpType::Minor,
-            entries,
-            summary,
-            summary_text,
-        ))
+        Ok(VersionChangelog::new(BumpType::Minor, entries, summary, summary_text))
     }
 
     /// Get protein count for a specific version
@@ -498,11 +495,7 @@ impl VersionBumpDetector for NcbiTaxonomyBumpDetector {
             .detect_added_taxa(pool, data_source_id, prev_version_id)
             .await?;
         if added_taxa > 0 {
-            entries.push(ChangelogEntry::added(
-                "taxa",
-                added_taxa,
-                "New taxonomy nodes added",
-            ));
+            entries.push(ChangelogEntry::added("taxa", added_taxa, "New taxonomy nodes added"));
             entries_added = added_taxa;
         }
 
@@ -551,21 +544,13 @@ impl NcbiTaxonomyBumpDetector {
     ) -> Result<VersionChangelog> {
         let count = self.get_current_taxon_count(pool, data_source_id).await?;
 
-        let entries = vec![ChangelogEntry::added(
-            "taxa",
-            count,
-            "Initial taxonomy import from NCBI",
-        )];
+        let entries =
+            vec![ChangelogEntry::added("taxa", count, "Initial taxonomy import from NCBI")];
 
         let summary = ChangelogSummary::initial(count);
         let summary_text = format!("Initial release with {} taxonomy nodes", count);
 
-        Ok(VersionChangelog::new(
-            BumpType::Minor,
-            entries,
-            summary,
-            summary_text,
-        ))
+        Ok(VersionChangelog::new(BumpType::Minor, entries, summary, summary_text))
     }
 
     /// Get taxon count for a specific version
@@ -712,11 +697,7 @@ impl VersionBumpDetector for GeneOntologyBumpDetector {
             .detect_added_terms(pool, data_source_id, prev_version_id)
             .await?;
         if added > 0 {
-            entries.push(ChangelogEntry::added(
-                "terms",
-                added,
-                "New GO terms added",
-            ));
+            entries.push(ChangelogEntry::added("terms", added, "New GO terms added"));
             entries_added = added;
         }
 
@@ -765,21 +746,12 @@ impl GeneOntologyBumpDetector {
     ) -> Result<VersionChangelog> {
         let count = self.get_current_term_count(pool, data_source_id).await?;
 
-        let entries = vec![ChangelogEntry::added(
-            "terms",
-            count,
-            "Initial GO term import",
-        )];
+        let entries = vec![ChangelogEntry::added("terms", count, "Initial GO term import")];
 
         let summary = ChangelogSummary::initial(count);
         let summary_text = format!("Initial release with {} GO terms", count);
 
-        Ok(VersionChangelog::new(
-            BumpType::Minor,
-            entries,
-            summary,
-            summary_text,
-        ))
+        Ok(VersionChangelog::new(BumpType::Minor, entries, summary, summary_text))
     }
 
     /// Get term count for a specific version
@@ -904,7 +876,9 @@ impl VersionBumpDetector for GenbankBumpDetector {
 
         // Get counts
         let prev_count = self.get_sequence_count(pool, prev_version_id).await?;
-        let current_count = self.get_current_sequence_count(pool, data_source_id).await?;
+        let current_count = self
+            .get_current_sequence_count(pool, data_source_id)
+            .await?;
 
         // Detect removed sequences (breaking)
         let removed = self
@@ -924,11 +898,7 @@ impl VersionBumpDetector for GenbankBumpDetector {
             .detect_added_sequences(pool, data_source_id, prev_version_id)
             .await?;
         if added > 0 {
-            entries.push(ChangelogEntry::added(
-                "sequences",
-                added,
-                "New sequences added",
-            ));
+            entries.push(ChangelogEntry::added("sequences", added, "New sequences added"));
             entries_added = added;
         }
 
@@ -975,7 +945,9 @@ impl GenbankBumpDetector {
         pool: &PgPool,
         data_source_id: Uuid,
     ) -> Result<VersionChangelog> {
-        let count = self.get_current_sequence_count(pool, data_source_id).await?;
+        let count = self
+            .get_current_sequence_count(pool, data_source_id)
+            .await?;
 
         let entries = vec![ChangelogEntry::added(
             "sequences",
@@ -986,12 +958,7 @@ impl GenbankBumpDetector {
         let summary = ChangelogSummary::initial(count);
         let summary_text = format!("Initial release with {} sequences", count);
 
-        Ok(VersionChangelog::new(
-            BumpType::Minor,
-            entries,
-            summary,
-            summary_text,
-        ))
+        Ok(VersionChangelog::new(BumpType::Minor, entries, summary, summary_text))
     }
 
     /// Get sequence count for a specific version
@@ -1073,7 +1040,7 @@ pub fn get_detector(source_type: &str) -> Option<Box<dyn VersionBumpDetector>> {
         _ => {
             warn!(source_type = %source_type, "No version bump detector for source type");
             None
-        }
+        },
     }
 }
 

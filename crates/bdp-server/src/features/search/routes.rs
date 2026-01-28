@@ -64,15 +64,9 @@ async fn get_suggestions(
 ) -> Result<Response, SearchApiError> {
     let response = super::queries::suggestions::handle(pool, query).await?;
 
-    tracing::debug!(
-        count = response.suggestions.len(),
-        "Suggestions completed"
-    );
+    tracing::debug!(count = response.suggestions.len(), "Suggestions completed");
 
-    Ok(
-        (StatusCode::OK, Json(ApiResponse::success(response.suggestions)))
-            .into_response(),
-    )
+    Ok((StatusCode::OK, Json(ApiResponse::success(response.suggestions))).into_response())
 }
 
 #[derive(Debug)]
@@ -104,16 +98,18 @@ impl IntoResponse for SearchApiError {
             | SearchApiError::SuggestionsError(SearchSuggestionsError::QueryTooShort)
             | SearchApiError::SuggestionsError(SearchSuggestionsError::InvalidLimit)
             | SearchApiError::SuggestionsError(SearchSuggestionsError::InvalidTypeFilter(_))
-            | SearchApiError::SuggestionsError(SearchSuggestionsError::InvalidSourceTypeFilter(_)) => {
+            | SearchApiError::SuggestionsError(SearchSuggestionsError::InvalidSourceTypeFilter(
+                _,
+            )) => {
                 let error = ErrorResponse::new("VALIDATION_ERROR", self.to_string());
                 (StatusCode::BAD_REQUEST, Json(error)).into_response()
-            }
+            },
             SearchApiError::SearchError(UnifiedSearchError::Database(_))
             | SearchApiError::SuggestionsError(SearchSuggestionsError::Database(_)) => {
                 tracing::error!("Database error during search: {}", self);
                 let error = ErrorResponse::new("INTERNAL_ERROR", "A database error occurred");
                 (StatusCode::INTERNAL_SERVER_ERROR, Json(error)).into_response()
-            }
+            },
         }
     }
 }

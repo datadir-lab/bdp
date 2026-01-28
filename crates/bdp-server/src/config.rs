@@ -73,8 +73,7 @@ impl Config {
 
         let config = Config {
             server: ServerConfig {
-                host: std::env::var("BDP_HOST")
-                    .unwrap_or_else(|_| DEFAULT_SERVER_HOST.to_string()),
+                host: std::env::var("BDP_HOST").unwrap_or_else(|_| DEFAULT_SERVER_HOST.to_string()),
                 port: std::env::var("BDP_PORT")
                     .ok()
                     .and_then(|s| s.parse().ok())

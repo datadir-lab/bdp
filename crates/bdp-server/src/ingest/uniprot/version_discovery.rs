@@ -10,6 +10,10 @@ use uuid::Uuid;
 
 use super::config::UniProtFtpConfig;
 use super::ftp::UniProtFtp;
+use crate::impl_version_ordering;
+use crate::ingest::common::version_discovery::{
+    DiscoveredVersion as DiscoveredVersionTrait, VersionFilter,
+};
 
 /// Discovered UniProt version from FTP
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -24,21 +28,17 @@ pub struct DiscoveredVersion {
     pub ftp_path: String,
 }
 
-impl PartialOrd for DiscoveredVersion {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
+impl DiscoveredVersionTrait for DiscoveredVersion {
+    fn external_version(&self) -> &str {
+        &self.external_version
+    }
+
+    fn release_date(&self) -> NaiveDate {
+        self.release_date
     }
 }
 
-impl Ord for DiscoveredVersion {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        // Sort by release date, then by version string
-        match self.release_date.cmp(&other.release_date) {
-            std::cmp::Ordering::Equal => self.external_version.cmp(&other.external_version),
-            other => other,
-        }
-    }
-}
+impl_version_ordering!(DiscoveredVersion);
 
 /// UniProt version discovery service
 pub struct VersionDiscovery {
@@ -65,15 +65,15 @@ impl VersionDiscovery {
                     "Discovered current release"
                 );
                 versions.push(current);
-            }
+            },
             Err(e) => {
                 tracing::error!(error = %e, "Failed to discover current release");
                 return Err(e).context(
                     "Current release must be accessible. \
                     This may be due to FTP passive mode issues. \
-                    Please check network/firewall configuration."
+                    Please check network/firewall configuration.",
                 );
-            }
+            },
         }
 
         // 2. Check previous releases (optional, for backfill)
@@ -81,13 +81,13 @@ impl VersionDiscovery {
             Ok(mut previous) => {
                 tracing::info!(count = previous.len(), "Discovered previous releases");
                 versions.append(&mut previous);
-            }
+            },
             Err(e) => {
                 tracing::warn!(
                     error = %e,
                     "Could not discover previous releases (this is optional)"
                 );
-            }
+            },
         }
 
         // Sort by date (oldest first)
@@ -204,10 +204,7 @@ impl VersionDiscovery {
         discovered: Vec<DiscoveredVersion>,
         ingested_versions: Vec<String>,
     ) -> Vec<DiscoveredVersion> {
-        discovered
-            .into_iter()
-            .filter(|v| !ingested_versions.contains(&v.external_version))
-            .collect()
+        VersionFilter::filter_new_versions(discovered, &ingested_versions)
     }
 
     /// Check if a version should be re-ingested (e.g., current became versioned)
@@ -242,7 +239,9 @@ impl VersionDiscovery {
         organization_id: Uuid,
     ) -> Result<Option<DiscoveredVersion>> {
         // 1. Get last ingested version from organization_sync_status
-        let last_version = self.get_last_ingested_version(pool, organization_id).await?;
+        let last_version = self
+            .get_last_ingested_version(pool, organization_id)
+            .await?;
 
         // 2. Discover all available versions from FTP
         let mut available = self.discover_all_versions().await?;
@@ -255,9 +254,9 @@ impl VersionDiscovery {
         match (last_version, available.first()) {
             (Some(last), Some(newest)) if newest.external_version != last => {
                 Ok(Some(newest.clone()))
-            }
+            },
             (None, Some(newest)) => Ok(Some(newest.clone())), // First ingestion
-            _ => Ok(None),                                      // Up-to-date
+            _ => Ok(None),                                    // Up-to-date
         }
     }
 
@@ -405,8 +404,7 @@ mod tests {
             ftp_path: "previous_releases/release-2025_01".to_string(),
         };
 
-        let should_reingest =
-            discovery.should_reingest(&discovered, ingested_version, was_current);
+        let should_reingest = discovery.should_reingest(&discovered, ingested_version, was_current);
 
         // Should NOT re-ingest - it's the same version, just moved
         assert!(!should_reingest);

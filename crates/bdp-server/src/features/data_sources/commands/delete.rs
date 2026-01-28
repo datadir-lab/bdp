@@ -111,15 +111,10 @@ mod tests {
 
     #[sqlx::test]
     async fn test_handle_not_found(pool: PgPool) -> sqlx::Result<()> {
-        let cmd = DeleteDataSourceCommand {
-            id: Uuid::new_v4(),
-        };
+        let cmd = DeleteDataSourceCommand { id: Uuid::new_v4() };
 
         let result = handle(pool.clone(), cmd).await;
-        assert!(matches!(
-            result,
-            Err(DeleteDataSourceError::NotFound(_))
-        ));
+        assert!(matches!(result, Err(DeleteDataSourceError::NotFound(_))));
         Ok(())
     }
 
@@ -157,21 +152,14 @@ mod tests {
         .execute(&pool)
         .await?;
 
-        sqlx::query!(
-            "INSERT INTO versions (entry_id, version) VALUES ($1, $2)",
-            entry_id,
-            "1.0"
-        )
-        .execute(&pool)
-        .await?;
+        sqlx::query!("INSERT INTO versions (entry_id, version) VALUES ($1, $2)", entry_id, "1.0")
+            .execute(&pool)
+            .await?;
 
         let cmd = DeleteDataSourceCommand { id: entry_id };
 
         let result = handle(pool.clone(), cmd).await;
-        assert!(matches!(
-            result,
-            Err(DeleteDataSourceError::HasVersions(_))
-        ));
+        assert!(matches!(result, Err(DeleteDataSourceError::HasVersions(_))));
         Ok(())
     }
 }

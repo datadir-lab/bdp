@@ -4,11 +4,9 @@
 
 use anyhow::Result;
 use bdp_server::ingest::config::{HistoricalConfig, IngestionMode, LatestConfig, UniProtConfig};
-use bdp_server::ingest::uniprot::{
-    UniProtFtpConfig, UniProtPipeline, VersionDiscovery,
-};
+use bdp_server::ingest::uniprot::{UniProtFtpConfig, UniProtPipeline, VersionDiscovery};
 use sqlx::PgPool;
-use tracing::{info, error};
+use tracing::{error, info};
 use uuid::Uuid;
 
 #[tokio::main]
@@ -62,7 +60,7 @@ async fn main() -> Result<()> {
 async fn get_or_create_test_org(pool: &PgPool) -> Result<Uuid> {
     // Try to get existing org
     let result = sqlx::query_scalar::<_, Uuid>(
-        "SELECT id FROM organizations WHERE slug = 'uniprot' LIMIT 1"
+        "SELECT id FROM organizations WHERE slug = 'uniprot' LIMIT 1",
     )
     .fetch_optional(pool)
     .await?;
@@ -74,7 +72,7 @@ async fn get_or_create_test_org(pool: &PgPool) -> Result<Uuid> {
         let id = Uuid::new_v4();
         sqlx::query(
             "INSERT INTO organizations (id, name, slug, description, is_system)
-             VALUES ($1, 'UniProt', 'uniprot', 'UniProt protein database', true)"
+             VALUES ($1, 'UniProt', 'uniprot', 'UniProt protein database', true)",
         )
         .bind(id)
         .execute(pool)
@@ -116,12 +114,12 @@ fn test_configuration() -> Result<()> {
 
     match mode_latest {
         IngestionMode::Latest(_) => info!("Latest mode recognized"),
-        _ => {}
+        _ => {},
     }
 
     match mode_historical {
         IngestionMode::Historical(_) => info!("Historical mode recognized"),
-        _ => {}
+        _ => {},
     }
 
     Ok(())
@@ -155,14 +153,11 @@ fn test_mode_selection() -> Result<()> {
 
     match config.ingestion_mode {
         IngestionMode::Latest(ref cfg) => {
-            info!(
-                check_interval_secs = cfg.check_interval_secs,
-                "Parsed Latest mode"
-            );
-        }
+            info!(check_interval_secs = cfg.check_interval_secs, "Parsed Latest mode");
+        },
         IngestionMode::Historical(_) => {
             error!("ERROR: Expected Latest mode");
-        }
+        },
     }
 
     // Test historical mode
@@ -179,10 +174,10 @@ fn test_mode_selection() -> Result<()> {
                 batch_size = cfg.batch_size,
                 "Parsed Historical mode"
             );
-        }
+        },
         IngestionMode::Latest(_) => {
             error!("ERROR: Expected Historical mode");
-        }
+        },
     }
 
     Ok(())

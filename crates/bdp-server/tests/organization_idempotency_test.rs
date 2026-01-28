@@ -31,12 +31,10 @@ async fn test_organization_creation_idempotency() -> Result<()> {
     assert_eq!(id2, id3, "Third call should return same ID");
 
     // Verify only one record exists with this slug
-    let count = sqlx::query_scalar::<_, i64>(
-        "SELECT COUNT(*) FROM organizations WHERE slug = $1"
-    )
-    .bind(UNIPROT_SLUG)
-    .fetch_one(&pool)
-    .await?;
+    let count = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM organizations WHERE slug = $1")
+        .bind(UNIPROT_SLUG)
+        .fetch_one(&pool)
+        .await?;
 
     assert_eq!(count, 1, "Should only have one organization with slug 'uniprot'");
 
@@ -48,12 +46,9 @@ async fn test_organization_creation_idempotency() -> Result<()> {
 
 async fn get_or_create_organization(pool: &sqlx::PgPool, slug: &str) -> Result<Uuid> {
     // Check for existing organization by slug (unique identifier)
-    let result = sqlx::query!(
-        r#"SELECT id FROM organizations WHERE slug = $1"#,
-        slug
-    )
-    .fetch_optional(pool)
-    .await?;
+    let result = sqlx::query!(r#"SELECT id FROM organizations WHERE slug = $1"#, slug)
+        .fetch_optional(pool)
+        .await?;
 
     if let Some(record) = result {
         Ok(record.id)
@@ -76,12 +71,9 @@ async fn get_or_create_organization(pool: &sqlx::PgPool, slug: &str) -> Result<U
         .await?;
 
         // Fetch the ID in case another process created it concurrently
-        let record = sqlx::query!(
-            r#"SELECT id FROM organizations WHERE slug = $1"#,
-            slug
-        )
-        .fetch_one(pool)
-        .await?;
+        let record = sqlx::query!(r#"SELECT id FROM organizations WHERE slug = $1"#, slug)
+            .fetch_one(pool)
+            .await?;
 
         Ok(record.id)
     }

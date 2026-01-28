@@ -29,8 +29,8 @@ pub mod progress;
 
 // Re-export commonly used types
 pub use error::{CliError, Result};
-pub use manifest::Manifest;
 pub use lockfile::Lockfile;
+pub use manifest::Manifest;
 
 use clap::{Parser, Subcommand};
 
@@ -49,7 +49,12 @@ pub struct Cli {
     pub verbose: bool,
 
     /// Server URL
-    #[arg(long, env = "BDP_SERVER_URL", default_value = "http://localhost:8000", global = true)]
+    #[arg(
+        long,
+        env = "BDP_SERVER_URL",
+        default_value = "http://localhost:8000",
+        global = true
+    )]
     pub server_url: String,
 
     /// Generate markdown documentation (hidden)

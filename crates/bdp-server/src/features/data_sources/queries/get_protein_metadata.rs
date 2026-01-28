@@ -30,7 +30,6 @@ pub async fn get_protein_metadata(
     State(pool): State<PgPool>,
     Path(params): Path<ProteinMetadataParams>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
-
     // First, get the data source ID
     let data_source_id = get_data_source_id(&pool, &params.org, &params.slug)
         .await

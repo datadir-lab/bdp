@@ -11,8 +11,7 @@ fn test_ftp_connection_debug() {
 
     // Connect
     println!("Connecting to ftp.ncbi.nlm.nih.gov:21...");
-    let mut ftp_stream = FtpStream::connect("ftp.ncbi.nlm.nih.gov:21")
-        .expect("Failed to connect");
+    let mut ftp_stream = FtpStream::connect("ftp.ncbi.nlm.nih.gov:21").expect("Failed to connect");
 
     println!("Connected!");
 
@@ -22,7 +21,8 @@ fn test_ftp_connection_debug() {
 
     // Login
     println!("Logging in as anonymous...");
-    ftp_stream.login("anonymous", "anonymous")
+    ftp_stream
+        .login("anonymous", "anonymous")
         .expect("Failed to login");
     println!("Logged in!");
 
@@ -34,10 +34,10 @@ fn test_ftp_connection_debug() {
             for (i, entry) in entries.iter().enumerate().take(20) {
                 println!("  [{}]: {}", i, entry);
             }
-        }
+        },
         Err(e) => {
             println!("Failed to list: {}", e);
-        }
+        },
     }
 
     // Try to list taxdump_archive directory
@@ -56,10 +56,10 @@ fn test_ftp_connection_debug() {
                     println!("  - {}", filename);
                 }
             }
-        }
+        },
         Err(e) => {
             println!("Failed to list: {}", e);
-        }
+        },
     }
 
     // Try nlst command instead
@@ -70,10 +70,10 @@ fn test_ftp_connection_debug() {
             for (i, name) in names.iter().enumerate().take(20) {
                 println!("  [{}]: {}", i, name);
             }
-        }
+        },
         Err(e) => {
             println!("Failed to nlst: {}", e);
-        }
+        },
     }
 
     // Logout

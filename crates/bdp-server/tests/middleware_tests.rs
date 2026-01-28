@@ -51,9 +51,7 @@ async fn create_test_app_with_rate_limit(pool: PgPool) -> Router {
 
     Router::new()
         .route("/health", get(health))
-        .layer(middleware::rate_limit::rate_limit_layer(
-            rate_limit_config,
-        ))
+        .layer(middleware::rate_limit::rate_limit_layer(rate_limit_config))
         .with_state(state)
 }
 
@@ -232,12 +230,7 @@ async fn test_rate_limiting_blocks_excessive_requests(pool: PgPool) -> sqlx::Res
 
         if i < 5 {
             // First 5 requests should succeed
-            assert_eq!(
-                response.status(),
-                StatusCode::OK,
-                "Request {} should succeed",
-                i + 1
-            );
+            assert_eq!(response.status(), StatusCode::OK, "Request {} should succeed", i + 1);
         } else {
             // 6th request should be rate limited
             assert_eq!(

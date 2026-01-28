@@ -21,8 +21,7 @@ fn is_version_format(s: &str) -> bool {
     }
 
     // Both parts must be numeric
-    parts[0].chars().all(|c| c.is_ascii_digit())
-        && parts[1].chars().all(|c| c.is_ascii_digit())
+    parts[0].chars().all(|c| c.is_ascii_digit()) && parts[1].chars().all(|c| c.is_ascii_digit())
 }
 
 // ============================================================================
@@ -106,10 +105,7 @@ impl InterProFtpDownloader {
         let remote_path = self.config.get_protein2ipr_path(version);
         let local_path = output_dir.join(format!("protein2ipr_{}.dat.gz", version));
 
-        info!(
-            "Downloading protein2ipr.dat.gz from {} to {:?}",
-            remote_path, local_path
-        );
+        info!("Downloading protein2ipr.dat.gz from {} to {:?}", remote_path, local_path);
 
         // Change to directory
         let dir_path = format!("{}{}", self.config.ftp_path, version);
@@ -130,9 +126,7 @@ impl InterProFtpDownloader {
 
         info!(
             "Successfully downloaded protein2ipr.dat.gz ({} bytes)",
-            file.metadata()
-                .map(|m| m.len())
-                .unwrap_or(0)
+            file.metadata().map(|m| m.len()).unwrap_or(0)
         );
 
         Ok(local_path)
@@ -152,10 +146,7 @@ impl InterProFtpDownloader {
         let remote_path = self.config.get_entry_list_path(version);
         let local_path = output_dir.join(format!("entry_list_{}.txt", version));
 
-        info!(
-            "Downloading entry.list from {} to {:?}",
-            remote_path, local_path
-        );
+        info!("Downloading entry.list from {} to {:?}", remote_path, local_path);
 
         // Change to directory
         let dir_path = format!("{}{}", self.config.ftp_path, version);
@@ -176,9 +167,7 @@ impl InterProFtpDownloader {
 
         info!(
             "Successfully downloaded entry.list ({} bytes)",
-            file.metadata()
-                .map(|m| m.len())
-                .unwrap_or(0)
+            file.metadata().map(|m| m.len()).unwrap_or(0)
         );
 
         Ok(local_path)

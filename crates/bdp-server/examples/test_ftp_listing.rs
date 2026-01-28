@@ -4,7 +4,7 @@
 //! Run with: cargo run --example test_ftp_listing
 
 use bdp_server::ingest::uniprot::{config::UniProtFtpConfig, version_discovery::VersionDiscovery};
-use tracing::{info, error};
+use tracing::{error, info};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
@@ -53,7 +53,7 @@ async fn main() -> anyhow::Result<()> {
 
             info!("Test completed successfully!");
             Ok(())
-        }
+        },
         Err(e) => {
             error!(error = %e, "Error discovering versions");
             error!("This could be due to:");
@@ -62,6 +62,6 @@ async fn main() -> anyhow::Result<()> {
             error!("  - Firewall blocking FTP connections");
             error!("  - Changes to the FTP server structure");
             Err(e)
-        }
+        },
     }
 }

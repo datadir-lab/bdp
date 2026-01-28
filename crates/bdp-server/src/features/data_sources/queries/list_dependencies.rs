@@ -90,7 +90,7 @@ impl ListDependenciesQuery {
             }
         }
         if let Some(per_page) = self.per_page {
-            if per_page < 1 || per_page > 1000 {
+            if !(1..=1000).contains(&per_page) {
                 return Err(ListDependenciesError::InvalidPerPage);
             }
         }
@@ -235,6 +235,8 @@ mod tests {
             version: "1.0".to_string(),
             page: Some(1),
             per_page: Some(100),
+            search: None,
+            format: None,
         };
         assert!(query.validate().is_ok());
     }
@@ -247,11 +249,10 @@ mod tests {
             version: "1.0".to_string(),
             page: None,
             per_page: None,
+            search: None,
+            format: None,
         };
-        assert!(matches!(
-            query.validate(),
-            Err(ListDependenciesError::OrganizationSlugRequired)
-        ));
+        assert!(matches!(query.validate(), Err(ListDependenciesError::OrganizationSlugRequired)));
     }
 
     #[test]
@@ -262,11 +263,10 @@ mod tests {
             version: "1.0".to_string(),
             page: Some(1),
             per_page: Some(1001),
+            search: None,
+            format: None,
         };
-        assert!(matches!(
-            query.validate(),
-            Err(ListDependenciesError::InvalidPerPage)
-        ));
+        assert!(matches!(query.validate(), Err(ListDependenciesError::InvalidPerPage)));
     }
 
     #[sqlx::test]
@@ -351,6 +351,8 @@ mod tests {
             version: "1.0".to_string(),
             page: Some(1),
             per_page: Some(100),
+            search: None,
+            format: None,
         };
 
         let result = handle(pool.clone(), query).await;
@@ -371,13 +373,12 @@ mod tests {
             version: "1.0".to_string(),
             page: None,
             per_page: None,
+            search: None,
+            format: None,
         };
 
         let result = handle(pool.clone(), query).await;
-        assert!(matches!(
-            result,
-            Err(ListDependenciesError::NotFound(_, _, _))
-        ));
+        assert!(matches!(result, Err(ListDependenciesError::NotFound(_, _, _))));
         Ok(())
     }
 
@@ -464,6 +465,8 @@ mod tests {
             version: "1.0".to_string(),
             page: Some(2),
             per_page: Some(10),
+            search: None,
+            format: None,
         };
 
         let result = handle(pool.clone(), query).await;

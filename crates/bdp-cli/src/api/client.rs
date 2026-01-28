@@ -43,8 +43,8 @@ impl ApiClient {
 
     /// Create from environment variables
     pub fn from_env() -> Result<Self> {
-        let base_url = std::env::var("BDP_SERVER_URL")
-            .unwrap_or_else(|_| DEFAULT_SERVER_URL.to_string());
+        let base_url =
+            std::env::var("BDP_SERVER_URL").unwrap_or_else(|_| DEFAULT_SERVER_URL.to_string());
 
         Self::new(base_url)
     }
@@ -92,7 +92,13 @@ impl ApiClient {
     /// Download a file from the server
     ///
     /// Returns the file bytes
-    pub async fn download_file(&self, org: &str, name: &str, version: &str, format: &str) -> Result<Vec<u8>> {
+    pub async fn download_file(
+        &self,
+        org: &str,
+        name: &str,
+        version: &str,
+        format: &str,
+    ) -> Result<Vec<u8>> {
         let url = endpoints::data_source_download_url(&self.base_url, org, name, version, format);
 
         let response = self.client.get(&url).send().await?.error_for_status()?;
@@ -103,7 +109,12 @@ impl ApiClient {
     }
 
     /// Get data source details
-    pub async fn get_data_source(&self, org: &str, name: &str, version: &str) -> Result<DataSource> {
+    pub async fn get_data_source(
+        &self,
+        org: &str,
+        name: &str,
+        version: &str,
+    ) -> Result<DataSource> {
         let url = endpoints::data_source_details_url(&self.base_url, org, name, version);
 
         let response = self.client.get(&url).send().await?.error_for_status()?;
@@ -125,7 +136,12 @@ impl ApiClient {
     }
 
     /// Search for data sources
-    pub async fn search(&self, query: &str, page: Option<i32>, page_size: Option<i32>) -> Result<SearchResponse> {
+    pub async fn search(
+        &self,
+        query: &str,
+        page: Option<i32>,
+        page_size: Option<i32>,
+    ) -> Result<SearchResponse> {
         let url = endpoints::search_url(&self.base_url, query, page, page_size);
 
         let response = self.client.get(&url).send().await?.error_for_status()?;
@@ -155,11 +171,9 @@ impl ApiClient {
         let api_response: ApiResponse<Vec<Organization>> = response.json().await?;
 
         if !api_response.success {
-            return Err(CliError::api(
-                api_response.error.unwrap_or_else(|| {
-                    "Failed to list organizations. Check your server connection.".to_string()
-                }),
-            ));
+            return Err(CliError::api(api_response.error.unwrap_or_else(|| {
+                "Failed to list organizations. Check your server connection.".to_string()
+            })));
         }
 
         Ok(api_response.data)

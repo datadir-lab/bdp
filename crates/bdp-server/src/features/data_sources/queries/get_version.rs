@@ -262,10 +262,7 @@ mod tests {
             data_source_slug: "test-protein".to_string(),
             version: "1.0".to_string(),
         };
-        assert!(matches!(
-            query.validate(),
-            Err(GetVersionError::OrganizationSlugRequired)
-        ));
+        assert!(matches!(query.validate(), Err(GetVersionError::OrganizationSlugRequired)));
     }
 
     #[test]
@@ -275,10 +272,7 @@ mod tests {
             data_source_slug: "test-protein".to_string(),
             version: "".to_string(),
         };
-        assert!(matches!(
-            query.validate(),
-            Err(GetVersionError::VersionRequired)
-        ));
+        assert!(matches!(query.validate(), Err(GetVersionError::VersionRequired)));
     }
 
     #[sqlx::test]
@@ -370,10 +364,7 @@ mod tests {
         };
 
         let result = handle(pool.clone(), query).await;
-        assert!(matches!(
-            result,
-            Err(GetVersionError::NotFound(_, _, _))
-        ));
+        assert!(matches!(result, Err(GetVersionError::NotFound(_, _, _))));
         Ok(())
     }
 

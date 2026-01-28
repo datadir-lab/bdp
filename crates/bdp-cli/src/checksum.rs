@@ -39,11 +39,7 @@ pub fn verify_checksum(data: &[u8], expected: &str) -> Result<()> {
     if actual == expected {
         Ok(())
     } else {
-        Err(CliError::checksum_mismatch(
-            "data",
-            expected.to_string(),
-            actual,
-        ))
+        Err(CliError::checksum_mismatch("data", expected.to_string(), actual))
     }
 }
 
@@ -74,10 +70,7 @@ mod tests {
         let data = b"hello world";
         let checksum = compute_checksum(data);
         // SHA-256 of "hello world"
-        assert_eq!(
-            checksum,
-            "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
-        );
+        assert_eq!(checksum, "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9");
     }
 
     #[test]
@@ -85,10 +78,7 @@ mod tests {
         let data = b"";
         let checksum = compute_checksum(data);
         // SHA-256 of empty string
-        assert_eq!(
-            checksum,
-            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-        );
+        assert_eq!(checksum, "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
     }
 
     #[test]
@@ -98,10 +88,7 @@ mod tests {
         temp_file.flush().unwrap();
 
         let checksum = compute_file_checksum(temp_file.path()).unwrap();
-        assert_eq!(
-            checksum,
-            "916f0027a575074ce72a331777c3478d6513f786a591bd892da1a577bf2335f9"
-        );
+        assert_eq!(checksum, "916f0027a575074ce72a331777c3478d6513f786a591bd892da1a577bf2335f9");
     }
 
     #[test]

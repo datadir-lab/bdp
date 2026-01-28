@@ -6,10 +6,10 @@
 //! 3. "current" → versioned migration
 //! 4. Real DAT parsing validation
 
+use bdp_server::ingest::framework::BatchConfig;
 use bdp_server::ingest::uniprot::{
     DiscoveredVersion, IdempotentUniProtPipeline, UniProtFtpConfig, VersionDiscovery,
 };
-use bdp_server::ingest::framework::BatchConfig;
 use chrono::NaiveDate;
 use sqlx::PgPool;
 use std::sync::Arc;
@@ -184,8 +184,7 @@ async fn test_current_to_versioned_migration() {
     let config = UniProtFtpConfig::new();
     let discovery = VersionDiscovery::new(config);
 
-    let should_reingest =
-        discovery.should_reingest(&discovered_old_as_previous, "2025_01", true);
+    let should_reingest = discovery.should_reingest(&discovered_old_as_previous, "2025_01", true);
 
     assert!(
         !should_reingest,

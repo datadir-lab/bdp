@@ -4,7 +4,7 @@
 // Format documentation: https://www.ncbi.nlm.nih.gov/Sitemap/samplerecord.html
 
 use super::models::{
-    CdsFeature, Feature, GenbankRecord, SourceDatabase, SourceFeature, Topology, Division,
+    CdsFeature, Division, Feature, GenbankRecord, SourceDatabase, SourceFeature, Topology,
 };
 use anyhow::{anyhow, Context, Result};
 use sha2::{Digest, Sha256};
@@ -36,7 +36,7 @@ impl GenbankParser {
                         Ok(record) => records.push(record),
                         Err(e) => {
                             tracing::warn!("Failed to parse record: {}", e);
-                        }
+                        },
                     }
                     current_lines.clear();
                 }
@@ -67,7 +67,7 @@ impl GenbankParser {
                         Ok(record) => records.push(record),
                         Err(e) => {
                             tracing::warn!("Failed to parse record: {}", e);
-                        }
+                        },
                     }
                     current_lines.clear();
                 }
@@ -154,7 +154,7 @@ impl GenbankParser {
             match parts[5].to_lowercase().as_str() {
                 "circular" => record.topology = Some(Topology::Circular),
                 "linear" => record.topology = Some(Topology::Linear),
-                _ => {}
+                _ => {},
             }
         }
 
@@ -172,7 +172,12 @@ impl GenbankParser {
     }
 
     /// Parse DEFINITION (can span multiple lines)
-    fn parse_definition(&self, lines: &[String], start: usize, record: &mut GenbankRecord) -> Result<usize> {
+    fn parse_definition(
+        &self,
+        lines: &[String],
+        start: usize,
+        record: &mut GenbankRecord,
+    ) -> Result<usize> {
         let mut def_parts = Vec::new();
         let mut i = start;
 
@@ -225,7 +230,12 @@ impl GenbankParser {
     }
 
     /// Parse ORGANISM section (includes taxonomy lineage)
-    fn parse_organism(&self, lines: &[String], start: usize, record: &mut GenbankRecord) -> Result<usize> {
+    fn parse_organism(
+        &self,
+        lines: &[String],
+        start: usize,
+        record: &mut GenbankRecord,
+    ) -> Result<usize> {
         let mut i = start;
 
         // Organism name
@@ -254,7 +264,12 @@ impl GenbankParser {
     }
 
     /// Parse FEATURES section
-    fn parse_features(&self, lines: &[String], start: usize, record: &mut GenbankRecord) -> Result<usize> {
+    fn parse_features(
+        &self,
+        lines: &[String],
+        start: usize,
+        record: &mut GenbankRecord,
+    ) -> Result<usize> {
         let mut i = start + 1; // Skip "FEATURES             Location/Qualifiers"
 
         while i < lines.len() {
@@ -281,11 +296,13 @@ impl GenbankParser {
                 match feature_type.as_str() {
                     "source" => {
                         record.source_feature = Some(self.create_source_feature(&qualifiers));
-                    }
+                    },
                     "CDS" => {
-                        record.cds_features.push(self.create_cds_feature(&location, &qualifiers));
-                    }
-                    _ => {}
+                        record
+                            .cds_features
+                            .push(self.create_cds_feature(&location, &qualifiers));
+                    },
+                    _ => {},
                 }
 
                 record.all_features.push(feature);
@@ -315,7 +332,11 @@ impl GenbankParser {
     }
 
     /// Parse feature qualifiers
-    fn parse_feature_qualifiers(&self, lines: &[String], start: usize) -> Result<(HashMap<String, String>, usize)> {
+    fn parse_feature_qualifiers(
+        &self,
+        lines: &[String],
+        start: usize,
+    ) -> Result<(HashMap<String, String>, usize)> {
         let mut qualifiers = HashMap::new();
         let mut i = start;
         let mut current_key: Option<String> = None;
@@ -382,7 +403,11 @@ impl GenbankParser {
     }
 
     /// Create CdsFeature from qualifiers
-    fn create_cds_feature(&self, location: &str, qualifiers: &HashMap<String, String>) -> CdsFeature {
+    fn create_cds_feature(
+        &self,
+        location: &str,
+        qualifiers: &HashMap<String, String>,
+    ) -> CdsFeature {
         let (start, end, strand) = Self::parse_location(location);
 
         CdsFeature {
@@ -423,8 +448,12 @@ impl GenbankParser {
 
         // Parse range "start..end"
         if let Some(dot_pos) = loc.find("..") {
-            let start_str = loc[..dot_pos].trim_start_matches('<').trim_start_matches('>');
-            let end_str = loc[dot_pos + 2..].trim_start_matches('<').trim_start_matches('>');
+            let start_str = loc[..dot_pos]
+                .trim_start_matches('<')
+                .trim_start_matches('>');
+            let end_str = loc[dot_pos + 2..]
+                .trim_start_matches('<')
+                .trim_start_matches('>');
 
             let start = start_str.parse().ok();
             let end = end_str.parse().ok();
@@ -436,7 +465,12 @@ impl GenbankParser {
     }
 
     /// Parse ORIGIN section (sequence data)
-    fn parse_origin(&self, lines: &[String], start: usize, record: &mut GenbankRecord) -> Result<usize> {
+    fn parse_origin(
+        &self,
+        lines: &[String],
+        start: usize,
+        record: &mut GenbankRecord,
+    ) -> Result<usize> {
         let mut i = start + 1; // Skip "ORIGIN" line
         let mut sequence = String::new();
 
@@ -469,10 +503,7 @@ impl GenbankParser {
             return 0.0;
         }
 
-        let gc_count = sequence
-            .chars()
-            .filter(|c| *c == 'G' || *c == 'C')
-            .count();
+        let gc_count = sequence.chars().filter(|c| *c == 'G' || *c == 'C').count();
 
         (gc_count as f32 / sequence.len() as f32) * 100.0
     }

@@ -9,6 +9,8 @@ use tracing::{debug, info};
 
 use super::config::NcbiTaxonomyFtpConfig;
 use super::ftp::NcbiTaxonomyFtp;
+use crate::impl_version_ordering;
+use crate::ingest::common::version_discovery::DiscoveredVersion as DiscoveredVersionTrait;
 
 /// Discovered NCBI Taxonomy version from FTP
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -19,21 +21,17 @@ pub struct DiscoveredTaxonomyVersion {
     pub modification_date: NaiveDate,
 }
 
-impl PartialOrd for DiscoveredTaxonomyVersion {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
+impl DiscoveredVersionTrait for DiscoveredTaxonomyVersion {
+    fn external_version(&self) -> &str {
+        &self.external_version
+    }
+
+    fn release_date(&self) -> NaiveDate {
+        self.modification_date
     }
 }
 
-impl Ord for DiscoveredTaxonomyVersion {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        // Sort by modification date, then by version string
-        match self.modification_date.cmp(&other.modification_date) {
-            std::cmp::Ordering::Equal => self.external_version.cmp(&other.external_version),
-            other => other,
-        }
-    }
-}
+impl_version_ordering!(DiscoveredTaxonomyVersion);
 
 /// NCBI Taxonomy version discovery service
 pub struct TaxonomyVersionDiscovery {
@@ -45,7 +43,11 @@ pub struct TaxonomyVersionDiscovery {
 impl TaxonomyVersionDiscovery {
     pub fn new(config: NcbiTaxonomyFtpConfig, db: PgPool) -> Self {
         let ftp = NcbiTaxonomyFtp::new(config.clone());
-        Self { _config: config, ftp, db }
+        Self {
+            _config: config,
+            ftp,
+            db,
+        }
     }
 
     /// Discover all available versions from FTP (current + historical archives)
@@ -64,13 +66,13 @@ impl TaxonomyVersionDiscovery {
                     "Discovered current version"
                 );
                 versions.push(current);
-            }
+            },
             Err(e) => {
                 tracing::warn!(
                     error = %e,
                     "Could not discover current version (this is optional for historical catchup)"
                 );
-            }
+            },
         }
 
         // 2. Discover historical archive versions
@@ -79,13 +81,13 @@ impl TaxonomyVersionDiscovery {
             Ok(mut previous) => {
                 info!(count = previous.len(), "Discovered historical versions");
                 versions.append(&mut previous);
-            }
+            },
             Err(e) => {
                 tracing::warn!(
                     error = %e,
                     "Could not discover historical versions"
                 );
-            }
+            },
         }
 
         // Sort by date (oldest first)
@@ -198,7 +200,7 @@ impl TaxonomyVersionDiscovery {
             r#"
             SELECT COUNT(*) FROM version_mappings
             WHERE organization_slug = 'ncbi' AND external_version = $1
-            "#
+            "#,
         )
         .bind(external_version)
         .fetch_one(&self.db)
@@ -224,7 +226,7 @@ impl TaxonomyVersionDiscovery {
             WHERE organization_slug = 'ncbi'
             ORDER BY created_at DESC
             LIMIT 1
-            "#
+            "#,
         )
         .fetch_one(&self.db)
         .await
@@ -247,17 +249,14 @@ impl TaxonomyVersionDiscovery {
     ///
     /// # Arguments
     /// * `has_major_changes` - True if there are merged or deleted taxa
-    pub async fn determine_next_version(
-        &self,
-        has_major_changes: bool,
-    ) -> Result<String> {
+    pub async fn determine_next_version(&self, has_major_changes: bool) -> Result<String> {
         let latest = self.get_latest_internal_version().await?;
 
         let next_version = match latest {
             None => {
                 // First version
                 "1.0".to_string()
-            }
+            },
             Some(ref ver) => {
                 // Parse current version (format: X.Y)
                 let parts: Vec<&str> = ver.split('.').collect();
@@ -265,12 +264,8 @@ impl TaxonomyVersionDiscovery {
                     return Err(anyhow::anyhow!("Invalid version format: {}", ver));
                 }
 
-                let major: u32 = parts[0]
-                    .parse()
-                    .context("Failed to parse major version")?;
-                let minor: u32 = parts[1]
-                    .parse()
-                    .context("Failed to parse minor version")?;
+                let major: u32 = parts[0].parse().context("Failed to parse major version")?;
+                let minor: u32 = parts[1].parse().context("Failed to parse minor version")?;
 
                 if has_major_changes {
                     // MAJOR bump: reset minor to 0
@@ -279,7 +274,7 @@ impl TaxonomyVersionDiscovery {
                     // MINOR bump: increment minor
                     format!("{}.{}", major, minor + 1)
                 }
-            }
+            },
         };
 
         info!(
@@ -306,7 +301,7 @@ impl TaxonomyVersionDiscovery {
             INSERT INTO version_mappings (organization_slug, external_version, internal_version)
             VALUES ('ncbi', $1, $2)
             ON CONFLICT (organization_slug, external_version) DO NOTHING
-            "#
+            "#,
         )
         .bind(external_version)
         .bind(internal_version)
@@ -376,15 +371,19 @@ impl TaxonomyVersionDiscovery {
         end_date: Option<&str>,
     ) -> Result<Vec<DiscoveredTaxonomyVersion>> {
         let start_filter = if let Some(date_str) = start_date {
-            Some(NaiveDate::parse_from_str(date_str, "%Y-%m-%d")
-                .context(format!("Invalid start_date format: {}", date_str))?)
+            Some(
+                NaiveDate::parse_from_str(date_str, "%Y-%m-%d")
+                    .context(format!("Invalid start_date format: {}", date_str))?,
+            )
         } else {
             None
         };
 
         let end_filter = if let Some(date_str) = end_date {
-            Some(NaiveDate::parse_from_str(date_str, "%Y-%m-%d")
-                .context(format!("Invalid end_date format: {}", date_str))?)
+            Some(
+                NaiveDate::parse_from_str(date_str, "%Y-%m-%d")
+                    .context(format!("Invalid end_date format: {}", date_str))?,
+            )
         } else {
             None
         };
@@ -464,7 +463,7 @@ impl TaxonomyVersionDiscovery {
                     "Current version already ingested"
                 );
                 Ok(None)
-            }
+            },
             _ => {
                 info!(
                     version = %current.external_version,
@@ -472,7 +471,7 @@ impl TaxonomyVersionDiscovery {
                     "New version available"
                 );
                 Ok(Some(current))
-            }
+            },
         }
     }
 
@@ -486,7 +485,7 @@ impl TaxonomyVersionDiscovery {
             WHERE organization_slug = 'ncbi'
             ORDER BY created_at DESC
             LIMIT 1
-            "#
+            "#,
         )
         .fetch_one(&self.db)
         .await
@@ -504,6 +503,7 @@ impl TaxonomyVersionDiscovery {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::Datelike;
 
     #[test]
     fn test_version_ordering() {
@@ -648,11 +648,11 @@ mod tests {
     fn test_version_bump_sequences() {
         // Test various version bump sequences
         let versions = vec![
-            ("1.0", false, "1.1"),  // MINOR: 1.0 -> 1.1
-            ("1.1", false, "1.2"),  // MINOR: 1.1 -> 1.2
-            ("1.5", true, "2.0"),   // MAJOR: 1.5 -> 2.0
-            ("2.0", false, "2.1"),  // MINOR: 2.0 -> 2.1
-            ("5.9", true, "6.0"),   // MAJOR: 5.9 -> 6.0
+            ("1.0", false, "1.1"), // MINOR: 1.0 -> 1.1
+            ("1.1", false, "1.2"), // MINOR: 1.1 -> 1.2
+            ("1.5", true, "2.0"),  // MAJOR: 1.5 -> 2.0
+            ("2.0", false, "2.1"), // MINOR: 2.0 -> 2.1
+            ("5.9", true, "6.0"),  // MAJOR: 5.9 -> 6.0
         ];
 
         for (current, has_major, expected) in versions {

@@ -24,24 +24,24 @@ impl SourceDatabase {
 /// GenBank division types
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Division {
-    Viral,      // gbvrl - viruses
-    Bacterial,  // gbbct - bacteria
-    Plant,      // gbpln - plants
-    Mammalian,  // gbmam - other mammals
-    Primate,    // gbpri - primates
-    Rodent,     // gbrod - rodents
-    Vertebrate, // gbvrt - other vertebrates
-    Invertebrate, // gbinv - invertebrates
-    Phage,      // gbphg - phages
-    Synthetic,  // gbsyn - synthetic
-    Unannotated, // gbuna - unannotated
+    Viral,         // gbvrl - viruses
+    Bacterial,     // gbbct - bacteria
+    Plant,         // gbpln - plants
+    Mammalian,     // gbmam - other mammals
+    Primate,       // gbpri - primates
+    Rodent,        // gbrod - rodents
+    Vertebrate,    // gbvrt - other vertebrates
+    Invertebrate,  // gbinv - invertebrates
+    Phage,         // gbphg - phages
+    Synthetic,     // gbsyn - synthetic
+    Unannotated,   // gbuna - unannotated
     Environmental, // gbenv - environmental samples
-    Patent,     // gbpat - patent sequences
-    Est,        // gbest - expressed sequence tags
-    Sts,        // gbsts - sequence tagged sites
-    Gss,        // gbgss - genome survey sequences
-    Htg,        // gbhtg - high throughput genomic
-    Con,        // gbcon - constructed sequences
+    Patent,        // gbpat - patent sequences
+    Est,           // gbest - expressed sequence tags
+    Sts,           // gbsts - sequence tagged sites
+    Gss,           // gbgss - genome survey sequences
+    Htg,           // gbhtg - high throughput genomic
+    Con,           // gbcon - constructed sequences
 }
 
 impl Division {
@@ -114,7 +114,7 @@ pub struct SourceFeature {
 /// CDS (Coding Sequence) feature
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CdsFeature {
-    pub location: String,       // e.g., "190..255" or "complement(1000..2000)"
+    pub location: String, // e.g., "190..255" or "complement(1000..2000)"
     pub start: Option<i32>,
     pub end: Option<i32>,
     pub strand: Option<String>, // "+" or "-"
@@ -159,7 +159,7 @@ pub struct GenbankRecord {
 
     // SOURCE/ORGANISM
     pub organism: Option<String>,
-    pub taxonomy: Vec<String>, // Taxonomic lineage
+    pub taxonomy: Vec<String>,    // Taxonomic lineage
     pub taxonomy_id: Option<i32>, // Extracted from db_xref="taxon:511145"
 
     // FEATURES
@@ -168,7 +168,7 @@ pub struct GenbankRecord {
     pub all_features: Vec<Feature>,
 
     // ORIGIN (sequence)
-    pub sequence: String, // ACGT nucleotides
+    pub sequence: String,      // ACGT nucleotides
     pub sequence_hash: String, // SHA256 for deduplication
     pub gc_content: f32,
 
@@ -215,7 +215,9 @@ impl GenbankRecord {
     /// Generate S3 key for this record
     pub fn generate_s3_key(&self, release: &str) -> String {
         let db = self.source_database.as_str();
-        let div = self.division.as_ref()
+        let div = self
+            .division
+            .as_ref()
             .map(|d| d.as_str())
             .unwrap_or("unknown");
         format!("{}/release-{}/{}/{}.fasta", db, release, div, self.accession_version)

@@ -106,10 +106,7 @@ impl Default for VersioningStrategy {
 
 impl VersioningStrategy {
     /// Create a new versioning strategy with custom triggers
-    pub fn new(
-        major_triggers: Vec<VersionTrigger>,
-        minor_triggers: Vec<VersionTrigger>,
-    ) -> Self {
+    pub fn new(major_triggers: Vec<VersionTrigger>, minor_triggers: Vec<VersionTrigger>) -> Self {
         Self {
             major_triggers,
             minor_triggers,
@@ -195,7 +192,8 @@ impl VersioningStrategy {
                 VersionTrigger {
                     change_type: VersionChangeType::Modified,
                     category: "annotations".to_string(),
-                    description: "Protein annotations updated (GO terms, features, etc.)".to_string(),
+                    description: "Protein annotations updated (GO terms, features, etc.)"
+                        .to_string(),
                 },
             ],
             default_bump: BumpType::Minor,
@@ -240,13 +238,11 @@ impl VersioningStrategy {
     /// Create a Gene Ontology-specific versioning strategy
     pub fn gene_ontology() -> Self {
         Self {
-            major_triggers: vec![
-                VersionTrigger {
-                    change_type: VersionChangeType::Removed,
-                    category: "terms".to_string(),
-                    description: "GO terms marked as obsolete".to_string(),
-                },
-            ],
+            major_triggers: vec![VersionTrigger {
+                change_type: VersionChangeType::Removed,
+                category: "terms".to_string(),
+                description: "GO terms marked as obsolete".to_string(),
+            }],
             minor_triggers: vec![
                 VersionTrigger {
                     change_type: VersionChangeType::Added,
@@ -336,8 +332,7 @@ impl VersionTrigger {
 
     /// Check if this trigger matches the given change type and category
     pub fn matches(&self, change_type: &VersionChangeType, category: &str) -> bool {
-        self.change_type == *change_type &&
-        (self.category == category || self.category == "*")
+        self.change_type == *change_type && (self.category == category || self.category == "*")
     }
 }
 
@@ -535,7 +530,11 @@ impl ChangelogEntry {
     }
 
     /// Create a "removed" entry (breaking by default)
-    pub fn removed(category: impl Into<String>, count: i64, description: impl Into<String>) -> Self {
+    pub fn removed(
+        category: impl Into<String>,
+        count: i64,
+        description: impl Into<String>,
+    ) -> Self {
         Self::with_count(ChangeType::Removed, category, count, description, true)
     }
 
@@ -780,12 +779,7 @@ impl VersionChangelog {
             TriggerReason::Manual => "Manual update",
         };
 
-        format!(
-            "{} ({} version bump): {}",
-            trigger_text,
-            self.bump_type,
-            changes_text
-        )
+        format!("{} ({} version bump): {}", trigger_text, self.bump_type, changes_text)
     }
 }
 
@@ -919,10 +913,7 @@ mod tests {
     #[test]
     fn test_trigger_reason_display() {
         assert_eq!(TriggerReason::NewRelease.to_string(), "new release");
-        assert_eq!(
-            TriggerReason::UpstreamDependency.to_string(),
-            "upstream dependency update"
-        );
+        assert_eq!(TriggerReason::UpstreamDependency.to_string(), "upstream dependency update");
         assert_eq!(TriggerReason::Manual.to_string(), "manual trigger");
     }
 
@@ -984,11 +975,8 @@ mod tests {
 
     #[test]
     fn test_version_trigger_matches() {
-        let trigger = VersionTrigger::new(
-            VersionChangeType::Removed,
-            "proteins",
-            "Proteins removed",
-        );
+        let trigger =
+            VersionTrigger::new(VersionChangeType::Removed, "proteins", "Proteins removed");
 
         assert!(trigger.matches(&VersionChangeType::Removed, "proteins"));
         assert!(!trigger.matches(&VersionChangeType::Added, "proteins"));
@@ -997,11 +985,7 @@ mod tests {
 
     #[test]
     fn test_version_trigger_wildcard_category() {
-        let trigger = VersionTrigger::new(
-            VersionChangeType::Removed,
-            "*",
-            "Any removal",
-        );
+        let trigger = VersionTrigger::new(VersionChangeType::Removed, "*", "Any removal");
 
         assert!(trigger.matches(&VersionChangeType::Removed, "proteins"));
         assert!(trigger.matches(&VersionChangeType::Removed, "taxa"));
@@ -1012,8 +996,14 @@ mod tests {
     fn test_organization_specific_strategies() {
         // UniProt
         let uniprot = VersioningStrategy::uniprot();
-        assert!(uniprot.major_triggers.iter().any(|t| t.category == "proteins"));
-        assert!(uniprot.minor_triggers.iter().any(|t| t.category == "annotations"));
+        assert!(uniprot
+            .major_triggers
+            .iter()
+            .any(|t| t.category == "proteins"));
+        assert!(uniprot
+            .minor_triggers
+            .iter()
+            .any(|t| t.category == "annotations"));
 
         // NCBI Taxonomy
         let ncbi = VersioningStrategy::ncbi_taxonomy();
@@ -1027,7 +1017,10 @@ mod tests {
 
         // GenBank
         let genbank = VersioningStrategy::genbank();
-        assert!(genbank.major_triggers.iter().any(|t| t.category == "sequences"));
+        assert!(genbank
+            .major_triggers
+            .iter()
+            .any(|t| t.category == "sequences"));
     }
 
     #[test]

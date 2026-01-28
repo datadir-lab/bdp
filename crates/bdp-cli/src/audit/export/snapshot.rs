@@ -31,11 +31,9 @@ impl SnapshotManager {
 
         // Get event count and range
         let (event_count, first_id, last_id): (i64, Option<i64>, Option<i64>) = conn
-            .query_row(
-                "SELECT COUNT(*), MIN(id), MAX(id) FROM audit_events",
-                [],
-                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
-            )
+            .query_row("SELECT COUNT(*), MIN(id), MAX(id) FROM audit_events", [], |row| {
+                Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+            })
             .map_err(|e| CliError::audit(format!("Failed to query events: {}", e)))?;
 
         // Verify chain integrity
@@ -49,14 +47,7 @@ impl SnapshotManager {
                 event_count, chain_verified
             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)
             "#,
-            params![
-                snapshot_id,
-                format.as_str(),
-                first_id,
-                last_id,
-                event_count,
-                chain_verified
-            ],
+            params![snapshot_id, format.as_str(), first_id, last_id, event_count, chain_verified],
         )
         .map_err(|e| CliError::audit(format!("Failed to create snapshot: {}", e)))?;
 
@@ -89,9 +80,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_create_snapshot() {
-        let audit = Arc::new(
-            LocalAuditLogger::new_in_memory("test-machine".to_string()).unwrap(),
-        ) as Arc<dyn AuditLogger>;
+        let audit = Arc::new(LocalAuditLogger::new_in_memory("test-machine".to_string()).unwrap())
+            as Arc<dyn AuditLogger>;
 
         // Log some events
         for i in 0..5 {

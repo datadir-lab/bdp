@@ -7,16 +7,16 @@
 pub mod config;
 pub mod ftp;
 pub mod models;
-pub mod parser;
-pub mod storage;
-pub mod pipeline;
 pub mod orchestrator;
+pub mod parser;
+pub mod pipeline;
+pub mod storage;
 pub mod version_discovery;
 
 pub use config::GenbankFtpConfig;
-pub use models::{GenbankRecord, Feature, CdsFeature, SourceFeature};
-pub use parser::GenbankParser;
-pub use storage::GenbankStorage;
-pub use pipeline::GenbankPipeline;
+pub use models::{CdsFeature, Feature, GenbankRecord, SourceFeature};
 pub use orchestrator::GenbankOrchestrator;
-pub use version_discovery::{VersionDiscovery, DiscoveredVersion};
+pub use parser::GenbankParser;
+pub use pipeline::GenbankPipeline;
+pub use storage::GenbankStorage;
+pub use version_discovery::{DiscoveredVersion, VersionDiscovery};

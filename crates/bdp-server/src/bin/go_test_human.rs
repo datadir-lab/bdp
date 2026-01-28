@@ -70,11 +70,11 @@ async fn main() -> Result<()> {
         Ok(stats) => {
             info!("✓ Annotations ingestion succeeded");
             info!("  Annotations stored: {}", stats.annotations_stored);
-        }
+        },
         Err(e) => {
             warn!("✗ Annotations ingestion failed: {}", e);
             return Err(e.into());
-        }
+        },
     }
 
     // Verify annotations

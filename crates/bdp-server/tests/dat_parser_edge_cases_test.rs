@@ -1,7 +1,7 @@
 //! Edge case and error handling tests for UniProt DAT parser
 
-use std::path::PathBuf;
 use bdp_server::ingest::uniprot::parser::DatParser;
+use std::path::PathBuf;
 
 fn fixture_path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -23,19 +23,13 @@ fn test_parse_special_chars_in_protein_name() {
 
     // Find entry with special characters in protein name
     let spec1 = entries.iter().find(|e| e.accession == "P00001").unwrap();
-    assert_eq!(
-        spec1.protein_name,
-        "Protein with (parentheses) and [brackets] - test"
-    );
+    assert_eq!(spec1.protein_name, "Protein with (parentheses) and [brackets] - test");
 
     // Find entry with EC classification
     let spec2 = entries.iter().find(|e| e.accession == "P00002").unwrap();
     // The parser should extract just "Enzyme with EC:1.2.3.4 classification"
     // (removing the {ECO:...} flag)
-    assert_eq!(
-        spec2.protein_name,
-        "Enzyme with EC:1.2.3.4 classification"
-    );
+    assert_eq!(spec2.protein_name, "Enzyme with EC:1.2.3.4 classification");
 }
 
 #[test]

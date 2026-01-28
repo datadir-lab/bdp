@@ -4,8 +4,8 @@
 //! Run with: cargo test --test ncbi_taxonomy_integration_test -- --nocapture
 
 use bdp_server::ingest::ncbi_taxonomy::{
-    NcbiTaxonomyFtpConfig, NcbiTaxonomyPipeline, NcbiTaxonomyStorage, StorageStats,
-    TaxdumpData, TaxonomyEntry, MergedTaxon, DeletedTaxon,
+    DeletedTaxon, MergedTaxon, NcbiTaxonomyFtpConfig, NcbiTaxonomyPipeline, NcbiTaxonomyStorage,
+    StorageStats, TaxdumpData, TaxonomyEntry,
 };
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -30,7 +30,7 @@ async fn create_test_org(pool: &PgPool) -> Uuid {
         INSERT INTO organizations (id, slug, name, created_at, updated_at)
         VALUES ($1, $2, 'Test Organization', NOW(), NOW())
         ON CONFLICT (slug) DO NOTHING
-        "#
+        "#,
     )
     .bind(org_id)
     .bind(&slug)
@@ -99,12 +99,8 @@ async fn test_storage_basic() {
     let taxdump = create_sample_taxdump();
 
     // Create storage handler
-    let storage = NcbiTaxonomyStorage::new(
-        pool.clone(),
-        org_id,
-        "1.0".to_string(),
-        "2026-01-19".to_string(),
-    );
+    let storage =
+        NcbiTaxonomyStorage::new(pool.clone(), org_id, "1.0".to_string(), "2026-01-19".to_string());
 
     // Store data
     let stats = storage.store(&taxdump).await.expect("Storage failed");
@@ -119,7 +115,7 @@ async fn test_storage_basic() {
     let count: i64 = sqlx::query_scalar(
         "SELECT COUNT(*) FROM taxonomy_metadata tm
          JOIN registry_entries re ON tm.data_source_id = re.id
-         WHERE re.organization_id = $1"
+         WHERE re.organization_id = $1",
     )
     .bind(org_id)
     .fetch_one(&pool)
@@ -139,12 +135,8 @@ async fn test_storage_idempotency() {
     let org_id = create_test_org(&pool).await;
 
     let taxdump = create_sample_taxdump();
-    let storage = NcbiTaxonomyStorage::new(
-        pool.clone(),
-        org_id,
-        "1.0".to_string(),
-        "2026-01-19".to_string(),
-    );
+    let storage =
+        NcbiTaxonomyStorage::new(pool.clone(), org_id, "1.0".to_string(), "2026-01-19".to_string());
 
     // First storage
     let stats1 = storage.store(&taxdump).await.expect("First storage failed");
@@ -152,7 +144,10 @@ async fn test_storage_idempotency() {
     assert_eq!(stats1.updated, 0);
 
     // Second storage (should update, not create new)
-    let stats2 = storage.store(&taxdump).await.expect("Second storage failed");
+    let stats2 = storage
+        .store(&taxdump)
+        .await
+        .expect("Second storage failed");
     assert_eq!(stats2.stored, 0);
     assert_eq!(stats2.updated, 3);
 
@@ -160,7 +155,7 @@ async fn test_storage_idempotency() {
     let count: i64 = sqlx::query_scalar(
         "SELECT COUNT(*) FROM taxonomy_metadata tm
          JOIN registry_entries re ON tm.data_source_id = re.id
-         WHERE re.organization_id = $1"
+         WHERE re.organization_id = $1",
     )
     .bind(org_id)
     .fetch_one(&pool)
@@ -181,21 +176,13 @@ async fn test_storage_multiple_versions() {
     let taxdump = create_sample_taxdump();
 
     // Store version 1.0
-    let storage_v1 = NcbiTaxonomyStorage::new(
-        pool.clone(),
-        org_id,
-        "1.0".to_string(),
-        "2026-01-19".to_string(),
-    );
+    let storage_v1 =
+        NcbiTaxonomyStorage::new(pool.clone(), org_id, "1.0".to_string(), "2026-01-19".to_string());
     storage_v1.store(&taxdump).await.expect("V1 storage failed");
 
     // Store version 1.1 (same data, different version)
-    let storage_v2 = NcbiTaxonomyStorage::new(
-        pool.clone(),
-        org_id,
-        "1.1".to_string(),
-        "2026-01-20".to_string(),
-    );
+    let storage_v2 =
+        NcbiTaxonomyStorage::new(pool.clone(), org_id, "1.1".to_string(), "2026-01-20".to_string());
     storage_v2.store(&taxdump).await.expect("V2 storage failed");
 
     // Verify both versions exist
@@ -203,7 +190,7 @@ async fn test_storage_multiple_versions() {
         "SELECT COUNT(DISTINCT v.version_string)
          FROM versions v
          JOIN registry_entries re ON v.registry_entry_id = re.id
-         WHERE re.organization_id = $1"
+         WHERE re.organization_id = $1",
     )
     .bind(org_id)
     .fetch_one(&pool)
@@ -222,35 +209,28 @@ async fn test_merged_taxa_handling() {
     let org_id = create_test_org(&pool).await;
 
     // Create data with merged taxon
-    let entries = vec![
-        TaxonomyEntry::new(
-            12345,
-            "Old species name".to_string(),
-            None,
-            "species".to_string(),
-            "Eukaryota;Old lineage".to_string(),
-        ),
-    ];
+    let entries = vec![TaxonomyEntry::new(
+        12345,
+        "Old species name".to_string(),
+        None,
+        "species".to_string(),
+        "Eukaryota;Old lineage".to_string(),
+    )];
     let merged = vec![MergedTaxon::new(12345, 9606)];
     let taxdump = TaxdumpData::new(entries, merged, vec![], "2026-01-19".to_string());
 
-    let storage = NcbiTaxonomyStorage::new(
-        pool.clone(),
-        org_id,
-        "1.0".to_string(),
-        "2026-01-19".to_string(),
-    );
+    let storage =
+        NcbiTaxonomyStorage::new(pool.clone(), org_id, "1.0".to_string(), "2026-01-19".to_string());
 
     storage.store(&taxdump).await.expect("Storage failed");
 
     // Verify merged taxon has special lineage note
-    let lineage: String = sqlx::query_scalar(
-        "SELECT lineage FROM taxonomy_metadata WHERE taxonomy_id = $1"
-    )
-    .bind(12345)
-    .fetch_one(&pool)
-    .await
-    .expect("Failed to fetch lineage");
+    let lineage: String =
+        sqlx::query_scalar("SELECT lineage FROM taxonomy_metadata WHERE taxonomy_id = $1")
+            .bind(12345)
+            .fetch_one(&pool)
+            .await
+            .expect("Failed to fetch lineage");
 
     assert!(lineage.contains("[MERGED INTO"));
     assert!(lineage.contains("9606"));
@@ -265,35 +245,28 @@ async fn test_deleted_taxa_handling() {
     let org_id = create_test_org(&pool).await;
 
     // Create data with deleted taxon
-    let entries = vec![
-        TaxonomyEntry::new(
-            99999,
-            "Deleted species".to_string(),
-            None,
-            "species".to_string(),
-            "Eukaryota;Deleted lineage".to_string(),
-        ),
-    ];
+    let entries = vec![TaxonomyEntry::new(
+        99999,
+        "Deleted species".to_string(),
+        None,
+        "species".to_string(),
+        "Eukaryota;Deleted lineage".to_string(),
+    )];
     let deleted = vec![DeletedTaxon::new(99999)];
     let taxdump = TaxdumpData::new(entries, vec![], deleted, "2026-01-19".to_string());
 
-    let storage = NcbiTaxonomyStorage::new(
-        pool.clone(),
-        org_id,
-        "1.0".to_string(),
-        "2026-01-19".to_string(),
-    );
+    let storage =
+        NcbiTaxonomyStorage::new(pool.clone(), org_id, "1.0".to_string(), "2026-01-19".to_string());
 
     storage.store(&taxdump).await.expect("Storage failed");
 
     // Verify deleted taxon has special lineage note
-    let lineage: String = sqlx::query_scalar(
-        "SELECT lineage FROM taxonomy_metadata WHERE taxonomy_id = $1"
-    )
-    .bind(99999)
-    .fetch_one(&pool)
-    .await
-    .expect("Failed to fetch lineage");
+    let lineage: String =
+        sqlx::query_scalar("SELECT lineage FROM taxonomy_metadata WHERE taxonomy_id = $1")
+            .bind(99999)
+            .fetch_one(&pool)
+            .await
+            .expect("Failed to fetch lineage");
 
     assert!(lineage.contains("[DELETED FROM NCBI]"));
 
@@ -307,12 +280,8 @@ async fn test_version_files_creation() {
     let org_id = create_test_org(&pool).await;
 
     let taxdump = create_sample_taxdump();
-    let storage = NcbiTaxonomyStorage::new(
-        pool.clone(),
-        org_id,
-        "1.0".to_string(),
-        "2026-01-19".to_string(),
-    );
+    let storage =
+        NcbiTaxonomyStorage::new(pool.clone(), org_id, "1.0".to_string(), "2026-01-19".to_string());
 
     storage.store(&taxdump).await.expect("Storage failed");
 
@@ -322,7 +291,7 @@ async fn test_version_files_creation() {
          FROM version_files vf
          JOIN versions v ON vf.version_id = v.id
          JOIN registry_entries re ON v.registry_entry_id = re.id
-         WHERE re.organization_id = $1"
+         WHERE re.organization_id = $1",
     )
     .bind(org_id)
     .fetch_one(&pool)
@@ -338,7 +307,7 @@ async fn test_version_files_creation() {
          FROM version_files vf
          JOIN versions v ON vf.version_id = v.id
          JOIN registry_entries re ON v.registry_entry_id = re.id
-         WHERE re.organization_id = $1 AND vf.format = 'json'"
+         WHERE re.organization_id = $1 AND vf.format = 'json'",
     )
     .bind(org_id)
     .fetch_one(&pool)

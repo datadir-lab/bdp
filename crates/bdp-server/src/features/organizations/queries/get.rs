@@ -268,10 +268,7 @@ mod tests {
             slug: None,
             id: None,
         };
-        assert!(matches!(
-            query.validate(),
-            Err(GetOrganizationError::SlugOrIdRequired)
-        ));
+        assert!(matches!(query.validate(), Err(GetOrganizationError::SlugOrIdRequired)));
     }
 
     #[sqlx::test]

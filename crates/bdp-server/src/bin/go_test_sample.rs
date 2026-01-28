@@ -57,11 +57,11 @@ async fn main() -> Result<()> {
             info!("✓ Ontology ingestion succeeded");
             info!("  Terms stored: {}", stats.terms_stored);
             info!("  Relationships stored: {}", stats.relationships_stored);
-        }
+        },
         Err(e) => {
             warn!("✗ Ontology ingestion failed: {}", e);
             warn!("  This is expected if network is unavailable or URL has changed");
-        }
+        },
     }
 
     // Verify terms in database
@@ -103,11 +103,11 @@ async fn main() -> Result<()> {
             Ok(stats) => {
                 info!("✓ Annotations ingestion succeeded");
                 info!("  Annotations stored: {}", stats.annotations_stored);
-            }
+            },
             Err(e) => {
                 warn!("✗ Annotations ingestion failed: {}", e);
                 warn!("  This is expected if network is unavailable or URL has changed");
-            }
+            },
         }
 
         // Verify annotations

@@ -36,9 +36,8 @@ impl LocalAuditLogger {
         }
 
         // Open database connection
-        let conn = Connection::open(&db_path).map_err(|e| {
-            CliError::Audit(format!("Failed to open audit database: {}", e))
-        })?;
+        let conn = Connection::open(&db_path)
+            .map_err(|e| CliError::Audit(format!("Failed to open audit database: {}", e)))?;
 
         // Initialize schema
         schema::init_schema(&conn)?;
@@ -81,9 +80,10 @@ impl LocalAuditLogger {
 #[async_trait]
 impl AuditLogger for LocalAuditLogger {
     async fn log_event(&self, mut event: AuditEvent) -> Result<i64> {
-        let conn = self.db.lock().map_err(|e| {
-            CliError::Audit(format!("Failed to acquire database lock: {}", e))
-        })?;
+        let conn = self
+            .db
+            .lock()
+            .map_err(|e| CliError::Audit(format!("Failed to acquire database lock: {}", e)))?;
 
         // Get previous hash for chain linking
         event.previous_hash = self.get_last_event_hash(&conn)?;
@@ -129,9 +129,10 @@ impl AuditLogger for LocalAuditLogger {
     }
 
     async fn verify_integrity(&self) -> Result<bool> {
-        let conn = self.db.lock().map_err(|e| {
-            CliError::Audit(format!("Failed to acquire database lock: {}", e))
-        })?;
+        let conn = self
+            .db
+            .lock()
+            .map_err(|e| CliError::Audit(format!("Failed to acquire database lock: {}", e)))?;
 
         // Load all events
         let mut stmt = conn
@@ -149,28 +150,33 @@ impl AuditLogger for LocalAuditLogger {
             .query_map([], |row: &rusqlite::Row| {
                 let timestamp_str = row.get::<_, String>(1)?;
                 let timestamp = chrono::DateTime::parse_from_rfc3339(&timestamp_str)
-                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(
-                        1,
-                        rusqlite::types::Type::Text,
-                        Box::new(e),
-                    ))?
+                    .map_err(|e| {
+                        rusqlite::Error::FromSqlConversionFailure(
+                            1,
+                            rusqlite::types::Type::Text,
+                            Box::new(e),
+                        )
+                    })?
                     .with_timezone(&chrono::Utc);
 
                 let event_type_str = row.get::<_, String>(2)?;
-                let event_type = serde_json::from_str(&format!("\"{}\"", event_type_str))
-                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(
-                        2,
-                        rusqlite::types::Type::Text,
-                        Box::new(e),
-                    ))?;
+                let event_type =
+                    serde_json::from_str(&format!("\"{}\"", event_type_str)).map_err(|e| {
+                        rusqlite::Error::FromSqlConversionFailure(
+                            2,
+                            rusqlite::types::Type::Text,
+                            Box::new(e),
+                        )
+                    })?;
 
                 let details_str = row.get::<_, String>(4)?;
-                let details = serde_json::from_str(&details_str)
-                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(
+                let details = serde_json::from_str(&details_str).map_err(|e| {
+                    rusqlite::Error::FromSqlConversionFailure(
                         4,
                         rusqlite::types::Type::Text,
                         Box::new(e),
-                    ))?;
+                    )
+                })?;
 
                 Ok(AuditEvent {
                     id: Some(row.get::<_, i64>(0)?),
@@ -187,7 +193,8 @@ impl AuditLogger for LocalAuditLogger {
             })
             .map_err(|e| CliError::Audit(format!("Failed to query events: {}", e)))?;
 
-        let events: Vec<AuditEvent> = events.collect::<std::result::Result<Vec<_>, _>>()
+        let events: Vec<AuditEvent> = events
+            .collect::<std::result::Result<Vec<_>, _>>()
             .map_err(|e| CliError::Audit(format!("Failed to collect events: {}", e)))?;
 
         // Verify chain

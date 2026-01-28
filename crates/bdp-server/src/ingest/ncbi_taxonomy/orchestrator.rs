@@ -107,11 +107,7 @@ impl NcbiTaxonomyOrchestrator {
         // 2. Filter to start_date if provided
         if let Some(date) = start_date {
             all_versions.retain(|v| v.as_str() >= date);
-            info!(
-                "Filtered to {} versions >= {}",
-                all_versions.len(),
-                date
-            );
+            info!("Filtered to {} versions >= {}", all_versions.len(), date);
         }
 
         if all_versions.is_empty() {
@@ -120,7 +116,10 @@ impl NcbiTaxonomyOrchestrator {
         }
 
         // all_versions is guaranteed non-empty due to the check above
-        let first_version = all_versions.first().map(|s| s.as_str()).unwrap_or("unknown");
+        let first_version = all_versions
+            .first()
+            .map(|s| s.as_str())
+            .unwrap_or("unknown");
         let last_version = all_versions.last().map(|s| s.as_str()).unwrap_or("unknown");
         info!(
             "Found {} versions to ingest: {} to {}",
@@ -132,13 +131,10 @@ impl NcbiTaxonomyOrchestrator {
         // 3. Ingest each version sequentially (oldest to newest)
         let mut results = Vec::new();
         for (index, version) in all_versions.iter().enumerate() {
-            info!(
-                "Processing version {} / {}: {}",
-                index + 1,
-                all_versions.len(),
-                version
-            );
+            info!("Processing version {} / {}: {}", index + 1, all_versions.len(), version);
 
+            // NOTE: Config clone is necessary for each pipeline instance
+            // PgPool and Storage clones are cheap (Arc-based)
             let pipeline = if let Some(s3) = &self.s3 {
                 NcbiTaxonomyPipeline::with_s3(self.config.clone(), self.db.clone(), s3.clone())
             } else {
@@ -161,7 +157,7 @@ impl NcbiTaxonomyOrchestrator {
                         );
                     }
                     results.push(result);
-                }
+                },
                 Err(e) => {
                     warn!(
                         version = %version,
@@ -169,7 +165,7 @@ impl NcbiTaxonomyOrchestrator {
                         "✗ Failed to ingest version (continuing with next version)"
                     );
                     // Continue with next version even if one fails
-                }
+                },
             }
         }
 
@@ -217,10 +213,10 @@ impl NcbiTaxonomyOrchestrator {
                     info!("✓ Current version already ingested (skipped)");
                 }
                 results.push(result);
-            }
+            },
             Err(e) => {
                 warn!(error = %e, "✗ Failed to ingest current version");
-            }
+            },
         }
 
         Ok(results)
@@ -280,7 +276,10 @@ impl NcbiTaxonomyOrchestrator {
         }
 
         // all_versions is guaranteed non-empty due to the check above
-        let first_version = all_versions.first().map(|s| s.as_str()).unwrap_or("unknown");
+        let first_version = all_versions
+            .first()
+            .map(|s| s.as_str())
+            .unwrap_or("unknown");
         let last_version = all_versions.last().map(|s| s.as_str()).unwrap_or("unknown");
         info!(
             "Found {} versions to ingest: {} to {}",
@@ -294,7 +293,7 @@ impl NcbiTaxonomyOrchestrator {
 
         let results: Vec<Option<PipelineResult>> = stream::iter(all_versions.iter().enumerate())
             .map(|(index, version): (usize, &String)| {
-                let organization_id = organization_id;
+                let org_id = organization_id;
                 let version = version.clone();
                 let config = self.config.clone();
                 let db = self.db.clone();
@@ -315,7 +314,7 @@ impl NcbiTaxonomyOrchestrator {
                         NcbiTaxonomyPipeline::new(config, db)
                     };
 
-                    match pipeline.run_version(organization_id, Some(&version)).await {
+                    match pipeline.run_version(org_id, Some(&version)).await {
                         Ok(result) => {
                             if result.is_success() {
                                 info!(
@@ -379,7 +378,9 @@ impl NcbiTaxonomyOrchestrator {
         }
 
         // 1. Parallel catchup historical versions
-        let mut results = self.catchup_from_date_parallel(organization_id, start_date, concurrency).await?;
+        let mut results = self
+            .catchup_from_date_parallel(organization_id, start_date, concurrency)
+            .await?;
 
         // 2. Ingest current version
         info!("Checking for current version...");
@@ -397,10 +398,10 @@ impl NcbiTaxonomyOrchestrator {
                     info!("✓ Current version already ingested (skipped)");
                 }
                 results.push(result);
-            }
+            },
             Err(e) => {
                 warn!(error = %e, "✗ Failed to ingest current version");
-            }
+            },
         }
 
         Ok(results)

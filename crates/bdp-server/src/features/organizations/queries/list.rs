@@ -81,10 +81,7 @@ pub enum ListOrganizationsError {
     Database(#[from] sqlx::Error),
 }
 
-impl Request<Result<ListOrganizationsResponse, ListOrganizationsError>>
-    for ListOrganizationsQuery
-{
-}
+impl Request<Result<ListOrganizationsResponse, ListOrganizationsError>> for ListOrganizationsQuery {}
 
 impl crate::cqrs::middleware::Query for ListOrganizationsQuery {}
 
@@ -245,10 +242,7 @@ mod tests {
             is_system: None,
             name_contains: None,
         };
-        assert!(matches!(
-            query.validate(),
-            Err(ListOrganizationsError::InvalidPage)
-        ));
+        assert!(matches!(query.validate(), Err(ListOrganizationsError::InvalidPage)));
     }
 
     #[test]
@@ -258,10 +252,7 @@ mod tests {
             is_system: None,
             name_contains: None,
         };
-        assert!(matches!(
-            query.validate(),
-            Err(ListOrganizationsError::InvalidPerPage)
-        ));
+        assert!(matches!(query.validate(), Err(ListOrganizationsError::InvalidPerPage)));
     }
 
     #[sqlx::test]

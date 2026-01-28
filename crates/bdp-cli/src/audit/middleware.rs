@@ -50,7 +50,7 @@ where
                 audit.machine_id().to_string(),
             );
             audit.log_event(success_event).await?;
-        }
+        },
         Err(e) => {
             let failure_event = AuditEvent::new(
                 failure_event_type,
@@ -62,7 +62,7 @@ where
                 audit.machine_id().to_string(),
             );
             audit.log_event(failure_event).await?;
-        }
+        },
     }
 
     result
@@ -111,9 +111,7 @@ mod tests {
             EventType::InitFailure,
             None,
             json!({"path": "/test"}),
-            || async {
-                Err(CliError::audit("Test error"))
-            },
+            || async { Err(CliError::audit("Test error")) },
         )
         .await;
 

@@ -3,7 +3,7 @@
 //! Creates individual data sources for each taxonomy with proper schema structure.
 
 use anyhow::{Context, Result};
-use sqlx::{PgPool, QueryBuilder, Postgres};
+use sqlx::{PgPool, Postgres, QueryBuilder};
 use std::collections::HashMap;
 use tracing::{debug, info};
 use uuid::Uuid;
@@ -36,7 +36,13 @@ impl NcbiTaxonomyStorage {
         internal_version: String,
         external_version: String,
     ) -> Self {
-        Self::with_chunk_size(db, organization_id, internal_version, external_version, Self::DEFAULT_CHUNK_SIZE)
+        Self::with_chunk_size(
+            db,
+            organization_id,
+            internal_version,
+            external_version,
+            Self::DEFAULT_CHUNK_SIZE,
+        )
     }
 
     /// Create a new storage handler with custom chunk size
@@ -97,7 +103,14 @@ impl NcbiTaxonomyStorage {
         internal_version: String,
         external_version: String,
     ) -> Self {
-        Self::with_s3_and_chunk_size(db, s3, organization_id, internal_version, external_version, Self::DEFAULT_CHUNK_SIZE)
+        Self::with_s3_and_chunk_size(
+            db,
+            s3,
+            organization_id,
+            internal_version,
+            external_version,
+            Self::DEFAULT_CHUNK_SIZE,
+        )
     }
 
     /// Create storage handler with S3 support and custom chunk size
@@ -168,10 +181,16 @@ impl NcbiTaxonomyStorage {
             self.internal_version
         );
 
-        let mut tx = self.db.begin().await.context("Failed to begin transaction")?;
+        let mut tx = self
+            .db
+            .begin()
+            .await
+            .context("Failed to begin transaction")?;
 
         // Check which entries already exist
-        let existing_taxonomy_ids = self.get_existing_taxonomy_ids(&mut tx, &taxdump.entries).await?;
+        let existing_taxonomy_ids = self
+            .get_existing_taxonomy_ids(&mut tx, &taxdump.entries)
+            .await?;
 
         let new_count = taxdump.entries.len() - existing_taxonomy_ids.len();
         let update_count = existing_taxonomy_ids.len();
@@ -185,10 +204,7 @@ impl NcbiTaxonomyStorage {
         let total_chunks = (taxdump.entries.len() + self.chunk_size - 1) / self.chunk_size;
 
         if let Some(tx_batch_size) = self.transaction_batch_size {
-            info!(
-                "Using transaction batching: committing every {} chunks",
-                tx_batch_size
-            );
+            info!("Using transaction batching: committing every {} chunks", tx_batch_size);
         } else {
             info!("Using single transaction for all {} chunks", total_chunks);
         }
@@ -202,7 +218,8 @@ impl NcbiTaxonomyStorage {
             );
 
             // Batch insert/update for this chunk
-            self.store_chunk_batch(&mut tx, chunk, &existing_taxonomy_ids).await?;
+            self.store_chunk_batch(&mut tx, chunk, &existing_taxonomy_ids)
+                .await?;
 
             // Commit transaction periodically if batching is enabled
             if let Some(tx_batch_size) = self.transaction_batch_size {
@@ -212,8 +229,14 @@ impl NcbiTaxonomyStorage {
                         chunk_idx + 1,
                         total_chunks
                     );
-                    tx.commit().await.context("Failed to commit transaction batch")?;
-                    tx = self.db.begin().await.context("Failed to begin new transaction")?;
+                    tx.commit()
+                        .await
+                        .context("Failed to commit transaction batch")?;
+                    tx = self
+                        .db
+                        .begin()
+                        .await
+                        .context("Failed to begin new transaction")?;
                 }
             }
         }
@@ -221,12 +244,14 @@ impl NcbiTaxonomyStorage {
         // Handle merged and deleted taxa in batches
         if !taxdump.merged.is_empty() {
             info!("Handling {} merged taxa", taxdump.merged.len());
-            self.handle_merged_taxa_batch(&mut tx, &taxdump.merged).await?;
+            self.handle_merged_taxa_batch(&mut tx, &taxdump.merged)
+                .await?;
         }
 
         if !taxdump.deleted.is_empty() {
             info!("Handling {} deleted taxa", taxdump.deleted.len());
-            self.handle_deleted_taxa_batch(&mut tx, &taxdump.deleted).await?;
+            self.handle_deleted_taxa_batch(&mut tx, &taxdump.deleted)
+                .await?;
         }
 
         // Commit final transaction
@@ -263,7 +288,7 @@ impl NcbiTaxonomyStorage {
         let mut existing = HashMap::new();
         for chunk in taxonomy_ids.chunks(self.chunk_size) {
             let mut query_builder = QueryBuilder::new(
-                "SELECT taxonomy_id, data_source_id FROM taxonomy_metadata WHERE taxonomy_id IN ("
+                "SELECT taxonomy_id, data_source_id FROM taxonomy_metadata WHERE taxonomy_id IN (",
             );
 
             let mut separated = query_builder.separated(", ");
@@ -299,13 +324,15 @@ impl NcbiTaxonomyStorage {
         self.batch_insert_data_sources(tx, &entry_id_map).await?;
 
         // 3. Batch insert/update taxonomy_metadata
-        self.batch_upsert_taxonomy_metadata(tx, chunk, &entry_id_map).await?;
+        self.batch_upsert_taxonomy_metadata(tx, chunk, &entry_id_map)
+            .await?;
 
         // 4. Batch insert versions
         let version_id_map = self.batch_insert_versions(tx, &entry_id_map).await?;
 
         // 5. Batch insert version_files (with S3 uploads)
-        self.batch_insert_version_files(tx, chunk, &entry_id_map, &version_id_map).await?;
+        self.batch_insert_version_files(tx, chunk, &entry_id_map, &version_id_map)
+            .await?;
 
         Ok(())
     }
@@ -328,10 +355,7 @@ impl NcbiTaxonomyStorage {
             entry_id_map.insert(entry.taxonomy_id, id);
 
             let slug = format!("{}", entry.taxonomy_id);
-            let description = format!(
-                "NCBI Taxonomy: {} ({})",
-                entry.scientific_name, entry.rank
-            );
+            let description = format!("NCBI Taxonomy: {} ({})", entry.scientific_name, entry.rank);
 
             b.push_bind(id)
                 .push_bind(self.organization_id)
@@ -346,7 +370,7 @@ impl NcbiTaxonomyStorage {
              name = EXCLUDED.name, \
              description = EXCLUDED.description, \
              updated_at = NOW() \
-             RETURNING id, slug"
+             RETURNING id, slug",
         );
 
         let rows = query_builder
@@ -371,9 +395,8 @@ impl NcbiTaxonomyStorage {
         tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
         entry_id_map: &HashMap<i32, Uuid>,
     ) -> Result<()> {
-        let mut query_builder: QueryBuilder<Postgres> = QueryBuilder::new(
-            "INSERT INTO data_sources (id, source_type) "
-        );
+        let mut query_builder: QueryBuilder<Postgres> =
+            QueryBuilder::new("INSERT INTO data_sources (id, source_type) ");
 
         query_builder.push_values(entry_id_map.values(), |mut b, entry_id| {
             b.push_bind(entry_id).push_bind("taxonomy");
@@ -421,7 +444,7 @@ impl NcbiTaxonomyStorage {
              rank = EXCLUDED.rank, \
              lineage = EXCLUDED.lineage, \
              ncbi_tax_version = EXCLUDED.ncbi_tax_version, \
-             parsed_at = NOW()"
+             parsed_at = NOW()",
         );
 
         query_builder.build().execute(&mut **tx).await?;
@@ -438,7 +461,7 @@ impl NcbiTaxonomyStorage {
         let mut version_id_map = HashMap::new();
 
         let mut query_builder: QueryBuilder<Postgres> = QueryBuilder::new(
-            "INSERT INTO versions (id, registry_entry_id, version_string, status) "
+            "INSERT INTO versions (id, registry_entry_id, version_string, status) ",
         );
 
         query_builder.push_values(entry_id_map, |mut b, (tax_id, entry_id)| {
@@ -459,7 +482,7 @@ impl NcbiTaxonomyStorage {
         let mut result_map = HashMap::new();
         for (tax_id, entry_id) in entry_id_map {
             let version_id = sqlx::query_scalar::<_, Uuid>(
-                "SELECT id FROM versions WHERE registry_entry_id = $1 AND version_string = $2"
+                "SELECT id FROM versions WHERE registry_entry_id = $1 AND version_string = $2",
             )
             .bind(entry_id)
             .bind(&self.internal_version)
@@ -502,24 +525,28 @@ impl NcbiTaxonomyStorage {
             let tsv_checksum = format!("{:x}", md5::compute(&tsv_content));
 
             // S3 keys
-            let s3_key_json = format!(
-                "ncbi/{}/{}/taxonomy.json",
-                entry.taxonomy_id, self.internal_version
-            );
-            let s3_key_tsv = format!(
-                "ncbi/{}/{}/taxonomy.tsv",
-                entry.taxonomy_id, self.internal_version
-            );
+            let s3_key_json =
+                format!("ncbi/{}/{}/taxonomy.json", entry.taxonomy_id, self.internal_version);
+            let s3_key_tsv =
+                format!("ncbi/{}/{}/taxonomy.tsv", entry.taxonomy_id, self.internal_version);
 
             // Upload to S3 if configured
             if let Some(s3) = &self.s3 {
-                s3.upload(&s3_key_json, json_content.as_bytes().to_vec(), Some("application/json".to_string()))
-                    .await
-                    .context("Failed to upload JSON to S3")?;
+                s3.upload(
+                    &s3_key_json,
+                    json_content.as_bytes().to_vec(),
+                    Some("application/json".to_string()),
+                )
+                .await
+                .context("Failed to upload JSON to S3")?;
 
-                s3.upload(&s3_key_tsv, tsv_content.as_bytes().to_vec(), Some("text/tab-separated-values".to_string()))
-                    .await
-                    .context("Failed to upload TSV to S3")?;
+                s3.upload(
+                    &s3_key_tsv,
+                    tsv_content.as_bytes().to_vec(),
+                    Some("text/tab-separated-values".to_string()),
+                )
+                .await
+                .context("Failed to upload TSV to S3")?;
             }
 
             file_data.push((*version_id, "json", s3_key_json, json_checksum, json_size));
@@ -528,22 +555,25 @@ impl NcbiTaxonomyStorage {
 
         // Batch insert version_files
         let mut query_builder: QueryBuilder<Postgres> = QueryBuilder::new(
-            "INSERT INTO version_files (version_id, format, s3_key, checksum, size_bytes) "
+            "INSERT INTO version_files (version_id, format, s3_key, checksum, size_bytes) ",
         );
 
-        query_builder.push_values(&file_data, |mut b, (version_id, format, s3_key, checksum, size)| {
-            b.push_bind(version_id)
-                .push_bind(format)
-                .push_bind(s3_key)
-                .push_bind(checksum)
-                .push_bind(size);
-        });
+        query_builder.push_values(
+            &file_data,
+            |mut b, (version_id, format, s3_key, checksum, size)| {
+                b.push_bind(version_id)
+                    .push_bind(format)
+                    .push_bind(s3_key)
+                    .push_bind(checksum)
+                    .push_bind(size);
+            },
+        );
 
         query_builder.push(
             " ON CONFLICT (version_id, format) DO UPDATE SET \
              s3_key = EXCLUDED.s3_key, \
              checksum = EXCLUDED.checksum, \
-             size_bytes = EXCLUDED.size_bytes"
+             size_bytes = EXCLUDED.size_bytes",
         );
 
         query_builder.build().execute(&mut **tx).await?;
@@ -563,7 +593,7 @@ impl NcbiTaxonomyStorage {
         let mut existing_map = HashMap::new();
         for chunk in old_tax_ids.chunks(self.chunk_size) {
             let mut query_builder = QueryBuilder::new(
-                "SELECT taxonomy_id, data_source_id FROM taxonomy_metadata WHERE taxonomy_id IN ("
+                "SELECT taxonomy_id, data_source_id FROM taxonomy_metadata WHERE taxonomy_id IN (",
             );
 
             let mut separated = query_builder.separated(", ");
@@ -621,7 +651,7 @@ impl NcbiTaxonomyStorage {
         let mut existing_map = HashMap::new();
         for chunk in del_tax_ids.chunks(self.chunk_size) {
             let mut query_builder = QueryBuilder::new(
-                "SELECT taxonomy_id, data_source_id FROM taxonomy_metadata WHERE taxonomy_id IN ("
+                "SELECT taxonomy_id, data_source_id FROM taxonomy_metadata WHERE taxonomy_id IN (",
             );
 
             let mut separated = query_builder.separated(", ");
@@ -653,10 +683,7 @@ impl NcbiTaxonomyStorage {
                 .execute(&mut **tx)
                 .await?;
 
-                debug!(
-                    taxonomy_id = deleted_taxon.taxonomy_id,
-                    "Marked taxonomy as deleted"
-                );
+                debug!(taxonomy_id = deleted_taxon.taxonomy_id, "Marked taxonomy as deleted");
             }
         }
 

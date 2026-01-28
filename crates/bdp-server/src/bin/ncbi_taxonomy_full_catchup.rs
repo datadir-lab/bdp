@@ -18,21 +18,17 @@
 //!   AWS_* - AWS credentials for S3 (optional)
 
 use anyhow::{Context, Result};
-use bdp_server::ingest::ncbi_taxonomy::{
-    NcbiTaxonomyFtpConfig, NcbiTaxonomyOrchestrator,
-};
+use bdp_server::ingest::ncbi_taxonomy::{NcbiTaxonomyFtpConfig, NcbiTaxonomyOrchestrator};
 use sqlx::postgres::PgPoolOptions;
+use std::env;
 use tracing::{info, warn, Level};
 use uuid::Uuid;
-use std::env;
 
 #[tokio::main]
 async fn main() -> Result<()> {
     // Parse environment variables
-    let org_id_str = env::var("ORG_ID")
-        .context("ORG_ID environment variable must be set")?;
-    let org_id = Uuid::parse_str(&org_id_str)
-        .context("ORG_ID must be a valid UUID")?;
+    let org_id_str = env::var("ORG_ID").context("ORG_ID environment variable must be set")?;
+    let org_id = Uuid::parse_str(&org_id_str).context("ORG_ID must be a valid UUID")?;
 
     let concurrency: usize = env::var("CONCURRENCY")
         .unwrap_or_else(|_| "4".to_string())
@@ -59,11 +55,7 @@ async fn main() -> Result<()> {
         .unwrap_or(false);
 
     // Set up logging
-    let log_level = if verbose {
-        Level::TRACE
-    } else {
-        Level::INFO
-    };
+    let log_level = if verbose { Level::TRACE } else { Level::INFO };
 
     tracing_subscriber::fmt()
         .with_max_level(log_level)
@@ -72,12 +64,15 @@ async fn main() -> Result<()> {
 
     // Validate concurrency
     if concurrency > 10 {
-        warn!(concurrency = concurrency, "High concurrency may cause FTP rate limiting. Recommended: 2-4");
+        warn!(
+            concurrency = concurrency,
+            "High concurrency may cause FTP rate limiting. Recommended: 2-4"
+        );
     }
 
     // Get database URL
-    let database_url = env::var("DATABASE_URL")
-        .context("DATABASE_URL environment variable must be set")?;
+    let database_url =
+        env::var("DATABASE_URL").context("DATABASE_URL environment variable must be set")?;
 
     // Connect to database
     info!("Connecting to database...");
@@ -112,15 +107,24 @@ async fn main() -> Result<()> {
         let versions = orchestrator.list_available_versions().await?;
 
         let filtered_versions: Vec<_> = if let Some(date) = &start_date {
-            versions.into_iter().filter(|v| v.as_str() >= date.as_str()).collect()
+            versions
+                .into_iter()
+                .filter(|v| v.as_str() >= date.as_str())
+                .collect()
         } else {
             versions
         };
 
         info!(
             count = filtered_versions.len(),
-            oldest = filtered_versions.first().map(|s| s.as_str()).unwrap_or("N/A"),
-            newest = filtered_versions.last().map(|s| s.as_str()).unwrap_or("N/A"),
+            oldest = filtered_versions
+                .first()
+                .map(|s| s.as_str())
+                .unwrap_or("N/A"),
+            newest = filtered_versions
+                .last()
+                .map(|s| s.as_str())
+                .unwrap_or("N/A"),
             "Found versions to process"
         );
 
@@ -149,7 +153,10 @@ async fn main() -> Result<()> {
     // Estimate and confirm
     let versions = orchestrator.list_available_versions().await?;
     let filtered_count = if let Some(date) = &start_date {
-        versions.iter().filter(|v| v.as_str() >= date.as_str()).count()
+        versions
+            .iter()
+            .filter(|v| v.as_str() >= date.as_str())
+            .count()
     } else {
         versions.len()
     };
@@ -190,11 +197,7 @@ async fn main() -> Result<()> {
     } else {
         info!("Using parallel processing (concurrency: {})", concurrency);
         orchestrator
-            .catchup_from_date_parallel(
-                org_id,
-                start_date.as_deref(),
-                concurrency,
-            )
+            .catchup_from_date_parallel(org_id, start_date.as_deref(), concurrency)
             .await?
     };
 
@@ -210,7 +213,8 @@ async fn main() -> Result<()> {
     info!(
         total_hours = format!("{:.1}", duration.as_secs_f64() / 3600.0),
         total_minutes = format!("{:.0}", duration.as_secs_f64() / 60.0),
-        avg_minutes_per_version = format!("{:.1}", duration.as_secs_f64() / 60.0 / results.len() as f64),
+        avg_minutes_per_version =
+            format!("{:.1}", duration.as_secs_f64() / 60.0 / results.len() as f64),
         "Timing"
     );
 

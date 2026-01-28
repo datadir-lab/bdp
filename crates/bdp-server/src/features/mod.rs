@@ -38,8 +38,8 @@ pub mod search;
 pub mod shared;
 pub mod version_files;
 
-use axum::Router;
 use crate::storage::Storage;
+use axum::Router;
 
 /// Shared state for all feature routes
 ///
@@ -73,8 +73,14 @@ pub struct FeatureState {
 /// An Axum router with all feature routes configured
 pub fn router(state: FeatureState) -> Router<()> {
     Router::new()
-        .nest("/organizations", organizations::organizations_routes().with_state(state.db.clone()))
-        .nest("/data-sources", data_sources::data_sources_routes().with_state(state.db.clone()))
+        .nest(
+            "/organizations",
+            organizations::organizations_routes().with_state(state.db.clone()),
+        )
+        .nest(
+            "/data-sources",
+            data_sources::data_sources_routes().with_state(state.db.clone()),
+        )
         .nest("/search", search::search_routes().with_state(state.db.clone()))
         .nest("/resolve", resolve::resolve_routes().with_state(state.db.clone()))
         .nest("/jobs", jobs::jobs_routes().with_state(state.db.clone()))

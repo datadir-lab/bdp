@@ -288,7 +288,10 @@ impl GoStorage {
             (relationships.len() + self.relationship_chunk_size - 1) / self.relationship_chunk_size;
         let mut stored = 0;
 
-        for (chunk_idx, chunk) in relationships.chunks(self.relationship_chunk_size).enumerate() {
+        for (chunk_idx, chunk) in relationships
+            .chunks(self.relationship_chunk_size)
+            .enumerate()
+        {
             info!(
                 "Storing relationships chunk {} / {} ({} relationships)",
                 chunk_idx + 1,
@@ -486,14 +489,8 @@ mod tests {
         let storage = GoStorage::new(db, org_id);
 
         assert_eq!(storage.term_chunk_size, DEFAULT_TERM_CHUNK_SIZE);
-        assert_eq!(
-            storage.relationship_chunk_size,
-            DEFAULT_RELATIONSHIP_CHUNK_SIZE
-        );
-        assert_eq!(
-            storage.annotation_chunk_size,
-            DEFAULT_ANNOTATION_CHUNK_SIZE
-        );
+        assert_eq!(storage.relationship_chunk_size, DEFAULT_RELATIONSHIP_CHUNK_SIZE);
+        assert_eq!(storage.annotation_chunk_size, DEFAULT_ANNOTATION_CHUNK_SIZE);
     }
 
     #[test]

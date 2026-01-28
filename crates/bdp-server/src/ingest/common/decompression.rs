@@ -69,11 +69,7 @@ pub fn extract_tar(data: &[u8], filenames: &[&str]) -> Result<HashMap<String, Ve
             .to_string();
 
         // Extract the filename part only
-        let filename = path
-            .split('/')
-            .last()
-            .unwrap_or(&path)
-            .to_string();
+        let filename = path.split('/').next_back().unwrap_or(&path).to_string();
 
         if extract_all || filenames_set.contains(filename.as_str()) {
             let mut contents = Vec::new();
@@ -135,11 +131,7 @@ pub fn extract_zip(data: &[u8], filenames: &[&str]) -> Result<HashMap<String, Ve
         }
 
         let name = file.name().to_string();
-        let filename = name
-            .split('/')
-            .last()
-            .unwrap_or(&name)
-            .to_string();
+        let filename = name.split('/').next_back().unwrap_or(&name).to_string();
 
         if extract_all || filenames_set.contains(filename.as_str()) {
             let mut contents = Vec::new();

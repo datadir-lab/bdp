@@ -238,22 +238,10 @@ mod tests {
 
     #[test]
     fn test_validate_slug_invalid_chars() {
-        assert_eq!(
-            validate_slug("UPPERCASE", 100),
-            Err(SlugValidationError::InvalidFormat)
-        );
-        assert_eq!(
-            validate_slug("has spaces", 100),
-            Err(SlugValidationError::InvalidFormat)
-        );
-        assert_eq!(
-            validate_slug("has_underscore", 100),
-            Err(SlugValidationError::InvalidFormat)
-        );
-        assert_eq!(
-            validate_slug("has@special", 100),
-            Err(SlugValidationError::InvalidFormat)
-        );
+        assert_eq!(validate_slug("UPPERCASE", 100), Err(SlugValidationError::InvalidFormat));
+        assert_eq!(validate_slug("has spaces", 100), Err(SlugValidationError::InvalidFormat));
+        assert_eq!(validate_slug("has_underscore", 100), Err(SlugValidationError::InvalidFormat));
+        assert_eq!(validate_slug("has@special", 100), Err(SlugValidationError::InvalidFormat));
     }
 
     #[test]
@@ -278,10 +266,7 @@ mod tests {
     #[test]
     fn test_validate_name_empty() {
         assert_eq!(validate_name("", 256), Err(NameValidationError::Required));
-        assert_eq!(
-            validate_name("   ", 256),
-            Err(NameValidationError::Required)
-        );
+        assert_eq!(validate_name("   ", 256), Err(NameValidationError::Required));
     }
 
     #[test]

@@ -286,6 +286,7 @@ async fn list_organizations(
 
 /// Unified error type for organization API endpoints
 #[derive(Debug)]
+#[allow(clippy::enum_variant_names)]
 enum OrganizationApiError {
     CreateError(CreateOrganizationError),
     UpdateError(UpdateOrganizationError),
@@ -397,11 +398,15 @@ impl IntoResponse for OrganizationApiError {
             },
 
             // Get errors
-            OrganizationApiError::GetError(super::queries::GetOrganizationError::SlugOrIdRequired) => {
+            OrganizationApiError::GetError(
+                super::queries::GetOrganizationError::SlugOrIdRequired,
+            ) => {
                 let error = ErrorResponse::new("VALIDATION_ERROR", self.to_string());
                 (StatusCode::BAD_REQUEST, Json(error)).into_response()
             },
-            OrganizationApiError::GetError(super::queries::GetOrganizationError::NotFound { .. }) => {
+            OrganizationApiError::GetError(super::queries::GetOrganizationError::NotFound {
+                ..
+            }) => {
                 let error = ErrorResponse::new("NOT_FOUND", self.to_string());
                 (StatusCode::NOT_FOUND, Json(error)).into_response()
             },

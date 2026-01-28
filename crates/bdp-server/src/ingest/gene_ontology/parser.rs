@@ -85,21 +85,17 @@ impl OboParser {
                     Ok((term, term_relationships)) => {
                         terms.push(term);
                         relationships.extend(term_relationships);
-                    }
+                    },
                     Err(e) => {
                         warn!("Failed to parse term stanza: {}", e);
-                    }
+                    },
                 }
             } else {
                 i += 1;
             }
         }
 
-        info!(
-            "Parsed {} GO terms and {} relationships",
-            terms.len(),
-            relationships.len()
-        );
+        info!("Parsed {} GO terms and {} relationships", terms.len(), relationships.len());
 
         Ok(ParsedObo {
             terms,
@@ -144,60 +140,66 @@ impl OboParser {
                     "id" => go_id = Some(value.to_string()),
                     "name" => name = Some(value.to_string()),
                     "namespace" => {
-                        namespace = Some(Namespace::from_str(value).map_err(|e| {
-                            crate::ingest::gene_ontology::GoError::Parse(e)
-                        })?);
-                    }
+                        namespace = Some(
+                            Namespace::from_str(value)
+                                .map_err(|e| crate::ingest::gene_ontology::GoError::Parse(e))?,
+                        );
+                    },
                     "def" => {
                         definition = Some(Self::extract_quoted_text(value));
-                    }
+                    },
                     "is_obsolete" => {
                         is_obsolete = value == "true";
-                    }
+                    },
                     "synonym" => {
                         if let Ok(syn) = Self::parse_synonym(value) {
                             synonyms.push(syn);
                         }
-                    }
+                    },
                     "xref" => {
                         xrefs.push(value.to_string());
-                    }
+                    },
                     "alt_id" => {
                         alt_ids.push(value.to_string());
-                    }
+                    },
                     "comment" => {
                         comments.push(value.to_string());
-                    }
+                    },
                     "is_a" => {
                         // Extract GO ID from "GO:0008150 ! biological_process"
-                        if let Some(parent_id) = value.split_whitespace().next() {
-                            if let Some(ref subject_id) = go_id {
-                                relationships.push(GoRelationship::new(
-                                    subject_id.clone(),
-                                    parent_id.to_string(),
-                                    RelationshipType::IsA,
-                                    go_release_version.to_string(),
-                                ));
-                            }
-                        }
-                    }
+                        let Some(parent_id) = value.split_whitespace().next() else {
+                            continue;
+                        };
+                        let Some(ref subject_id) = go_id else {
+                            continue;
+                        };
+                        relationships.push(GoRelationship::new(
+                            subject_id.clone(),
+                            parent_id.to_string(),
+                            RelationshipType::IsA,
+                            go_release_version.to_string(),
+                        ));
+                    },
                     "relationship" => {
                         // Format: "part_of GO:0008150 ! biological_process"
                         let parts: Vec<&str> = value.split_whitespace().collect();
-                        if parts.len() >= 2 {
-                            if let Ok(rel_type) = RelationshipType::from_str(parts[0]) {
-                                if let Some(ref subject_id) = go_id {
-                                    relationships.push(GoRelationship::new(
-                                        subject_id.clone(),
-                                        parts[1].to_string(),
-                                        rel_type,
-                                        go_release_version.to_string(),
-                                    ));
-                                }
-                            }
+                        if parts.len() < 2 {
+                            continue;
                         }
-                    }
-                    _ => {} // Ignore other fields
+                        let Ok(rel_type) = RelationshipType::from_str(parts[0]) else {
+                            continue;
+                        };
+                        let Some(ref subject_id) = go_id else {
+                            continue;
+                        };
+                        relationships.push(GoRelationship::new(
+                            subject_id.clone(),
+                            parts[1].to_string(),
+                            rel_type,
+                            go_release_version.to_string(),
+                        ));
+                    },
+                    _ => {}, // Ignore other fields
                 }
             }
 
@@ -339,14 +341,14 @@ impl GafParser {
             match Self::parse_gaf_line(line, goa_release_version, protein_lookup) {
                 Ok(Some(annotation)) => {
                     annotations.push(annotation);
-                }
+                },
                 Ok(None) => {
                     skipped += 1;
-                }
+                },
                 Err(e) => {
                     debug!("Failed to parse GAF line: {}", e);
                     skipped += 1;
-                }
+                },
             }
 
             // Progress logging
@@ -414,7 +416,7 @@ impl GafParser {
             None => {
                 // Skip if protein not found
                 return Ok(None);
-            }
+            },
         };
 
         // Parse taxonomy ID (format: "taxon:9606")
@@ -564,19 +566,13 @@ relationship: part_of GO:0002376 ! immune system process
     #[test]
     fn test_parse_taxonomy_id() {
         assert_eq!(GafParser::parse_taxonomy_id("taxon:9606"), Some(9606));
-        assert_eq!(
-            GafParser::parse_taxonomy_id("taxon:9606|taxon:10090"),
-            Some(9606)
-        );
+        assert_eq!(GafParser::parse_taxonomy_id("taxon:9606|taxon:10090"), Some(9606));
         assert_eq!(GafParser::parse_taxonomy_id("invalid"), None);
     }
 
     #[test]
     fn test_parse_date() {
-        assert_eq!(
-            GafParser::parse_date("20260115"),
-            NaiveDate::from_ymd_opt(2026, 1, 15)
-        );
+        assert_eq!(GafParser::parse_date("20260115"), NaiveDate::from_ymd_opt(2026, 1, 15));
         assert_eq!(GafParser::parse_date("invalid"), None);
         assert_eq!(GafParser::parse_date("2026"), None);
     }

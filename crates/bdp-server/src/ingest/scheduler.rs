@@ -35,10 +35,7 @@ impl JobScheduler {
         // Setup PostgreSQL storage for apalis
         let storage = self.setup_storage().await?;
 
-        info!(
-            "Job scheduler initialized with {} workers",
-            self.config.worker_threads
-        );
+        info!("Job scheduler initialized with {} workers", self.config.worker_threads);
 
         // Setup cron jobs if auto-ingest is enabled
         if self.config.uniprot.auto_ingest_enabled {
@@ -91,10 +88,7 @@ impl JobScheduler {
 /// NOTE: This implementation is ready but currently disabled due to apalis-postgres compilation issues.
 /// Once apalis is re-enabled, this will work out of the box.
 async fn process_uniprot_job(job: UniProtIngestJob) -> Result<()> {
-    info!(
-        "Processing UniProt ingest job for organization: {}",
-        job.organization_id
-    );
+    info!("Processing UniProt ingest job for organization: {}", job.organization_id);
 
     // NOTE: The following implementation is ready but commented out because
     // we need access to the database pool and S3 storage which should be
@@ -121,9 +115,10 @@ async fn process_uniprot_job(job: UniProtIngestJob) -> Result<()> {
     // );
 
     warn!("Job processing is disabled due to apalis-postgres compilation issues");
-    info!("Job details: full_sync={}, target_version={:?}",
-          job.full_sync,
-          job.target_version);
+    info!(
+        "Job details: full_sync={}, target_version={:?}",
+        job.full_sync, job.target_version
+    );
 
     Ok(())
 }

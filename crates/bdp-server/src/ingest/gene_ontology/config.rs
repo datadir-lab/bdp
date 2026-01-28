@@ -77,10 +77,7 @@ impl GoHttpConfig {
             // In practice, we should discover the actual latest version
             format!("http://release.geneontology.org/2025-09-08/ontology/go-basic.obo")
         } else {
-            format!(
-                "http://release.geneontology.org/{}/ontology/go-basic.obo",
-                ver
-            )
+            format!("http://release.geneontology.org/{}/ontology/go-basic.obo", ver)
         }
     }
 
@@ -197,9 +194,15 @@ impl GoHttpConfigBuilder {
 
         GoHttpConfig {
             ontology_base_url: self.ontology_base_url.unwrap_or(default.ontology_base_url),
-            annotation_base_url: self.annotation_base_url.unwrap_or(default.annotation_base_url),
-            go_release_version: self.go_release_version.unwrap_or(default.go_release_version),
-            goa_release_version: self.goa_release_version.unwrap_or(default.goa_release_version),
+            annotation_base_url: self
+                .annotation_base_url
+                .unwrap_or(default.annotation_base_url),
+            go_release_version: self
+                .go_release_version
+                .unwrap_or(default.go_release_version),
+            goa_release_version: self
+                .goa_release_version
+                .unwrap_or(default.goa_release_version),
             timeout_secs: self.timeout_secs.unwrap_or(default.timeout_secs),
             max_retries: self.max_retries.unwrap_or(default.max_retries),
             parse_limit: self.parse_limit,
@@ -321,14 +324,8 @@ mod tests {
     #[test]
     fn test_default_config() {
         let config = GoHttpConfig::default();
-        assert_eq!(
-            config.ontology_base_url,
-            "ftp://ftp.ebi.ac.uk/pub/databases/GO/goa"
-        );
-        assert_eq!(
-            config.annotation_base_url,
-            "ftp://ftp.ebi.ac.uk/pub/databases/GO/goa/UNIPROT"
-        );
+        assert_eq!(config.ontology_base_url, "ftp://ftp.ebi.ac.uk/pub/databases/GO/goa");
+        assert_eq!(config.annotation_base_url, "ftp://ftp.ebi.ac.uk/pub/databases/GO/goa/UNIPROT");
         assert_eq!(config.go_release_version, "current");
         assert_eq!(config.timeout_secs, 600);
         assert_eq!(config.max_retries, 3);

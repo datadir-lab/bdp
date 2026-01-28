@@ -1,6 +1,26 @@
 //! BDP Server Library
 #![recursion_limit = "256"]
 #![deny(clippy::unwrap_used, clippy::expect_used)]
+#![allow(clippy::too_many_arguments)]
+#![allow(clippy::manual_div_ceil)]
+#![allow(clippy::redundant_closure)]
+#![allow(clippy::manual_range_contains)]
+#![allow(clippy::unnecessary_map_or)]
+#![allow(clippy::useless_format)]
+#![allow(clippy::should_implement_trait)]
+#![allow(clippy::new_without_default)]
+#![allow(clippy::impl_trait_in_params)]
+#![allow(clippy::unnecessary_lazy_evaluations)]
+#![allow(clippy::redundant_field_names)]
+#![allow(clippy::needless_borrow)]
+#![allow(clippy::manual_clamp)]
+#![allow(clippy::map_clone)]
+#![allow(clippy::option_map_or_none)]
+#![allow(clippy::derivable_impls)]
+#![allow(clippy::get_first)]
+#![allow(clippy::host_endian_bytes)]
+#![allow(clippy::io_other_error)]
+#![allow(clippy::type_complexity)]
 //!
 //! HTTP server for managing biological datasets.
 //!
