@@ -8,6 +8,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Search Command** (`bdp search`)
+  - Full-text search across organizations, data sources, and tools
+  - Interactive mode with result browsing and navigation
+  - Clipboard integration for copying source specifications
+  - Automatic manifest integration (add sources directly to bdp.yml)
+  - Multiple output formats (table, JSON, compact)
+  - SQLite-based caching with 5-minute TTL for improved performance
+  - Type and source-type filtering
+  - Pagination support with configurable limits
+  - Retry logic with exponential backoff
+  - E2E tests with WireMock for reliable testing
+- **Query Command** (`bdp query`)
+  - SQL-like querying with Unix-style flags
+  - Entity aliases (protein, gene, genome, tool, organism, org) with auto-join metadata
+  - Raw SQL mode with `--sql` flag for advanced queries
+  - Security: SQL validation blocks all write/DDL operations (DROP, DELETE, UPDATE, INSERT, etc.)
+  - Query timeout (30 seconds) and result limit (1000 rows default)
+  - 5 output formats: table, json, csv, tsv, compact
+  - Smart TTY detection for automatic format selection
+  - Dry run mode (`--dry-run`) to preview generated SQL
+  - File output with `--output` flag
+  - PostgreSQL type → JSON conversion for 15+ data types
+  - 60+ comprehensive tests (14 unit + 19 integration + 27 E2E)
+- **Backend Query API** (`POST /api/v1/query`)
+  - SQL query execution with validation using sqlparser-rs
+  - PostgreSQL dialect support
+  - 30-second timeout protection
+  - Type-safe result conversion
+  - Proper HTTP status codes (400, 408, 500)
+  - 19 integration tests covering security, types, and edge cases
 - **Audit & Provenance System** (Phase 3.8.1 - MVP Complete)
   - Local SQLite audit trail (`.bdp/bdp.db`) for regulatory compliance
   - Hash-chain integrity verification for tamper detection
@@ -52,6 +82,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Just as unified command runner
 
 ### Documentation
+- **CLI Command Guides**
+  - Complete Query Command reference with 15+ practical examples
+  - Complete Search Command reference with interactive mode guide
+  - Usage examples for all output formats
+  - Tips and tricks for effective querying
+- **Query Feature Specifications**
+  - Complete technical specification (456 lines)
+  - Implementation summary with API details (388 lines)
+  - Linear task breakdown: 23 tasks across 4 phases, 121 story points
+  - Session summary documenting implementation details
+- **Updated Documentation Index**
+  - Added CLI command references
+  - Added feature specifications section
+  - Updated status overview with new commands
 - Comprehensive README with quick start guide and audit system overview
 - **Audit & Provenance Design Document** - Complete CQRS architecture specification
 - Architecture and design documents
