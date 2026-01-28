@@ -2,6 +2,12 @@
 
 ![BDP Banner](.github/banner.svg)
 
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg?style=flat-square)](./LICENSE)
+[![CI](https://img.shields.io/github/actions/workflow/status/datadir-lab/bdp/ci.yml?branch=main&style=flat-square&label=CI)](https://github.com/datadir-lab/bdp/actions)
+[![Release](https://img.shields.io/github/v/release/datadir-lab/bdp?style=flat-square)](https://github.com/datadir-lab/bdp/releases)
+[![Rust](https://img.shields.io/badge/rust-1.84%2B-orange?style=flat-square&logo=rust)](https://www.rust-lang.org)
+[![Docs](https://img.shields.io/badge/docs-online-blue?style=flat-square)](https://bdp.datadir.dev/docs)
+
 **A dependency manager for biological databases**—treating UniProt, NCBI, and other data sources like software packages with version control and lockfiles.
 
 Labs spend **4-12 hours per project** on manual data management. With BDP, it takes **~15 minutes**.
@@ -12,7 +18,7 @@ Labs spend **4-12 hours per project** on manual data management. With BDP, it ta
 
 ## Why BDP?
 
-Only 11% of bioinformatics studies can be reproduced, with data versioning being a major factor. BDP solves this by:
+Only 11% of bioinformatics studies can be reproduced ([Leipzig et al., 2021](https://academic.oup.com/bib/article/24/6/bbad375/7326135)), with data versioning being a major factor. BDP solves this by:
 
 - **Version Control** - Lock exact data versions with lockfiles (like `package-lock.json`)
 - **Reproducible Builds** - Team members get identical datasets with `bdp pull`
