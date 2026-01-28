@@ -1,26 +1,43 @@
 # Database Module
 
-This module provides database operations for the BDP server using SQLx.
+This module provides database connection pooling and configuration for the BDP server.
 
 ## Overview
 
-The database module is organized as follows:
+The BDP project uses a **mediator-based CQRS architecture** where database queries are embedded directly in command and query handlers. This module provides only the foundational database infrastructure - no shared query layer.
 
 ```
 db/
 ├── mod.rs                  # Connection pool setup and configuration
-├── organizations.rs        # CRUD operations for organizations
+├── archive/                # Archived shared database layer (deprecated)
+│   ├── organizations.rs    # DEPRECATED - migrated to features/organizations/
+│   ├── data_sources.rs     # DEPRECATED - migrated to features/data_sources/
+│   ├── versions.rs         # DEPRECATED - migrated to features/data_sources/
+│   ├── search.rs           # DEPRECATED - migrated to features/search/
+│   └── sources.rs          # DEPRECATED - placeholder
 └── README.md              # This file
 ```
 
+## CQRS Architecture
+
+**As of January 2026, BDP uses a pure CQRS architecture with NO SHARED DATABASE LAYER.**
+
+All database operations are contained within feature-specific command and query handlers:
+
+- `features/organizations/commands/` - Organization commands (create, update, delete)
+- `features/organizations/queries/` - Organization queries (get, list)
+- `features/data_sources/commands/` - Data source commands
+- `features/data_sources/queries/` - Data source queries
+- `features/search/queries/` - Search queries
+
+Each handler contains its own inline SQL queries using SQLx's `query!` and `query_as!` macros for compile-time verification.
+
 ## Features
 
-- **Type-safe queries**: Using SQLx's `query_as!` macro for compile-time verification
 - **Connection pooling**: Efficient connection management with configurable pool settings
-- **Error handling**: Custom error types for common database scenarios
-- **Pagination**: Built-in pagination support for list queries
-- **Transactions**: Support for multi-step atomic operations
+- **Error handling**: Custom error types for database scenarios
 - **Health checks**: Database availability monitoring
+- **Configuration**: Environment-based or programmatic configuration
 
 ## Quick Start
 
@@ -45,8 +62,7 @@ export DB_MAX_CONNECTIONS=20
 ### 3. Use in Your Code
 
 ```rust
-use bdp_server::db::{create_pool, organizations, DbConfig};
-use bdp_common::types::Pagination;
+use bdp_server::db::{create_pool, DbConfig};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -54,25 +70,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = DbConfig::from_env()?;
     let pool = create_pool(&config).await?;
 
-    // Create an organization
-    let org = organizations::create_organization(
-        &pool,
-        "acme-corp",
-        "ACME Corporation",
-        Some("Leading provider of datasets"),
-    ).await?;
-
-    // Get organization by slug
-    let org = organizations::get_organization_by_slug(&pool, "acme-corp").await?;
-
-    // List organizations with pagination
-    let orgs = organizations::list_organizations(&pool, Pagination::default()).await?;
+    // Pass pool to CQRS handlers
+    // Example: use mediator to send commands/queries
 
     Ok(())
 }
 ```
 
-## Module Structure
+## Core Module Exports
 
 ### `mod.rs` - Core Module
 
@@ -83,17 +88,59 @@ Provides:
 - `create_pool()`: Connection pool creation
 - `health_check()`: Database health verification
 
-### `organizations.rs` - Organizations Table
+### No Shared Query Layer
 
-CRUD operations:
-- `create_organization()`: Insert new organization
-- `get_organization_by_slug()`: Fetch by slug
-- `get_organization_by_id()`: Fetch by UUID
-- `list_organizations()`: List with pagination
-- `count_organizations()`: Total count
-- `update_organization()`: Update fields
-- `delete_organization()`: Remove organization
-- `search_organizations()`: Full-text search
+Unlike traditional layered architectures, this module **does not export** database query functions. All queries are embedded in CQRS handlers following these patterns:
+
+**Commands** (write operations):
+```rust
+// features/organizations/commands/create.rs
+pub async fn handle(
+    pool: PgPool,
+    command: CreateOrganizationCommand,
+) -> Result<CreateOrganizationResponse, CreateOrganizationError> {
+    // Inline SQL query
+    let result = sqlx::query_as!(
+        OrganizationRecord,
+        r#"
+        INSERT INTO organizations (slug, name, website)
+        VALUES ($1, $2, $3)
+        RETURNING id, slug, name, created_at
+        "#,
+        command.slug,
+        command.name,
+        command.website
+    )
+    .fetch_one(&pool)
+    .await?;
+
+    Ok(result.into())
+}
+```
+
+**Queries** (read operations):
+```rust
+// features/organizations/queries/get.rs
+pub async fn handle(
+    pool: PgPool,
+    query: GetOrganizationQuery,
+) -> Result<GetOrganizationResponse, GetOrganizationError> {
+    // Inline SQL query
+    let record = sqlx::query_as!(
+        OrganizationRecord,
+        r#"
+        SELECT id, slug, name, website, created_at
+        FROM organizations
+        WHERE slug = $1
+        "#,
+        query.slug
+    )
+    .fetch_optional(&pool)
+    .await?;
+
+    // ... map to response
+}
+```
 
 ## Error Handling
 
@@ -104,18 +151,11 @@ pub enum DbError {
     Sqlx(sqlx::Error),           // Database errors
     NotFound(String),             // Resource not found
     Duplicate(String),            // Unique constraint violation
+    Config(String),               // Configuration errors
 }
 ```
 
-Example error handling:
-
-```rust
-match organizations::get_organization_by_slug(&pool, "acme-corp").await {
-    Ok(org) => println!("Found: {}", org.name),
-    Err(DbError::NotFound(msg)) => println!("Not found: {}", msg),
-    Err(e) => println!("Error: {}", e),
-}
-```
+Feature-specific handlers define their own error types that wrap these as needed.
 
 ## Configuration
 
@@ -146,23 +186,6 @@ let config = DbConfig {
 };
 ```
 
-## Pagination
-
-All list queries support pagination:
-
-```rust
-use bdp_common::types::Pagination;
-
-// Default pagination (50 items, offset 0)
-let page1 = organizations::list_organizations(&pool, Pagination::default()).await?;
-
-// Custom pagination
-let page2 = organizations::list_organizations(&pool, Pagination::new(20, 20)).await?;
-
-// Page-based pagination
-let page3 = organizations::list_organizations(&pool, Pagination::page(2, 20)).await?;
-```
-
 ## Testing
 
 ### Running Tests
@@ -180,19 +203,25 @@ cargo test
 
 ### Example Test
 
+Tests are written in each CQRS handler file using `#[sqlx::test]`:
+
 ```rust
-#[tokio::test]
-async fn test_create_organization() {
-    let pool = create_test_pool().await;
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    let org = create_organization(&pool, "test-org", "Test", None)
-        .await
-        .unwrap();
+    #[sqlx::test]
+    async fn test_handle_creates_organization(pool: PgPool) -> sqlx::Result<()> {
+        let cmd = CreateOrganizationCommand {
+            slug: "test-org".to_string(),
+            name: "Test Organization".to_string(),
+            // ...
+        };
 
-    assert_eq!(org.slug, "test-org");
-
-    // Cleanup
-    delete_organization(&pool, "test-org").await.unwrap();
+        let result = handle(pool.clone(), cmd).await;
+        assert!(result.is_ok());
+        Ok(())
+    }
 }
 ```
 
@@ -211,48 +240,69 @@ cargo build
 
 Metadata is stored in `.sqlx/*.json` files.
 
+## Migration from Shared DB Layer
+
+The `archive/` directory contains the old shared database layer that was deprecated when migrating to CQRS architecture. These files are kept for historical reference but are not compiled or used:
+
+- `organizations.rs` → Migrated to `features/organizations/commands/` and `features/organizations/queries/`
+- `data_sources.rs` → Migrated to `features/data_sources/commands/` and `features/data_sources/queries/`
+- `versions.rs` → Migrated to `features/data_sources/commands/` and `features/data_sources/queries/`
+- `search.rs` → Migrated to `features/search/queries/`
+- `sources.rs` → Deprecated placeholder, never implemented
+
+**Migration completed**: January 2026
+
 ## Adding New Database Operations
 
-### 1. Create a New Module
+When adding new database operations, follow the CQRS pattern:
 
-Create `src/db/registry_entries.rs`:
+### 1. Create Command or Query Handler
 
-```rust
-use sqlx::PgPool;
-use uuid::Uuid;
-use super::{DbError, DbResult};
+Create a new file in the appropriate feature module:
 
-pub async fn create_registry_entry(
-    pool: &PgPool,
-    org_id: Uuid,
-    slug: &str,
-    name: &str,
-) -> DbResult<RegistryEntry> {
-    let id = Uuid::new_v4();
-
-    let entry = sqlx::query_as!(
-        RegistryEntry,
-        r#"
-        INSERT INTO registry_entries (id, organization_id, slug, name)
-        VALUES ($1, $2, $3, $4)
-        RETURNING *
-        "#,
-        id, org_id, slug, name
-    )
-    .fetch_one(pool)
-    .await?;
-
-    Ok(entry)
-}
+```
+features/
+└── my_feature/
+    ├── commands/
+    │   └── create.rs          # Command handler with inline SQL
+    ├── queries/
+    │   └── get.rs             # Query handler with inline SQL
+    └── mod.rs
 ```
 
-### 2. Export the Module
-
-In `src/db/mod.rs`:
+### 2. Implement Handler with Inline SQL
 
 ```rust
-pub mod organizations;
-pub mod registry_entries;  // Add this
+// features/my_feature/commands/create.rs
+use sqlx::PgPool;
+use mediator::Request;
+
+#[derive(Debug)]
+pub struct CreateMyEntityCommand {
+    pub name: String,
+}
+
+impl Request<Result<MyEntityResponse, MyEntityError>> for CreateMyEntityCommand {}
+
+pub async fn handle(
+    pool: PgPool,
+    command: CreateMyEntityCommand,
+) -> Result<MyEntityResponse, MyEntityError> {
+    // Inline SQL query - no shared database layer
+    let result = sqlx::query_as!(
+        MyEntityRecord,
+        r#"
+        INSERT INTO my_entities (name)
+        VALUES ($1)
+        RETURNING id, name, created_at
+        "#,
+        command.name
+    )
+    .fetch_one(&pool)
+    .await?;
+
+    Ok(result.into())
+}
 ```
 
 ### 3. Update Prepared Queries
@@ -277,117 +327,36 @@ let config = DbConfig {
 
 ### Query Optimization
 
-```rust
-// Use indexes for WHERE clauses
-CREATE INDEX idx_organizations_slug ON organizations(slug);
-
-// Use EXPLAIN ANALYZE to check query plans
-EXPLAIN ANALYZE SELECT * FROM organizations WHERE slug = 'acme-corp';
-
-// Avoid N+1 queries - use JOINs
-SELECT o.*, COUNT(r.id) as entry_count
-FROM organizations o
-LEFT JOIN registry_entries r ON r.organization_id = o.id
-GROUP BY o.id;
-```
+- Use indexes for WHERE clauses in your inline queries
+- Use `EXPLAIN ANALYZE` to check query plans
+- Avoid N+1 queries - use JOINs in your handler SQL
+- Use materialized views for complex aggregations (see `features/search/`)
 
 ### Batch Operations
 
 ```rust
-// Instead of multiple individual inserts
-for item in items {
-    insert_one(&pool, item).await?;  // Slow
-}
-
-// Use a transaction with batch insert
+// Use transactions for batch inserts
 let mut tx = pool.begin().await?;
 for item in items {
-    insert_one(&mut tx, item).await?;
+    sqlx::query!("INSERT INTO ...")
+        .execute(&mut *tx)
+        .await?;
 }
-tx.commit().await?;  // Fast
-```
-
-## Common Patterns
-
-### Transaction Example
-
-```rust
-pub async fn transfer_ownership(
-    pool: &PgPool,
-    entry_id: Uuid,
-    new_org_id: Uuid,
-) -> DbResult<()> {
-    let mut tx = pool.begin().await?;
-
-    // Update registry entry
-    sqlx::query!(
-        "UPDATE registry_entries SET organization_id = $1 WHERE id = $2",
-        new_org_id,
-        entry_id
-    )
-    .execute(&mut *tx)
-    .await?;
-
-    // Log the transfer
-    sqlx::query!(
-        "INSERT INTO audit_log (action, entry_id) VALUES ('transfer', $1)",
-        entry_id
-    )
-    .execute(&mut *tx)
-    .await?;
-
-    tx.commit().await?;
-    Ok(())
-}
-```
-
-### Optional Updates
-
-```rust
-pub async fn update_organization(
-    pool: &PgPool,
-    slug: &str,
-    name: Option<&str>,
-    description: Option<&str>,
-) -> DbResult<Organization> {
-    // Fetch current state
-    let mut org = get_organization_by_slug(pool, slug).await?;
-
-    // Apply changes
-    if let Some(n) = name {
-        org.name = n.to_string();
-    }
-    if let Some(d) = description {
-        org.description = Some(d.to_string());
-    }
-
-    // Update in database
-    let org = sqlx::query_as!(
-        Organization,
-        "UPDATE organizations SET name = $2, description = $3 WHERE slug = $1 RETURNING *",
-        slug,
-        org.name,
-        org.description
-    )
-    .fetch_one(pool)
-    .await?;
-
-    Ok(org)
-}
+tx.commit().await?;
 ```
 
 ## Documentation
 
-- [SQLx Usage Guide](../../../docs/sqlx-guide.md) - Comprehensive SQLx patterns
+- [CQRS Architecture](../../../docs/agents/backend-architecture.md) - MANDATORY reading for backend development
+- [SQLx Guide](../../../docs/agents/implementation/sqlx-guide.md) - SQLx patterns and best practices
 - [Database Setup](../../../docs/database-setup.md) - Installation and configuration
-- [Example Code](../examples/database_usage.rs) - Working examples
-- [.sqlx Metadata](../../../.sqlx/README.md) - Offline compilation
+- [Error Handling](../../../docs/agents/error-handling.md) - Error handling policy
 
 ## Resources
 
 - [SQLx Repository](https://github.com/launchbadge/sqlx)
 - [PostgreSQL Docs](https://www.postgresql.org/docs/)
-- [SQLx Book](https://github.com/launchbadge/sqlx/tree/main/sqlx-cli)
+- [CQRS Pattern](https://martinfowler.com/bliki/CQRS.html)
 
 ## Troubleshooting
 
@@ -416,25 +385,15 @@ dropdb bdp && createdb bdp
 sqlx migrate run
 ```
 
-### Type mismatch errors
-
-```rust
-// Make sure struct fields match database types
-pub struct Organization {
-    pub id: Uuid,              // UUID in database
-    pub slug: String,          // VARCHAR in database
-    pub description: Option<String>,  // TEXT NULL in database
-    pub created_at: DateTime<Utc>,    // TIMESTAMPTZ in database
-}
-```
-
 ## Contributing
 
 When adding new database operations:
 
-1. Add comprehensive doc comments
-2. Include usage examples
-3. Handle errors appropriately
-4. Add tests
-5. Update prepared queries (`cargo sqlx prepare`)
-6. Update this README if adding new modules
+1. **DO NOT** add functions to this `db/` module
+2. **DO** create CQRS command/query handlers in `features/`
+3. **DO** embed SQL queries inline in handlers
+4. **DO** add comprehensive doc comments
+5. **DO** include usage examples
+6. **DO** handle errors appropriately
+7. **DO** add tests using `#[sqlx::test]`
+8. **DO** update prepared queries (`cargo sqlx prepare`)

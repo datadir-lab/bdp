@@ -63,6 +63,7 @@ pub fn verify_file_checksum(path: impl AsRef<Path>, expected: &str) -> Result<()
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
     use std::io::Write;

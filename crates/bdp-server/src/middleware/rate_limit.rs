@@ -48,16 +48,22 @@ pub fn rate_limit_layer(config: RateLimitConfig) -> impl Clone {
     let replenishment_ms = 60_000 / config.requests_per_minute;
     let burst_size = config.requests_per_minute.try_into().unwrap_or(DEFAULT_RATE_LIMIT_REQUESTS_PER_MINUTE as u32);
 
-    // SAFETY: GovernorConfigBuilder::finish() only fails if the configuration is invalid,
-    // but our inputs are validated (burst_size > 0, replenishment_ms > 0), so this is safe.
-    // We use expect() with a descriptive message for the impossible error case.
-    let governor_conf = Arc::new(
-        GovernorConfigBuilder::default()
-            .per_millisecond(replenishment_ms)
-            .burst_size(burst_size)
-            .finish()
-            .expect("Invalid rate limit configuration: burst_size and replenishment_ms must be positive"),
-    );
+    // Build governor configuration
+    // If configuration is invalid (which should never happen with validated inputs),
+    // panic during application startup with a descriptive message.
+    let governor_conf = match GovernorConfigBuilder::default()
+        .per_millisecond(replenishment_ms)
+        .burst_size(burst_size)
+        .finish()
+    {
+        Ok(config) => Arc::new(config),
+        Err(e) => {
+            // This is a fatal configuration error that should never happen in production
+            // with validated inputs. Panic with a clear message during startup.
+            panic!("Fatal: Invalid rate limit configuration (burst_size={}, replenishment_ms={}): {}",
+                   burst_size, replenishment_ms, e);
+        }
+    };
 
     GovernorLayer {
         config: governor_conf,

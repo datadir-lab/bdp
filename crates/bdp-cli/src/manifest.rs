@@ -247,6 +247,7 @@ pub fn parse_source_spec(spec: &str) -> Result<(String, String, String, Option<S
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
     use tempfile::NamedTempFile;

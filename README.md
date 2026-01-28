@@ -1,3 +1,5 @@
+![BDP Banner](.github/banner.svg)
+
 # BDP - Bioinformatics Dependencies Platform
 
 Version-controlled registry for biological data sources. Think npm/cargo for bioinformatics data.
