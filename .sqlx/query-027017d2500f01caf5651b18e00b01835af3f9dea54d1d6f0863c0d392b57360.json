@@ -1,0 +1,58 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                accession,\n                entry_name,\n                protein_name,\n                gene_name,\n                sequence_length,\n                mass_da,\n                sequence_checksum\n            FROM protein_metadata\n            WHERE accession = $1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "accession",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 1,
+        "name": "entry_name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "protein_name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "gene_name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "sequence_length",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 5,
+        "name": "mass_da",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 6,
+        "name": "sequence_checksum",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "027017d2500f01caf5651b18e00b01835af3f9dea54d1d6f0863c0d392b57360"
+}

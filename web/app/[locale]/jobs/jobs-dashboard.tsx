@@ -96,7 +96,11 @@ export function JobsDashboard() {
         .filter((job) =>
           job.job_type.toLowerCase().includes(org.name.toLowerCase())
         )
-        .sort((a, b) => new Date(b.run_at).getTime() - new Date(a.run_at).getTime())
+        .sort((a, b) => {
+          const aTime = a.started_at || a.created_at;
+          const bTime = b.started_at || b.created_at;
+          return new Date(bTime).getTime() - new Date(aTime).getTime();
+        })
         .slice(0, 10);
 
       // Find sync status for this organization
@@ -104,9 +108,15 @@ export function JobsDashboard() {
 
       // Determine current status
       let currentStatus: JobStatus | 'idle' = 'idle';
-      const runningJob = orgJobs.find((job) => job.status === 'Running');
+      // Check if any job is actively running (downloading, parsing, storing)
+      const runningJob = orgJobs.find((job) =>
+        job.status === 'downloading' ||
+        job.status === 'parsing' ||
+        job.status === 'storing' ||
+        job.status === 'pending'
+      );
       if (runningJob) {
-        currentStatus = 'Running';
+        currentStatus = runningJob.status;
       } else if (orgJobs.length > 0) {
         currentStatus = orgJobs[0].status;
       }
@@ -135,11 +145,17 @@ export function JobsDashboard() {
     return organizationSummaries.filter((summary) => {
       const statusLower = statusFilter.toLowerCase();
       if (statusLower === 'running') {
-        return summary.current_status === 'Running';
+        // Check if job is actively running
+        return (
+          summary.current_status === 'downloading' ||
+          summary.current_status === 'parsing' ||
+          summary.current_status === 'storing' ||
+          summary.current_status === 'pending'
+        );
       } else if (statusLower === 'completed') {
-        return summary.current_status === 'Done';
+        return summary.current_status === 'completed';
       } else if (statusLower === 'failed') {
-        return summary.current_status === 'Failed';
+        return summary.current_status === 'failed';
       }
       return true;
     });
@@ -161,10 +177,12 @@ export function JobsDashboard() {
       };
     });
 
-    // Sort by run_at descending
-    return jobsWithOrg.sort(
-      (a, b) => new Date(b.run_at).getTime() - new Date(a.run_at).getTime()
-    );
+    // Sort by started_at or created_at descending
+    return jobsWithOrg.sort((a, b) => {
+      const aTime = a.started_at || a.created_at;
+      const bTime = b.started_at || b.created_at;
+      return new Date(bTime).getTime() - new Date(aTime).getTime();
+    });
   }, [jobs, organizations]);
 
   const filteredTimelineJobs = React.useMemo(() => {
@@ -172,9 +190,16 @@ export function JobsDashboard() {
 
     return timelineJobs.filter((job) => {
       const statusLower = statusFilter.toLowerCase();
-      if (statusLower === 'running') return job.status === 'Running';
-      if (statusLower === 'completed') return job.status === 'Done';
-      if (statusLower === 'failed') return job.status === 'Failed';
+      if (statusLower === 'running') {
+        return (
+          job.status === 'downloading' ||
+          job.status === 'parsing' ||
+          job.status === 'storing' ||
+          job.status === 'pending'
+        );
+      }
+      if (statusLower === 'completed') return job.status === 'completed';
+      if (statusLower === 'failed') return job.status === 'failed';
       return true;
     });
   }, [timelineJobs, statusFilter]);

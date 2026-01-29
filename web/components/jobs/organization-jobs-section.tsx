@@ -33,7 +33,7 @@ export function OrganizationJobsSection({
 
   const successRate =
     recent_jobs.length > 0
-      ? (recent_jobs.filter((job) => job.status === 'Done').length /
+      ? (recent_jobs.filter((job) => job.status === 'completed').length /
           recent_jobs.length) *
         100
       : 0;
@@ -68,7 +68,7 @@ export function OrganizationJobsSection({
             </div>
           </div>
           <JobStatusBadge
-            status={current_status === 'idle' ? 'Done' : current_status}
+            status={current_status === 'idle' ? 'completed' : current_status}
             size="sm"
           />
         </div>

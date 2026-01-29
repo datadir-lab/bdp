@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import type { JobStatus } from '@/lib/types/job';
 
 export interface JobStatusBadgeProps {
-  status: JobStatus;
+  status: JobStatus | 'idle';
   size?: 'sm' | 'md' | 'lg';
   showIcon?: boolean;
   className?: string;
@@ -59,6 +59,18 @@ const statusConfig: Record<string, {
     label: 'Failed',
     variant: 'destructive' as const,
     className: '',
+  },
+  cancelled: {
+    icon: XCircle,
+    label: 'Cancelled',
+    variant: 'outline' as const,
+    className: 'border-muted-foreground text-muted-foreground',
+  },
+  idle: {
+    icon: Clock,
+    label: 'Idle',
+    variant: 'outline' as const,
+    className: 'border-muted-foreground text-muted-foreground',
   },
   // Legacy apalis statuses for backwards compatibility
   Pending: {

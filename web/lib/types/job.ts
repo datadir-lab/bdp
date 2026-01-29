@@ -1,7 +1,7 @@
 /**
  * Job status types matching the ingestion_jobs table
  */
-export type JobStatus = 'pending' | 'downloading' | 'download_verified' | 'parsing' | 'storing' | 'completed' | 'failed';
+export type JobStatus = 'pending' | 'downloading' | 'download_verified' | 'parsing' | 'storing' | 'completed' | 'failed' | 'cancelled';
 
 /**
  * Job type for ingestion jobs
@@ -14,7 +14,7 @@ export type JobType = 'UniProt' | 'NCBI Taxonomy' | 'GenBank';
 export interface Job {
   id: string;
   job_type: string;
-  status: string;
+  status: JobStatus;
   started_at: string | null;
   completed_at: string | null;
   created_at: string;

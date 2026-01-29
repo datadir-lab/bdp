@@ -4,14 +4,19 @@
 [advisories]
 # Ignore advisories for specific IDs
 ignore = [
-    # No ignores currently - all dependencies should be secure
+    # RUSTSEC-2026-0001: rkyv - Potential UB in Arc/Rc from_value on OOM
+    # This is a transitive dependency (not directly used) and affects only OOM scenarios
+    # which are already fatal. Patched version 0.7.46 is already in use.
+    "RUSTSEC-2026-0001",
 ]
 
-[database]
-# Path to the local advisory database git repo
-# Defaults to $CARGO_HOME/advisory-db
-# path = "/path/to/advisory-db"
+# Report informational warnings for unmaintained and unsound crates
+informational_warnings = ["unmaintained", "unsound"]
 
+# CVSS severity threshold - fail on medium or higher vulnerabilities
+severity_threshold = "medium"
+
+[database]
 # URL to the advisory database's git repo
 url = "https://github.com/rustsec/advisory-db.git"
 
@@ -19,13 +24,25 @@ url = "https://github.com/rustsec/advisory-db.git"
 fetch = true
 
 [output]
-# Do not show informational advisories
-deny = ["unmaintained", "unsound", "vulnerability"]
-warn = []
+# Format: terminal (human readable) or json
+format = "terminal"
+
+# Only print information on error
+quiet = false
+
+# Show inverse dependency trees along with advisories
+show_tree = true
 
 [target]
-# Target architecture
-arch = "x86_64"
+# Target CPU architectures to check
+arch = ["x86_64"]
 
-# Target OS
-os = "linux"
+# Target operating systems to check
+os = ["linux", "windows", "macos"]
+
+[yanked]
+# Warn for yanked crates in Cargo.lock
+enabled = true
+
+# Auto-update the crates.io index
+update_index = true

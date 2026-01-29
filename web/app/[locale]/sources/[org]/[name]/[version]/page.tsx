@@ -41,7 +41,7 @@ export default function DataSourceVersionPage() {
         setIsLoading(false);
       } catch (err) {
         console.error('Error fetching data:', err);
-        setError(err);
+        setError(err as ApiError | Error);
         setIsLoading(false);
       }
     }
