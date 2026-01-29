@@ -5,7 +5,7 @@ description: Complete command reference for the BDP CLI
 
 # BDP CLI Reference
 
-This documentation is auto-generated from the CLI source code. Last updated: 2026-01-22.
+This documentation is auto-generated from the CLI source code. Last updated: 2026-01-29.
 
 ## Overview
 
@@ -72,12 +72,14 @@ This document contains the help content for the `bdp` command-line program.
 * [`bdp config set`↴](#bdp-config-set)
 * [`bdp config show`↴](#bdp-config-show)
 * [`bdp uninstall`↴](#bdp-uninstall)
+* [`bdp search`↴](#bdp-search)
+* [`bdp query`↴](#bdp-query)
 
 ## `bdp`
 
 BDP - Biological Dataset Package Manager
 
-**Usage:** `bdp [OPTIONS] <COMMAND>`
+**Usage:** `bdp [OPTIONS] [COMMAND]`
 
 ###### **Subcommands:**
 
@@ -89,6 +91,8 @@ BDP - Biological Dataset Package Manager
 * `clean` — Clean cache
 * `config` — Manage configuration
 * `uninstall` — Uninstall BDP from your system
+* `search` — Search for data sources and tools in the registry
+* `query` — Advanced SQL-like querying of data sources and metadata
 
 ###### **Options:**
 
@@ -253,6 +257,7 @@ Clean cache
 ###### **Options:**
 
 * `-a`, `--all` — Clean all cached files
+* `--search-cache` — Clean only search cache
 
 
 
@@ -313,6 +318,66 @@ Uninstall BDP from your system
 
 * `-y`, `--yes` — Skip confirmation prompt
 * `--purge` — Also remove cache and configuration files
+
+
+
+## `bdp search`
+
+Search for data sources and tools in the registry
+
+**Usage:** `bdp search [OPTIONS] <QUERY>...`
+
+###### **Arguments:**
+
+* `<QUERY>` — Search query (multiple words will be joined)
+
+###### **Options:**
+
+* `-t`, `--type <ENTRY_TYPE>` — Filter by entry type (can be repeated)
+* `-s`, `--source-type <SOURCE_TYPE>` — Filter by source type (can be repeated)
+* `-f`, `--format <FORMAT>` — Output format
+
+  Default value: `interactive`
+* `--no-interactive` — Force non-interactive mode
+* `-l`, `--limit <LIMIT>` — Number of results per page (1-100)
+
+  Default value: `10`
+* `-p`, `--page <PAGE>` — Page number (for non-interactive pagination)
+
+  Default value: `1`
+
+
+
+## `bdp query`
+
+Advanced SQL-like querying of data sources and metadata
+
+**Usage:** `bdp query [OPTIONS] [ENTITY]`
+
+###### **Arguments:**
+
+* `<ENTITY>` — Entity to query (protein, gene, genome, tools, orgs, etc.) or use --sql for raw SQL
+
+###### **Options:**
+
+* `--select <SELECT>` — Select specific fields (comma-separated)
+* `-w`, `--where <WHERE_CLAUSE>` — Filter results (can be repeated, AND combined) Simple: --where organism=human Complex: --where "organism='human' AND downloads>1000"
+* `--order-by <ORDER_BY>` — Sort results by field[:asc|desc]
+* `-l`, `--limit <LIMIT>` — Limit number of results (default: 1000)
+
+  Default value: `1000`
+* `--offset <OFFSET>` — Skip first N results
+* `--group-by <GROUP_BY>` — Group results by field
+* `--aggregate <AGGREGATE>` — Aggregation expression (COUNT(*), SUM(field), etc.)
+* `--having <HAVING>` — Filter grouped results
+* `--join <JOIN>` — Join with another entity/table
+* `--on <ON>` — Join condition
+* `--sql <SQL>` — Execute raw SQL query directly
+* `-f`, `--format <FORMAT>` — Output format
+* `-o`, `--output <OUTPUT>` — Write output to file instead of stdout
+* `--no-header` — Omit header row (for CSV/TSV)
+* `--explain` — Show query execution plan
+* `--dry-run` — Show generated SQL without executing
 
 
 
