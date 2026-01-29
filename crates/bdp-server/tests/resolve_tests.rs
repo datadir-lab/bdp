@@ -3,8 +3,8 @@
 //! These tests verify the dependency resolution endpoint works correctly
 //! with various manifest configurations.
 
-use bdp_server::features::resolve::{ResolveManifestQuery, ResolveManifestResponse};
 use bdp_server::db::{create_pool, DbConfig};
+use bdp_server::features::resolve::{ResolveManifestQuery, ResolveManifestResponse};
 
 /// Helper to create test database pool
 async fn create_test_pool() -> sqlx::PgPool {

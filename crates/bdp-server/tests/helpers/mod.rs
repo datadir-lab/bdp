@@ -426,7 +426,8 @@ pub async fn setup_test_app(pool: PgPool) -> axum::Router {
     // Create minimal storage config for testing
     // Note: These tests use the new features-based router with CQRS pattern
     let storage_config = StorageConfig {
-        endpoint: std::env::var("S3_ENDPOINT").unwrap_or_else(|_| "http://localhost:9000".to_string()),
+        endpoint: std::env::var("S3_ENDPOINT")
+            .unwrap_or_else(|_| "http://localhost:9000".to_string()),
         region: std::env::var("S3_REGION").unwrap_or_else(|_| "us-east-1".to_string()),
         bucket: std::env::var("S3_BUCKET").unwrap_or_else(|_| "test-bucket".to_string()),
         access_key: std::env::var("S3_ACCESS_KEY").unwrap_or_else(|_| "minioadmin".to_string()),
@@ -434,12 +435,11 @@ pub async fn setup_test_app(pool: PgPool) -> axum::Router {
         path_style: true,
     };
 
-    let storage = Storage::new(storage_config).await.expect("Failed to create test storage");
+    let storage = Storage::new(storage_config)
+        .await
+        .expect("Failed to create test storage");
 
-    let state = FeatureState {
-        db: pool,
-        storage,
-    };
+    let state = FeatureState { db: pool, storage };
 
     let api_v1 = features::router(state);
 

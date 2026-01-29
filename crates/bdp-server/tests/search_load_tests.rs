@@ -7,9 +7,7 @@
 use bdp_server::{
     db::{create_pool, DbConfig},
     features::{
-        search::queries::{
-            RefreshSearchIndexCommand, SearchSuggestionsQuery, UnifiedSearchQuery,
-        },
+        search::queries::{RefreshSearchIndexCommand, SearchSuggestionsQuery, UnifiedSearchQuery},
         shared::pagination::PaginationParams,
     },
 };
