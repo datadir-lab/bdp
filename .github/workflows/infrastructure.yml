@@ -130,7 +130,7 @@ jobs:
           OS_PROJECT_ID: ${{ secrets.OVH_PROJECT_ID }}
           OS_USERNAME: ${{ secrets.OPENSTACK_USER_NAME }}
           OS_PASSWORD: ${{ secrets.OPENSTACK_PASSWORD }}
-          OS_REGION_NAME: "GRA"
+          OS_REGION_NAME: "DE1"
           OS_USER_DOMAIN_NAME: "Default"
           OS_PROJECT_DOMAIN_NAME: "Default"
         run: terraform init
@@ -145,7 +145,7 @@ jobs:
           OS_PROJECT_ID: ${{ secrets.OVH_PROJECT_ID }}
           OS_USERNAME: ${{ secrets.OPENSTACK_USER_NAME }}
           OS_PASSWORD: ${{ secrets.OPENSTACK_PASSWORD }}
-          OS_REGION_NAME: "GRA"
+          OS_REGION_NAME: "DE1"
           OS_USER_DOMAIN_NAME: "Default"
           OS_PROJECT_DOMAIN_NAME: "Default"
         run: terraform validate
@@ -161,7 +161,7 @@ jobs:
           OS_PROJECT_ID: ${{ secrets.OVH_PROJECT_ID }}
           OS_USERNAME: ${{ secrets.OPENSTACK_USER_NAME }}
           OS_PASSWORD: ${{ secrets.OPENSTACK_PASSWORD }}
-          OS_REGION_NAME: "GRA"
+          OS_REGION_NAME: "DE1"
           OS_USER_DOMAIN_NAME: "Default"
           OS_PROJECT_DOMAIN_NAME: "Default"
         run: |
@@ -257,7 +257,7 @@ jobs:
           OS_PROJECT_ID: ${{ secrets.OVH_PROJECT_ID }}
           OS_USERNAME: ${{ secrets.OPENSTACK_USER_NAME }}
           OS_PASSWORD: ${{ secrets.OPENSTACK_PASSWORD }}
-          OS_REGION_NAME: "GRA"
+          OS_REGION_NAME: "DE1"
           OS_USER_DOMAIN_NAME: "Default"
           OS_PROJECT_DOMAIN_NAME: "Default"
         run: terraform init
@@ -272,7 +272,7 @@ jobs:
           OS_PROJECT_ID: ${{ secrets.OVH_PROJECT_ID }}
           OS_USERNAME: ${{ secrets.OPENSTACK_USER_NAME }}
           OS_PASSWORD: ${{ secrets.OPENSTACK_PASSWORD }}
-          OS_REGION_NAME: "GRA"
+          OS_REGION_NAME: "DE1"
           OS_USER_DOMAIN_NAME: "Default"
           OS_PROJECT_DOMAIN_NAME: "Default"
         run: terraform apply -auto-approve
@@ -288,7 +288,7 @@ jobs:
           OS_PROJECT_ID: ${{ secrets.OVH_PROJECT_ID }}
           OS_USERNAME: ${{ secrets.OPENSTACK_USER_NAME }}
           OS_PASSWORD: ${{ secrets.OPENSTACK_PASSWORD }}
-          OS_REGION_NAME: "GRA"
+          OS_REGION_NAME: "DE1"
           OS_USER_DOMAIN_NAME: "Default"
           OS_PROJECT_DOMAIN_NAME: "Default"
         run: |

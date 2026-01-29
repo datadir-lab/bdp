@@ -54,9 +54,9 @@ variable "openstack_password" {
 # =============================================================================
 
 variable "region" {
-  description = "OVH region (GRA, SBG, DE1, UK1, WAW1, BHS) - from openrc.sh"
+  description = "OVH region (GRA, SBG, DE1, UK1, WAW1, BHS) - OpenStack region"
   type        = string
-  default     = "GRA" # Gravelines, France - good for EU
+  default     = "DE1" # Frankfurt, Germany - good for EU
 }
 
 # =============================================================================
@@ -128,7 +128,7 @@ variable "storage_bucket_name" {
 variable "storage_region" {
   description = "Object storage region"
   type        = string
-  default     = "gra" # Gravelines
+  default     = "de" # Frankfurt/Germany
 }
 
 # =============================================================================
