@@ -7,7 +7,7 @@
 // 4. Version-specific references
 // 5. Performance optimizations
 
-use bdp_server::db::create_pool;
+use bdp_server::db::{create_pool, DbConfig};
 use bdp_server::ingest::interpro::{
     helpers::{
         GoTermLookupHelper, InterProEntryLookupHelper, ProteinLookupHelper, SignatureLookupHelper,
@@ -29,7 +29,16 @@ async fn get_test_pool() -> PgPool {
     let database_url = env::var("DATABASE_URL")
         .unwrap_or_else(|_| "postgresql://bdp:bdp_dev_password@localhost:5432/bdp".to_string());
 
-    create_pool(&database_url, 5)
+    let config = DbConfig {
+        url: database_url,
+        max_connections: 5,
+        min_connections: 1,
+        connect_timeout_secs: 30,
+        idle_timeout_secs: Some(600),
+        max_lifetime_secs: Some(1800),
+    };
+
+    create_pool(&config)
         .await
         .expect("Failed to create test pool")
 }
@@ -63,7 +72,7 @@ async fn test_store_interpro_entry() {
     let pool = get_test_pool().await;
     let entry = create_test_entry();
 
-    let result = store_interpro_entry(&pool, &entry).await;
+    let result = store_interpro_entry(&pool, &entry, "96.0").await;
 
     assert!(result.is_ok(), "Failed to store InterPro entry: {:?}", result.err());
 
@@ -118,7 +127,7 @@ async fn test_store_interpro_entries_batch() {
         },
     ];
 
-    let result = store_interpro_entries_batch(&pool, &entries).await;
+    let result = store_interpro_entries_batch(&pool, &entries, "96.0").await;
 
     assert!(result.is_ok(), "Failed to store batch: {:?}", result.err());
 
@@ -225,7 +234,7 @@ async fn test_link_signatures_to_entry() {
 
     // Create entry and signature
     let entry = create_test_entry();
-    let (interpro_ds_id, _) = store_interpro_entry(&pool, &entry).await.unwrap();
+    let (interpro_ds_id, _) = store_interpro_entry(&pool, &entry, "96.0").await.unwrap();
 
     let signature = create_test_signature();
     let sig_id = store_signature(&pool, &signature).await.unwrap();
@@ -270,7 +279,7 @@ async fn test_store_external_references() {
     let pool = get_test_pool().await;
 
     let entry = create_test_entry();
-    let (interpro_ds_id, _) = store_interpro_entry(&pool, &entry).await.unwrap();
+    let (interpro_ds_id, _) = store_interpro_entry(&pool, &entry, "96.0").await.unwrap();
 
     let references = vec![
         ExternalReferenceData {
@@ -352,7 +361,7 @@ async fn test_store_complete_metadata() {
     };
 
     let mut go_helper = GoTermLookupHelper::new();
-    let result = store_interpro_metadata(&pool, &metadata, &mut go_helper).await;
+    let result = store_interpro_metadata(&pool, &metadata, "96.0", &mut go_helper).await;
 
     assert!(result.is_ok(), "Failed to store complete metadata: {:?}", result.err());
 
@@ -501,7 +510,7 @@ async fn test_batch_performance() {
     }
 
     let start = std::time::Instant::now();
-    let result = store_interpro_entries_batch(&pool, &entries).await;
+    let result = store_interpro_entries_batch(&pool, &entries, "96.0").await;
     let duration = start.elapsed();
 
     assert!(result.is_ok(), "Batch storage failed");
