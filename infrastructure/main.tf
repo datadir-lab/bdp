@@ -25,11 +25,8 @@ provider "ovh" {
 }
 
 # OpenStack Provider - for compute instances and networking
+# Uses environment variables for authentication (OS_AUTH_URL, OS_USERNAME, etc.)
+# Set via GitHub Actions or source openrc.sh locally
 provider "openstack" {
-  auth_url    = "https://auth.cloud.ovh.net/v3/"
-  domain_name = "Default"
-  user_name   = var.openstack_user_name
-  password    = var.openstack_password
-  tenant_id   = var.ovh_project_id
-  region      = var.region
+  region = var.region
 }
