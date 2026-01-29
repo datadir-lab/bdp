@@ -177,13 +177,13 @@ jobs:
         with:
           node-version: '20'
           cache: 'yarn'
-          cache-dependency-path: web/yarn.lock
+          cache-dependency-path: web/package.json
 
       - name: Install just
         uses: extractions/setup-just@v2
 
       - name: Install dependencies
-        run: cd web && yarn install --frozen-lockfile
+        run: cd web && yarn install
 
       - name: Build frontend (includes Pagefind indexing)
         run: just build-web

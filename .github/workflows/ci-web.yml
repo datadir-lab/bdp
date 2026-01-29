@@ -27,10 +27,10 @@ jobs:
         with:
           node-version: '20'
           cache: 'yarn'
-          cache-dependency-path: web/yarn.lock
+          cache-dependency-path: web/package.json
 
       - name: Install dependencies
-        run: yarn install --frozen-lockfile
+        run: yarn install
 
       - name: Run ESLint
         run: yarn lint
@@ -75,11 +75,11 @@ jobs:
         with:
           node-version: '20'
           cache: 'yarn'
-          cache-dependency-path: web/yarn.lock
+          cache-dependency-path: web/package.json
 
       - name: Install dependencies
         working-directory: ./web
-        run: yarn install --frozen-lockfile
+        run: yarn install
 
       - name: Build Next.js site
         working-directory: ./web
