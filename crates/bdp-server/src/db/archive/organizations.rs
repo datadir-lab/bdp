@@ -1140,7 +1140,7 @@ pub async fn update_organization(
 /// }
 /// ```
 pub async fn delete_organization(pool: &PgPool, slug: &str) -> DbResult<()> {
-    let result = sqlx::query!(
+    let result: _ = sqlx::query!(
         r#"
         DELETE FROM organizations
         WHERE slug = $1
@@ -1307,7 +1307,7 @@ pub async fn get_organization_statistics(
     organization_id: Uuid,
 ) -> DbResult<OrganizationStatistics> {
     // Complex aggregation query joining multiple tables
-    let result = sqlx::query!(
+    let result: _ = sqlx::query!(
         r#"
         SELECT
             COUNT(DISTINCT re.id)::bigint as "total_entries!",

@@ -64,7 +64,7 @@ impl StorageOrchestrator {
         job_id: Uuid,
         limit: i64,
     ) -> Result<Vec<StagedRecord>> {
-        let records = sqlx::query_as!(
+        let records: Vec<_> = sqlx::query_as!(
             StagedRecordRow,
             r#"
             SELECT

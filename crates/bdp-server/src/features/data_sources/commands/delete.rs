@@ -33,7 +33,7 @@ pub async fn handle(
     pool: PgPool,
     command: DeleteDataSourceCommand,
 ) -> Result<DeleteDataSourceResponse, DeleteDataSourceError> {
-    let result = sqlx::query!(
+    let result: Option<_> = sqlx::query!(
         r#"
         DELETE FROM registry_entries
         WHERE id = $1 AND entry_type = 'data_source'

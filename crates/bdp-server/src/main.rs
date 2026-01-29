@@ -310,7 +310,7 @@ async fn get_or_create_uniprot_org(pool: &sqlx::PgPool) -> Result<uuid::Uuid> {
     const UNIPROT_SLUG: &str = "uniprot";
 
     // Check for existing UniProt organization by slug
-    let result = sqlx::query!(r#"SELECT id FROM organizations WHERE slug = $1"#, UNIPROT_SLUG)
+    let result: Option<_> = sqlx::query!(r#"SELECT id FROM organizations WHERE slug = $1"#, UNIPROT_SLUG)
         .fetch_optional(pool)
         .await?;
 
@@ -335,7 +335,7 @@ async fn get_or_create_uniprot_org(pool: &sqlx::PgPool) -> Result<uuid::Uuid> {
         .await?;
 
         // Fetch the ID in case another process created it concurrently
-        let record = sqlx::query!(r#"SELECT id FROM organizations WHERE slug = $1"#, UNIPROT_SLUG)
+        let record: _ = sqlx::query!(r#"SELECT id FROM organizations WHERE slug = $1"#, UNIPROT_SLUG)
             .fetch_one(pool)
             .await?;
 

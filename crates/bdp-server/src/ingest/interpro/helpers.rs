@@ -40,7 +40,7 @@ impl ProteinLookupHelper {
         debug!("Loading {} protein data sources", accessions.len());
 
         // Query to get data_source_id and latest version_id for each accession
-        let records = sqlx::query!(
+        let records: Vec<_> = sqlx::query!(
             r#"
             SELECT
                 pm.data_source_id,
@@ -132,7 +132,7 @@ impl GoTermLookupHelper {
         debug!("Loading {} GO term data sources", go_ids.len());
 
         // Query to get data_source_id and latest version_id for each GO ID
-        let records = sqlx::query!(
+        let records: Vec<_> = sqlx::query!(
             r#"
             SELECT
                 gtm.data_source_id,
@@ -225,7 +225,7 @@ impl InterProEntryLookupHelper {
 
         debug!("Loading {} InterPro entry data sources", interpro_ids.len());
 
-        let records = sqlx::query!(
+        let records: Vec<_> = sqlx::query!(
             r#"
             SELECT data_source_id, interpro_id
             FROM interpro_entry_metadata
@@ -306,7 +306,7 @@ impl SignatureLookupHelper {
         let databases: Vec<String> = signatures.iter().map(|(db, _)| db.clone()).collect();
         let accessions: Vec<String> = signatures.iter().map(|(_, acc)| acc.clone()).collect();
 
-        let records = sqlx::query!(
+        let records: Vec<_> = sqlx::query!(
             r#"
             SELECT id, database, accession
             FROM protein_signatures

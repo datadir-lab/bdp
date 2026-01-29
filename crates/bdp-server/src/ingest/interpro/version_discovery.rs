@@ -328,7 +328,7 @@ impl VersionDiscovery {
     ///
     /// Returns external version identifiers (e.g., ["96.0", "97.0"])
     pub async fn get_ingested_versions(&self, pool: &PgPool) -> Result<Vec<String>> {
-        let records = sqlx::query!(
+        let records: Vec<_> = sqlx::query!(
             r#"
             SELECT DISTINCT external_version
             FROM versions v
@@ -355,7 +355,7 @@ impl VersionDiscovery {
         pool: &PgPool,
         organization_id: Uuid,
     ) -> Result<Option<String>> {
-        let result = sqlx::query!(
+        let result: Option<_> = sqlx::query!(
             r#"
             SELECT last_external_version
             FROM organization_sync_status
@@ -403,7 +403,7 @@ impl VersionDiscovery {
         pool: &PgPool,
         external_version: &str,
     ) -> Result<bool> {
-        let result = sqlx::query!(
+        let result: _ = sqlx::query!(
             r#"
             SELECT EXISTS(
                 SELECT 1 FROM versions v
@@ -424,7 +424,7 @@ impl VersionDiscovery {
 
     /// Get InterPro organization ID
     pub async fn get_organization_id(&self, pool: &PgPool) -> Result<Uuid> {
-        let result = sqlx::query!(
+        let result: _ = sqlx::query!(
             r#"
             SELECT id
             FROM organizations

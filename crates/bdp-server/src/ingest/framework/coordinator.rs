@@ -231,7 +231,7 @@ impl IngestionCoordinator {
 
     /// Get job progress statistics
     pub async fn get_job_progress(&self, job_id: Uuid) -> Result<JobProgress> {
-        let job = sqlx::query!(
+        let job: _ = sqlx::query!(
             r#"
             SELECT status, total_records, records_processed, records_stored,
                    records_failed, records_skipped
@@ -244,7 +244,7 @@ impl IngestionCoordinator {
         .await
         .context("Failed to fetch job progress")?;
 
-        let work_units = sqlx::query!(
+        let work_units: Vec<_> = sqlx::query!(
             r#"
             SELECT status, COUNT(*) as count
             FROM ingestion_work_units
@@ -292,7 +292,7 @@ impl IngestionCoordinator {
 
     /// Check if all work units are complete
     pub async fn check_parsing_complete(&self, job_id: Uuid) -> Result<bool> {
-        let result = sqlx::query!(
+        let result: _ = sqlx::query!(
             r#"
             SELECT COUNT(*) as incomplete
             FROM ingestion_work_units

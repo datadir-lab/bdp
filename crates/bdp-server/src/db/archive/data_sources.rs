@@ -660,7 +660,7 @@ pub async fn update_data_source(
 /// data_sources::delete_data_source(&pool, ds_id).await?;
 /// ```
 pub async fn delete_data_source(pool: &PgPool, id: Uuid) -> DbResult<()> {
-    let result = sqlx::query!(
+    let result: _ = sqlx::query!(
         r#"
         DELETE FROM registry_entries
         WHERE id = $1 AND entry_type = 'data_source'

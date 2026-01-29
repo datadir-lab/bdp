@@ -233,7 +233,7 @@ async fn resolve_source(
     pool: &PgPool,
     spec: &SourceSpec,
 ) -> Result<ResolvedSource, ResolveManifestError> {
-    let entry = sqlx::query!(
+    let entry: _ = sqlx::query!(
         r#"
         SELECT re.id, re.slug
         FROM registry_entries re
@@ -249,7 +249,7 @@ async fn resolve_source(
         ResolveManifestError::SourceNotFound(format!("{}:{}", spec.organization, spec.name))
     })?;
 
-    let version = sqlx::query!(
+    let version: _ = sqlx::query!(
         r#"
         SELECT id, version, external_version, dependency_count
         FROM versions
@@ -267,7 +267,7 @@ async fn resolve_source(
         ))
     })?;
 
-    let file = sqlx::query!(
+    let file: Option<_> = sqlx::query!(
         r#"
         SELECT checksum, size_bytes
         FROM version_files
@@ -309,7 +309,7 @@ async fn fetch_dependencies(
     pool: &PgPool,
     version_id: Uuid,
 ) -> Result<Vec<DependencyInfo>, ResolveManifestError> {
-    let deps = sqlx::query!(
+    let deps: Vec<_> = sqlx::query!(
         r#"
         SELECT
             o.slug as org_slug,
@@ -347,7 +347,7 @@ async fn resolve_tool(
     pool: &PgPool,
     spec: &ToolSpec,
 ) -> Result<ResolvedTool, ResolveManifestError> {
-    let entry = sqlx::query!(
+    let entry: _ = sqlx::query!(
         r#"
         SELECT re.id
         FROM registry_entries re
@@ -363,7 +363,7 @@ async fn resolve_tool(
         ResolveManifestError::ToolNotFound(format!("{}:{}", spec.organization, spec.name))
     })?;
 
-    let version = sqlx::query!(
+    let version: _ = sqlx::query!(
         r#"
         SELECT id, external_version, size_bytes
         FROM versions
@@ -381,7 +381,7 @@ async fn resolve_tool(
         ))
     })?;
 
-    let file = sqlx::query!(
+    let file: Option<_> = sqlx::query!(
         r#"
         SELECT checksum
         FROM version_files

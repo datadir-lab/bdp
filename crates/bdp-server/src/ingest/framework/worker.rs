@@ -40,7 +40,7 @@ impl IngestionWorker {
 
     /// Claim a pending work unit atomically
     pub async fn claim_work_unit(&self, job_id: Uuid) -> Result<Option<ClaimedWorkUnit>> {
-        let row = sqlx::query!(
+        let row: Option<_> = sqlx::query!(
             r#"
             SELECT id as "id!", batch_number as "batch_number!", start_offset as "start_offset!", end_offset as "end_offset!", record_count
             FROM claim_work_unit($1, $2, $3)
@@ -297,7 +297,7 @@ impl IngestionWorker {
 
     /// Mark work unit as failed
     pub async fn fail_work_unit(&self, work_unit_id: Uuid, error_message: &str) -> Result<()> {
-        let result = sqlx::query!(
+        let result: _ = sqlx::query!(
             r#"
             UPDATE ingestion_work_units
             SET status = CASE

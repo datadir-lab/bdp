@@ -583,7 +583,7 @@ impl UniProtPipeline {
 
     /// Get ingestion statistics from a completed job
     async fn get_job_stats(&self, job_id: Uuid) -> Result<IngestStats> {
-        let job = sqlx::query!(
+        let job: _ = sqlx::query!(
             r#"
             SELECT
                 records_processed,
@@ -1367,7 +1367,7 @@ impl UniProtPipeline {
         );
 
         // Query all protein metadata for this version to get organism groupings
-        let proteins = sqlx::query!(
+        let proteins: Vec<_> = sqlx::query!(
             r#"
             SELECT
                 pm.accession,

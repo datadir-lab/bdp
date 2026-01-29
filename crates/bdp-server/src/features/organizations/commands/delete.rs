@@ -99,7 +99,7 @@ pub async fn handle(
 ) -> Result<DeleteOrganizationResponse, DeleteOrganizationError> {
     command.validate()?;
 
-    let result = sqlx::query!(
+    let result: Option<_> = sqlx::query!(
         r#"
         DELETE FROM organizations
         WHERE slug = $1

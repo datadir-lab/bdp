@@ -622,7 +622,7 @@ pub async fn store_interpro_metadata(
 
 /// Get latest version ID for a data source
 async fn get_latest_version(pool: &PgPool, data_source_id: Uuid) -> Result<Uuid, Error> {
-    let record = sqlx::query!(
+    let record: _ = sqlx::query!(
         r#"
         SELECT id, version_major, version_minor
         FROM versions

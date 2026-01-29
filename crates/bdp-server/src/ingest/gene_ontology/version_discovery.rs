@@ -216,7 +216,7 @@ impl VersionDiscovery {
         pool: &PgPool,
         entry_id: Uuid,
     ) -> Result<Vec<String>> {
-        let records = sqlx::query!(
+        let records: Vec<_> = sqlx::query!(
             r#"
             SELECT external_version
             FROM versions
@@ -241,7 +241,7 @@ impl VersionDiscovery {
         pool: &PgPool,
         entry_id: Uuid,
     ) -> Result<Option<String>> {
-        let result = sqlx::query!(
+        let result: Option<_> = sqlx::query!(
             r#"
             SELECT external_version
             FROM versions
@@ -265,7 +265,7 @@ impl VersionDiscovery {
         entry_id: Uuid,
         external_version: &str,
     ) -> Result<bool> {
-        let result = sqlx::query!(
+        let result: _ = sqlx::query!(
             r#"
             SELECT EXISTS(
                 SELECT 1 FROM versions

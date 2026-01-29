@@ -36,7 +36,7 @@ pub async fn get_protein_metadata(
         .map_err(|e| (StatusCode::NOT_FOUND, format!("Data source not found: {}", e)))?;
 
     // Fetch protein comments
-    let comments = sqlx::query!(
+    let comments: Vec<_> = sqlx::query!(
         r#"
         SELECT topic, text
         FROM protein_comments
@@ -61,7 +61,7 @@ pub async fn get_protein_metadata(
     .collect::<Vec<_>>();
 
     // Fetch protein features (limit to reasonable number)
-    let features = sqlx::query!(
+    let features: Vec<_> = sqlx::query!(
         r#"
         SELECT feature_type, description, start_pos, end_pos
         FROM protein_features
@@ -88,7 +88,7 @@ pub async fn get_protein_metadata(
     .collect::<Vec<_>>();
 
     // Fetch protein cross references
-    let cross_refs = sqlx::query!(
+    let cross_refs: Vec<_> = sqlx::query!(
         r#"
         SELECT database, database_id, metadata
         FROM protein_cross_references
@@ -114,7 +114,7 @@ pub async fn get_protein_metadata(
     .collect::<Vec<_>>();
 
     // Fetch protein publications
-    let publications = sqlx::query!(
+    let publications: Vec<_> = sqlx::query!(
         r#"
         SELECT reference_number, position,
                comments as "comments!: Vec<String>",
@@ -164,7 +164,7 @@ pub async fn get_protein_metadata(
 }
 
 async fn get_data_source_id(pool: &PgPool, org: &str, slug: &str) -> Result<Uuid, sqlx::Error> {
-    let result = sqlx::query!(
+    let result: _ = sqlx::query!(
         r#"
         SELECT ds.id
         FROM data_sources ds

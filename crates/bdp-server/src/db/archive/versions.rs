@@ -534,7 +534,7 @@ pub async fn update_version(
 /// * `pool` - Database connection pool
 /// * `id` - UUID of the version
 pub async fn delete_version(pool: &PgPool, id: Uuid) -> DbResult<()> {
-    let result = sqlx::query!(
+    let result: _ = sqlx::query!(
         r#"
         DELETE FROM versions
         WHERE id = $1
@@ -726,7 +726,7 @@ pub async fn create_version_file(
 /// * `version_id` - UUID of the version
 /// * `format` - File format to delete
 pub async fn delete_version_file(pool: &PgPool, version_id: Uuid, format: &str) -> DbResult<()> {
-    let result = sqlx::query!(
+    let result: _ = sqlx::query!(
         r#"
         DELETE FROM version_files
         WHERE version_id = $1 AND format = $2
@@ -817,7 +817,7 @@ pub async fn get_dependencies(
 /// println!("Total dependencies: {}, Pages: {}", total, pages);
 /// ```
 pub async fn count_dependencies(pool: &PgPool, version_id: Uuid) -> DbResult<i64> {
-    let result = sqlx::query!(
+    let result: _ = sqlx::query!(
         r#"
         SELECT COUNT(*) as "count!"
         FROM dependencies
@@ -942,7 +942,7 @@ pub async fn delete_dependency(
     version_id: Uuid,
     depends_on_entry_id: Uuid,
 ) -> DbResult<()> {
-    let result = sqlx::query!(
+    let result: _ = sqlx::query!(
         r#"
         DELETE FROM dependencies
         WHERE version_id = $1 AND depends_on_entry_id = $2
@@ -976,7 +976,7 @@ pub async fn delete_dependency(
 /// * `pool` - Database connection pool
 /// * `version_id` - UUID of the version
 pub async fn delete_all_dependencies(pool: &PgPool, version_id: Uuid) -> DbResult<u64> {
-    let result = sqlx::query!(
+    let result: _ = sqlx::query!(
         r#"
         DELETE FROM dependencies
         WHERE version_id = $1

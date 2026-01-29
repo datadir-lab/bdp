@@ -143,7 +143,7 @@ impl IngestOrchestrator {
 
         for version in versions {
             // Check if this version exists in ingestion_jobs
-            let exists = sqlx::query!(
+            let exists: _ = sqlx::query!(
                 r#"
                 SELECT EXISTS(
                     SELECT 1 FROM ingestion_jobs

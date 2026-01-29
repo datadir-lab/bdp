@@ -266,7 +266,7 @@ impl VersionDiscovery {
         pool: &PgPool,
         organization_id: Uuid,
     ) -> Result<Option<String>> {
-        let result = sqlx::query!(
+        let result: Option<_> = sqlx::query!(
             r#"
             SELECT last_external_version
             FROM organization_sync_status
@@ -286,7 +286,7 @@ impl VersionDiscovery {
         pool: &PgPool,
         external_version: &str,
     ) -> Result<bool> {
-        let result = sqlx::query!(
+        let result: _ = sqlx::query!(
             r#"
             SELECT EXISTS(
                 SELECT 1 FROM versions
@@ -307,7 +307,7 @@ impl VersionDiscovery {
         pool: &PgPool,
         external_version: &str,
     ) -> Result<bool> {
-        let result = sqlx::query!(
+        let result: _ = sqlx::query!(
             r#"
             SELECT EXISTS(
                 SELECT 1 FROM ingestion_jobs
