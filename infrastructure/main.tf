@@ -25,8 +25,15 @@ provider "ovh" {
 }
 
 # OpenStack Provider - for compute instances and networking
-# Uses environment variables for authentication (OS_AUTH_URL, OS_USERNAME, etc.)
-# Set via GitHub Actions or source openrc.sh locally
+# Uses environment variables (OS_*) for authentication
+# Explicitly configured for OVH Cloud
 provider "openstack" {
-  region = var.region
+  auth_url           = "https://auth.cloud.ovh.net/v3"
+  region             = var.region
+  user_domain_name   = "Default"
+  project_domain_name = "Default"
+  # tenant_id, user_name, password come from variables (set in terraform.tfvars)
+  tenant_id          = var.ovh_project_id
+  user_name          = var.openstack_user_name
+  password           = var.openstack_password
 }
