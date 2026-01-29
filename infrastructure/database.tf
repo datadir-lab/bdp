@@ -15,15 +15,20 @@ resource "ovh_cloud_project_database" "postgresql" {
     region = var.region
   }
 
+  # IP restrictions (inline, not separate resource)
+  ip_restriction {
+    ip          = "${openstack_compute_instance_v2.bdp_server.access_ip_v4}/32"
+    description = "Allow BDP server"
+  }
+
   # Note: Essential plan = 1 node, no HA
   # Upgrade to "business" plan for 2 nodes with HA
 }
 
-# Database user
-resource "ovh_cloud_project_database_user" "bdp_user" {
+# PostgreSQL-specific user resource
+resource "ovh_cloud_project_database_postgresql_user" "bdp_user" {
   service_name = var.ovh_project_id
   cluster_id   = ovh_cloud_project_database.postgresql.id
-  engine       = "postgresql"
   name         = var.db_user
 }
 
@@ -33,15 +38,6 @@ resource "ovh_cloud_project_database_database" "bdp_db" {
   cluster_id   = ovh_cloud_project_database.postgresql.id
   engine       = "postgresql"
   name         = var.db_name
-}
-
-# IP Restriction - Allow access from our instance
-# Note: For MVP, we allow all IPs. In production, restrict to instance IP only.
-resource "ovh_cloud_project_database_ip_restriction" "allow_instance" {
-  service_name = var.ovh_project_id
-  cluster_id   = ovh_cloud_project_database.postgresql.id
-  engine       = "postgresql"
-  ip           = "${openstack_compute_instance_v2.bdp_server.access_ip_v4}/32"
 }
 
 # Allow your local IP for development (optional)

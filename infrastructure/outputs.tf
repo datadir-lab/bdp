@@ -38,7 +38,7 @@ output "database_uri" {
 
 output "database_password" {
   description = "PostgreSQL user password"
-  value       = ovh_cloud_project_database_user.bdp_user.password
+  value       = ovh_cloud_project_database_postgresql_user.bdp_user.password
   sensitive   = true
 }
 
@@ -84,7 +84,7 @@ output "env_file_content" {
     RUST_LOG=info,bdp_server=info,sqlx=warn
 
     # Database Configuration
-    DATABASE_URL=postgresql://${var.db_user}:${ovh_cloud_project_database_user.bdp_user.password}@${ovh_cloud_project_database.postgresql.endpoints[0].domain}:${ovh_cloud_project_database.postgresql.endpoints[0].port}/${var.db_name}?sslmode=require
+    DATABASE_URL=postgresql://${var.db_user}:${ovh_cloud_project_database_postgresql_user.bdp_user.password}@${ovh_cloud_project_database.postgresql.endpoints[0].domain}:${ovh_cloud_project_database.postgresql.endpoints[0].port}/${var.db_name}?sslmode=require
     DATABASE_MAX_CONNECTIONS=10
 
     # S3 Storage Configuration
