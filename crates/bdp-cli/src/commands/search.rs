@@ -50,7 +50,7 @@ pub async fn run(
     );
 
     // Validate pagination parameters
-    if limit < 1 || limit > 100 {
+    if !(1..=100).contains(&limit) {
         return Err(CliError::config("Limit must be between 1 and 100"));
     }
 
@@ -505,7 +505,7 @@ fn display_result_details(result: &crate::api::types::SearchResult) -> Result<()
 
     // Spec for copying
     let spec = format!("{}:{}@{}", result.organization, result.name, result.version);
-    println!("{}", format!("Spec: {}", spec.cyan()));
+    println!("Spec: {}", spec.cyan());
     println!();
 
     Ok(())
@@ -641,11 +641,11 @@ fn copy_to_clipboard(text: &str) -> Result<()> {
     use arboard::Clipboard;
 
     let mut clipboard = Clipboard::new()
-        .map_err(|e| CliError::config(&format!("Failed to access clipboard: {}", e)))?;
+        .map_err(|e| CliError::config(format!("Failed to access clipboard: {}", e)))?;
 
     clipboard
         .set_text(text)
-        .map_err(|e| CliError::config(&format!("Failed to copy to clipboard: {}", e)))?;
+        .map_err(|e| CliError::config(format!("Failed to copy to clipboard: {}", e)))?;
 
     Ok(())
 }

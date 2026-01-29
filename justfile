@@ -270,6 +270,7 @@ docker-build:
 test: db-test-up
     @echo "🧪 Running tests..."
     TEST_DATABASE_URL="postgresql://bdp:bdp_test_password@localhost:5433/bdp_test" \
+    DATABASE_URL="postgresql://bdp:bdp_test_password@localhost:5433/bdp_test" \
     cargo test --workspace --all-features
     @echo "✓ Tests complete"
 
@@ -277,12 +278,14 @@ test: db-test-up
 test-verbose: db-test-up
     @echo "🧪 Running tests (verbose)..."
     TEST_DATABASE_URL="postgresql://bdp:bdp_test_password@localhost:5433/bdp_test" \
+    DATABASE_URL="postgresql://bdp:bdp_test_password@localhost:5433/bdp_test" \
     cargo test --workspace --all-features -- --nocapture
 
 # Run integration tests only
 test-integration: db-test-up
     @echo "🧪 Running integration tests..."
     TEST_DATABASE_URL="postgresql://bdp:bdp_test_password@localhost:5433/bdp_test" \
+    DATABASE_URL="postgresql://bdp:bdp_test_password@localhost:5433/bdp_test" \
     cargo test --test '*' --all-features
 
 # Run unit tests only

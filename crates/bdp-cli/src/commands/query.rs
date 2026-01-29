@@ -132,7 +132,7 @@ fn validate_sql(sql: &str) -> Result<()> {
 
             Ok(())
         },
-        Err(e) => Err(CliError::config(&format!("Invalid SQL syntax: {}\n\nSQL:\n{}", e, sql))),
+        Err(e) => Err(CliError::config(format!("Invalid SQL syntax: {}\n\nSQL:\n{}", e, sql))),
     }
 }
 
@@ -265,7 +265,7 @@ fn resolve_entity_alias(entity: &str) -> Result<(String, Vec<String>)> {
         "publication_refs" => Ok(("publication_refs".to_string(), vec![])),
 
         // Unknown entity
-        _ => Err(CliError::config(&format!(
+        _ => Err(CliError::config(format!(
             "Unknown entity: '{}'\n\nAvailable entities:\n  {}",
             entity,
             "protein, gene, genome, transcriptome, proteome, tools, orgs,\n  protein_metadata, gene_metadata, organism_taxonomy, publication_refs"
@@ -305,7 +305,7 @@ fn parse_order_by(order_by: &str) -> Result<(String, String)> {
             "asc" => "ASC",
             "desc" => "DESC",
             _ => {
-                return Err(CliError::config(&format!(
+                return Err(CliError::config(format!(
                     "Invalid order direction: '{}'. Use 'asc' or 'desc'",
                     dir
                 )))
@@ -353,7 +353,7 @@ fn output_results(
         "tsv" => format_as_tsv(results, no_header),
         "compact" => format_as_compact(results),
         _ => {
-            return Err(CliError::config(&format!(
+            return Err(CliError::config(format!(
                 "Unknown format: '{}'. Use table, json, csv, tsv, or compact",
                 format
             )))
@@ -382,7 +382,7 @@ fn format_as_table(results: &QueryResults) -> String {
         .set_header(&results.columns);
 
     for row in &results.rows {
-        let row_strings: Vec<String> = row.iter().map(|v| value_to_string(v)).collect();
+        let row_strings: Vec<String> = row.iter().map(value_to_string).collect();
         table.add_row(row_strings);
     }
 

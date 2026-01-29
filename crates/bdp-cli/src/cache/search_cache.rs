@@ -235,11 +235,12 @@ mod tests {
     use super::*;
     use tempfile::tempdir;
 
+    #[allow(clippy::unwrap_used, clippy::expect_used)]
     fn create_test_cache() -> (SearchCache, tempfile::TempDir) {
-        let dir = tempdir().unwrap();
+        let dir = tempdir().expect("Failed to create temp dir");
         let db_path = dir.path().join("test_cache.db");
-        let cache = SearchCache::new(db_path.clone()).unwrap();
-        cache.init().unwrap();
+        let cache = SearchCache::new(db_path.clone()).expect("Failed to create cache");
+        cache.init().expect("Failed to init cache");
         (cache, dir)
     }
 

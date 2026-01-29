@@ -1,6 +1,6 @@
 // GenBank parser tests
 
-use bdp_server::ingest::genbank::models::{GenbankRecord, SourceDatabase};
+use bdp_server::ingest::genbank::models::SourceDatabase;
 use bdp_server::ingest::genbank::parser::GenbankParser;
 use std::fs;
 

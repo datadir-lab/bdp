@@ -333,7 +333,10 @@ mod tests {
                 Some("1.0.0"),
             )
             .await;
-            assert!(result.is_ok(), "Export failed for format: {}", format);
+            if let Err(e) = &result {
+                eprintln!("Export error for format {}: {:?}", format, e);
+            }
+            assert!(result.is_ok(), "Export failed for format: {} - {:?}", format, result.err());
             assert!(output_path.exists(), "Output file not created for format: {}", format);
         }
     }

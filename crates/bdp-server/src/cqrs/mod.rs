@@ -154,7 +154,7 @@ pub fn build_mediator(pool: PgPool) -> AppMediator {
 mod tests {
     use super::*;
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     async fn test_mediator_builds() {
         let database_url =
             std::env::var("DATABASE_URL").unwrap_or_else(|_| "postgres://localhost".to_string());

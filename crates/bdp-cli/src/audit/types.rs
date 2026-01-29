@@ -180,7 +180,7 @@ mod tests {
 
         assert_eq!(event.event_type, EventType::InitStart);
         assert_eq!(event.machine_id, "machine-123");
-        assert_eq!(event.archived, false);
+        assert!(!event.archived);
     }
 
     #[test]
