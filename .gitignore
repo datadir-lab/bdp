@@ -6,7 +6,12 @@
 # ============================================================================
 # Compiled files and build artifacts
 target/
-Cargo.lock
+
+# Cargo.lock should be committed for applications (binaries)
+# This ensures reproducible builds and allows security updates to be tracked.
+# Only libraries should ignore Cargo.lock.
+# See: https://doc.rust-lang.org/cargo/faq.html#why-do-binaries-have-cargolock-in-version-control-but-not-libraries
+# Cargo.lock
 
 # Cargo cache (not typically in project root, but listed for completeness)
 .cargo/

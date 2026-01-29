@@ -1,0 +1,31 @@
+# Cargo audit configuration for BDP
+# See https://github.com/rustsec/rustsec/blob/main/cargo-audit/audit.toml.example
+
+[advisories]
+# Ignore advisories for specific IDs
+ignore = [
+    # No ignores currently - all dependencies should be secure
+]
+
+[database]
+# Path to the local advisory database git repo
+# Defaults to $CARGO_HOME/advisory-db
+# path = "/path/to/advisory-db"
+
+# URL to the advisory database's git repo
+url = "https://github.com/rustsec/advisory-db.git"
+
+# Fetch the advisory database from the URL
+fetch = true
+
+[output]
+# Do not show informational advisories
+deny = ["unmaintained", "unsound", "vulnerability"]
+warn = []
+
+[target]
+# Target architecture
+arch = "x86_64"
+
+# Target OS
+os = "linux"
