@@ -6,7 +6,7 @@
 # S3 credentials for the application
 resource "ovh_cloud_project_user" "s3_user" {
   service_name = var.ovh_project_id
-  description  = "BDP ${var.environment} S3 access"
+  description  = "bdp-s3-access"
   role_name    = "objectstore_operator"
 }
 

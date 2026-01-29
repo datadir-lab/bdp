@@ -54,9 +54,9 @@ variable "openstack_password" {
 # =============================================================================
 
 variable "region" {
-  description = "OVH region (GRA7, GRA9, GRA11, SBG5, DE1, UK1, WAW1, BHS5) - OpenStack region ID"
+  description = "OVH region (GRA, SBG, DE1, UK1, WAW1, BHS) - from openrc.sh"
   type        = string
-  default     = "GRA7" # Gravelines, France - good for EU
+  default     = "GRA" # Gravelines, France - good for EU
 }
 
 # =============================================================================
