@@ -60,11 +60,12 @@ verify:
 
 # Start development database
 db-up:
-    @Write-Host "🐘 Starting PostgreSQL..."
-    @docker compose up -d postgres
-    @Write-Host "⏳ Waiting for database..."
-    @Start-Sleep -Seconds 3
-    @Write-Host "✓ Database ready"
+    #!powershell.exe -NoLogo -Command
+    Write-Host "🐘 Starting PostgreSQL..."
+    docker compose up -d postgres
+    Write-Host "⏳ Waiting for database..."
+    Start-Sleep -Seconds 3
+    Write-Host "✓ Database ready"
 
 # Stop database
 db-down:
@@ -90,9 +91,10 @@ db-setup: db-up
 
 # Run database migrations
 db-migrate:
-    @Write-Host "🔄 Running migrations..."
-    @sqlx migrate run
-    @Write-Host "✓ Migrations complete"
+    #!powershell.exe -NoLogo -Command
+    Write-Host "🔄 Running migrations..."
+    sqlx migrate run
+    Write-Host "✓ Migrations complete"
 
 # Revert last migration
 db-migrate-revert:
@@ -159,13 +161,15 @@ sqlx-clean:
 
 # Start development (database + backend server)
 dev: db-up
-    @Write-Host "🚀 Starting backend server..."
-    @cargo run --bin bdp-server
+    #!powershell.exe -NoLogo -Command
+    Write-Host "🚀 Starting backend server..."
+    cargo run --bin bdp-server
 
 # Start frontend development server with hot reload (default)
 web:
-    @Write-Host "🌐 Starting frontend (dev mode)..."
-    @cd web; yarn dev
+    #!powershell.exe -NoLogo -Command
+    Write-Host "🌐 Starting frontend (dev mode)..."
+    cd web; yarn dev
 
 # Build frontend (without Pagefind, without starting server)
 web-build:
@@ -185,18 +189,19 @@ build-web: web-build
 
 # Build frontend with Pagefind indexing and start production server
 web-prod:
-    @Write-Host "📚 Generating CLI documentation..."
-    @cargo run --package xtask -- generate-cli-docs
-    @Write-Host "🌐 Building frontend..."
-    @cd web; $env:NEXT_PRIVATE_DISABLE_TURBO="1"; yarn build
-    @Write-Host "📦 Copying static files to standalone..."
-    @cd web; Copy-Item -Recurse -Force public .next/standalone/
-    @cd web; Copy-Item -Recurse -Force .next/static .next/standalone/.next/
-    @Write-Host "🔍 Indexing documentation with Pagefind..."
-    @cd web; yarn pagefind
-    @Write-Host "✓ Build complete with Pagefind index"
-    @Write-Host "🌐 Starting production server..."
-    @cd web; yarn start
+    #!powershell.exe -NoLogo -Command
+    Write-Host "📚 Generating CLI documentation..."
+    cargo run --package xtask -- generate-cli-docs
+    Write-Host "🌐 Building frontend..."
+    cd web; $env:NEXT_PRIVATE_DISABLE_TURBO="1"; yarn build
+    Write-Host "📦 Copying static files to standalone..."
+    cd web; Copy-Item -Recurse -Force public .next/standalone/
+    cd web; Copy-Item -Recurse -Force .next/static .next/standalone/.next/
+    Write-Host "🔍 Indexing documentation with Pagefind..."
+    cd web; yarn pagefind
+    Write-Host "✓ Build complete with Pagefind index"
+    Write-Host "🌐 Starting production server..."
+    cd web; yarn start
 
 # Start all services (backend + frontend + database) in dev mode
 dev-all: db-up
@@ -353,17 +358,19 @@ ci-offline:
 
 # Clean build artifacts
 clean:
-    @echo "🧹 Cleaning build artifacts..."
+    #!powershell.exe -NoLogo -Command
+    Write-Host "🧹 Cleaning build artifacts..."
     cargo clean
-    @cd web; Remove-Item -Recurse -Force .next, node_modules/.cache -ErrorAction SilentlyContinue
-    @echo "✓ Cleaned"
+    cd web; Remove-Item -Recurse -Force .next, node_modules/.cache -ErrorAction SilentlyContinue
+    Write-Host "✓ Cleaned"
 
 # Deep clean (including dependencies)
 clean-all: clean
-    @echo "🧹 Deep cleaning..."
-    @cd web; Remove-Item -Recurse -Force node_modules -ErrorAction SilentlyContinue
-    rm -rf target
-    @echo "✓ Deep cleaned"
+    #!powershell.exe -NoLogo -Command
+    Write-Host "🧹 Deep cleaning..."
+    cd web; Remove-Item -Recurse -Force node_modules -ErrorAction SilentlyContinue
+    Remove-Item -Recurse -Force target -ErrorAction SilentlyContinue
+    Write-Host "✓ Deep cleaned"
 
 # Stop all Docker services
 stop:
@@ -383,29 +390,32 @@ stop-all:
 
 # Start all services with Docker Compose (DB + Backend + MinIO)
 docker-up:
-    @Write-Host "🐳 Starting all services..."
-    @docker compose up -d
-    @Write-Host "⏳ Waiting for services to be ready..."
-    @Start-Sleep -Seconds 5
-    @Write-Host "✓ Services started"
-    @Write-Host "  🗄️  PostgreSQL:   localhost:5432"
-    @Write-Host "  🚀 Backend API:   http://localhost:8000"
-    @Write-Host "  📦 MinIO Console: http://localhost:9001 (minioadmin/minioadmin)"
-    @Write-Host ""
-    @Write-Host "💡 Run migrations: just docker-migrate"
-    @Write-Host "💡 Start frontend: just web (dev) or just web-prod (production)"
+    #!powershell.exe -NoLogo -Command
+    Write-Host "🐳 Starting all services..."
+    docker compose up -d
+    Write-Host "⏳ Waiting for services to be ready..."
+    Start-Sleep -Seconds 5
+    Write-Host "✓ Services started"
+    Write-Host "  🗄️  PostgreSQL:   localhost:5432"
+    Write-Host "  🚀 Backend API:   http://localhost:8000"
+    Write-Host "  📦 MinIO Console: http://localhost:9001 (minioadmin/minioadmin)"
+    Write-Host ""
+    Write-Host "💡 Run migrations: just docker-migrate"
+    Write-Host "💡 Start frontend: just web (dev) or just web-prod (production)"
 
 # Stop all Docker Compose services
 docker-down:
-    @Write-Host "🛑 Stopping all services..."
-    @docker compose down
-    @Write-Host "✓ Services stopped"
+    #!powershell.exe -NoLogo -Command
+    Write-Host "🛑 Stopping all services..."
+    docker compose down
+    Write-Host "✓ Services stopped"
 
 # Run migrations in Docker container
 docker-migrate:
-    @Write-Host "🔄 Running migrations in Docker..."
-    @docker compose exec bdp-server sqlx migrate run
-    @Write-Host "✓ Migrations complete"
+    #!powershell.exe -NoLogo -Command
+    Write-Host "🔄 Running migrations in Docker..."
+    docker compose exec bdp-server sqlx migrate run
+    Write-Host "✓ Migrations complete"
 
 # View logs from all services
 docker-logs:
@@ -423,13 +433,14 @@ docker-restart-backend:
 
 # Full stack with migrations (recommended for first time)
 docker-setup: docker-up
-    @Write-Host "⏳ Waiting for database to be ready..."
-    @Start-Sleep -Seconds 3
-    @just docker-migrate
-    @Write-Host ""
-    @Write-Host "✅ Full stack ready!"
-    @Write-Host "  🌐 Start frontend: just web"
-    @Write-Host "  🌐 Frontend URL:   http://localhost:3000"
+    #!powershell.exe -NoLogo -Command
+    Write-Host "⏳ Waiting for database to be ready..."
+    Start-Sleep -Seconds 3
+    just docker-migrate
+    Write-Host ""
+    Write-Host "✅ Full stack ready!"
+    Write-Host "  🌐 Start frontend: just web"
+    Write-Host "  🌐 Frontend URL:   http://localhost:3000"
 
 # ============================================================================
 # MinIO / S3
