@@ -4,8 +4,11 @@
 /// with the materialized view and various filters.
 use bdp_server::{
     db::{create_pool, DbConfig},
-    features::search::queries::{
-        RefreshSearchIndexCommand, SearchSuggestionsQuery, UnifiedSearchQuery,
+    features::{
+        search::queries::{
+            RefreshSearchIndexCommand, SearchSuggestionsQuery, UnifiedSearchQuery,
+        },
+        shared::pagination::PaginationParams,
     },
 };
 use sqlx::PgPool;
@@ -247,8 +250,7 @@ async fn test_search_basic_query(pool: PgPool) -> sqlx::Result<()> {
         source_type_filter: None,
         organism: None,
         format: None,
-        page: Some(1),
-        per_page: Some(20),
+        pagination: PaginationParams::new(Some(1), Some(20)),
     };
 
     let response = bdp_server::features::search::queries::unified_search::handle(pool, query)
@@ -280,8 +282,7 @@ async fn test_search_with_type_filter(pool: PgPool) -> sqlx::Result<()> {
         source_type_filter: None,
         organism: None,
         format: None,
-        page: Some(1),
-        per_page: Some(20),
+        pagination: PaginationParams::new(Some(1), Some(20)),
     };
 
     let response =
@@ -299,8 +300,7 @@ async fn test_search_with_type_filter(pool: PgPool) -> sqlx::Result<()> {
         source_type_filter: None,
         organism: None,
         format: None,
-        page: Some(1),
-        per_page: Some(20),
+        pagination: PaginationParams::new(Some(1), Some(20)),
     };
 
     let response = bdp_server::features::search::queries::unified_search::handle(pool, query)
@@ -326,8 +326,7 @@ async fn test_search_with_source_type_filter(pool: PgPool) -> sqlx::Result<()> {
         source_type_filter: Some(vec!["protein".to_string()]),
         organism: None,
         format: None,
-        page: Some(1),
-        per_page: Some(20),
+        pagination: PaginationParams::new(Some(1), Some(20)),
     };
 
     let response =
@@ -348,8 +347,7 @@ async fn test_search_with_source_type_filter(pool: PgPool) -> sqlx::Result<()> {
         source_type_filter: Some(vec!["genome".to_string()]),
         organism: None,
         format: None,
-        page: Some(1),
-        per_page: Some(20),
+        pagination: PaginationParams::new(Some(1), Some(20)),
     };
 
     let response = bdp_server::features::search::queries::unified_search::handle(pool, query)
@@ -374,8 +372,7 @@ async fn test_search_with_organism_filter(pool: PgPool) -> sqlx::Result<()> {
         source_type_filter: None,
         organism: Some("Homo sapiens".to_string()),
         format: None,
-        page: Some(1),
-        per_page: Some(20),
+        pagination: PaginationParams::new(Some(1), Some(20)),
     };
 
     let response =
@@ -397,8 +394,7 @@ async fn test_search_with_organism_filter(pool: PgPool) -> sqlx::Result<()> {
         source_type_filter: None,
         organism: Some("human".to_string()),
         format: None,
-        page: Some(1),
-        per_page: Some(20),
+        pagination: PaginationParams::new(Some(1), Some(20)),
     };
 
     let response = bdp_server::features::search::queries::unified_search::handle(pool, query)
@@ -422,8 +418,7 @@ async fn test_search_with_format_filter(pool: PgPool) -> sqlx::Result<()> {
         source_type_filter: None,
         organism: None,
         format: Some("fasta".to_string()),
-        page: Some(1),
-        per_page: Some(20),
+        pagination: PaginationParams::new(Some(1), Some(20)),
     };
 
     let response =
@@ -444,8 +439,7 @@ async fn test_search_with_format_filter(pool: PgPool) -> sqlx::Result<()> {
         source_type_filter: None,
         organism: None,
         format: Some("json".to_string()),
-        page: Some(1),
-        per_page: Some(20),
+        pagination: PaginationParams::new(Some(1), Some(20)),
     };
 
     let response = bdp_server::features::search::queries::unified_search::handle(pool, query)
@@ -473,8 +467,7 @@ async fn test_search_pagination(pool: PgPool) -> sqlx::Result<()> {
         source_type_filter: None,
         organism: None,
         format: None,
-        page: Some(1),
-        per_page: Some(2),
+        pagination: PaginationParams::new(Some(1), Some(2)),
     };
 
     let page1 = bdp_server::features::search::queries::unified_search::handle(pool.clone(), query)
@@ -493,8 +486,7 @@ async fn test_search_pagination(pool: PgPool) -> sqlx::Result<()> {
         source_type_filter: None,
         organism: None,
         format: None,
-        page: Some(2),
-        per_page: Some(2),
+        pagination: PaginationParams::new(Some(2), Some(2)),
     };
 
     let page2 = bdp_server::features::search::queries::unified_search::handle(pool, query)
@@ -524,8 +516,7 @@ async fn test_search_ranking(pool: PgPool) -> sqlx::Result<()> {
         source_type_filter: None,
         organism: None,
         format: None,
-        page: Some(1),
-        per_page: Some(20),
+        pagination: PaginationParams::new(Some(1), Some(20)),
     };
 
     let response = bdp_server::features::search::queries::unified_search::handle(pool, query)
@@ -554,8 +545,7 @@ async fn test_search_precomputed_fields(pool: PgPool) -> sqlx::Result<()> {
         source_type_filter: None,
         organism: None,
         format: None,
-        page: Some(1),
-        per_page: Some(20),
+        pagination: PaginationParams::new(Some(1), Some(20)),
     };
 
     let response = bdp_server::features::search::queries::unified_search::handle(pool, query)
@@ -715,8 +705,7 @@ async fn test_combined_filters(pool: PgPool) -> sqlx::Result<()> {
         source_type_filter: Some(vec!["protein".to_string()]),
         organism: Some("sapiens".to_string()),
         format: Some("fasta".to_string()),
-        page: Some(1),
-        per_page: Some(20),
+        pagination: PaginationParams::new(Some(1), Some(20)),
     };
 
     let response = bdp_server::features::search::queries::unified_search::handle(pool, query)

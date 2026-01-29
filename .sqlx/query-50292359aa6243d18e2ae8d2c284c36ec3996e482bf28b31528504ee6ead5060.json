@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT id FROM registry_entries\n        WHERE organization_id = $1\n          AND name LIKE '%gene-ontology%'\n        LIMIT 1\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "50292359aa6243d18e2ae8d2c284c36ec3996e482bf28b31528504ee6ead5060"
+}

@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO registry_entries (organization_id, slug, name, description, entry_type)\n        VALUES ($1, 'new-test-entry', 'New Test Entry', 'Testing MV refresh', 'data_source')\n        RETURNING id\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "f94797ac7a8b85f325b1e35e8b6bba5a8df70507cfbde12d403bf96c4da40768"
+}

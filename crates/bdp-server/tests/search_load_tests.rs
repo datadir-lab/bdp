@@ -6,8 +6,11 @@
 /// Run with: cargo test --test search_load_tests -- --nocapture --test-threads=1
 use bdp_server::{
     db::{create_pool, DbConfig},
-    features::search::queries::{
-        RefreshSearchIndexCommand, SearchSuggestionsQuery, UnifiedSearchQuery,
+    features::{
+        search::queries::{
+            RefreshSearchIndexCommand, SearchSuggestionsQuery, UnifiedSearchQuery,
+        },
+        shared::pagination::PaginationParams,
     },
 };
 use futures::future::join_all;
@@ -271,8 +274,7 @@ async fn test_concurrent_searches() -> Result<(), Box<dyn std::error::Error>> {
                         None
                     },
                     format: None,
-                    page: Some(1),
-                    per_page: Some(20),
+                    pagination: PaginationParams::new(Some(1), Some(20)),
                 };
 
                 match bdp_server::features::search::queries::unified_search::handle(
@@ -491,8 +493,7 @@ async fn test_search_under_mv_refresh() -> Result<(), Box<dyn std::error::Error>
                     source_type_filter: None,
                     organism: None,
                     format: None,
-                    page: Some(1),
-                    per_page: Some(20),
+                    pagination: PaginationParams::new(Some(1), Some(20)),
                 };
 
                 match bdp_server::features::search::queries::unified_search::handle(
@@ -592,8 +593,7 @@ async fn test_sustained_load() -> Result<(), Box<dyn std::error::Error>> {
                     source_type_filter: None,
                     organism: None,
                     format: None,
-                    page: Some(1),
-                    per_page: Some(20),
+                    pagination: PaginationParams::new(Some(1), Some(20)),
                 };
 
                 match bdp_server::features::search::queries::unified_search::handle(
