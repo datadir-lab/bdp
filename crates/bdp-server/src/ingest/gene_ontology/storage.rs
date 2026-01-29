@@ -477,7 +477,6 @@ impl GoStorage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ingest::gene_ontology::{Namespace, RelationshipType};
 
     // Note: These tests require a database connection and are integration tests
     // Run with: cargo test --test go_integration_test

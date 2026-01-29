@@ -1,11 +1,9 @@
 use super::middleware::*;
-use super::models::{AuditAction, AuditEntry, ResourceType};
-use super::queries::query_audit_logs;
+use super::models::AuditEntry;
 use axum::{
     body::Body,
     extract::Request,
     http::{Method, StatusCode},
-    response::Response,
     routing::{delete, get, post, put},
     Json, Router,
 };

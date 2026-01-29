@@ -220,7 +220,7 @@ impl NihExporter {
 mod tests {
     use super::*;
     use crate::audit::logger::LocalAuditLogger;
-    use crate::audit::types::EventType;
+
     use serde_json::json;
 
     #[test]

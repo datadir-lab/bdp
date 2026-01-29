@@ -58,7 +58,6 @@ async fn clean_search_cache() -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     #[tokio::test]
     async fn test_clean_all() {

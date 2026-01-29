@@ -9,7 +9,7 @@ mod tests {
         http::{Request, StatusCode},
         Router,
     };
-    use serde_json::json;
+
     use sqlx::PgPool;
     use tower::ServiceExt;
     use uuid::Uuid;

@@ -147,13 +147,14 @@ pub async fn handle(
 ) -> Result<CreateDataSourceResponse, CreateDataSourceError> {
     command.validate()?;
 
-    let org_exists = sqlx::query_scalar!(
+    let org_exists: Option<bool> = sqlx::query_scalar!(
         "SELECT EXISTS(SELECT 1 FROM organizations WHERE id = $1)",
         command.organization_id
     )
     .fetch_one(&pool)
-    .await?
-    .unwrap_or(false);
+    .await?;
+
+    let org_exists = org_exists.unwrap_or(false);
 
     if !org_exists {
         return Err(CreateDataSourceError::OrganizationNotFound(command.organization_id));
@@ -163,7 +164,7 @@ pub async fn handle(
 
     let mut tx = pool.begin().await?;
 
-    let entry_id = sqlx::query_scalar!(
+    let entry_id: Uuid = sqlx::query_scalar!(
         r#"
         INSERT INTO registry_entries (organization_id, slug, name, description, entry_type)
         VALUES ($1, $2, $3, $4, 'data_source')

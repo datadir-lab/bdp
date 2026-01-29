@@ -124,7 +124,6 @@ pub async fn run(server_url: String, force: bool) -> Result<()> {
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
-    use super::*;
 
     // Note: These tests require a running server, so they're integration tests
     // and should be run with `cargo test --features integration`

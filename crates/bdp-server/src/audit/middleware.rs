@@ -307,13 +307,6 @@ fn infer_resource(uri: &axum::http::Uri) -> (ResourceType, Option<Uuid>) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use axum::{
-        body::Body,
-        http::{Request, StatusCode},
-        routing::{get, post},
-        Router,
-    };
-    use tower::ServiceExt;
 
     async fn test_handler() -> &'static str {
         "ok"

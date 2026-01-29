@@ -1,3 +1,4 @@
+#![allow(clippy::let_with_type_underscore)]
 //! BDP CLI Library
 #![deny(clippy::unwrap_used, clippy::expect_used)]
 //!

@@ -1,3 +1,4 @@
+#![allow(clippy::let_with_type_underscore)]
 //! BDP Server Library
 #![recursion_limit = "256"]
 #![deny(clippy::unwrap_used, clippy::expect_used)]

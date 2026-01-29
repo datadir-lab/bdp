@@ -96,8 +96,9 @@ async fn test_ontology_download_and_parse() {
 
     let db = get_test_db().await;
     let org_id = Uuid::new_v4();
+    let s3 = Storage::new_minio("test-bucket".to_string()).await.unwrap();
 
-    let pipeline = GoPipeline::new(db, org_id, config).expect("Failed to create pipeline");
+    let pipeline = GoPipeline::new(config, db, s3, org_id);
 
     // This will download and parse the OBO file
     let result = pipeline.run_ontology("1.0").await;
