@@ -26,9 +26,10 @@ provider "ovh" {
 
 # OpenStack Provider - for compute instances and networking
 # Explicitly configured for OVH Cloud
+# Region must be specific (e.g., GRA7, not just GRA) for compute/networking endpoints
 provider "openstack" {
   auth_url            = "https://auth.cloud.ovh.net/v3"
-  region              = var.region
+  region              = var.region  # Must be specific region ID like GRA7, GRA9, SBG5, etc.
   user_domain_name    = "Default"
   project_domain_name = "Default"
   tenant_id           = var.ovh_project_id
