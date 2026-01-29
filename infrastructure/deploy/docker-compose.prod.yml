@@ -8,13 +8,11 @@
 services:
   # Backend API Server
   bdp-server:
-    image: ghcr.io/YOUR_ORG/bdp-server:latest  # Replace with your registry
-    # Or build locally:
-    # build:
-    #   context: .
-    #   dockerfile: docker/Dockerfile.server
+    image: ghcr.io/datadir-lab/bdp-server:latest
     container_name: bdp-server
     restart: unless-stopped
+    env_file:
+      - .env  # Load all variables from .env file
     environment:
       # Server Configuration
       SERVER_HOST: "0.0.0.0"
@@ -51,13 +49,11 @@ services:
 
   # Frontend (Next.js)
   bdp-web:
-    image: ghcr.io/YOUR_ORG/bdp-web:latest  # Replace with your registry
-    # Or build locally:
-    # build:
-    #   context: ./web
-    #   dockerfile: Dockerfile
+    image: ghcr.io/datadir-lab/bdp-web:latest
     container_name: bdp-web
     restart: unless-stopped
+    env_file:
+      - .env  # Load all variables from .env file
     environment:
       NEXT_PUBLIC_API_URL: "${API_BASE_URL}"
       NODE_ENV: "production"

@@ -124,7 +124,7 @@ jobs:
           OS_AUTH_URL: https://auth.cloud.ovh.net/v3
           OS_IDENTITY_API_VERSION: 3
           OS_TENANT_ID: ${{ secrets.OVH_PROJECT_ID }}
-          OS_TENANT_NAME: "3444329245682475"
+          OS_TENANT_NAME: "6933015767659822"
           OS_USERNAME: ${{ secrets.OPENSTACK_USER_NAME }}
           OS_PASSWORD: ${{ secrets.OPENSTACK_PASSWORD }}
           OS_REGION_NAME: "GRA"
@@ -138,7 +138,7 @@ jobs:
           OS_AUTH_URL: https://auth.cloud.ovh.net/v3
           OS_IDENTITY_API_VERSION: 3
           OS_TENANT_ID: ${{ secrets.OVH_PROJECT_ID }}
-          OS_TENANT_NAME: "3444329245682475"
+          OS_TENANT_NAME: "6933015767659822"
           OS_USERNAME: ${{ secrets.OPENSTACK_USER_NAME }}
           OS_PASSWORD: ${{ secrets.OPENSTACK_PASSWORD }}
           OS_REGION_NAME: "GRA"
@@ -153,7 +153,7 @@ jobs:
           OS_AUTH_URL: https://auth.cloud.ovh.net/v3
           OS_IDENTITY_API_VERSION: 3
           OS_TENANT_ID: ${{ secrets.OVH_PROJECT_ID }}
-          OS_TENANT_NAME: "3444329245682475"
+          OS_TENANT_NAME: "6933015767659822"
           OS_USERNAME: ${{ secrets.OPENSTACK_USER_NAME }}
           OS_PASSWORD: ${{ secrets.OPENSTACK_PASSWORD }}
           OS_REGION_NAME: "GRA"
@@ -248,7 +248,7 @@ jobs:
           OS_AUTH_URL: https://auth.cloud.ovh.net/v3
           OS_IDENTITY_API_VERSION: 3
           OS_TENANT_ID: ${{ secrets.OVH_PROJECT_ID }}
-          OS_TENANT_NAME: "3444329245682475"
+          OS_TENANT_NAME: "6933015767659822"
           OS_USERNAME: ${{ secrets.OPENSTACK_USER_NAME }}
           OS_PASSWORD: ${{ secrets.OPENSTACK_PASSWORD }}
           OS_REGION_NAME: "GRA"
@@ -262,7 +262,7 @@ jobs:
           OS_AUTH_URL: https://auth.cloud.ovh.net/v3
           OS_IDENTITY_API_VERSION: 3
           OS_TENANT_ID: ${{ secrets.OVH_PROJECT_ID }}
-          OS_TENANT_NAME: "3444329245682475"
+          OS_TENANT_NAME: "6933015767659822"
           OS_USERNAME: ${{ secrets.OPENSTACK_USER_NAME }}
           OS_PASSWORD: ${{ secrets.OPENSTACK_PASSWORD }}
           OS_REGION_NAME: "GRA"
@@ -277,7 +277,7 @@ jobs:
           OS_AUTH_URL: https://auth.cloud.ovh.net/v3
           OS_IDENTITY_API_VERSION: 3
           OS_TENANT_ID: ${{ secrets.OVH_PROJECT_ID }}
-          OS_TENANT_NAME: "3444329245682475"
+          OS_TENANT_NAME: "6933015767659822"
           OS_USERNAME: ${{ secrets.OPENSTACK_USER_NAME }}
           OS_PASSWORD: ${{ secrets.OPENSTACK_PASSWORD }}
           OS_REGION_NAME: "GRA"
