@@ -186,40 +186,25 @@ export function SourcesList({ searchParams }: SourcesListProps) {
                     </Badge>
                   </div>
 
-                  {dataSource.description && (
-                    <p className="text-sm text-muted-foreground line-clamp-2">
-                      {dataSource.description}
-                    </p>
-                  )}
-
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
                     <span className="font-medium">
-                      {dataSource.organization.name}
+                      {dataSource.organization_slug}
                     </span>
                     {dataSource.latest_version && (
                       <span>v{dataSource.latest_version}</span>
                     )}
                   </div>
 
+                  {dataSource.organism_scientific_name && (
+                    <p className="text-sm text-muted-foreground line-clamp-1">
+                      {dataSource.organism_scientific_name}
+                    </p>
+                  )}
+
                   <div className="flex items-center gap-1 text-xs text-muted-foreground">
                     <Download className="h-3 w-3" />
                     {dataSource.total_downloads.toLocaleString()} downloads
                   </div>
-
-                  {dataSource.tags && dataSource.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1">
-                      {dataSource.tags.slice(0, 3).map((tag) => (
-                        <Badge key={tag} variant="secondary" className="text-xs">
-                          {tag}
-                        </Badge>
-                      ))}
-                      {dataSource.tags.length > 3 && (
-                        <Badge variant="secondary" className="text-xs">
-                          +{dataSource.tags.length - 3}
-                        </Badge>
-                      )}
-                    </div>
-                  )}
                 </div>
               </Link>
               );

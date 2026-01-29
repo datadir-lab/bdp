@@ -398,10 +398,10 @@ jobs:
 
       - name: Install cargo-audit
         run: |
-          if ! command -v cargo-audit &> /dev/null; then
+          if ! cargo audit --version &> /dev/null; then
             cargo install cargo-audit --locked
           else
-            echo "cargo-audit already installed"
+            echo "cargo-audit already installed: $(cargo audit --version)"
           fi
 
       - name: Run cargo audit
