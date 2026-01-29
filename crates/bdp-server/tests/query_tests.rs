@@ -167,10 +167,9 @@ async fn test_query_join() {
     let pool = test_db.pool_cloned();
 
     // Create organization and registry entry
-    let org_id =
-        helpers::create_test_organization(&pool, "test-org", "Test Organization")
-            .await
-            .expect("Failed to create organization");
+    let org_id = helpers::create_test_organization(&pool, "test-org", "Test Organization")
+        .await
+        .expect("Failed to create organization");
 
     helpers::create_test_registry_entry(&pool, org_id, "test-entry", "Test Entry", "data_source")
         .await

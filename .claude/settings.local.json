@@ -216,7 +216,14 @@
       "Bash(while [ ! -f \"C:\\\\Users\\\\sebas\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\D--dev-datadir-bdp\\\\tasks\\\\b870420.output\" ])",
       "Bash(pgrep:*)",
       "Bash(do sleep 2)",
-      "mcp__plugin_linear_linear__get_issue"
+      "mcp__plugin_linear_linear__get_issue",
+      "Bash(git push:*)",
+      "Bash(ssh:*)",
+      "Bash(ssh-keygen -V)",
+      "Bash(ssh-keygen:*)",
+      "Bash(docker info:*)",
+      "Bash(docker version:*)",
+      "Bash(gh run view:*)"
     ]
   }
 }

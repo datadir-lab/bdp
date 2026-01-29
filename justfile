@@ -3,8 +3,8 @@
 # Install: cargo install just
 # Usage: just <command>
 
-# Set shell for Windows compatibility
-set shell := ["powershell.exe", "-NoLogo", "-Command"]
+# Use platform default shell (sh on Unix, cmd on Windows)
+# Individual recipes can override with shebang lines
 
 # Default recipe - show available commands
 default:
@@ -169,14 +169,19 @@ web:
 
 # Build frontend (without Pagefind, without starting server)
 web-build:
-    @Write-Host "📚 Generating CLI documentation..."
-    @cargo run --package xtask -- generate-cli-docs
-    @Write-Host "🌐 Building frontend..."
-    @cd web; $env:NEXT_PRIVATE_DISABLE_TURBO="1"; yarn build
-    @Write-Host "📦 Copying static files to standalone..."
-    @cd web; Copy-Item -Recurse -Force public .next/standalone/
-    @cd web; Copy-Item -Recurse -Force .next/static .next/standalone/.next/
-    @Write-Host "✓ Build complete"
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "📚 Generating CLI documentation..."
+    cargo run --package xtask -- generate-cli-docs
+    echo "🌐 Building frontend..."
+    cd web && NEXT_PRIVATE_DISABLE_TURBO=1 yarn build
+    echo "📦 Copying static files to standalone..."
+    cp -r web/public web/.next/standalone/
+    cp -r web/.next/static web/.next/standalone/.next/
+    echo "✓ Build complete"
+
+# Alias for CI compatibility
+build-web: web-build
 
 # Build frontend with Pagefind indexing and start production server
 web-prod:
@@ -497,9 +502,9 @@ docs-web:
 
 # Generate CLI reference documentation (MDX format)
 docs-cli:
-    @Write-Host "📚 Generating CLI reference documentation..."
+    @echo "📚 Generating CLI reference documentation..."
     @cargo run --package xtask -- generate-cli-docs
-    @Write-Host "✓ CLI docs generated at: web/app/[locale]/docs/content/en/cli-reference.mdx"
+    @echo "✓ CLI docs generated at: web/app/[locale]/docs/content/en/cli-reference.mdx"
 
 # Generate CLI documentation using hidden flag (alternative method)
 docs-cli-raw:
@@ -509,8 +514,18 @@ docs-cli-raw:
 
 # Check if CLI docs are up to date (for CI)
 docs-cli-check:
-    @Write-Host "🔍 Checking if CLI docs are up to date..."
-    @$temp = New-TemporaryFile; cargo run --package xtask -- generate-cli-docs --output-dir $temp.DirectoryName | Out-Null; if ((Get-FileHash "web/app/[locale]/docs/content/en/cli-reference.mdx").Hash -eq (Get-FileHash "$($temp.DirectoryName)/cli-reference.mdx").Hash) { Write-Host "✓ CLI docs are up to date"; Remove-Item $temp } else { Write-Host "✗ CLI docs are outdated - run 'just docs-cli' to update"; Remove-Item $temp; exit 1 }
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "🔍 Checking if CLI docs are up to date..."
+    temp_dir=$(mktemp -d)
+    trap "rm -rf $temp_dir" EXIT
+    cargo run --package xtask -- generate-cli-docs --output-dir "$temp_dir"
+    if diff -q "web/app/[locale]/docs/content/en/cli-reference.mdx" "$temp_dir/cli-reference.mdx" > /dev/null 2>&1; then
+        echo "✓ CLI docs are up to date"
+    else
+        echo "✗ CLI docs are outdated - run 'just docs-cli' to update"
+        exit 1
+    fi
 
 # ============================================================================
 # Deployment

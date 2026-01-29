@@ -72,7 +72,7 @@ variable "instance_name" {
 variable "instance_flavor" {
   description = "Instance flavor (d2-2, d2-4, d2-8, s1-2, s1-4)"
   type        = string
-  default     = "d2-2" # Discovery: 1 vCPU, 2GB RAM, 25GB SSD - cheapest
+  default     = "d2-2" # Discovery: 2 vCPU, 4GB RAM, 25GB SSD - cheapest
 }
 
 variable "instance_image" {
@@ -144,6 +144,12 @@ variable "ssh_key_name" {
   description = "Name for the SSH keypair"
   type        = string
   default     = "bdp-mvp-key"
+}
+
+variable "deploy_ssh_public_key" {
+  description = "SSH public key for CI/CD deployments (optional)"
+  type        = string
+  default     = ""
 }
 
 # =============================================================================

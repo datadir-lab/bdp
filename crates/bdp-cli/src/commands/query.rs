@@ -105,39 +105,34 @@ fn validate_sql(sql: &str) -> Result<()> {
                 match statement {
                     Statement::Drop { .. } => {
                         return Err(CliError::config("DROP statements are not allowed"));
-                    }
+                    },
                     Statement::Delete { .. } => {
                         return Err(CliError::config("DELETE statements are not allowed. Use the CLI commands for data management."));
-                    }
+                    },
                     Statement::Update { .. } => {
                         return Err(CliError::config("UPDATE statements are not allowed. Use the CLI commands for data management."));
-                    }
+                    },
                     Statement::Insert { .. } => {
                         return Err(CliError::config("INSERT statements are not allowed. Use the CLI commands for data management."));
-                    }
+                    },
                     Statement::Truncate { .. } => {
                         return Err(CliError::config("TRUNCATE statements are not allowed"));
-                    }
+                    },
                     Statement::AlterTable { .. } | Statement::CreateTable { .. } => {
                         return Err(CliError::config("DDL statements are not allowed"));
-                    }
+                    },
                     Statement::Query(_) | Statement::Explain { .. } => {
                         // These are safe
-                    }
+                    },
                     _ => {
                         warn!("Unknown statement type: {:?}", statement);
-                    }
+                    },
                 }
             }
 
             Ok(())
-        }
-        Err(e) => {
-            Err(CliError::config(&format!(
-                "Invalid SQL syntax: {}\n\nSQL:\n{}",
-                e, sql
-            )))
-        }
+        },
+        Err(e) => Err(CliError::config(&format!("Invalid SQL syntax: {}\n\nSQL:\n{}", e, sql))),
     }
 }
 
@@ -203,7 +198,10 @@ fn build_sql_from_flags(
         // Add aggregate if specified
         if let Some(agg_expr) = aggregate {
             // Replace SELECT clause with aggregation
-            sql = sql.replace(&format!("SELECT {}", select_clause), &format!("SELECT {}, {}", group_field, agg_expr));
+            sql = sql.replace(
+                &format!("SELECT {}", select_clause),
+                &format!("SELECT {}, {}", group_field, agg_expr),
+            );
         }
 
         // Add HAVING
@@ -306,7 +304,12 @@ fn parse_order_by(order_by: &str) -> Result<(String, String)> {
         let direction = match dir.to_lowercase().as_str() {
             "asc" => "ASC",
             "desc" => "DESC",
-            _ => return Err(CliError::config(&format!("Invalid order direction: '{}'. Use 'asc' or 'desc'", dir))),
+            _ => {
+                return Err(CliError::config(&format!(
+                    "Invalid order direction: '{}'. Use 'asc' or 'desc'",
+                    dir
+                )))
+            },
         };
         Ok((field.to_string(), direction.to_string()))
     } else {
@@ -349,7 +352,12 @@ fn output_results(
         "csv" => format_as_csv(results, no_header),
         "tsv" => format_as_tsv(results, no_header),
         "compact" => format_as_compact(results),
-        _ => return Err(CliError::config(&format!("Unknown format: '{}'. Use table, json, csv, tsv, or compact", format))),
+        _ => {
+            return Err(CliError::config(&format!(
+                "Unknown format: '{}'. Use table, json, csv, tsv, or compact",
+                format
+            )))
+        },
     };
 
     // Write to file or stdout
@@ -389,8 +397,14 @@ fn value_to_string(value: &serde_json::Value) -> String {
         serde_json::Value::Number(n) => n.to_string(),
         serde_json::Value::String(s) => s.clone(),
         serde_json::Value::Array(arr) => {
-            format!("[{}]", arr.iter().map(value_to_string).collect::<Vec<_>>().join(", "))
-        }
+            format!(
+                "[{}]",
+                arr.iter()
+                    .map(value_to_string)
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )
+        },
         serde_json::Value::Object(_) => value.to_string(),
     }
 }
@@ -426,7 +440,10 @@ fn format_as_csv(results: &QueryResults, no_header: bool) -> String {
 
     // Rows
     for row in &results.rows {
-        let row_strings: Vec<String> = row.iter().map(|v| csv_escape(&value_to_string(v))).collect();
+        let row_strings: Vec<String> = row
+            .iter()
+            .map(|v| csv_escape(&value_to_string(v)))
+            .collect();
         output.push_str(&row_strings.join(","));
         output.push('\n');
     }

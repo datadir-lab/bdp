@@ -67,6 +67,9 @@ resource "openstack_compute_instance_v2" "bdp_server" {
     #!/bin/bash
     set -e
 
+    # Add CI/CD deploy key to authorized_keys (if provided)
+    ${var.deploy_ssh_public_key != "" ? "echo '${var.deploy_ssh_public_key}' >> /home/ubuntu/.ssh/authorized_keys" : "# No deploy key provided"}
+
     # Update system
     apt-get update && apt-get upgrade -y
 

@@ -243,11 +243,9 @@ impl ApiClient {
         let api_response: ApiResponse<QueryResults> = response.json().await?;
 
         if !api_response.success {
-            return Err(CliError::api(
-                api_response.error.unwrap_or_else(|| {
-                    "Query execution failed. Check your SQL syntax and try again.".to_string()
-                }),
-            ));
+            return Err(CliError::api(api_response.error.unwrap_or_else(|| {
+                "Query execution failed. Check your SQL syntax and try again.".to_string()
+            })));
         }
 
         Ok(api_response.data)

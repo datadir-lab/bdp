@@ -55,10 +55,8 @@ impl IntoResponse for QueryApiError {
                 (StatusCode::BAD_REQUEST, Json(error)).into_response()
             },
             QueryApiError::ExecuteError(ExecuteQueryError::Timeout) => {
-                let error = ErrorResponse::new(
-                    "TIMEOUT_ERROR",
-                    "Query execution timeout (30 seconds)",
-                );
+                let error =
+                    ErrorResponse::new("TIMEOUT_ERROR", "Query execution timeout (30 seconds)");
                 (StatusCode::REQUEST_TIMEOUT, Json(error)).into_response()
             },
             QueryApiError::ExecuteError(ExecuteQueryError::Database(_)) => {

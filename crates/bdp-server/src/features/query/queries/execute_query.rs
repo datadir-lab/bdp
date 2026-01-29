@@ -64,12 +64,9 @@ pub async fn handle(
     validate_sql(&request.sql)?;
 
     // Execute query with timeout
-    let result = tokio::time::timeout(
-        Duration::from_secs(30),
-        execute_sql(&pool, &request.sql),
-    )
-    .await
-    .map_err(|_| ExecuteQueryError::Timeout)??;
+    let result = tokio::time::timeout(Duration::from_secs(30), execute_sql(&pool, &request.sql))
+        .await
+        .map_err(|_| ExecuteQueryError::Timeout)??;
 
     Ok(result)
 }
@@ -87,8 +84,8 @@ fn validate_sql(sql: &str) -> Result<(), ExecuteQueryError> {
 
     // Block dangerous keywords (even in SELECT queries)
     let dangerous_keywords = [
-        "DROP", "DELETE", "UPDATE", "INSERT", "TRUNCATE", "ALTER", "CREATE",
-        "GRANT", "REVOKE", "EXECUTE", "CALL", "COPY",
+        "DROP", "DELETE", "UPDATE", "INSERT", "TRUNCATE", "ALTER", "CREATE", "GRANT", "REVOKE",
+        "EXECUTE", "CALL", "COPY",
     ];
 
     for keyword in &dangerous_keywords {
@@ -104,10 +101,7 @@ fn validate_sql(sql: &str) -> Result<(), ExecuteQueryError> {
 }
 
 /// Execute SQL query and convert results to JSON
-async fn execute_sql(
-    pool: &PgPool,
-    sql: &str,
-) -> Result<ExecuteQueryResponse, ExecuteQueryError> {
+async fn execute_sql(pool: &PgPool, sql: &str) -> Result<ExecuteQueryResponse, ExecuteQueryError> {
     // Execute query
     let rows = sqlx::query(sql).fetch_all(pool).await?;
 
@@ -204,7 +198,9 @@ fn postgres_value_to_json(
         },
         _ => {
             // Fallback: try to get as string
-            let v: String = row.try_get(idx).unwrap_or_else(|_| format!("<{}>", type_name));
+            let v: String = row
+                .try_get(idx)
+                .unwrap_or_else(|_| format!("<{}>", type_name));
             serde_json::Value::String(v)
         },
     };

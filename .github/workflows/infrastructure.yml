@@ -115,6 +115,7 @@ jobs:
           openstack_user_name    = "${{ secrets.OPENSTACK_USER_NAME }}"
           openstack_password     = "${{ secrets.OPENSTACK_PASSWORD }}"
           ssh_public_key         = "${{ secrets.SSH_PUBLIC_KEY }}"
+          deploy_ssh_public_key  = "${{ secrets.DEPLOY_SSH_PUBLIC_KEY }}"
           EOF
 
       - name: Terraform Init
@@ -208,6 +209,7 @@ jobs:
           openstack_user_name    = "${{ secrets.OPENSTACK_USER_NAME }}"
           openstack_password     = "${{ secrets.OPENSTACK_PASSWORD }}"
           ssh_public_key         = "${{ secrets.SSH_PUBLIC_KEY }}"
+          deploy_ssh_public_key  = "${{ secrets.DEPLOY_SSH_PUBLIC_KEY }}"
           EOF
 
       - name: Terraform Init
@@ -268,6 +270,7 @@ jobs:
           openstack_user_name    = "${{ secrets.OPENSTACK_USER_NAME }}"
           openstack_password     = "${{ secrets.OPENSTACK_PASSWORD }}"
           ssh_public_key         = "${{ secrets.SSH_PUBLIC_KEY }}"
+          deploy_ssh_public_key  = "${{ secrets.DEPLOY_SSH_PUBLIC_KEY }}"
           EOF
 
       - name: Terraform Init

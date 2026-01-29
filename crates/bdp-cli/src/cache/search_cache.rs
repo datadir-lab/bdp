@@ -79,11 +79,7 @@ impl SearchCache {
     }
 
     /// Get cached search results
-    pub fn get(
-        &self,
-        query: &str,
-        filters: &SearchFilters,
-    ) -> Result<Option<SearchResponse>> {
+    pub fn get(&self, query: &str, filters: &SearchFilters) -> Result<Option<SearchResponse>> {
         let hash = self.hash_query(query, filters);
         let conn = self.open_connection()?;
 
@@ -96,8 +92,8 @@ impl SearchCache {
             params![hash],
             |row| {
                 Ok((
-                    row.get(0)?,  // results_json
-                    row.get(1)?,  // expires_at
+                    row.get(0)?, // results_json
+                    row.get(1)?, // expires_at
                 ))
             },
         );
@@ -160,10 +156,7 @@ impl SearchCache {
     /// Delete a specific cache entry
     fn delete(&self, hash: &str) -> Result<()> {
         let conn = self.open_connection()?;
-        conn.execute(
-            "DELETE FROM search_cache WHERE query_hash = ?1",
-            params![hash],
-        )?;
+        conn.execute("DELETE FROM search_cache WHERE query_hash = ?1", params![hash])?;
         Ok(())
     }
 
@@ -179,10 +172,7 @@ impl SearchCache {
     pub fn cleanup_expired(&self) -> Result<usize> {
         let conn = self.open_connection()?;
         let now = Utc::now().to_rfc3339();
-        let count = conn.execute(
-            "DELETE FROM search_cache WHERE expires_at < ?1",
-            params![now],
-        )?;
+        let count = conn.execute("DELETE FROM search_cache WHERE expires_at < ?1", params![now])?;
 
         if count > 0 {
             debug!(count = count, "Cleaned up expired cache entries");
@@ -194,9 +184,8 @@ impl SearchCache {
     pub fn stats(&self) -> Result<CacheStats> {
         let conn = self.open_connection()?;
 
-        let total: i64 = conn.query_row("SELECT COUNT(*) FROM search_cache", [], |row| {
-            row.get(0)
-        })?;
+        let total: i64 =
+            conn.query_row("SELECT COUNT(*) FROM search_cache", [], |row| row.get(0))?;
 
         let expired: i64 = conn.query_row(
             "SELECT COUNT(*) FROM search_cache WHERE expires_at < ?1",
@@ -215,7 +204,11 @@ impl SearchCache {
     fn hash_query(&self, query: &str, filters: &SearchFilters) -> String {
         let mut hasher = Sha256::new();
         hasher.update(query.as_bytes());
-        hasher.update(serde_json::to_string(filters).unwrap_or_default().as_bytes());
+        hasher.update(
+            serde_json::to_string(filters)
+                .unwrap_or_default()
+                .as_bytes(),
+        );
         format!("{:x}", hasher.finalize())
     }
 }

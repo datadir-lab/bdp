@@ -244,7 +244,6 @@ async fn test_search_with_pagination() {
 async fn test_search_empty_results() {
     let mock_server = MockServer::start().await;
 
-
     Mock::given(method("GET"))
         .and(path("/api/v1/search"))
         .and(query_param("query", "nonexistent"))
@@ -321,9 +320,7 @@ async fn test_search_invalid_page() {
 #[tokio::test]
 async fn test_search_empty_query() {
     let mut cmd = Command::cargo_bin("bdp").unwrap();
-    cmd.arg("search")
-        .arg("")
-        .arg("--no-interactive");
+    cmd.arg("search").arg("").arg("--no-interactive");
 
     cmd.assert()
         .failure()
@@ -501,7 +498,6 @@ async fn test_search_multiple_filters() {
 #[tokio::test]
 async fn test_search_fuzzy_suggestions() {
     let mock_server = MockServer::start().await;
-
 
     Mock::given(method("GET"))
         .and(path("/api/v1/search"))

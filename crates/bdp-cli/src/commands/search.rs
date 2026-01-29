@@ -217,11 +217,7 @@ async fn execute_search(
 
                 if attempt < MAX_RETRIES {
                     let backoff_ms = INITIAL_BACKOFF_MS * 2_u64.pow(attempt - 1);
-                    warn!(
-                        attempt = attempt,
-                        backoff_ms = backoff_ms,
-                        "Search failed, retrying..."
-                    );
+                    warn!(attempt = attempt, backoff_ms = backoff_ms, "Search failed, retrying...");
                     tokio::time::sleep(tokio::time::Duration::from_millis(backoff_ms)).await;
                 }
             },
@@ -316,17 +312,10 @@ async fn display_interactive(
     loop {
         // Display search summary
         println!();
-        println!(
-            "{} Found {} results for your search",
-            "✓".green(),
-            current_results.total
-        );
-        let total_pages = (current_results.total as f64 / current_results.page_size as f64).ceil() as i32;
-        println!(
-            "  Showing page {}/{}",
-            current_page,
-            total_pages
-        );
+        println!("{} Found {} results for your search", "✓".green(), current_results.total);
+        let total_pages =
+            (current_results.total as f64 / current_results.page_size as f64).ceil() as i32;
+        println!("  Showing page {}/{}", current_page, total_pages);
         println!();
 
         // Create selection options with formatted display
@@ -383,7 +372,8 @@ async fn display_interactive(
                         current_page,
                         state.limit,
                         &cache_filters,
-                    ).await?;
+                    )
+                    .await?;
                     continue;
                 } else if selected.contains("→ Next page") {
                     // Fetch next page
@@ -404,7 +394,8 @@ async fn display_interactive(
                         current_page,
                         state.limit,
                         &cache_filters,
-                    ).await?;
+                    )
+                    .await?;
                     continue;
                 }
 
@@ -418,11 +409,11 @@ async fn display_interactive(
                     let result = &current_results.results[selected_index];
                     show_result_actions(result).await?;
                 }
-            }
+            },
             Err(_) => {
                 // User cancelled (Ctrl+C or ESC)
                 break;
-            }
+            },
         }
     }
 
@@ -447,41 +438,36 @@ async fn show_result_actions(result: &crate::api::types::SearchResult) -> Result
             "← Back to results",
         ];
 
-        let action = Select::new("What would you like to do?", actions)
-            .prompt();
+        let action = Select::new("What would you like to do?", actions).prompt();
 
         match action {
             Ok("📋 View details") => {
                 display_result_details(result)?;
-            }
-            Ok("➕ Add to manifest (bdp.yml)") => {
-                match add_to_manifest(&spec).await {
-                    Ok(()) => {
-                        println!("{} Added to manifest: {}", "✓".green(), spec.cyan());
-                    }
-                    Err(e) => {
-                        println!("{} Failed to add to manifest: {}", "✗".red(), e);
-                        println!("You can manually add to bdp.yml:");
-                        println!("  sources:");
-                        println!("    - spec: \"{}\"", spec.cyan());
-                    }
-                }
-            }
-            Ok("📝 Copy spec to clipboard") => {
-                match copy_to_clipboard(&spec) {
-                    Ok(()) => {
-                        println!("{} Copied to clipboard: {}", "✓".green(), spec.cyan());
-                    }
-                    Err(e) => {
-                        println!("{} Failed to copy to clipboard: {}", "✗".red(), e);
-                        println!("Spec: {}", spec.cyan());
-                    }
-                }
-            }
+            },
+            Ok("➕ Add to manifest (bdp.yml)") => match add_to_manifest(&spec).await {
+                Ok(()) => {
+                    println!("{} Added to manifest: {}", "✓".green(), spec.cyan());
+                },
+                Err(e) => {
+                    println!("{} Failed to add to manifest: {}", "✗".red(), e);
+                    println!("You can manually add to bdp.yml:");
+                    println!("  sources:");
+                    println!("    - spec: \"{}\"", spec.cyan());
+                },
+            },
+            Ok("📝 Copy spec to clipboard") => match copy_to_clipboard(&spec) {
+                Ok(()) => {
+                    println!("{} Copied to clipboard: {}", "✓".green(), spec.cyan());
+                },
+                Err(e) => {
+                    println!("{} Failed to copy to clipboard: {}", "✗".red(), e);
+                    println!("Spec: {}", spec.cyan());
+                },
+            },
             Ok("← Back to results") | Err(_) => {
                 break;
-            }
-            _ => {}
+            },
+            _ => {},
         }
     }
 
@@ -526,10 +512,7 @@ fn display_result_details(result: &crate::api::types::SearchResult) -> Result<()
 }
 
 /// Display results in non-interactive mode
-fn display_non_interactive(
-    results: crate::api::types::SearchResponse,
-    format: &str,
-) -> Result<()> {
+fn display_non_interactive(results: crate::api::types::SearchResponse, format: &str) -> Result<()> {
     match format {
         "compact" => display_compact(&results),
         "table" => display_table(&results),
@@ -544,10 +527,7 @@ fn display_non_interactive(
 /// Display results in compact format (one per line)
 fn display_compact(results: &crate::api::types::SearchResponse) -> Result<()> {
     for result in &results.results {
-        println!(
-            "{}:{}@{}",
-            result.organization, result.name, result.version
-        );
+        println!("{}:{}@{}", result.organization, result.name, result.version);
     }
     Ok(())
 }
