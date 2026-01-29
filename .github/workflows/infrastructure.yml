@@ -26,6 +26,8 @@
 
 name: Infrastructure
 
+run-name: "Infrastructure [${{ github.event.inputs.action || 'plan' }}] - production"
+
 on:
   # Plan on PR to infrastructure files
   pull_request:
