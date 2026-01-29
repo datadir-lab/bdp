@@ -127,6 +127,7 @@ jobs:
           OS_IDENTITY_API_VERSION: 3
           OS_TENANT_ID: ${{ secrets.OVH_PROJECT_ID }}
           OS_TENANT_NAME: "6933015767659822"
+          OS_PROJECT_ID: ${{ secrets.OVH_PROJECT_ID }}
           OS_USERNAME: ${{ secrets.OPENSTACK_USER_NAME }}
           OS_PASSWORD: ${{ secrets.OPENSTACK_PASSWORD }}
           OS_REGION_NAME: "GRA"
@@ -141,6 +142,7 @@ jobs:
           OS_IDENTITY_API_VERSION: 3
           OS_TENANT_ID: ${{ secrets.OVH_PROJECT_ID }}
           OS_TENANT_NAME: "6933015767659822"
+          OS_PROJECT_ID: ${{ secrets.OVH_PROJECT_ID }}
           OS_USERNAME: ${{ secrets.OPENSTACK_USER_NAME }}
           OS_PASSWORD: ${{ secrets.OPENSTACK_PASSWORD }}
           OS_REGION_NAME: "GRA"
@@ -156,6 +158,7 @@ jobs:
           OS_IDENTITY_API_VERSION: 3
           OS_TENANT_ID: ${{ secrets.OVH_PROJECT_ID }}
           OS_TENANT_NAME: "6933015767659822"
+          OS_PROJECT_ID: ${{ secrets.OVH_PROJECT_ID }}
           OS_USERNAME: ${{ secrets.OPENSTACK_USER_NAME }}
           OS_PASSWORD: ${{ secrets.OPENSTACK_PASSWORD }}
           OS_REGION_NAME: "GRA"
@@ -251,6 +254,7 @@ jobs:
           OS_IDENTITY_API_VERSION: 3
           OS_TENANT_ID: ${{ secrets.OVH_PROJECT_ID }}
           OS_TENANT_NAME: "6933015767659822"
+          OS_PROJECT_ID: ${{ secrets.OVH_PROJECT_ID }}
           OS_USERNAME: ${{ secrets.OPENSTACK_USER_NAME }}
           OS_PASSWORD: ${{ secrets.OPENSTACK_PASSWORD }}
           OS_REGION_NAME: "GRA"
@@ -265,6 +269,7 @@ jobs:
           OS_IDENTITY_API_VERSION: 3
           OS_TENANT_ID: ${{ secrets.OVH_PROJECT_ID }}
           OS_TENANT_NAME: "6933015767659822"
+          OS_PROJECT_ID: ${{ secrets.OVH_PROJECT_ID }}
           OS_USERNAME: ${{ secrets.OPENSTACK_USER_NAME }}
           OS_PASSWORD: ${{ secrets.OPENSTACK_PASSWORD }}
           OS_REGION_NAME: "GRA"
@@ -280,6 +285,7 @@ jobs:
           OS_IDENTITY_API_VERSION: 3
           OS_TENANT_ID: ${{ secrets.OVH_PROJECT_ID }}
           OS_TENANT_NAME: "6933015767659822"
+          OS_PROJECT_ID: ${{ secrets.OVH_PROJECT_ID }}
           OS_USERNAME: ${{ secrets.OPENSTACK_USER_NAME }}
           OS_PASSWORD: ${{ secrets.OPENSTACK_PASSWORD }}
           OS_REGION_NAME: "GRA"
