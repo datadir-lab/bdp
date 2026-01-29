@@ -223,7 +223,17 @@
       "Bash(ssh-keygen:*)",
       "Bash(docker info:*)",
       "Bash(docker version:*)",
-      "Bash(gh run view:*)"
+      "Bash(gh run view:*)",
+      "Bash(gh workflow run:*)",
+      "Bash(gh run list:*)",
+      "Bash(gh run:*)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(git commit:*)",
+      "Bash(/c/Users/sebas/AppData/Local/fnm_multishells/19572_1769672466158/yarn:*)",
+      "Bash(powershell.exe -Command \"yarn cache clean 2>&1\")",
+      "Bash(powershell.exe -Command \"yarn info @radix-ui/react-dropdown-menu version 2>&1\")",
+      "Bash(powershell.exe -Command \"yarn install --network-timeout 100000 2>&1\")",
+      "WebFetch(domain:registry.npmjs.org)"
     ]
   }
 }
