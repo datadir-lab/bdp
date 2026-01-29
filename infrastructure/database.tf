@@ -16,7 +16,7 @@ resource "ovh_cloud_project_database" "postgresql" {
   }
 
   # IP restrictions (inline, not separate resource)
-  ip_restriction {
+  ip_restrictions {
     ip          = "${openstack_compute_instance_v2.bdp_server.access_ip_v4}/32"
     description = "Allow BDP server"
   }
