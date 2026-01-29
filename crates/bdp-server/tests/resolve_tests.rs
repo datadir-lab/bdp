@@ -3,9 +3,8 @@
 //! These tests verify the dependency resolution endpoint works correctly
 //! with various manifest configurations.
 
-use bdp_server::api::resolve::{ResolveRequest, ResolveResponse};
+use bdp_server::features::resolve::{ResolveManifestQuery, ResolveManifestResponse};
 use bdp_server::db::{create_pool, DbConfig};
-use serde_json::Value;
 
 /// Helper to create test database pool
 async fn create_test_pool() -> sqlx::PgPool {
@@ -21,7 +20,7 @@ async fn test_resolve_single_source() {
     let _pool = create_test_pool().await;
 
     // Test parsing a valid source spec
-    use bdp_server::api::resolve::*;
+    use bdp_server::features::resolve::*;
 
     // This would require actual database data to test fully
     // Here we just test the parsing logic
@@ -175,7 +174,7 @@ fn test_invalid_source_specs() {
 
 #[test]
 fn test_resolve_response_structure() {
-    use bdp_server::api::resolve::*;
+    use bdp_server::features::resolve::*;
     use std::collections::HashMap;
 
     // Test the response structure

@@ -70,7 +70,7 @@ async fn test_sequential_catchup_recent() -> Result<()> {
 
     let duration = start.elapsed();
 
-    println!("\n{'='*60}\n");
+    println!("\n{}\n", "=".repeat(60));
     println!("{}", NcbiTaxonomyOrchestrator::summarize_results(&results));
     println!("\nTotal time: {:.1} minutes", duration.as_secs_f64() / 60.0);
     println!(
@@ -118,7 +118,7 @@ async fn test_parallel_catchup_recent() -> Result<()> {
 
     let duration = start.elapsed();
 
-    println!("\n{'='*60}\n");
+    println!("\n{}\n", "=".repeat(60));
     println!("{}", NcbiTaxonomyOrchestrator::summarize_results(&results));
     println!("\nTotal time: {:.1} minutes", duration.as_secs_f64() / 60.0);
     println!(

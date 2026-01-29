@@ -419,21 +419,29 @@ pub async fn setup_test_db() -> PgPool {
 
 /// Setup a test application with routes
 pub async fn setup_test_app(pool: PgPool) -> axum::Router {
-    use axum::{routing::get, Router};
-    use bdp_server::api;
+    use axum::Router;
+    use bdp_server::features::{self, FeatureState};
+    use bdp_server::storage::{config::StorageConfig, Storage};
 
-    // Create router with just the API endpoints
-    // Note: Since storage uses SQLite which isn't enabled in sqlx workspace config,
-    // we'll just test the API routes with the database pool directly
-    let api_v1 = Router::new()
-        .route("/organizations", get(api::organizations::list_organizations))
-        .route("/organizations/:slug", get(api::organizations::get_organization))
-        .route("/sources", get(api::sources::list_sources))
-        .route("/sources/:org/:name", get(api::sources::get_source))
-        .route("/sources/:org/:name/:version", get(api::sources::get_source_version))
-        .route("/sources/:org/:name/:version/dependencies", get(api::sources::get_dependencies))
-        .route("/sources/:org/:name/:version/download", get(api::sources::download_file))
-        .with_state(pool);
+    // Create minimal storage config for testing
+    // Note: These tests use the new features-based router with CQRS pattern
+    let storage_config = StorageConfig {
+        endpoint: std::env::var("S3_ENDPOINT").unwrap_or_else(|_| "http://localhost:9000".to_string()),
+        region: std::env::var("S3_REGION").unwrap_or_else(|_| "us-east-1".to_string()),
+        bucket: std::env::var("S3_BUCKET").unwrap_or_else(|_| "test-bucket".to_string()),
+        access_key: std::env::var("S3_ACCESS_KEY").unwrap_or_else(|_| "minioadmin".to_string()),
+        secret_key: std::env::var("S3_SECRET_KEY").unwrap_or_else(|_| "minioadmin".to_string()),
+        path_style: true,
+    };
+
+    let storage = Storage::new(storage_config).await.expect("Failed to create test storage");
+
+    let state = FeatureState {
+        db: pool,
+        storage,
+    };
+
+    let api_v1 = features::router(state);
 
     Router::new().nest("/api/v1", api_v1)
 }
