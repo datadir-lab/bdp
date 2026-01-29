@@ -22,9 +22,10 @@ openstack_user_name = "user-xxxxxx"
 openstack_password  = "your-openstack-password"
 
 # Region (pick closest to your users)
-# Europe: GRA7 (France), SBG5 (France), DE1 (Germany), UK1 (UK), WAW1 (Poland)
-# North America: BHS5 (Canada)
-region = "GRA7"
+# Europe: gra (France), sbg (France), de1 (Germany), uk1 (UK), waw1 (Poland)
+# North America: bhs (Canada)
+# NOTE: Use lowercase region names (e.g., "gra" not "GRA7")
+region = "gra"
 
 # Instance Configuration
 instance_name   = "bdp-mvp"

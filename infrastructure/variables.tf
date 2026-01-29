@@ -54,9 +54,9 @@ variable "openstack_password" {
 # =============================================================================
 
 variable "region" {
-  description = "OVH region (GRA7, SBG5, DE1, UK1, WAW1, BHS5)"
+  description = "OVH region (gra, sbg, de1, uk1, waw1, bhs) - use lowercase"
   type        = string
-  default     = "GRA7" # Gravelines, France - good for EU
+  default     = "gra" # Gravelines, France - good for EU
 }
 
 # =============================================================================
