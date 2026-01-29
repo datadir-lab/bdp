@@ -267,7 +267,7 @@ async fn resolve_source(
         ))
     })?;
 
-    let file: Option<_> = sqlx::query!(
+    let file: _ = sqlx::query!(
         r#"
         SELECT checksum, size_bytes
         FROM version_files
@@ -381,7 +381,7 @@ async fn resolve_tool(
         ))
     })?;
 
-    let file: Option<_> = sqlx::query!(
+    let file: _ = sqlx::query!(
         r#"
         SELECT checksum
         FROM version_files

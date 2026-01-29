@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO registry_entries (organization_id, slug, name, entry_type)\n        VALUES ($1, $2, $3, 'data_source')\n        ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name\n        RETURNING id\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Varchar",
+        "Varchar"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "311a6f25eac288a4b549e60f3dcf5d9c8a9b8de7d51cd989e9fb0d7a23a80a93"
+}

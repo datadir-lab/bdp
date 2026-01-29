@@ -1,0 +1,34 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT id, version_major, version_minor\n        FROM versions\n        WHERE id = $1\n        ORDER BY version_major DESC, version_minor DESC\n        LIMIT 1\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "version_major",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "version_minor",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "dab1512e9f5a4708a230acbd4d1cedc5e1fa41be67690154107aada1a6c0cbd3"
+}

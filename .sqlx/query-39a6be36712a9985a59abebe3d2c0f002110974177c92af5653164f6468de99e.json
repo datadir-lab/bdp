@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO data_sources (id, source_type) VALUES ($1, 'taxonomy') ON CONFLICT (id) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "39a6be36712a9985a59abebe3d2c0f002110974177c92af5653164f6468de99e"
+}

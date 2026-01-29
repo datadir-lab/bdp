@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO organizations (slug, name, description, is_system)\n        VALUES ('bench-org', 'Benchmark Organization', 'For performance testing', false)\n        ON CONFLICT (slug) DO NOTHING\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "d40bf5d97e46a04d0c74733afddcb4680fab04fb4c08af433841a113701abef8"
+}

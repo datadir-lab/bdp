@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                INSERT INTO interpro_go_mappings (\n                    interpro_data_source_id, interpro_version_id,\n                    go_data_source_id, go_version_id, evidence_code\n                )\n                VALUES ($1, $2, $3, $4, $5)\n                ON CONFLICT (interpro_data_source_id, go_data_source_id) DO NOTHING\n                ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Uuid",
+        "Uuid",
+        "Varchar"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "6dbcd1568dd8dd9d2eee680889345a76a0d8fcbf31b202e453f86d4f1ea03c84"
+}

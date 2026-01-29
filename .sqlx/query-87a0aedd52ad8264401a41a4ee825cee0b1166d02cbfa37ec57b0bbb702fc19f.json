@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO interpro_entry_stats (interpro_data_source_id, protein_count, species_count, signature_count)\n        SELECT\n            $1,\n            COUNT(DISTINCT protein_data_source_id),\n            0, -- Species count requires join to protein_metadata\n            (SELECT COUNT(*) FROM interpro_member_signatures WHERE interpro_data_source_id = $1)\n        FROM protein_interpro_matches\n        WHERE interpro_data_source_id = $1\n        ON CONFLICT (interpro_data_source_id) DO UPDATE\n        SET\n            protein_count = EXCLUDED.protein_count,\n            signature_count = EXCLUDED.signature_count,\n            last_updated = NOW()\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "87a0aedd52ad8264401a41a4ee825cee0b1166d02cbfa37ec57b0bbb702fc19f"
+}

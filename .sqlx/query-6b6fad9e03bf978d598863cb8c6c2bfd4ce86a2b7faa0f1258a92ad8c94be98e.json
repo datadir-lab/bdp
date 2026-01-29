@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO interpro_member_signatures (\n                interpro_data_source_id, signature_id, is_primary\n            )\n            VALUES ($1, $2, $3)\n            ON CONFLICT (interpro_data_source_id, signature_id) DO UPDATE\n            SET is_primary = EXCLUDED.is_primary\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Bool"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "6b6fad9e03bf978d598863cb8c6c2bfd4ce86a2b7faa0f1258a92ad8c94be98e"
+}

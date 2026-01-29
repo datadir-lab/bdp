@@ -328,7 +328,7 @@ async fn test_version_status_constraint(pool: PgPool) -> sqlx::Result<()> {
     .await?;
 
     // Invalid status should fail
-    let result = sqlx::query!(
+    let result: Result<_, _> = sqlx::query!(
         r#"
         INSERT INTO versions (registry_entry_id, version, status)
         VALUES ($1, $2, $3)

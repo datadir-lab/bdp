@@ -1,0 +1,25 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO versions (entry_id, version, version_major, version_minor)\n        VALUES ($1, $2, $3, $4)\n        ON CONFLICT (entry_id, version)\n        DO UPDATE SET entry_id = EXCLUDED.entry_id\n        RETURNING id\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Varchar",
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "a7eec9b55edc108e6ce906862fb4b440ead5609b323246708eb02459b1e52407"
+}

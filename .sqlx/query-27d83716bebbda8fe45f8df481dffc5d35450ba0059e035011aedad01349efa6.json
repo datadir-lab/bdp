@@ -1,0 +1,25 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO protein_signatures (\n            database, accession, name, description\n        )\n        VALUES ($1, $2, $3, $4)\n        ON CONFLICT (database, accession) DO UPDATE\n        SET\n            name = COALESCE(EXCLUDED.name, protein_signatures.name),\n            description = COALESCE(EXCLUDED.description, protein_signatures.description),\n            updated_at = NOW()\n        RETURNING id\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "27d83716bebbda8fe45f8df481dffc5d35450ba0059e035011aedad01349efa6"
+}

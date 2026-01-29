@@ -1,0 +1,35 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT id, database, accession\n            FROM protein_signatures\n            WHERE database = ANY($1) AND accession = ANY($2)\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "database",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "accession",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "TextArray",
+        "TextArray"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "9209d34a47ef46bd0d2d8bc65cf8ee5eef96ca5c3d88997930caaa9c9d092da8"
+}

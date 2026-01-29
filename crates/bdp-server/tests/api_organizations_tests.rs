@@ -98,7 +98,7 @@ async fn test_get_organization_success() {
     let pool = setup_test_db().await;
 
     // Create a test organization
-    bdp_server::db::organizations::create_organization(
+    let _: _ = bdp_server::db::organizations::create_organization(
         &pool,
         "test-org",
         "Test Organization",

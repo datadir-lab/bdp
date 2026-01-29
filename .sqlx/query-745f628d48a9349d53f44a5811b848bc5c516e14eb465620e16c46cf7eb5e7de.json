@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                INSERT INTO data_sources (id, source_type)\n                VALUES ($1, 'protein')\n                ON CONFLICT (id) DO NOTHING\n                ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "745f628d48a9349d53f44a5811b848bc5c516e14eb465620e16c46cf7eb5e7de"
+}
