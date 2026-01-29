@@ -9,12 +9,12 @@ resource "openstack_compute_keypair_v2" "bdp_key" {
   public_key = var.ssh_public_key
 }
 
-# Security Group - Allow HTTP, HTTPS, SSH
-resource "openstack_networking_secgroup_v2" "bdp_secgroup" {
-  name        = "${var.instance_name}-secgroup"
-  description = "Security group for BDP MVP instance"
+# Use existing default security group (OVH quota = 0, can't create new ones)
+data "openstack_networking_secgroup_v2" "default" {
+  name = "default"
 }
 
+# Add rules to default security group - Allow HTTP, HTTPS, SSH
 resource "openstack_networking_secgroup_rule_v2" "ssh" {
   direction         = "ingress"
   ethertype         = "IPv4"
@@ -22,7 +22,7 @@ resource "openstack_networking_secgroup_rule_v2" "ssh" {
   port_range_min    = 22
   port_range_max    = 22
   remote_ip_prefix  = "0.0.0.0/0"
-  security_group_id = openstack_networking_secgroup_v2.bdp_secgroup.id
+  security_group_id = data.openstack_networking_secgroup_v2.default.id
 }
 
 resource "openstack_networking_secgroup_rule_v2" "http" {
@@ -32,7 +32,7 @@ resource "openstack_networking_secgroup_rule_v2" "http" {
   port_range_min    = 80
   port_range_max    = 80
   remote_ip_prefix  = "0.0.0.0/0"
-  security_group_id = openstack_networking_secgroup_v2.bdp_secgroup.id
+  security_group_id = data.openstack_networking_secgroup_v2.default.id
 }
 
 resource "openstack_networking_secgroup_rule_v2" "https" {
@@ -42,7 +42,7 @@ resource "openstack_networking_secgroup_rule_v2" "https" {
   port_range_min    = 443
   port_range_max    = 443
   remote_ip_prefix  = "0.0.0.0/0"
-  security_group_id = openstack_networking_secgroup_v2.bdp_secgroup.id
+  security_group_id = data.openstack_networking_secgroup_v2.default.id
 }
 
 # Compute Instance
@@ -51,7 +51,7 @@ resource "openstack_compute_instance_v2" "bdp_server" {
   image_name      = var.instance_image
   flavor_name     = var.instance_flavor
   key_pair        = openstack_compute_keypair_v2.bdp_key.name
-  security_groups = [openstack_networking_secgroup_v2.bdp_secgroup.name]
+  security_groups = [data.openstack_networking_secgroup_v2.default.name]
 
   network {
     name = "Ext-Net" # OVH public network
