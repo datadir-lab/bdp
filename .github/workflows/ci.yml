@@ -224,6 +224,10 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-build-
 
+      - name: Install SQLx CLI
+        run: cargo install sqlx-cli --no-default-features --features postgres --locked
+        continue-on-error: true
+
       - name: Verify SQLx metadata via just
         run: just sqlx-check
 
