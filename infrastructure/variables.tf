@@ -143,7 +143,7 @@ variable "ssh_public_key" {
 variable "ssh_key_name" {
   description = "Name for the SSH keypair"
   type        = string
-  default     = "bdp-mvp-key"
+  default     = "bdp-production"
 }
 
 variable "deploy_ssh_public_key" {
