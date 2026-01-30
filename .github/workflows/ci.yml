@@ -378,34 +378,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install just
-        uses: extractions/setup-just@v2
-
-      - name: Cache cargo registry
-        uses: actions/cache@v4
+      - name: Run cargo audit using actions-rust-lang
+        uses: actions-rust-lang/audit@v1
         with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-          key: ${{ runner.os }}-cargo-audit-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-audit-
-
-      - name: Install cargo-audit
-        run: |
-          if ! cargo audit --version > /dev/null 2>&1; then
-            cargo install cargo-audit --locked
-          else
-            echo "cargo-audit already installed: $(cargo audit --version)"
-          fi
-
-      - name: Run cargo audit
-        run: cargo audit
+          # Use audit.toml configuration from repository root
+          denyWarnings: false
 
   # Docker: Build verification
   docker-build:
