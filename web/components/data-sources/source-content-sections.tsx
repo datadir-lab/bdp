@@ -4,7 +4,7 @@ import * as React from 'react';
 import { Dna, Info, Sparkles, FileText } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import type { DataSource, DataSourceVersion } from '@/lib/types/data-source';
+import type { DataSource, DataSourceVersion, ProteinFeature } from '@/lib/types/data-source';
 
 interface SourceContentSectionsProps {
   dataSource: DataSource;
@@ -194,7 +194,7 @@ export function SourceContentSections({ dataSource, currentVersion }: SourceCont
                   Protein Features
                 </h3>
                 <div className="space-y-2">
-                  {dataSource.protein_metadata.features.slice(0, 20).map((feature, idx) => (
+                  {dataSource.protein_metadata.features.slice(0, 20).map((feature: ProteinFeature, idx: number) => (
                     <div key={idx} className="flex items-start gap-3 text-sm">
                       <Badge variant="secondary" className="shrink-0">{feature.feature_type}</Badge>
                       <div className="flex-1">

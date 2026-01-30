@@ -1,5 +1,4 @@
-import { notFound } from 'next/navigation';
-import { redirect } from '@/i18n/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { getDataSource } from '@/lib/api/data-sources';
 
 interface PageProps {
@@ -25,7 +24,7 @@ export default async function DataSourceRedirectPage({ params }: PageProps) {
       org.trim() === '' || name.trim() === '') {
     console.error('Invalid route params:', resolvedParams);
     // Redirect to sources list instead of a specific page
-    redirect('/sources');
+    redirect(`/${locale}/sources`);
   }
 
   try {
@@ -44,21 +43,21 @@ export default async function DataSourceRedirectPage({ params }: PageProps) {
 
     // Redirect to latest version
     if (dataSource.latest_version) {
-      const redirectUrl = `/sources/${orgSlug}/${dataSourceSlug}/${dataSource.latest_version}`;
+      const redirectUrl = `/${locale}/sources/${orgSlug}/${dataSourceSlug}/${dataSource.latest_version}`;
       console.log('[Redirect] Redirecting to:', redirectUrl);
       redirect(redirectUrl);
     }
 
     // Fallback if no latest version (shouldn't happen)
     if (dataSource.versions && dataSource.versions.length > 0) {
-      const redirectUrl = `/sources/${orgSlug}/${dataSourceSlug}/${dataSource.versions[0].version}`;
+      const redirectUrl = `/${locale}/sources/${orgSlug}/${dataSourceSlug}/${dataSource.versions[0].version}`;
       console.log('[Redirect] Redirecting to:', redirectUrl);
       redirect(redirectUrl);
     }
 
     // If no versions at all, redirect to overview page with 'latest' as version
     // This allows viewing metadata for data sources that haven't been versioned yet
-    const redirectUrl = `/sources/${orgSlug}/${dataSourceSlug}/latest`;
+    const redirectUrl = `/${locale}/sources/${orgSlug}/${dataSourceSlug}/latest`;
     console.log('[Redirect] Redirecting to:', redirectUrl);
     redirect(redirectUrl);
   } catch (error) {
