@@ -178,10 +178,11 @@ web-build:
     echo "📚 Generating CLI documentation..."
     cargo run --package xtask -- generate-cli-docs
     echo "🌐 Building frontend..."
-    cd web && NEXT_PRIVATE_DISABLE_TURBO=1 yarn build
+    cd web
+    NEXT_PRIVATE_DISABLE_TURBO=1 yarn build
     echo "📦 Copying static files to standalone..."
-    cp -r web/public web/.next/standalone/
-    cp -r web/.next/static web/.next/standalone/.next/
+    cp -r public .next/standalone/
+    cp -r .next/static .next/standalone/.next/
     echo "✓ Build complete"
 
 # Alias for CI compatibility
