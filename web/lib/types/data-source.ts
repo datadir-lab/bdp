@@ -57,6 +57,8 @@ export interface ProteinMetadata {
   entry_created?: string;
   sequence_updated?: string;
   annotation_updated?: string;
+  comments?: ProteinComment[];
+  cross_references?: ProteinCrossReference[];
 }
 
 export interface VersionFile {

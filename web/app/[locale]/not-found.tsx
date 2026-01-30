@@ -24,18 +24,18 @@ export default function NotFound() {
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3 justify-center pt-4">
-          <Button asChild>
-            <Link href="/">
+          <Link href="/">
+            <Button className="w-full sm:w-auto">
               <Home className="mr-2 h-4 w-4" />
               {t('goHome')}
-            </Link>
-          </Button>
-          <Button variant="outline" asChild>
-            <Link href="/search">
+            </Button>
+          </Link>
+          <Link href="/search">
+            <Button variant="outline" className="w-full sm:w-auto">
               <Search className="mr-2 h-4 w-4" />
               {t('search')}
-            </Link>
-          </Button>
+            </Button>
+          </Link>
         </div>
       </div>
     </div>

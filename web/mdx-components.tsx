@@ -5,7 +5,7 @@ import { CodeBlock } from '@/components/docs/code-block';
 export function useMDXComponents(components: MDXComponents): MDXComponents {
   return {
     // Headings
-    h1: ({ children, ...props }) => (
+    h1: ({ children, ...props }: React.HTMLAttributes<HTMLHeadingElement>) => (
       <h1
         className="scroll-m-20 text-4xl font-bold tracking-tight mb-4 mt-8 first:mt-0"
         {...props}
@@ -13,7 +13,7 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
         {children}
       </h1>
     ),
-    h2: ({ children, ...props }) => (
+    h2: ({ children, ...props }: React.HTMLAttributes<HTMLHeadingElement>) => (
       <h2
         className="scroll-m-20 text-3xl font-semibold tracking-tight mb-3 mt-8 pb-2 border-b"
         {...props}
@@ -21,7 +21,7 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
         {children}
       </h2>
     ),
-    h3: ({ children, ...props }) => (
+    h3: ({ children, ...props }: React.HTMLAttributes<HTMLHeadingElement>) => (
       <h3
         className="scroll-m-20 text-2xl font-semibold tracking-tight mb-3 mt-6"
         {...props}
@@ -29,7 +29,7 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
         {children}
       </h3>
     ),
-    h4: ({ children, ...props }) => (
+    h4: ({ children, ...props }: React.HTMLAttributes<HTMLHeadingElement>) => (
       <h4
         className="scroll-m-20 text-xl font-semibold tracking-tight mb-2 mt-4"
         {...props}
@@ -37,7 +37,7 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
         {children}
       </h4>
     ),
-    h5: ({ children, ...props }) => (
+    h5: ({ children, ...props }: React.HTMLAttributes<HTMLHeadingElement>) => (
       <h5
         className="scroll-m-20 text-lg font-semibold tracking-tight mb-2 mt-4"
         {...props}
@@ -45,7 +45,7 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
         {children}
       </h5>
     ),
-    h6: ({ children, ...props }) => (
+    h6: ({ children, ...props }: React.HTMLAttributes<HTMLHeadingElement>) => (
       <h6
         className="scroll-m-20 text-base font-semibold tracking-tight mb-2 mt-4"
         {...props}
@@ -55,24 +55,24 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
     ),
 
     // Text
-    p: ({ children, ...props }) => (
+    p: ({ children, ...props }: React.HTMLAttributes<HTMLParagraphElement>) => (
       <p className="leading-7 mb-4 text-foreground/90" {...props}>
         {children}
       </p>
     ),
-    strong: ({ children, ...props }) => (
+    strong: ({ children, ...props }: React.HTMLAttributes<HTMLElement>) => (
       <strong className="font-semibold text-foreground" {...props}>
         {children}
       </strong>
     ),
-    em: ({ children, ...props }) => (
+    em: ({ children, ...props }: React.HTMLAttributes<HTMLElement>) => (
       <em className="italic text-foreground/90" {...props}>
         {children}
       </em>
     ),
 
     // Links
-    a: ({ href, children, ...props }) => {
+    a: ({ href, children, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => {
       const isExternal = href?.startsWith('http');
       const isAnchor = href?.startsWith('#');
 
@@ -114,24 +114,24 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
     },
 
     // Lists
-    ul: ({ children, ...props }) => (
+    ul: ({ children, ...props }: React.HTMLAttributes<HTMLUListElement>) => (
       <ul className="my-4 ml-6 list-disc space-y-2" {...props}>
         {children}
       </ul>
     ),
-    ol: ({ children, ...props }) => (
+    ol: ({ children, ...props }: React.HTMLAttributes<HTMLOListElement>) => (
       <ol className="my-4 ml-6 list-decimal space-y-2" {...props}>
         {children}
       </ol>
     ),
-    li: ({ children, ...props }) => (
+    li: ({ children, ...props }: React.LiHTMLAttributes<HTMLLIElement>) => (
       <li className="leading-7 text-foreground/90" {...props}>
         {children}
       </li>
     ),
 
     // Code
-    code: ({ children, ...props }) => (
+    code: ({ children, ...props }: React.HTMLAttributes<HTMLElement>) => (
       <code
         className="relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-sm"
         {...props}
@@ -139,7 +139,7 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
         {children}
       </code>
     ),
-    pre: ({ children, ...props }) => {
+    pre: ({ children, ...props }: React.HTMLAttributes<HTMLPreElement>) => {
       // Check if children is a code element
       if (
         children &&
@@ -165,29 +165,29 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
     },
 
     // Tables - enhanced for better display
-    table: ({ children, ...props }) => (
+    table: ({ children, ...props }: React.TableHTMLAttributes<HTMLTableElement>) => (
       <div className="my-6 w-full overflow-x-auto">
         <table className="w-full" {...props}>
           {children}
         </table>
       </div>
     ),
-    thead: ({ children, ...props }) => (
+    thead: ({ children, ...props }: React.HTMLAttributes<HTMLTableSectionElement>) => (
       <thead className="bg-muted/50" {...props}>
         {children}
       </thead>
     ),
-    tbody: ({ children, ...props }) => (
+    tbody: ({ children, ...props }: React.HTMLAttributes<HTMLTableSectionElement>) => (
       <tbody {...props}>
         {children}
       </tbody>
     ),
-    tr: ({ children, ...props }) => (
+    tr: ({ children, ...props }: React.HTMLAttributes<HTMLTableRowElement>) => (
       <tr className="m-0 border-t p-0 even:bg-muted/30" {...props}>
         {children}
       </tr>
     ),
-    th: ({ children, ...props }) => (
+    th: ({ children, ...props }: React.ThHTMLAttributes<HTMLTableCellElement>) => (
       <th
         className="border border-border px-4 py-2 text-left font-bold [&[align=center]]:text-center [&[align=right]]:text-right"
         {...props}
@@ -195,7 +195,7 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
         {children}
       </th>
     ),
-    td: ({ children, ...props }) => (
+    td: ({ children, ...props }: React.TdHTMLAttributes<HTMLTableCellElement>) => (
       <td
         className="border border-border px-4 py-2 text-left [&[align=center]]:text-center [&[align=right]]:text-right"
         {...props}
@@ -205,7 +205,7 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
     ),
 
     // Block elements
-    blockquote: ({ children, ...props }) => (
+    blockquote: ({ children, ...props }: React.BlockquoteHTMLAttributes<HTMLQuoteElement>) => (
       <blockquote
         className="mt-4 mb-4 border-l-4 border-primary pl-4 italic text-foreground/80"
         {...props}
@@ -213,12 +213,12 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
         {children}
       </blockquote>
     ),
-    hr: ({ ...props }) => (
+    hr: ({ ...props }: React.HTMLAttributes<HTMLHRElement>) => (
       <hr className="my-8 border-border" {...props} />
     ),
 
     // Images
-    img: ({ src, alt, ...props }) => (
+    img: ({ src, alt, ...props }: React.ImgHTMLAttributes<HTMLImageElement>) => (
       // eslint-disable-next-line @next/next/no-img-element
       <img
         src={src}
