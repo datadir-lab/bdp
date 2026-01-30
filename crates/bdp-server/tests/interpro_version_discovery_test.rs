@@ -5,6 +5,7 @@
 //! These are integration tests that verify the overall structure.
 
 use bdp_server::ingest::interpro::version_discovery::DiscoveredVersion;
+use chrono::Datelike;
 
 #[test]
 fn test_discovered_version_ordering() {
