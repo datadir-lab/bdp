@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! Debug test for NCBI FTP connection
 //!
 //! Run with: cargo test --test ncbi_ftp_debug_test -- --nocapture --ignored

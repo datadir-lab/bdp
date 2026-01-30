@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 /// Load tests for search functionality
 ///
 /// These tests simulate concurrent users performing searches

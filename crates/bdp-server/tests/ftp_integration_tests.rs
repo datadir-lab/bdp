@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! Integration tests for UniProt FTP downloads
 //!
 //! These tests connect to the real UniProt FTP server and are marked with #[ignore]

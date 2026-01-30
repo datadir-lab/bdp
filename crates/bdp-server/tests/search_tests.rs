@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! Integration tests for search functionality.
 //!
 //! These tests verify the unified search endpoint works correctly with

@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! E2E test observability and debugging helpers
 //!
 //! This module provides utilities for monitoring, debugging, and inspecting

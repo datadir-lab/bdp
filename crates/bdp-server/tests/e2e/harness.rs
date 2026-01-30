@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! E2E test environment orchestration
 //!
 //! This module provides the main test harness for orchestrating end-to-end tests

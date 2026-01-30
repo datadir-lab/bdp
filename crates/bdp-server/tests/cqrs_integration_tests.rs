@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! Integration tests for CQRS architecture and audit logging
 //!
 //! These tests verify:

@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! API integration tests for search and resolve endpoints.
 //!
 //! These tests verify the HTTP API behavior including request validation,

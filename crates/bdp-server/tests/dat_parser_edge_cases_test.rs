@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! Edge case and error handling tests for UniProt DAT parser
 
 use bdp_server::ingest::uniprot::parser::DatParser;

@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 //! End-to-end tests for bdp query command
 //!
 //! These tests validate the full query workflow including:

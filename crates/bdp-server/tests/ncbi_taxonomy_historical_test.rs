@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! NCBI Taxonomy historical version tests
 //!
 //! These tests verify FTP archive discovery and historical version downloads.

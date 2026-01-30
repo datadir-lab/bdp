@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! Common test utilities for BDP server integration tests using testcontainers
 //!
 //! This module provides easy-to-use utilities for spinning up PostgreSQL and MinIO

@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! Tests for NCBI Taxonomy orchestrator
 //!
 //! These tests validate sequential and parallel catchup operations.

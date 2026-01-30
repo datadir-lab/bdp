@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! Storage integration tests
 //!
 //! These tests verify the S3/MinIO storage functionality including:

@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! Test data management for E2E tests
 //!
 //! Handles both CI fixtures (committed) and real UniProt data (downloaded, cached).

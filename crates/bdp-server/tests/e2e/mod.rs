@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! End-to-end testing infrastructure for BDP ingestion pipeline
 //!
 //! This module provides comprehensive E2E testing capabilities including:

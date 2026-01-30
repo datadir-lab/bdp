@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! Comprehensive tests for the audit logging system
 //!
 //! These tests verify:

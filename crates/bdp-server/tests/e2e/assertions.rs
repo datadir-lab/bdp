@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! E2E test assertion helpers
 //!
 //! This module provides high-level assertion helpers for verifying the state

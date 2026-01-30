@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! Integration tests for UniProt DAT parser
 
 use bdp_server::ingest::uniprot::{models::UniProtEntry, parser::DatParser};

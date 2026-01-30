@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! Test organization creation idempotency by slug
 
 use anyhow::Result;

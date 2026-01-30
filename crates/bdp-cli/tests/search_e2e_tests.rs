@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 //! End-to-end tests for bdp search command
 //!
 //! These tests validate the full search workflow including:

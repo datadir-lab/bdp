@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! NCBI Taxonomy parser unit tests
 
 use bdp_server::ingest::ncbi_taxonomy::parser::TaxdumpParser;

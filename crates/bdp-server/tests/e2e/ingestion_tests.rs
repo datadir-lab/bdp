@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! E2E ingestion pipeline tests
 //!
 //! Tests the full data ingestion flow from UniProt data upload through

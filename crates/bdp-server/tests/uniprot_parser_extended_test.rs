@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! Comprehensive tests for UniProt DAT parser - Extended metadata fields
 //!
 //! Tests all DAT format fields including:

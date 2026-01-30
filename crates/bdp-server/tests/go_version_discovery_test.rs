@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! Tests for Gene Ontology version discovery
 
 use bdp_server::ingest::gene_ontology::{GoHttpConfig, VersionDiscovery};

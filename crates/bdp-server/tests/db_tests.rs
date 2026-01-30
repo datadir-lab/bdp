@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! Database integration tests using SQLx
 //!
 //! These tests demonstrate the use of the #[sqlx::test] macro for

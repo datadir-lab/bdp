@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 // Gene Ontology Integration Test
 
 use bdp_server::ingest::gene_ontology::{

@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! Test fixtures and data builders for BDP server tests
 //!
 //! This module provides reusable test data builders and fixture generators

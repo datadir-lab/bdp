@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! Integration tests for resolve functionality.
 //!
 //! These tests verify the dependency resolution endpoint works correctly

@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! Tests for NCBI Taxonomy batch operations
 //!
 //! These tests verify batch insert performance and correctness.

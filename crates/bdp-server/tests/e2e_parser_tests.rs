@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! E2E tests for UniProt DAT parser and database storage
 //!
 //! These tests validate the parser and database integration without

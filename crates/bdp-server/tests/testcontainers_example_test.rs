@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! Example integration tests using testcontainers
 //!
 //! This file demonstrates how to use the testcontainers infrastructure for

@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 // GenBank parser tests
 
 use bdp_server::ingest::genbank::models::SourceDatabase;

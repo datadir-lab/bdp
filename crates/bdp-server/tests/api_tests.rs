@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! API integration tests for BDP server
 //!
 //! These tests verify the REST API endpoints, request/response formats,

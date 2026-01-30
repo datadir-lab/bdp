@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! Integration tests for ingestion mode functionality
 //!
 //! Tests verify that Latest and Historical ingestion modes work correctly:

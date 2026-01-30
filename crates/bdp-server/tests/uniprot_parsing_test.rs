@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! UniProt DAT parsing validation tests
 //!
 //! Tests parsing logic against real UniProt data to ensure correctness

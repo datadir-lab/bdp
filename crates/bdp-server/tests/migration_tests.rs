@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! Migration safety tests for UniProt version transitions
 //!
 //! These tests verify that when UniProt moves a release from current to historical

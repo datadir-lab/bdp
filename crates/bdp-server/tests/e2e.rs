@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! End-to-end tests for BDP ingestion pipeline
 //!
 //! These tests spin up real Docker containers (PostgreSQL, MinIO, bdp-server)

@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! Tests for InterPro version discovery
 //!
 //! Note: Most tests are unit tests in the version_discovery module.
