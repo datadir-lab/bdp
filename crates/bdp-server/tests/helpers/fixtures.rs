@@ -542,7 +542,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_create_test_dataset() {
+    async fn test_create_test_dataset() -> Result<(), sqlx::Error> {
         let test_db = TestDb::new().await;
         let pool = test_db.pool();
 
@@ -572,6 +572,8 @@ mod tests {
         .fetch_one(pool)
         .await?
         .unwrap_or(false));
+
+        Ok(())
     }
 
     #[tokio::test]
