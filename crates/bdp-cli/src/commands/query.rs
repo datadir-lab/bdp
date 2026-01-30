@@ -497,6 +497,7 @@ fn format_as_compact(results: &QueryResults) -> String {
 pub use crate::api::types::QueryResults;
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
 
