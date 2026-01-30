@@ -8,6 +8,8 @@ use std::env;
 use std::fs;
 use std::io::{self, Write};
 use std::path::PathBuf;
+#[cfg(unix)]
+use std::path::Path;
 
 /// Uninstall BDP from the system
 pub async fn run(yes: bool, purge: bool) -> Result<()> {
