@@ -234,7 +234,8 @@
       "Bash(powershell.exe -Command \"yarn info @radix-ui/react-dropdown-menu version 2>&1\")",
       "Bash(powershell.exe -Command \"yarn install --network-timeout 100000 2>&1\")",
       "WebFetch(domain:registry.npmjs.org)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(gh api:*)"
     ]
   }
 }

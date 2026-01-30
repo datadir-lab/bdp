@@ -392,8 +392,8 @@ pub async fn create_test_version(
 ) -> Result<Uuid, sqlx::Error> {
     let id = sqlx::query_scalar!(
         r#"
-        INSERT INTO versions (registry_entry_id, version, status)
-        VALUES ($1, $2, 'published')
+        INSERT INTO versions (entry_id, version)
+        VALUES ($1, $2)
         RETURNING id
         "#,
         registry_entry_id,
