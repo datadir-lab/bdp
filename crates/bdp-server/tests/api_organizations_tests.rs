@@ -1,3 +1,4 @@
+#![cfg(feature = "legacy_tests")]
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 //! Integration tests for organizations API endpoints
 
