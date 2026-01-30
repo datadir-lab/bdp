@@ -148,6 +148,7 @@ mod tests {
     // with a real database would be needed for full coverage.
 
     #[derive(Debug, PartialEq)]
+    #[allow(dead_code)]
     enum TestError {
         Duplicate(String),
         HasDependencies(String),

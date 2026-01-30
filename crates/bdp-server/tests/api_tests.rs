@@ -29,7 +29,7 @@ mod helpers;
 // ============================================================================
 
 /// Create a test app router with database pool
-fn create_test_app(pool: PgPool) -> Router {
+fn create_test_app(_pool: PgPool) -> Router {
     // This would normally call your API router creation function
     // For now, we'll create a minimal router for testing
     Router::new()
@@ -624,7 +624,7 @@ async fn test_500_internal_server_error(pool: PgPool) -> sqlx::Result<()> {
     // This test would simulate a database error or other internal failure
     // For example, by disconnecting the pool or using an invalid query
 
-    let app = create_test_app(pool);
+    let _app = create_test_app(pool);
 
     // Trigger an error by requesting a resource that will cause a database error
     // This is a placeholder - actual implementation depends on error handling
@@ -724,7 +724,7 @@ async fn test_get_version_dependencies(pool: PgPool) -> sqlx::Result<()> {
 async fn test_cors_headers(pool: PgPool) -> sqlx::Result<()> {
     let app = create_test_app(pool);
 
-    let response = app
+    let _response = app
         .clone()
         .oneshot(
             Request::builder()

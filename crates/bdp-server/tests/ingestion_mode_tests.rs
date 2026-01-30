@@ -173,7 +173,7 @@ fn test_config_parse_latest_mode() {
     match config.ingestion_mode {
         IngestionMode::Latest(latest_cfg) => {
             assert_eq!(latest_cfg.check_interval_secs, 3600);
-            assert_eq!(latest_cfg.auto_ingest, true);
+            assert!(latest_cfg.auto_ingest);
             assert_eq!(latest_cfg.ignore_before, Some("2024_01".to_string()));
         },
         _ => panic!("Expected IngestionMode::Latest, got {:?}", config.ingestion_mode),
@@ -205,7 +205,7 @@ fn test_config_parse_historical_mode() {
             assert_eq!(historical_cfg.start_version, "2020_01");
             assert_eq!(historical_cfg.end_version, Some("2021_12".to_string()));
             assert_eq!(historical_cfg.batch_size, 5);
-            assert_eq!(historical_cfg.skip_existing, false);
+            assert!(!historical_cfg.skip_existing);
         },
         _ => panic!("Expected IngestionMode::Historical, got {:?}", config.ingestion_mode),
     }
@@ -497,7 +497,7 @@ fn test_latest_config_defaults() {
                 latest_cfg.check_interval_secs, 86400,
                 "Default check interval should be 86400 (1 day)"
             );
-            assert_eq!(latest_cfg.auto_ingest, false, "Default auto_ingest should be false");
+            assert!(!latest_cfg.auto_ingest, "Default auto_ingest should be false");
             assert_eq!(latest_cfg.ignore_before, None, "Default ignore_before should be None");
         },
         _ => panic!("Expected IngestionMode::Latest"),
@@ -526,7 +526,7 @@ fn test_historical_config_defaults() {
             );
             assert_eq!(historical_cfg.end_version, None, "Default end_version should be None");
             assert_eq!(historical_cfg.batch_size, 3, "Default batch_size should be 3");
-            assert_eq!(historical_cfg.skip_existing, true, "Default skip_existing should be true");
+            assert!(historical_cfg.skip_existing, "Default skip_existing should be true");
         },
         _ => panic!("Expected IngestionMode::Historical"),
     }

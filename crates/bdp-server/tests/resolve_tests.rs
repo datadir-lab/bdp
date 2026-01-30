@@ -76,7 +76,7 @@ fn test_resolve_request_serialization() {
 #[tokio::test]
 #[ignore]
 async fn test_resolve_with_dependencies() {
-    let pool = create_test_pool().await;
+    let _pool = create_test_pool().await;
 
     // This test would resolve a source that has dependencies
     // and verify the dependency tree is correctly returned
@@ -88,7 +88,7 @@ async fn test_resolve_with_dependencies() {
 #[tokio::test]
 #[ignore]
 async fn test_resolve_nonexistent_source() {
-    let pool = create_test_pool().await;
+    let _pool = create_test_pool().await;
 
     // Test resolving a source that doesn't exist
     // Should return a NOT_FOUND error
@@ -97,7 +97,7 @@ async fn test_resolve_nonexistent_source() {
 #[tokio::test]
 #[ignore]
 async fn test_resolve_invalid_version() {
-    let pool = create_test_pool().await;
+    let _pool = create_test_pool().await;
 
     // Test resolving a valid source but with invalid version
     // Should return a NOT_FOUND error
@@ -106,7 +106,7 @@ async fn test_resolve_invalid_version() {
 #[tokio::test]
 #[ignore]
 async fn test_resolve_invalid_format() {
-    let pool = create_test_pool().await;
+    let _pool = create_test_pool().await;
 
     // Test resolving a source with a format that's not available
     // Should return a NOT_FOUND error
@@ -115,7 +115,7 @@ async fn test_resolve_invalid_format() {
 #[tokio::test]
 #[ignore]
 async fn test_resolve_multiple_sources() {
-    let pool = create_test_pool().await;
+    let _pool = create_test_pool().await;
 
     // Test resolving multiple sources at once
     // Should return resolved data for all sources
@@ -124,7 +124,7 @@ async fn test_resolve_multiple_sources() {
 #[tokio::test]
 #[ignore]
 async fn test_resolve_mixed_sources_and_tools() {
-    let pool = create_test_pool().await;
+    let _pool = create_test_pool().await;
 
     // Test resolving both sources and tools in one request
     // Should return both in the response
@@ -195,7 +195,7 @@ fn test_resolve_response_structure() {
 #[tokio::test]
 #[ignore]
 async fn test_resolve_checksum_consistency() {
-    let pool = create_test_pool().await;
+    let _pool = create_test_pool().await;
 
     // Test that resolving the same source multiple times
     // returns the same checksum (consistency check)
@@ -204,7 +204,7 @@ async fn test_resolve_checksum_consistency() {
 #[tokio::test]
 #[ignore]
 async fn test_resolve_size_accuracy() {
-    let pool = create_test_pool().await;
+    let _pool = create_test_pool().await;
 
     // Test that the returned file size matches the actual file size
 }
@@ -212,7 +212,7 @@ async fn test_resolve_size_accuracy() {
 #[tokio::test]
 #[ignore]
 async fn test_resolve_dependency_count() {
-    let pool = create_test_pool().await;
+    let _pool = create_test_pool().await;
 
     // Test that dependency_count matches actual number of dependencies
 }
@@ -220,7 +220,7 @@ async fn test_resolve_dependency_count() {
 #[tokio::test]
 #[ignore]
 async fn test_resolve_circular_dependency_prevention() {
-    let pool = create_test_pool().await;
+    let _pool = create_test_pool().await;
 
     // Test that circular dependencies are properly handled
     // Should not cause infinite loops or errors

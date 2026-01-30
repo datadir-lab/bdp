@@ -684,7 +684,7 @@ mod tests {
         // Use a mutex to ensure this test doesn't run in parallel with others that change directory
         static TEST_LOCK: Mutex<()> = Mutex::new(());
 
-        let (temp_dir, manifest_path, original_dir) = {
+        let (_temp_dir, manifest_path, original_dir) = {
             let _guard = TEST_LOCK.lock().unwrap();
 
             let temp_dir = TempDir::new().unwrap();

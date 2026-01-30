@@ -28,7 +28,7 @@ async fn test_search_basic_query() {
     // This test assumes there's sample data in the database
     // In a real scenario, you'd seed test data first
 
-    let result = bdp_server::db::search::unified_search(
+    let result: Result<Vec<_>, _> = bdp_server::db::search::unified_search(
         &pool,
         "insulin",
         &bdp_server::db::search::SearchFilters::default(),
@@ -50,7 +50,7 @@ async fn test_search_with_type_filter() {
         format: None,
     };
 
-    let result = bdp_server::db::search::unified_search(
+    let result: Result<Vec<_>, _> = bdp_server::db::search::unified_search(
         &pool,
         "protein",
         &filters,
@@ -79,7 +79,7 @@ async fn test_search_with_organism_filter() {
         format: None,
     };
 
-    let result = bdp_server::db::search::unified_search(
+    let result: Result<Vec<_>, _> = bdp_server::db::search::unified_search(
         &pool,
         "protein",
         &filters,
@@ -101,7 +101,7 @@ async fn test_search_with_format_filter() {
         format: Some("fasta".to_string()),
     };
 
-    let result = bdp_server::db::search::unified_search(
+    let result: Result<Vec<_>, _> = bdp_server::db::search::unified_search(
         &pool,
         "protein",
         &filters,
@@ -130,7 +130,7 @@ async fn test_search_with_all_filters() {
         format: Some("fasta".to_string()),
     };
 
-    let result = bdp_server::db::search::unified_search(
+    let result: Result<Vec<_>, _> = bdp_server::db::search::unified_search(
         &pool,
         "insulin",
         &filters,
@@ -211,7 +211,7 @@ async fn test_search_empty_query() {
     let pool = create_test_pool().await;
 
     // Empty query should still work (might return all results)
-    let result = bdp_server::db::search::unified_search(
+    let result: Result<Vec<_>, _> = bdp_server::db::search::unified_search(
         &pool,
         "",
         &bdp_server::db::search::SearchFilters::default(),
@@ -228,7 +228,7 @@ async fn test_search_empty_query() {
 async fn test_search_no_results() {
     let pool = create_test_pool().await;
 
-    let result = bdp_server::db::search::unified_search(
+    let result: Result<Vec<_>, _> = bdp_server::db::search::unified_search(
         &pool,
         "nonexistentquerystring12345",
         &bdp_server::db::search::SearchFilters::default(),
@@ -251,7 +251,7 @@ async fn test_search_multiple_entry_types() {
         format: None,
     };
 
-    let result = bdp_server::db::search::unified_search(
+    let result: Result<Vec<_>, _> = bdp_server::db::search::unified_search(
         &pool,
         "blast",
         &filters,

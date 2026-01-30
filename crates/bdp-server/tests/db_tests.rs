@@ -42,7 +42,7 @@ async fn test_create_organization(pool: PgPool) -> sqlx::Result<()> {
     assert_eq!(org.slug, "test-org");
     assert_eq!(org.name, "Test Organization");
     assert_eq!(org.website.as_deref(), Some("https://example.com"));
-    assert!(!org.is_system);
+    assert_eq!(org.is_system, Some(false));
     assert!(org.created_at <= org.updated_at);
 
     Ok(())
@@ -582,7 +582,7 @@ async fn test_builder_organization(pool: PgPool) -> sqlx::Result<()> {
     assert_eq!(org.name, "Builder Test");
     assert_eq!(org.website.as_deref(), Some("https://builder.test"));
     assert_eq!(org.description.as_deref(), Some("Created with builder pattern"));
-    assert!(org.is_system);
+    assert_eq!(org.is_system, Some(true));
 
     Ok(())
 }

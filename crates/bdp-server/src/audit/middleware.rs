@@ -308,6 +308,7 @@ fn infer_resource(uri: &axum::http::Uri) -> (ResourceType, Option<Uuid>) {
 mod tests {
     use super::*;
 
+    #[allow(dead_code)]
     async fn test_handler() -> &'static str {
         "ok"
     }

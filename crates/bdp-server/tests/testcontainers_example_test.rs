@@ -66,7 +66,7 @@ async fn test_migrations_applied() {
         vec!["organizations", "registry_entries", "versions", "version_files", "dependencies"];
 
     for table in tables {
-        let exists = sqlx::query_scalar(&format!(
+        let exists: Option<bool> = sqlx::query_scalar(&format!(
             "SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name = '{}')",
             table
         ))
