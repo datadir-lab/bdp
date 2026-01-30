@@ -187,7 +187,7 @@ async fn test_get_request_not_audited(pool: PgPool) -> sqlx::Result<()> {
 
     tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
 
-    let count_after: Option<i64> = sqlx::query_scalar!("SELECT COUNT(*) FROM audit_log")
+    let count_after: i64 = sqlx::query_scalar!("SELECT COUNT(*) FROM audit_log")
         .fetch_one(&pool)
         .await?
         .unwrap_or(0);
@@ -429,7 +429,7 @@ async fn test_failed_requests_not_audited(pool: PgPool) -> sqlx::Result<()> {
 
     tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
 
-    let count_after: Option<i64> = sqlx::query_scalar!("SELECT COUNT(*) FROM audit_log")
+    let count_after: i64 = sqlx::query_scalar!("SELECT COUNT(*) FROM audit_log")
         .fetch_one(&pool)
         .await?
         .unwrap_or(0);
@@ -465,7 +465,7 @@ async fn test_multiple_requests_create_multiple_logs(pool: PgPool) -> sqlx::Resu
 
     tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
 
-    let count_after: Option<i64> = sqlx::query_scalar!("SELECT COUNT(*) FROM audit_log")
+    let count_after: i64 = sqlx::query_scalar!("SELECT COUNT(*) FROM audit_log")
         .fetch_one(&pool)
         .await?
         .unwrap_or(0);

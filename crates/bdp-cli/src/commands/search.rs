@@ -683,13 +683,15 @@ mod tests {
         use std::sync::Mutex;
         // Use a mutex to ensure this test doesn't run in parallel with others that change directory
         static TEST_LOCK: Mutex<()> = Mutex::new(());
-        let _guard = TEST_LOCK.lock().unwrap();
 
-        let temp_dir = TempDir::new().unwrap();
-        let manifest_path = temp_dir.path().join("bdp.yml");
+        let (temp_dir, manifest_path, original_dir) = {
+            let _guard = TEST_LOCK.lock().unwrap();
 
-        // Create a test manifest
-        let manifest_content = r#"
+            let temp_dir = TempDir::new().unwrap();
+            let manifest_path = temp_dir.path().join("bdp.yml");
+
+            // Create a test manifest
+            let manifest_content = r#"
 project:
   name: test-project
   version: 0.1.0
@@ -697,13 +699,16 @@ project:
 sources: []
 tools: []
 "#;
-        std::fs::write(&manifest_path, manifest_content).unwrap();
+            std::fs::write(&manifest_path, manifest_content).unwrap();
 
-        // Save original directory
-        let original_dir = std::env::current_dir().unwrap();
+            // Save original directory
+            let original_dir = std::env::current_dir().unwrap();
 
-        // Change to temp directory
-        std::env::set_current_dir(temp_dir.path()).unwrap();
+            // Change to temp directory
+            std::env::set_current_dir(temp_dir.path()).unwrap();
+
+            (temp_dir, manifest_path, original_dir)
+        };
 
         // Add source to manifest
         let result = add_to_manifest("uniprot:P01308@1.0").await;
