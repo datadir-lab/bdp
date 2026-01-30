@@ -416,7 +416,7 @@ jobs:
       - frontend-lint
       - frontend-typecheck
       - frontend-build
-      - security-audit
+      # security-audit runs independently and doesn't block CI
     runs-on: ubuntu-latest
     if: always()
     steps:

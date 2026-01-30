@@ -235,6 +235,18 @@ fix:
     cargo fmt --all
     @echo "✓ Fixes applied"
 
+# Run security audit
+security-audit:
+    @echo "🔒 Running security audit..."
+    cargo audit
+    @echo "✓ Security audit complete"
+
+# Install cargo-audit if not already installed
+install-cargo-audit:
+    @echo "📦 Installing cargo-audit..."
+    cargo install cargo-audit --locked
+    @echo "✓ cargo-audit installed"
+
 # ============================================================================
 # Building
 # ============================================================================
