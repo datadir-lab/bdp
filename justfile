@@ -171,7 +171,7 @@ web:
     Write-Host "🌐 Starting frontend (dev mode)..."
     cd web; yarn dev
 
-# Build frontend (without Pagefind, without starting server)
+# Build frontend (with Pagefind indexing, without starting server)
 web-build:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -183,7 +183,9 @@ web-build:
     echo "📦 Copying static files to standalone..."
     cp -r public .next/standalone/
     cp -r .next/static .next/standalone/.next/
-    echo "✓ Build complete"
+    echo "🔍 Indexing documentation with Pagefind..."
+    yarn pagefind
+    echo "✓ Build complete with Pagefind index"
 
 # Alias for CI compatibility
 build-web: web-build

@@ -81,7 +81,7 @@ pub async fn run(yes: bool, purge: bool) -> Result<()> {
 }
 
 #[cfg(unix)]
-fn remove_self_unix(exe_path: &PathBuf) -> Result<()> {
+fn remove_self_unix(exe_path: &Path) -> Result<()> {
     use std::process::Command;
 
     println!("Removing BDP executable...");
