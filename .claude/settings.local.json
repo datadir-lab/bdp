@@ -235,7 +235,9 @@
       "Bash(powershell.exe -Command \"yarn install --network-timeout 100000 2>&1\")",
       "WebFetch(domain:registry.npmjs.org)",
       "Bash(git checkout:*)",
-      "Bash(gh api:*)"
+      "Bash(gh api:*)",
+      "Bash(NEXT_PRIVATE_DISABLE_TURBO=1 yarn build:*)",
+      "Bash(SQLX_OFFLINE=true cargo clippy:*)"
     ]
   }
 }
