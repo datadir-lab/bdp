@@ -8,7 +8,7 @@
     "pagefind": "pagefind --site .next/server/app --output-path public/_pagefind",
     "start": "node .next/standalone/server.js",
     "start:dev": "next start",
-    "lint": "next lint",
+    "lint": "next lint --dir .",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {

@@ -148,7 +148,7 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
       ) {
         const childElement = children as React.ReactElement<{ className?: string; children?: React.ReactNode }>;
         const className = childElement.props?.className || '';
-        const code = childElement.props?.children || '';
+        const code = String(childElement.props?.children || '');
 
         return <CodeBlock className={className}>{code}</CodeBlock>;
       }
