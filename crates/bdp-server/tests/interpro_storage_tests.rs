@@ -10,12 +10,10 @@
 
 use bdp_server::db::{create_pool, DbConfig};
 use bdp_server::ingest::interpro::{
-    helpers::{
-        GoTermLookupHelper, InterProEntryLookupHelper, ProteinLookupHelper, SignatureLookupHelper,
-    },
+    helpers::{GoTermLookupHelper, ProteinLookupHelper, SignatureLookupHelper},
     models::{
-        EntryType, ExternalReferenceData, GoMappingData, InterProEntry, InterProMetadata,
-        MemberSignatureData, ProteinMatch, SignatureDatabase,
+        EntryType, ExternalReferenceData, InterProEntry, InterProMetadata, MemberSignatureData,
+        SignatureDatabase,
     },
     storage::*,
 };

@@ -412,7 +412,7 @@ mod tests {
         let result = handle(pool.clone(), query).await;
         assert!(result.is_ok());
         let response = result.unwrap();
-        assert!(response.suggestions.len() > 0);
+        assert!(!response.suggestions.is_empty());
         assert!(response.suggestions.iter().any(|s| s.slug == "uniprot"));
         Ok(())
     }
@@ -450,7 +450,7 @@ mod tests {
         let result = handle(pool.clone(), query).await;
         assert!(result.is_ok());
         let response = result.unwrap();
-        assert!(response.suggestions.len() > 0);
+        assert!(!response.suggestions.is_empty());
         assert!(response
             .suggestions
             .iter()
@@ -590,7 +590,7 @@ mod tests {
         let result = handle(pool.clone(), query).await;
         assert!(result.is_ok());
         let response = result.unwrap();
-        assert!(response.suggestions.len() > 0);
+        assert!(!response.suggestions.is_empty());
         assert!(response
             .suggestions
             .iter()
@@ -669,7 +669,7 @@ mod tests {
         let result = handle(pool.clone(), query).await;
         assert!(result.is_ok());
         let response = result.unwrap();
-        assert!(response.suggestions.len() > 0);
+        assert!(!response.suggestions.is_empty());
         assert!(response
             .suggestions
             .iter()

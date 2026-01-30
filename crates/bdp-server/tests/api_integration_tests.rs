@@ -5,7 +5,7 @@
 //! response format, error handling, and edge cases.
 
 use axum::http::StatusCode;
-use serde_json::{json, Value};
+use serde_json::json;
 
 #[test]
 fn test_search_query_validation() {
@@ -92,7 +92,7 @@ fn test_search_error_response_format() {
         }
     });
 
-    assert_eq!(error_response["success"].as_bool().unwrap(), false);
+    assert!(!error_response["success"].as_bool().unwrap());
     assert!(error_response["error"].is_object());
     assert!(error_response["error"]["code"].is_string());
     assert!(error_response["error"]["message"].is_string());
@@ -101,7 +101,7 @@ fn test_search_error_response_format() {
 #[test]
 fn test_resolve_request_validation() {
     // Test that invalid source specs are rejected
-    let invalid_specs = vec!["invalid", "uniprot:P01308", "uniprot-fasta@1.0", "-fasta@1.0"];
+    let _invalid_specs = ["invalid", "uniprot:P01308", "uniprot-fasta@1.0", "-fasta@1.0"];
 
     // All should fail validation
 }
@@ -249,7 +249,6 @@ fn test_offset_calculation() {
 #[test]
 fn test_search_result_grouping() {
     // Test that results are properly grouped by type
-    use std::collections::HashMap;
 
     let mut data_sources = Vec::new();
     let mut tools = Vec::new();

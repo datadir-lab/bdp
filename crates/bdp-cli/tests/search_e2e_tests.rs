@@ -97,7 +97,7 @@ async fn test_search_compact_format() {
         .arg("--format")
         .arg("compact")
         .arg("--server-url")
-        .arg(&mock_server.uri());
+        .arg(mock_server.uri());
 
     cmd.assert()
         .success()
@@ -123,7 +123,7 @@ async fn test_search_table_format() {
         .arg("--format")
         .arg("table")
         .arg("--server-url")
-        .arg(&mock_server.uri());
+        .arg(mock_server.uri());
 
     cmd.assert()
         .success()
@@ -151,7 +151,7 @@ async fn test_search_json_format() {
         .arg("--format")
         .arg("json")
         .arg("--server-url")
-        .arg(&mock_server.uri());
+        .arg(mock_server.uri());
 
     cmd.assert()
         .success()
@@ -181,7 +181,7 @@ async fn test_search_with_type_filter() {
         .arg("--format")
         .arg("compact")
         .arg("--server-url")
-        .arg(&mock_server.uri());
+        .arg(mock_server.uri());
 
     cmd.assert().success();
 }
@@ -207,7 +207,7 @@ async fn test_search_with_source_type_filter() {
         .arg("--format")
         .arg("compact")
         .arg("--server-url")
-        .arg(&mock_server.uri());
+        .arg(mock_server.uri());
 
     cmd.assert().success();
 }
@@ -236,7 +236,7 @@ async fn test_search_with_pagination() {
         .arg("--format")
         .arg("compact")
         .arg("--server-url")
-        .arg(&mock_server.uri());
+        .arg(mock_server.uri());
 
     cmd.assert().success();
 }
@@ -259,7 +259,7 @@ async fn test_search_empty_results() {
         .arg("--format")
         .arg("compact")
         .arg("--server-url")
-        .arg(&mock_server.uri());
+        .arg(mock_server.uri());
 
     cmd.assert()
         .success()
@@ -285,7 +285,7 @@ async fn test_search_multi_word_query() {
         .arg("--format")
         .arg("compact")
         .arg("--server-url")
-        .arg(&mock_server.uri());
+        .arg(mock_server.uri());
 
     cmd.assert().success();
 }
@@ -343,7 +343,7 @@ async fn test_search_server_error() {
         .arg("unique_query_for_server_error_test")  // Use unique query to avoid cache
         .arg("--no-interactive")
         .arg("--server-url")
-        .arg(&mock_server.uri());
+        .arg(mock_server.uri());
 
     cmd.assert().failure();
 }
@@ -373,7 +373,7 @@ async fn test_search_network_retry() {
         .arg("--format")
         .arg("compact")
         .arg("--server-url")
-        .arg(&mock_server.uri());
+        .arg(mock_server.uri());
 
     // Should succeed after retries
     cmd.assert().success();
@@ -403,7 +403,7 @@ async fn test_search_caching() {
         .arg("--format")
         .arg("compact")
         .arg("--server-url")
-        .arg(&mock_server.uri());
+        .arg(mock_server.uri());
 
     cmd1.assert().success();
 
@@ -415,7 +415,7 @@ async fn test_search_caching() {
         .arg("--format")
         .arg("compact")
         .arg("--server-url")
-        .arg(&mock_server.uri());
+        .arg(mock_server.uri());
 
     cmd2.assert().success();
 }
@@ -438,7 +438,7 @@ async fn test_search_cache_clear() {
         .arg("--format")
         .arg("compact")
         .arg("--server-url")
-        .arg(&mock_server.uri());
+        .arg(mock_server.uri());
 
     cmd.assert().success();
 
@@ -491,7 +491,7 @@ async fn test_search_multiple_filters() {
         .arg("--format")
         .arg("compact")
         .arg("--server-url")
-        .arg(&mock_server.uri());
+        .arg(mock_server.uri());
 
     cmd.assert().success();
 }
@@ -514,7 +514,7 @@ async fn test_search_fuzzy_suggestions() {
         .arg("--format")
         .arg("compact")
         .arg("--server-url")
-        .arg(&mock_server.uri());
+        .arg(mock_server.uri());
 
     cmd.assert()
         .success()

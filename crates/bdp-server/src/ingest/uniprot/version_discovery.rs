@@ -344,7 +344,7 @@ mod tests {
             ftp_path: "current_release".to_string(),
         };
 
-        let mut versions = vec![v2.clone(), v1.clone()];
+        let mut versions = [v2.clone(), v1.clone()];
         versions.sort();
 
         // Oldest first

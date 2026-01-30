@@ -72,7 +72,7 @@ async fn test_query_raw_sql() {
         .arg("--sql")
         .arg("SELECT id, name, version FROM data_sources LIMIT 10")
         .arg("--server-url")
-        .arg(&mock_server.uri());
+        .arg(mock_server.uri());
 
     cmd.assert()
         .success()
@@ -123,7 +123,7 @@ async fn test_query_protein_alias() {
         .arg("--limit")
         .arg("5")
         .arg("--server-url")
-        .arg(&mock_server.uri());
+        .arg(mock_server.uri());
 
     cmd.assert().success();
 }
@@ -145,7 +145,7 @@ async fn test_query_gene_alias() {
         .arg("--limit")
         .arg("5")
         .arg("--server-url")
-        .arg(&mock_server.uri());
+        .arg(mock_server.uri());
 
     cmd.assert().success();
 }
@@ -167,7 +167,7 @@ async fn test_query_genome_alias() {
         .arg("--limit")
         .arg("5")
         .arg("--server-url")
-        .arg(&mock_server.uri());
+        .arg(mock_server.uri());
 
     cmd.assert().success();
 }
@@ -194,7 +194,7 @@ async fn test_query_table_format() {
         .arg("--limit")
         .arg("5")
         .arg("--server-url")
-        .arg(&mock_server.uri());
+        .arg(mock_server.uri());
 
     cmd.assert()
         .success()
@@ -221,7 +221,7 @@ async fn test_query_json_format() {
         .arg("--limit")
         .arg("5")
         .arg("--server-url")
-        .arg(&mock_server.uri());
+        .arg(mock_server.uri());
 
     cmd.assert()
         .success()
@@ -247,7 +247,7 @@ async fn test_query_csv_format() {
         .arg("--limit")
         .arg("5")
         .arg("--server-url")
-        .arg(&mock_server.uri());
+        .arg(mock_server.uri());
 
     cmd.assert()
         .success()
@@ -273,7 +273,7 @@ async fn test_query_tsv_format() {
         .arg("--limit")
         .arg("5")
         .arg("--server-url")
-        .arg(&mock_server.uri());
+        .arg(mock_server.uri());
 
     cmd.assert()
         .success()
@@ -299,7 +299,7 @@ async fn test_query_compact_format() {
         .arg("--limit")
         .arg("5")
         .arg("--server-url")
-        .arg(&mock_server.uri());
+        .arg(mock_server.uri());
 
     cmd.assert()
         .success()
@@ -326,7 +326,7 @@ async fn test_query_no_header() {
         .arg("--limit")
         .arg("5")
         .arg("--server-url")
-        .arg(&mock_server.uri());
+        .arg(mock_server.uri());
 
     cmd.assert()
         .success()
@@ -491,7 +491,7 @@ async fn test_query_server_error() {
         .arg("--sql")
         .arg("DROP TABLE data_sources")
         .arg("--server-url")
-        .arg(&mock_server.uri());
+        .arg(mock_server.uri());
 
     cmd.assert()
         .failure()
@@ -543,7 +543,7 @@ async fn test_query_output_to_file() {
         .arg("--limit")
         .arg("5")
         .arg("--server-url")
-        .arg(&mock_server.uri());
+        .arg(mock_server.uri());
 
     cmd.assert().success();
 
@@ -574,7 +574,7 @@ async fn test_query_empty_results() {
         .arg("--where")
         .arg("organism=nonexistent")
         .arg("--server-url")
-        .arg(&mock_server.uri());
+        .arg(mock_server.uri());
 
     cmd.assert()
         .success()
@@ -612,7 +612,7 @@ async fn test_query_explain() {
         .arg("--limit")
         .arg("10")
         .arg("--server-url")
-        .arg(&mock_server.uri());
+        .arg(mock_server.uri());
 
     cmd.assert()
         .success()

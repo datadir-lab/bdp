@@ -88,7 +88,7 @@ mod tests {
     #[test]
     fn test_create_spinner() {
         let pb = create_spinner("Processing...");
-        assert!(pb.is_finished() == false);
+        assert!(!pb.is_finished());
         pb.finish();
     }
 

@@ -2,6 +2,7 @@
 //! BDP Server Library
 #![recursion_limit = "256"]
 #![deny(clippy::unwrap_used, clippy::expect_used)]
+#![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::manual_div_ceil)]
 #![allow(clippy::redundant_closure)]

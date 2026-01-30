@@ -354,7 +354,7 @@ mod tests {
     #[test]
     fn test_primary_divisions() {
         let divs = GenbankFtpConfig::get_primary_divisions();
-        assert!(divs.len() > 0);
+        assert!(!divs.is_empty());
         assert!(divs.contains(&Division::Viral));
         assert!(divs.contains(&Division::Bacterial));
     }

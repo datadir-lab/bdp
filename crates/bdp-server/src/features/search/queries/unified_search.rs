@@ -664,7 +664,7 @@ mod tests {
         let result = handle(pool.clone(), query).await;
         assert!(result.is_ok());
         let response = result.unwrap();
-        assert!(response.items.len() > 0);
+        assert!(!response.items.is_empty());
         assert!(response.items.iter().any(|i| i.slug == "uniprot"));
         Ok(())
     }

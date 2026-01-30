@@ -447,7 +447,7 @@ mod tests {
             source_database: SourceDatabase::Genbank,
         };
 
-        let mut versions = vec![v2.clone(), v1.clone()];
+        let mut versions = [v2.clone(), v1.clone()];
         versions.sort();
 
         // Oldest first

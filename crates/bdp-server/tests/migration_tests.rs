@@ -160,7 +160,7 @@ async fn test_current_to_historical_no_reingest(pool: PgPool) {
 /// - Result: was_ingested_as_current() returns false, pipeline ingests it
 #[sqlx::test]
 async fn test_new_version_in_historical_ingests(pool: PgPool) {
-    let org_id = create_test_organization(&pool).await;
+    let _org_id = create_test_organization(&pool).await;
 
     // No previous ingestion of "2024_12"
     assert!(!ingestion_job_exists(&pool, "2024_12").await);

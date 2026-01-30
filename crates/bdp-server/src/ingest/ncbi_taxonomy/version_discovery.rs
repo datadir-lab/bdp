@@ -537,7 +537,7 @@ mod tests {
             modification_date: NaiveDate::from_ymd_opt(2026, 2, 1).unwrap(),
         };
 
-        let mut versions = vec![v3.clone(), v1.clone(), v2.clone()];
+        let mut versions = [v3.clone(), v1.clone(), v2.clone()];
         versions.sort();
 
         // Should be sorted oldest to newest
@@ -549,7 +549,7 @@ mod tests {
     #[test]
     fn test_filter_by_date_range_logic() {
         // Test date range filtering logic without needing database or discovery instance
-        let versions = vec![
+        let versions = [
             DiscoveredTaxonomyVersion {
                 external_version: "2025-11-01".to_string(),
                 modification_date: NaiveDate::from_ymd_opt(2025, 11, 1).unwrap(),
@@ -579,7 +579,7 @@ mod tests {
     #[test]
     fn test_filter_by_date_range_both_bounds() {
         // Test date range filtering with both start and end dates
-        let versions = vec![
+        let versions = [
             DiscoveredTaxonomyVersion {
                 external_version: "2025-11-01".to_string(),
                 modification_date: NaiveDate::from_ymd_opt(2025, 11, 1).unwrap(),

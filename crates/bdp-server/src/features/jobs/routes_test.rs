@@ -95,7 +95,7 @@ mod tests {
         let response = app
             .oneshot(
                 Request::builder()
-                    .uri(&format!("/sync-status?organization_id={}", org_id))
+                    .uri(format!("/sync-status?organization_id={}", org_id))
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -113,7 +113,7 @@ mod tests {
         let response = app
             .oneshot(
                 Request::builder()
-                    .uri(&format!("/sync-status/{}", org_id))
+                    .uri(format!("/sync-status/{}", org_id))
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -159,7 +159,7 @@ mod tests {
         let response = app
             .oneshot(
                 Request::builder()
-                    .uri(&format!("/sync-status/{}", org_id))
+                    .uri(format!("/sync-status/{}", org_id))
                     .body(Body::empty())
                     .unwrap(),
             )

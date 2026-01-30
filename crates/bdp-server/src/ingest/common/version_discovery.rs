@@ -206,7 +206,7 @@ mod tests {
 
     #[test]
     fn test_version_sorting() {
-        let mut versions = vec![
+        let mut versions = [
             create_test_version("2025-01-01", 2025, 1, 1),
             create_test_version("2024-11-01", 2024, 11, 1),
             create_test_version("2024-12-01", 2024, 12, 1),

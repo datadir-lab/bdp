@@ -489,7 +489,7 @@ mod tests {
             ftp_directory: "current".to_string(),
         };
 
-        let mut versions = vec![v3.clone(), v1.clone(), v2.clone()];
+        let mut versions = [v3.clone(), v1.clone(), v2.clone()];
         versions.sort();
 
         // Should be sorted oldest to newest: 96.0, 97.0, 98.0

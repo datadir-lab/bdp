@@ -247,8 +247,8 @@ mod tests {
         assert!(audit2.verify_integrity().await.unwrap());
 
         // Verify manifests are different (not shared)
-        let manifest1 = Manifest::load(&temp_dir1.path().join("bdp.yml")).unwrap();
-        let manifest2 = Manifest::load(&temp_dir2.path().join("bdp.yml")).unwrap();
+        let manifest1 = Manifest::load(temp_dir1.path().join("bdp.yml")).unwrap();
+        let manifest2 = Manifest::load(temp_dir2.path().join("bdp.yml")).unwrap();
 
         assert_eq!(manifest1.project.name, "project1");
         assert_eq!(manifest2.project.name, "project2");
