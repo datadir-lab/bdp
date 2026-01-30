@@ -1,3 +1,4 @@
+#![cfg(feature = "legacy_examples")]
 /// Example: Refresh the search materialized view
 ///
 /// This example demonstrates how to manually refresh the search index.

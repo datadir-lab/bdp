@@ -159,3 +159,13 @@ tokio = { workspace = true, features = ["test-util"] }
 default = []
 # Enable when you want to fail compilation if SQL queries are not prepared offline
 sqlx-offline = []
+
+# Legacy test/example features (disabled due to architecture changes)
+legacy_tests = []
+legacy_examples = []
+legacy_benchmarks = []
+search_legacy_tests = []
+pipeline_legacy_tests = []
+resolve_legacy_tests = []
+e2e_legacy_tests = []
+middleware_legacy_tests = []

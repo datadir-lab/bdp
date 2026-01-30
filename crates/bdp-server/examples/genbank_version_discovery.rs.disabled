@@ -1,3 +1,4 @@
+#![cfg(feature = "legacy_examples")]
 //! GenBank/RefSeq version discovery example
 //!
 //! Demonstrates how to discover available GenBank/RefSeq versions from FTP

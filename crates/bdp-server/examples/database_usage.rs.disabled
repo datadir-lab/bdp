@@ -1,3 +1,4 @@
+#![cfg(feature = "legacy_examples")]
 //! Example demonstrating database usage with SQLx in BDP server.
 //!
 //! This example shows how to:

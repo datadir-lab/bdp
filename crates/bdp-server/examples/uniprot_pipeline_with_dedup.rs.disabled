@@ -1,3 +1,4 @@
+#![cfg(feature = "legacy_examples")]
 //! Complete UniProt pipeline with version deduplication
 //!
 //! This example demonstrates:

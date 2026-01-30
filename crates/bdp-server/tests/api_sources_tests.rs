@@ -1,4 +1,5 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
+#![allow(unused_imports, dead_code, clippy::wrong_self_convention)]
 //! Integration tests for sources API endpoints
 
 use axum::{

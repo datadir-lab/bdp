@@ -1,4 +1,5 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
+#![allow(unused_imports, dead_code, clippy::wrong_self_convention)]
 //! Comprehensive tests for the audit logging system
 //!
 //! These tests verify:

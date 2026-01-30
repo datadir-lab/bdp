@@ -1,3 +1,4 @@
+#![cfg(feature = "legacy_examples")]
 //! Gene Ontology Historical Ingestion Example
 //!
 //! Demonstrates how to:

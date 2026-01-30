@@ -1,4 +1,5 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
+#![allow(unused_imports, dead_code, clippy::wrong_self_convention)]
 //! Integration tests for SQL query endpoint
 //!
 //! These tests verify the `/api/v1/query` endpoint works correctly with

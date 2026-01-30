@@ -1,17 +1,15 @@
-//! Historical ingestion for specific UniProt versions
+#![cfg(feature = "legacy_examples")]
+//! Manual trigger for UniProt ingestion
 //!
-//! This example fetches specific historical versions from UniProt FTP
-//! without relying on current_release (which has FTP passive mode issues).
-//!
-//! Usage: cargo run --example run_historical_ingestion
+//! Usage: cargo run --example run_uniprot_ingestion
 
 use anyhow::Result;
 use bdp_server::ingest::framework::BatchConfig;
-use bdp_server::ingest::uniprot::{UniProtFtpConfig, UniProtPipeline, VersionDiscovery};
+use bdp_server::ingest::uniprot::{IdempotentUniProtPipeline, UniProtFtpConfig, VersionDiscovery};
 use bdp_server::storage::{config::StorageConfig, Storage};
 use sqlx::postgres::PgPoolOptions;
 use std::{sync::Arc, time::Duration};
-use tracing::{error, info, warn};
+use tracing::{info, warn};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 use uuid::Uuid;
 
@@ -23,19 +21,7 @@ async fn main() -> Result<()> {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    info!("=== Historical UniProt Ingestion ===");
-
-    // Parse command line arguments or use defaults
-    let versions_to_fetch = std::env::args().skip(1).collect::<Vec<_>>();
-
-    let target_versions = if versions_to_fetch.is_empty() {
-        // Default: Last two 2025 versions
-        vec!["2025_01".to_string(), "2025_02".to_string()]
-    } else {
-        versions_to_fetch
-    };
-
-    info!(versions = ?target_versions, "Target versions");
+    info!("=== Running UniProt Protein Ingestion ===");
 
     // Connect to database (Docker)
     let database_url = std::env::var("DATABASE_URL")
@@ -51,7 +37,7 @@ async fn main() -> Result<()> {
 
     // Get or create organization
     let org_id = get_or_create_organization(&pool).await?;
-    info!(org_id = %org_id, slug = "uniprot", "Using organization");
+    info!(org_id = %org_id, "Using organization");
 
     // Initialize S3/MinIO storage
     let storage_config = StorageConfig::from_env()?;
@@ -62,7 +48,7 @@ async fn main() -> Result<()> {
     let ftp_config = UniProtFtpConfig::default();
     let batch_config = BatchConfig::default();
 
-    let pipeline = UniProtPipeline::new(
+    let pipeline = IdempotentUniProtPipeline::new(
         Arc::new(pool.clone()),
         org_id,
         ftp_config.clone(),
@@ -78,75 +64,45 @@ async fn main() -> Result<()> {
         "Configuration"
     );
 
-    // Discover all available versions
-    info!("Discovering available versions from FTP (previous releases)...");
+    // Check for new versions
+    info!("Checking for available protein data versions...");
     let discovery = VersionDiscovery::new(ftp_config);
 
-    let all_versions = match discovery.discover_previous_versions_only().await {
-        Ok(versions) => {
-            info!(count = versions.len(), "Found historical versions");
-            versions
+    match discovery.check_for_newer_version(&pool, org_id).await? {
+        Some(version) => {
+            info!(
+                version = %version.external_version,
+                is_current = version.is_current,
+                "Found version to ingest"
+            );
+            info!("Starting ingestion... This will download and process UniProt protein data.");
+            info!("Note: Full ingestion can take hours for complete dataset.");
+
+            // Run idempotent ingestion
+            let stats = pipeline.run_idempotent().await?;
+
+            info!("=== Ingestion Complete ===");
+            info!(
+                discovered = stats.discovered_count,
+                already_ingested = stats.already_ingested_count,
+                newly_ingested = stats.newly_ingested_count,
+                failed = stats.failed_count,
+                "Statistics"
+            );
         },
-        Err(e) => {
-            warn!(error = %e, "Failed to discover versions");
-            return Err(e);
+        None => {
+            let last = discovery.get_last_ingested_version(&pool, org_id).await?;
+            match last {
+                Some(v) => info!(version = %v, "Already up to date"),
+                None => {
+                    warn!("No versions found to ingest. This might indicate:");
+                    warn!("  - FTP connection issues");
+                    warn!("  - No data available");
+                    warn!("  - Configuration problems");
+                },
+            }
         },
-    };
-
-    if all_versions.is_empty() {
-        warn!("No historical versions found!");
-        return Ok(());
     }
-
-    // Filter to only requested versions
-    let versions_to_ingest: Vec<_> = all_versions
-        .into_iter()
-        .filter(|v| target_versions.contains(&v.external_version))
-        .collect();
-
-    if versions_to_ingest.is_empty() {
-        warn!(requested = ?target_versions, "None of the requested versions were found on FTP!");
-        return Ok(());
-    }
-
-    info!("=== Versions to Ingest ===");
-    for version in &versions_to_ingest {
-        info!(version = %version.external_version, release_date = %version.release_date, "Version");
-    }
-
-    // Ingest each version
-    let mut total_succeeded = 0;
-    let mut total_failed = 0;
-
-    for version in versions_to_ingest {
-        info!(
-            version = %version.external_version,
-            release_date = %version.release_date,
-            ftp_path = %version.ftp_path,
-            "Starting ingestion"
-        );
-
-        match pipeline.ingest_version(&version).await {
-            Ok(job_id) => {
-                info!(job_id = %job_id, "Ingestion completed successfully");
-                total_succeeded += 1;
-            },
-            Err(e) => {
-                error!(error = %e, "Ingestion failed");
-                // Log full error chain for debugging
-                let mut current = e.source();
-                let mut depth = 1;
-                while let Some(err) = current {
-                    error!(depth = depth, error = %err, "Error chain");
-                    current = err.source();
-                    depth += 1;
-                }
-                total_failed += 1;
-            },
-        }
-    }
-
-    info!(succeeded = total_succeeded, failed = total_failed, "=== Ingestion Summary ===");
 
     Ok(())
 }
