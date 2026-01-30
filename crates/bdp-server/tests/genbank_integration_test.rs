@@ -1,4 +1,5 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
+#![allow(unused_imports, unused_variables, dead_code)]
 // GenBank integration tests
 //
 // These tests verify the complete ingestion pipeline with real data

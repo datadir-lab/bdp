@@ -1,3 +1,4 @@
+#![allow(unused_imports, unused_variables, dead_code, clippy::single_match)]
 //! Test UniProt Ingestion System
 //!
 //! Demonstrates the complete ingestion pipeline with configuration modes

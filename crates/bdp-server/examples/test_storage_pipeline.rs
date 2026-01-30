@@ -4,7 +4,6 @@
 
 use anyhow::Result;
 use bdp_server::ingest::uniprot::{parser::DatParser, storage::UniProtStorage};
-use bdp_server::storage::{config::StorageConfig, Storage};
 use sqlx::postgres::PgPoolOptions;
 use std::time::Duration;
 use tracing::info;

@@ -1,4 +1,5 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
+#![allow(unused_imports, unused_variables, dead_code)]
 //! NCBI Taxonomy integration tests
 //!
 //! These tests require a PostgreSQL database to be running.

@@ -1,5 +1,6 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 #![allow(unused_imports, dead_code, clippy::wrong_self_convention)]
+#![allow(clippy::bool_assert_comparison)]
 //! Integration tests for server startup and health checks
 //!
 //! These tests verify:

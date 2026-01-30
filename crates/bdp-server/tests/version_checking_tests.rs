@@ -1,4 +1,5 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
+#![allow(unused_variables)]
 //! Integration tests for UniProt version checking database methods
 
 use bdp_server::ingest::uniprot::{config::UniProtFtpConfig, version_discovery::VersionDiscovery};

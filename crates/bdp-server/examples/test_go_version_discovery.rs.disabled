@@ -1,3 +1,5 @@
+#![allow(unused_imports, unused_variables, dead_code)]
+
 //! Test Gene Ontology Version Discovery
 //!
 //! A simple example to test the version discovery functionality
