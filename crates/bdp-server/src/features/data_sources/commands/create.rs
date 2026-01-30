@@ -164,17 +164,17 @@ pub async fn handle(
 
     let mut tx = pool.begin().await?;
 
-    let entry_id: Uuid = sqlx::query_scalar!(
+    let entry_id: Uuid = sqlx::query_scalar::<_, Uuid>(
         r#"
         INSERT INTO registry_entries (organization_id, slug, name, description, entry_type)
         VALUES ($1, $2, $3, $4, 'data_source')
         RETURNING id
         "#,
-        command.organization_id,
-        command.slug,
-        command.name,
-        command.description
     )
+    .bind(command.organization_id)
+    .bind(&command.slug)
+    .bind(&command.name)
+    .bind(&command.description)
     .fetch_one(&mut *tx)
     .await
     .map_err(|e| {

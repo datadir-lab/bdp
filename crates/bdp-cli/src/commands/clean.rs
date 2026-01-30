@@ -57,7 +57,6 @@ async fn clean_search_cache() -> Result<()> {
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
 
     #[tokio::test]
