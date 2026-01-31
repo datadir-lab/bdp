@@ -265,10 +265,12 @@ async fn export(
 mod tests {
     use super::*;
     use crate::audit::{AuditEvent, AuditLogger, EventType};
+    use serial_test::serial;
     use serde_json::json;
     use tempfile::TempDir;
 
     #[tokio::test]
+    #[serial]
     async fn test_verify_empty_trail() {
         let temp_dir = TempDir::new().unwrap();
         std::env::set_current_dir(&temp_dir).unwrap();
@@ -287,6 +289,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial]
     async fn test_list_no_database() {
         let temp_dir = TempDir::new().unwrap();
         std::env::set_current_dir(&temp_dir).unwrap();
@@ -297,6 +300,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial]
     async fn test_export_formats() {
         let temp_dir = TempDir::new().unwrap();
         std::env::set_current_dir(&temp_dir).unwrap();

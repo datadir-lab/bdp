@@ -653,6 +653,7 @@ fn copy_to_clipboard(text: &str) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serial_test::serial;
     use tempfile::TempDir;
 
     #[test]
@@ -679,14 +680,9 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial]
     async fn test_add_to_manifest() {
-        use std::sync::Mutex;
-        // Use a mutex to ensure this test doesn't run in parallel with others that change directory
-        static TEST_LOCK: Mutex<()> = Mutex::new(());
-
         let (_temp_dir, manifest_path, original_dir) = {
-            let _guard = TEST_LOCK.lock().unwrap();
-
             let temp_dir = TempDir::new().unwrap();
             let manifest_path = temp_dir.path().join("bdp.yml");
 
@@ -740,11 +736,8 @@ tools: []
     }
 
     #[test]
+    #[serial]
     fn test_find_manifest_file() {
-        use std::sync::Mutex;
-        static TEST_LOCK: Mutex<()> = Mutex::new(());
-        let _guard = TEST_LOCK.lock().unwrap();
-
         let temp_dir = TempDir::new().unwrap();
         let manifest_path = temp_dir.path().join("bdp.yml");
 
@@ -765,11 +758,8 @@ tools: []
     }
 
     #[test]
+    #[serial]
     fn test_find_manifest_file_not_found() {
-        use std::sync::Mutex;
-        static TEST_LOCK: Mutex<()> = Mutex::new(());
-        let _guard = TEST_LOCK.lock().unwrap();
-
         let temp_dir = TempDir::new().unwrap();
 
         // Change to temp directory (no manifest)

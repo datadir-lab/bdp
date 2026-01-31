@@ -118,9 +118,11 @@ fn create_bdp_directories(project_dir: &Path) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serial_test::serial;
     use tempfile::TempDir;
 
     #[tokio::test]
+    #[serial]
     async fn test_init_command() {
         let temp_dir = TempDir::new().unwrap();
         let path = temp_dir.path().to_string_lossy().to_string();
@@ -158,6 +160,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial]
     async fn test_init_already_initialized() {
         let temp_dir = TempDir::new().unwrap();
         let path = temp_dir.path().to_string_lossy().to_string();
@@ -178,6 +181,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial]
     async fn test_init_creates_audit_trail() {
         let temp_dir = TempDir::new().unwrap();
         let path = temp_dir.path().to_string_lossy().to_string();
@@ -199,6 +203,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial]
     async fn test_init_multiple_workspaces_independent_audit() {
         // Test that different workspaces have independent audit trails
         let temp_dir1 = TempDir::new().unwrap();
