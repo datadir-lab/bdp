@@ -283,24 +283,27 @@ docker-build:
 
 # Run all tests
 test: db-test-up
-    @echo "🧪 Running tests..."
-    TEST_DATABASE_URL="postgresql://bdp:bdp_test_password@localhost:5433/bdp_test" \
-    DATABASE_URL="postgresql://bdp:bdp_test_password@localhost:5433/bdp_test" \
+    #!/usr/bin/env bash
+    echo "🧪 Running tests..."
+    export TEST_DATABASE_URL="${TEST_DATABASE_URL:-postgresql://bdp:bdp_test_password@localhost:5433/bdp_test}"
+    export DATABASE_URL="${DATABASE_URL:-postgresql://bdp:bdp_test_password@localhost:5433/bdp_test}"
     cargo test --workspace --all-features
-    @echo "✓ Tests complete"
+    echo "✓ Tests complete"
 
 # Run tests with output
 test-verbose: db-test-up
-    @echo "🧪 Running tests (verbose)..."
-    TEST_DATABASE_URL="postgresql://bdp:bdp_test_password@localhost:5433/bdp_test" \
-    DATABASE_URL="postgresql://bdp:bdp_test_password@localhost:5433/bdp_test" \
+    #!/usr/bin/env bash
+    echo "🧪 Running tests (verbose)..."
+    export TEST_DATABASE_URL="${TEST_DATABASE_URL:-postgresql://bdp:bdp_test_password@localhost:5433/bdp_test}"
+    export DATABASE_URL="${DATABASE_URL:-postgresql://bdp:bdp_test_password@localhost:5433/bdp_test}"
     cargo test --workspace --all-features -- --nocapture
 
 # Run integration tests only
 test-integration: db-test-up
-    @echo "🧪 Running integration tests..."
-    TEST_DATABASE_URL="postgresql://bdp:bdp_test_password@localhost:5433/bdp_test" \
-    DATABASE_URL="postgresql://bdp:bdp_test_password@localhost:5433/bdp_test" \
+    #!/usr/bin/env bash
+    echo "🧪 Running integration tests..."
+    export TEST_DATABASE_URL="${TEST_DATABASE_URL:-postgresql://bdp:bdp_test_password@localhost:5433/bdp_test}"
+    export DATABASE_URL="${DATABASE_URL:-postgresql://bdp:bdp_test_password@localhost:5433/bdp_test}"
     cargo test --test '*' --all-features
 
 # Run unit tests only
