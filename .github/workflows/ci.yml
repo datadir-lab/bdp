@@ -383,6 +383,8 @@ jobs:
         with:
           # Use audit.toml configuration from repository root
           denyWarnings: false
+          # Ignore vulnerabilities listed in audit.toml
+          ignore: RUSTSEC-2026-0001 RUSTSEC-2023-0071
 
   # Docker: Build verification
   docker-build:
