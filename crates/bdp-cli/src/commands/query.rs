@@ -157,7 +157,7 @@ fn build_sql_from_flags(
     })?;
 
     // Resolve entity alias to table name
-    let (table_name, auto_joins) = resolve_entity_alias(&entity)?;
+    let (table_name, auto_joins, type_filter) = resolve_entity_alias(&entity)?;
 
     // Build SELECT clause
     let select_clause = if let Some(fields) = select {
@@ -166,8 +166,13 @@ fn build_sql_from_flags(
         "*".to_string()
     };
 
-    // Build WHERE clause
-    let where_clause_sql = build_where_clause(&where_clause)?;
+    // Build WHERE clause - combine type filter with user conditions
+    let mut all_conditions = Vec::new();
+    if let Some(filter) = type_filter {
+        all_conditions.push(filter);
+    }
+    all_conditions.extend(where_clause);
+    let where_clause_sql = build_where_clause(&all_conditions)?;
 
     // Build SQL
     let mut sql = format!("SELECT {} FROM {}", select_clause, table_name);
@@ -227,42 +232,47 @@ fn build_sql_from_flags(
     Ok(sql)
 }
 
-/// Resolve entity alias to table name and auto-joins
-fn resolve_entity_alias(entity: &str) -> Result<(String, Vec<String>)> {
+/// Resolve entity alias to table name, auto-joins, and type filter
+fn resolve_entity_alias(entity: &str) -> Result<(String, Vec<String>, Option<String>)> {
     match entity.to_lowercase().as_str() {
         // Entity aliases with metadata auto-joins
         "protein" => Ok((
             "data_sources".to_string(),
             vec![
-                "LEFT JOIN protein_metadata pm ON data_sources.metadata_id = pm.id WHERE data_sources.type = 'protein'".to_string(),
+                "LEFT JOIN protein_metadata pm ON data_sources.metadata_id = pm.id".to_string(),
             ],
+            Some("data_sources.type = 'protein'".to_string()),
         )),
         "gene" => Ok((
             "data_sources".to_string(),
             vec![
-                "LEFT JOIN gene_metadata gm ON data_sources.metadata_id = gm.id WHERE data_sources.type = 'gene'".to_string(),
+                "LEFT JOIN gene_metadata gm ON data_sources.metadata_id = gm.id".to_string(),
             ],
+            Some("data_sources.type = 'gene'".to_string()),
         )),
         "genome" => Ok((
-            "data_sources WHERE type = 'genome'".to_string(),
+            "data_sources".to_string(),
             vec![],
+            Some("type = 'genome'".to_string()),
         )),
         "transcriptome" => Ok((
-            "data_sources WHERE type = 'transcriptome'".to_string(),
+            "data_sources".to_string(),
             vec![],
+            Some("type = 'transcriptome'".to_string()),
         )),
         "proteome" => Ok((
-            "data_sources WHERE type = 'proteome'".to_string(),
+            "data_sources".to_string(),
             vec![],
+            Some("type = 'proteome'".to_string()),
         )),
 
         // Direct table access
-        "tools" => Ok(("tools".to_string(), vec![])),
-        "orgs" | "organizations" => Ok(("organizations".to_string(), vec![])),
-        "protein_metadata" => Ok(("protein_metadata".to_string(), vec![])),
-        "gene_metadata" => Ok(("gene_metadata".to_string(), vec![])),
-        "organism_taxonomy" => Ok(("organism_taxonomy".to_string(), vec![])),
-        "publication_refs" => Ok(("publication_refs".to_string(), vec![])),
+        "tools" => Ok(("tools".to_string(), vec![], None)),
+        "orgs" | "organizations" => Ok(("organizations".to_string(), vec![], None)),
+        "protein_metadata" => Ok(("protein_metadata".to_string(), vec![], None)),
+        "gene_metadata" => Ok(("gene_metadata".to_string(), vec![], None)),
+        "organism_taxonomy" => Ok(("organism_taxonomy".to_string(), vec![], None)),
+        "publication_refs" => Ok(("publication_refs".to_string(), vec![], None)),
 
         // Unknown entity
         _ => Err(CliError::config(format!(
@@ -502,25 +512,32 @@ mod tests {
 
     #[test]
     fn test_resolve_entity_alias_protein() {
-        let (table, joins) = resolve_entity_alias("protein").unwrap();
+        let (table, joins, type_filter) = resolve_entity_alias("protein").unwrap();
         assert!(table.contains("data_sources"));
         assert_eq!(joins.len(), 1);
         assert!(joins[0].contains("protein_metadata"));
+        assert!(!joins[0].contains("WHERE"));
+        assert!(type_filter.is_some());
+        assert!(type_filter.unwrap().contains("protein"));
     }
 
     #[test]
     fn test_resolve_entity_alias_gene() {
-        let (table, joins) = resolve_entity_alias("gene").unwrap();
+        let (table, joins, type_filter) = resolve_entity_alias("gene").unwrap();
         assert!(table.contains("data_sources"));
         assert_eq!(joins.len(), 1);
         assert!(joins[0].contains("gene_metadata"));
+        assert!(!joins[0].contains("WHERE"));
+        assert!(type_filter.is_some());
+        assert!(type_filter.unwrap().contains("gene"));
     }
 
     #[test]
     fn test_resolve_entity_alias_tools() {
-        let (table, joins) = resolve_entity_alias("tools").unwrap();
+        let (table, joins, type_filter) = resolve_entity_alias("tools").unwrap();
         assert_eq!(table, "tools");
         assert!(joins.is_empty());
+        assert!(type_filter.is_none());
     }
 
     #[test]
@@ -618,5 +635,32 @@ mod tests {
         let tsv = format_as_tsv(&results, false);
         assert!(tsv.starts_with("name\tversion"));
         assert!(tsv.contains("test1\t1.0"));
+    }
+
+    #[test]
+    fn test_build_sql_protein_with_where() {
+        let sql = build_sql_from_flags(
+            Some("protein".to_string()),
+            None,
+            vec!["organism=nonexistent".to_string()],
+            None,
+            1000,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+        .unwrap();
+
+        println!("Generated SQL:\n{}", sql);
+
+        // Should have exactly one WHERE keyword
+        let where_count = sql.matches("WHERE").count();
+        assert_eq!(where_count, 1, "Expected exactly 1 WHERE clause, found {}", where_count);
+
+        // Should combine conditions with AND
+        assert!(sql.contains("data_sources.type = 'protein' AND organism = 'nonexistent'"));
     }
 }
