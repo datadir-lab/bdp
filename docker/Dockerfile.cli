@@ -23,7 +23,7 @@ COPY xtask ./xtask
 RUN cargo build --release --package bdp-cli --locked
 
 # Verify the binary was created
-RUN ls -lh /app/target/release/bdp-cli
+RUN ls -lh /app/target/release/bdp
 
 # Stage 2: Runtime
 FROM debian:bookworm-slim
@@ -49,7 +49,7 @@ RUN mkdir -p /app/data && \
 WORKDIR /app
 
 # Copy binary from builder
-COPY --from=builder /app/target/release/bdp-cli /usr/local/bin/bdp
+COPY --from=builder /app/target/release/bdp /usr/local/bin/bdp
 
 # Ensure binary is executable
 RUN chmod +x /usr/local/bin/bdp
