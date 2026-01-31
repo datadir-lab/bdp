@@ -1,6 +1,6 @@
 # Multi-stage build for BDP CLI tool
 # Stage 1: Builder
-FROM rust:1.75 AS builder
+FROM rust:1.85 AS builder
 
 LABEL maintainer="BDP Team"
 LABEL description="BDP CLI - Command-line interface tool"
