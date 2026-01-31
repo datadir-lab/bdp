@@ -12,10 +12,12 @@ RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 # Copy package files
-COPY web/package.json web/package-lock.json* ./
+COPY web/package.json web/yarn.lock ./
 
-# Install dependencies
-RUN npm ci --prefer-offline --no-audit
+# Install dependencies with yarn
+RUN corepack enable && \
+    corepack prepare yarn@stable --activate && \
+    yarn install --frozen-lockfile --prefer-offline
 
 # Stage 2: Builder
 FROM node:20-alpine AS builder
@@ -36,7 +38,9 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 
 # Build Next.js application
-RUN npm run build
+RUN corepack enable && \
+    corepack prepare yarn@stable --activate && \
+    yarn build
 
 # Stage 3: Runner
 FROM node:20-alpine AS runner

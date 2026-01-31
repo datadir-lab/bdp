@@ -1,34 +1,17 @@
 -- Audit Log Table
 -- Comprehensive audit logging for all system actions
 
-CREATE TABLE audit_log (
+CREATE TABLE IF NOT EXISTS audit_log (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID,  -- Nullable - anonymous actions allowed
-    action VARCHAR(50) NOT NULL,  -- 'create', 'update', 'delete', 'login', 'logout', etc.
-    resource_type VARCHAR(50) NOT NULL,  -- 'organization', 'data_source', 'version', 'tool', etc.
+    action TEXT NOT NULL,  -- 'create', 'update', 'delete', 'login', 'logout', etc.
+    resource_type TEXT NOT NULL,  -- 'organization', 'data_source', 'version', 'tool', etc.
     resource_id UUID,  -- Nullable - some actions may not have a specific resource
     changes JSONB,  -- Before/after state for updates, or creation data
-    ip_address VARCHAR(45),  -- IPv4 or IPv6 address
+    ip_address TEXT,  -- IPv4 or IPv6 address
     user_agent TEXT,  -- Browser/client user agent
     timestamp TIMESTAMPTZ DEFAULT NOW() NOT NULL,
-    metadata JSONB,  -- Additional context (request_id, session_id, etc.)
-
-    CONSTRAINT action_check CHECK (action IN (
-        'create', 'update', 'delete', 'read',
-        'login', 'logout', 'register',
-        'publish', 'unpublish', 'archive',
-        'upload', 'download',
-        'grant', 'revoke',
-        'other'
-    )),
-    CONSTRAINT resource_type_check CHECK (resource_type IN (
-        'organization', 'data_source', 'version', 'tool',
-        'registry_entry', 'version_file', 'dependency',
-        'organism', 'protein_metadata', 'citation',
-        'tag', 'download', 'version_mapping',
-        'user', 'session', 'api_key',
-        'other'
-    ))
+    metadata JSONB  -- Additional context (request_id, session_id, etc.)
 );
 
 -- Indexes for efficient querying
