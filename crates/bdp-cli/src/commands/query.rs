@@ -153,7 +153,7 @@ fn build_sql_from_flags(
 ) -> Result<String> {
     // Validate entity is provided
     let entity = entity.ok_or_else(|| {
-        CliError::config("Entity or --sql is required. Try 'bdp query protein' or 'bdp query --sql \"SELECT ...\"'")
+        CliError::config("entity or --sql is required. Try 'bdp query protein' or 'bdp query --sql \"SELECT ...\"'")
     })?;
 
     // Resolve entity alias to table name
@@ -356,6 +356,12 @@ fn output_results(
     output_file: Option<&str>,
     no_header: bool,
 ) -> Result<()> {
+    // Check for empty results
+    if results.rows.is_empty() {
+        println!("No results found");
+        return Ok(());
+    }
+
     let formatted = match format {
         "table" => format_as_table(results),
         "json" => format_as_json(results)?,
