@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO organizations (slug, name, is_system)\n            VALUES ('test-org-1', 'Test Org 1', false),\n                   ('test-org-2', 'Test Org 2', true)\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "5c5b2a28cb29fb7fa363199c9c3167b5fa1ee624f1ec858f497ffd910cd9bd96"
+}

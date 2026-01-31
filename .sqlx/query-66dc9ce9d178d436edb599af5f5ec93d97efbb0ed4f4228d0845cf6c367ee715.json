@@ -1,0 +1,25 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO dependencies (version_id, depends_on_entry_id, depends_on_version, dependency_type)\n            VALUES ($1, $2, $3, $4)\n            RETURNING id\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Varchar",
+        "Varchar"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "66dc9ce9d178d436edb599af5f5ec93d97efbb0ed4f4228d0845cf6c367ee715"
+}

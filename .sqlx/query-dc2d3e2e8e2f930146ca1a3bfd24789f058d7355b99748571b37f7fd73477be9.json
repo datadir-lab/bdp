@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM interpro_entry_metadata WHERE interpro_id LIKE 'IPR_TEST%' OR interpro_id = 'IPR000001'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "dc2d3e2e8e2f930146ca1a3bfd24789f058d7355b99748571b37f7fd73477be9"
+}

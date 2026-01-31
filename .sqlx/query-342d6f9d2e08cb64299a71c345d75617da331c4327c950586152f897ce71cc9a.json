@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO organization_sync_status (organization_id, status, total_entries)\n            VALUES ($1, 'idle', 1000)\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "342d6f9d2e08cb64299a71c345d75617da331c4327c950586152f897ce71cc9a"
+}

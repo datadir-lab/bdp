@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO registry_entries (organization_id, slug, name, entry_type)\n            VALUES ($1, 'protein-data', 'Protein Dataset', 'data_source')\n            RETURNING id\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "0bc46f84e626bf2a4073fa8be5eeb957a3d526a686726fcaa90d32b0876ecb9f"
+}

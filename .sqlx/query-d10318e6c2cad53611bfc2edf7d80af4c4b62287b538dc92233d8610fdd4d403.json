@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                INSERT INTO registry_entries (organization_id, slug, name, entry_type)\n                VALUES ($1, $2, $3, 'data_source')\n                ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Varchar",
+        "Varchar"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "d10318e6c2cad53611bfc2edf7d80af4c4b62287b538dc92233d8610fdd4d403"
+}

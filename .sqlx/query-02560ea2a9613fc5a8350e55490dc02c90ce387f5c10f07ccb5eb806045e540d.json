@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM interpro_entry_metadata WHERE interpro_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "02560ea2a9613fc5a8350e55490dc02c90ce387f5c10f07ccb5eb806045e540d"
+}
