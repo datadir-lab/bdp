@@ -682,12 +682,11 @@ mod tests {
     #[tokio::test]
     #[serial]
     async fn test_add_to_manifest() {
-        let (_temp_dir, manifest_path, original_dir) = {
-            let temp_dir = TempDir::new().unwrap();
-            let manifest_path = temp_dir.path().join("bdp.yml");
+        let temp_dir = TempDir::new().unwrap();
+        let manifest_path = temp_dir.path().join("bdp.yml");
 
-            // Create a test manifest
-            let manifest_content = r#"
+        // Create a test manifest
+        let manifest_content = r#"
 project:
   name: test-project
   version: 0.1.0
@@ -695,16 +694,13 @@ project:
 sources: []
 tools: []
 "#;
-            std::fs::write(&manifest_path, manifest_content).unwrap();
+        std::fs::write(&manifest_path, manifest_content).unwrap();
 
-            // Save original directory
-            let original_dir = std::env::current_dir().unwrap();
+        // Save original directory (if available)
+        let original_dir = std::env::current_dir().ok();
 
-            // Change to temp directory
-            std::env::set_current_dir(temp_dir.path()).unwrap();
-
-            (temp_dir, manifest_path, original_dir)
-        };
+        // Change to temp directory
+        std::env::set_current_dir(temp_dir.path()).unwrap();
 
         // Add source to manifest
         let result = add_to_manifest("uniprot:P01308@1.0").await;
@@ -731,8 +727,10 @@ tools: []
         let manifest = crate::manifest::Manifest::load(&manifest_path).unwrap();
         assert_eq!(manifest.sources.len(), 2);
 
-        // Restore original directory
-        std::env::set_current_dir(original_dir).unwrap();
+        // Restore original directory (if we saved one)
+        if let Some(dir) = original_dir {
+            let _ = std::env::set_current_dir(dir);
+        }
     }
 
     #[test]
@@ -744,8 +742,10 @@ tools: []
         // Create a test manifest
         std::fs::write(&manifest_path, "test").unwrap();
 
+        // Save original directory (if available)
+        let original_dir = std::env::current_dir().ok();
+
         // Change to temp directory
-        let original_dir = std::env::current_dir().unwrap();
         std::env::set_current_dir(temp_dir.path()).unwrap();
 
         // Should find manifest
@@ -753,8 +753,10 @@ tools: []
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), manifest_path);
 
-        // Restore original directory
-        std::env::set_current_dir(original_dir).unwrap();
+        // Restore original directory (if we saved one)
+        if let Some(dir) = original_dir {
+            let _ = std::env::set_current_dir(dir);
+        }
     }
 
     #[test]
@@ -762,8 +764,10 @@ tools: []
     fn test_find_manifest_file_not_found() {
         let temp_dir = TempDir::new().unwrap();
 
+        // Save original directory (if available)
+        let original_dir = std::env::current_dir().ok();
+
         // Change to temp directory (no manifest)
-        let original_dir = std::env::current_dir().unwrap();
         std::env::set_current_dir(temp_dir.path()).unwrap();
 
         // Should not find manifest
@@ -771,8 +775,10 @@ tools: []
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("No bdp.yml found"));
 
-        // Restore original directory
-        std::env::set_current_dir(original_dir).unwrap();
+        // Restore original directory (if we saved one)
+        if let Some(dir) = original_dir {
+            let _ = std::env::set_current_dir(dir);
+        }
     }
 
     #[test]

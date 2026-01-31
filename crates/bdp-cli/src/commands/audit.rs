@@ -158,7 +158,7 @@ async fn verify() -> Result<()> {
 
     println!("{} Verifying audit trail integrity...", "→".cyan());
 
-    let machine_id = get_machine_id()?;
+    let machine_id = get_machine_id(None)?;
     let audit = Arc::new(LocalAuditLogger::new(db_path, machine_id)?);
 
     let verified = audit.verify_integrity().await?;
@@ -239,7 +239,7 @@ async fn export(
     println!("{} Exporting audit trail to {} format...", "→".cyan(), format.to_uppercase());
 
     // Create exporter
-    let machine_id = get_machine_id()?;
+    let machine_id = get_machine_id(None)?;
     let audit = Arc::new(LocalAuditLogger::new(db_path, machine_id)?);
     let exporter = AuditExporter::new(audit);
 
@@ -273,6 +273,7 @@ mod tests {
     #[serial]
     async fn test_verify_empty_trail() {
         let temp_dir = TempDir::new().unwrap();
+        let original_dir = std::env::current_dir().ok();
         std::env::set_current_dir(&temp_dir).unwrap();
 
         // Init creates the database
@@ -286,23 +287,35 @@ mod tests {
         // Verify should succeed with empty trail
         let result = verify().await;
         assert!(result.is_ok());
+
+        // Restore original directory
+        if let Some(dir) = original_dir {
+            let _ = std::env::set_current_dir(dir);
+        }
     }
 
     #[tokio::test]
     #[serial]
     async fn test_list_no_database() {
         let temp_dir = TempDir::new().unwrap();
+        let original_dir = std::env::current_dir().ok();
         std::env::set_current_dir(&temp_dir).unwrap();
 
         // List should handle missing database gracefully
         let result = list(10, None).await;
         assert!(result.is_ok());
+
+        // Restore original directory
+        if let Some(dir) = original_dir {
+            let _ = std::env::set_current_dir(dir);
+        }
     }
 
     #[tokio::test]
     #[serial]
     async fn test_export_formats() {
         let temp_dir = TempDir::new().unwrap();
+        let original_dir = std::env::current_dir().ok();
         std::env::set_current_dir(&temp_dir).unwrap();
 
         let bdp_dir = temp_dir.path().join(".bdp");
@@ -341,6 +354,11 @@ mod tests {
             }
             assert!(result.is_ok(), "Export failed for format: {} - {:?}", format, result.err());
             assert!(output_path.exists(), "Output file not created for format: {}", format);
+        }
+
+        // Restore original directory
+        if let Some(dir) = original_dir {
+            let _ = std::env::set_current_dir(dir);
         }
     }
 }

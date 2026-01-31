@@ -4,15 +4,17 @@
 
 use crate::error::{CliError, Result};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use uuid::Uuid;
 
 /// Get or create machine ID
 ///
-/// Machine ID is stored in `.bdp/machine-id` and persists across commands.
+/// Machine ID is stored in `{base_dir}/.bdp/machine-id` and persists across commands.
 /// Format: `{hostname}-{random-suffix}`
-pub fn get_machine_id() -> Result<String> {
-    let id_file = get_machine_id_path()?;
+///
+/// If `base_dir` is None, uses current working directory.
+pub fn get_machine_id(base_dir: Option<&Path>) -> Result<String> {
+    let id_file = get_machine_id_path(base_dir)?;
 
     // Try to read existing ID
     if id_file.exists() {
@@ -44,8 +46,15 @@ pub fn get_machine_id() -> Result<String> {
 }
 
 /// Get machine ID file path
-fn get_machine_id_path() -> Result<PathBuf> {
-    let bdp_dir = PathBuf::from(".bdp");
+fn get_machine_id_path(base_dir: Option<&Path>) -> Result<PathBuf> {
+    let bdp_dir = match base_dir {
+        Some(dir) => dir.join(".bdp"),
+        None => {
+            let current_dir = std::env::current_dir()
+                .map_err(|e| CliError::Audit(format!("Failed to get current directory: {}", e)))?;
+            current_dir.join(".bdp")
+        },
+    };
     Ok(bdp_dir.join("machine-id"))
 }
 
@@ -108,24 +117,17 @@ mod tests {
     #[test]
     fn test_get_machine_id_persistence() {
         let temp_dir = TempDir::new().unwrap();
-        let original_dir = std::env::current_dir().unwrap();
-
-        // Change to temp directory
-        std::env::set_current_dir(temp_dir.path()).unwrap();
 
         // First call generates ID
-        let id1 = get_machine_id().unwrap();
+        let id1 = get_machine_id(Some(temp_dir.path())).unwrap();
         assert!(!id1.is_empty());
 
         // Second call returns same ID
-        let id2 = get_machine_id().unwrap();
+        let id2 = get_machine_id(Some(temp_dir.path())).unwrap();
         assert_eq!(id1, id2);
 
         // Verify file was created
         let id_file = temp_dir.path().join(".bdp/machine-id");
         assert!(id_file.exists());
-
-        // Restore original directory
-        std::env::set_current_dir(original_dir).unwrap();
     }
 }

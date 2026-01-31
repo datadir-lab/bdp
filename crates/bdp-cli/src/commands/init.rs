@@ -32,7 +32,7 @@ pub async fn run(
     fs::create_dir_all(&bdp_dir)?;
 
     let audit_db_path = bdp_dir.join("bdp.db");
-    let machine_id = get_machine_id()?;
+    let machine_id = get_machine_id(Some(&project_dir))?;
     let audit = Arc::new(LocalAuditLogger::new(audit_db_path, machine_id)?) as Arc<dyn AuditLogger>;
 
     // Execute with audit middleware
@@ -194,7 +194,7 @@ mod tests {
         let audit_db_path = temp_dir.path().join(".bdp/bdp.db");
         assert!(audit_db_path.exists());
 
-        let machine_id = get_machine_id().unwrap();
+        let machine_id = get_machine_id(Some(temp_dir.path())).unwrap();
         let audit = LocalAuditLogger::new(audit_db_path, machine_id).unwrap();
 
         // Verify audit chain integrity
@@ -241,7 +241,7 @@ mod tests {
         assert!(audit_db2.exists());
 
         // Verify both audit trails are valid
-        let machine_id = get_machine_id().unwrap();
+        let machine_id = get_machine_id(Some(temp_dir1.path())).unwrap();
 
         let audit1 = LocalAuditLogger::new(audit_db1, machine_id.clone()).unwrap();
         let audit2 = LocalAuditLogger::new(audit_db2, machine_id).unwrap();
