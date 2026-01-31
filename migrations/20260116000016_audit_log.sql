@@ -15,17 +15,17 @@ CREATE TABLE IF NOT EXISTS audit_log (
 );
 
 -- Indexes for efficient querying
-CREATE INDEX audit_log_timestamp_idx ON audit_log(timestamp DESC);
-CREATE INDEX audit_log_resource_type_idx ON audit_log(resource_type);
-CREATE INDEX audit_log_resource_id_idx ON audit_log(resource_id);
-CREATE INDEX audit_log_user_id_idx ON audit_log(user_id);
-CREATE INDEX audit_log_action_idx ON audit_log(action);
-CREATE INDEX audit_log_composite_idx ON audit_log(resource_type, resource_id, timestamp DESC);
-CREATE INDEX audit_log_user_composite_idx ON audit_log(user_id, timestamp DESC);
+CREATE INDEX IF NOT EXISTS audit_log_timestamp_idx ON audit_log(timestamp DESC);
+CREATE INDEX IF NOT EXISTS audit_log_resource_type_idx ON audit_log(resource_type);
+CREATE INDEX IF NOT EXISTS audit_log_resource_id_idx ON audit_log(resource_id);
+CREATE INDEX IF NOT EXISTS audit_log_user_id_idx ON audit_log(user_id);
+CREATE INDEX IF NOT EXISTS audit_log_action_idx ON audit_log(action);
+CREATE INDEX IF NOT EXISTS audit_log_composite_idx ON audit_log(resource_type, resource_id, timestamp DESC);
+CREATE INDEX IF NOT EXISTS audit_log_user_composite_idx ON audit_log(user_id, timestamp DESC);
 
 -- GIN indexes for JSONB columns for efficient JSON queries
-CREATE INDEX audit_log_changes_idx ON audit_log USING GIN (changes);
-CREATE INDEX audit_log_metadata_idx ON audit_log USING GIN (metadata);
+CREATE INDEX IF NOT EXISTS audit_log_changes_idx ON audit_log USING GIN (changes);
+CREATE INDEX IF NOT EXISTS audit_log_metadata_idx ON audit_log USING GIN (metadata);
 
 -- Comment on table
 COMMENT ON TABLE audit_log IS 'Comprehensive audit trail for all system actions';
