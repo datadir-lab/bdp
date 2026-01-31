@@ -383,7 +383,11 @@ jobs:
           cargo install cargo-audit --locked
           cargo audit --deny warnings \
             --ignore RUSTSEC-2026-0001 \
-            --ignore RUSTSEC-2023-0071
+            --ignore RUSTSEC-2023-0071 \
+            --ignore RUSTSEC-2025-0057 \
+            --ignore RUSTSEC-2025-0119 \
+            --ignore RUSTSEC-2025-0134 \
+            --ignore RUSTSEC-2026-0002
 
   # Docker: Build verification
   docker-build:

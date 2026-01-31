@@ -14,6 +14,26 @@ ignore = [
     # No fixed version available, and we don't use MySQL features
     # See: https://rustsec.org/advisories/RUSTSEC-2023-0071
     "RUSTSEC-2023-0071",
+
+    # RUSTSEC-2025-0057: fxhash - unmaintained
+    # Transitive dependency via selectors/scraper and inquire
+    # Alternative: rustc-hash or ahash
+    "RUSTSEC-2025-0057",
+
+    # RUSTSEC-2025-0119: number_prefix - unmaintained
+    # Transitive dependency via indicatif
+    # No security impact, only formatting utility
+    "RUSTSEC-2025-0119",
+
+    # RUSTSEC-2025-0134: rustls-pemfile - unmaintained
+    # Transitive dependency via bollard/testcontainers (test-only)
+    # Used only in integration tests
+    "RUSTSEC-2025-0134",
+
+    # RUSTSEC-2026-0002: lru - unsound
+    # Transitive dependency via aws-sdk-s3
+    # Waiting for AWS SDK to update dependency
+    "RUSTSEC-2026-0002",
 ]
 
 # Report informational warnings for unmaintained and unsound crates
