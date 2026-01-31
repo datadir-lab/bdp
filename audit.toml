@@ -8,6 +8,12 @@ ignore = [
     # This is a transitive dependency (not directly used) and affects only OOM scenarios
     # which are already fatal. Patched version 0.7.46 is already in use.
     "RUSTSEC-2026-0001",
+
+    # RUSTSEC-2023-0071: rsa - Marvin Attack timing sidechannel
+    # Transitive dependency via sqlx-mysql (we only use PostgreSQL)
+    # No fixed version available, and we don't use MySQL features
+    # See: https://rustsec.org/advisories/RUSTSEC-2023-0071
+    "RUSTSEC-2023-0071",
 ]
 
 # Report informational warnings for unmaintained and unsound crates
