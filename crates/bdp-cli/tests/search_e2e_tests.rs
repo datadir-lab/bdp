@@ -380,11 +380,18 @@ async fn test_search_network_retry() {
 }
 
 #[tokio::test]
+#[serial_test::serial]
 async fn test_search_caching() {
+    use tempfile::TempDir;
+
     let mock_server = MockServer::start().await;
 
     // Use a unique query to test caching behavior
     let unique_query = "unique_caching_test_query";
+
+    // Create a temporary cache directory for this test
+    let temp_cache = TempDir::new().unwrap();
+    let cache_dir = temp_cache.path().to_str().unwrap();
 
     // Mock should only be called once (second request uses cache)
     Mock::given(method("GET"))
@@ -397,7 +404,8 @@ async fn test_search_caching() {
 
     // First search
     let mut cmd1 = Command::cargo_bin("bdp").unwrap();
-    cmd1.arg("search")
+    cmd1.env("BDP_CACHE_DIR", cache_dir)
+        .arg("search")
         .arg(unique_query)
         .arg("--no-interactive")
         .arg("--format")
@@ -409,7 +417,8 @@ async fn test_search_caching() {
 
     // Second search (should use cache)
     let mut cmd2 = Command::cargo_bin("bdp").unwrap();
-    cmd2.arg("search")
+    cmd2.env("BDP_CACHE_DIR", cache_dir)
+        .arg("search")
         .arg(unique_query)
         .arg("--no-interactive")
         .arg("--format")

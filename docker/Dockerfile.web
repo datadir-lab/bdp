@@ -16,8 +16,7 @@ COPY web/package.json web/yarn.lock ./
 
 # Install dependencies with yarn
 RUN corepack enable && \
-    corepack prepare yarn@stable --activate && \
-    yarn install --frozen-lockfile --prefer-offline
+    yarn install --immutable --immutable-cache
 
 # Stage 2: Builder
 FROM node:20-alpine AS builder
@@ -39,7 +38,6 @@ ENV NODE_ENV=production
 
 # Build Next.js application
 RUN corepack enable && \
-    corepack prepare yarn@stable --activate && \
     yarn build
 
 # Stage 3: Runner
