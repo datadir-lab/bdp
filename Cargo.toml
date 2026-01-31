@@ -115,7 +115,7 @@ apalis-cron = "1.0.0-rc.2"
 # ============================================================================
 # FTP Client
 # ============================================================================
-suppaftp = { version = "6.0", features = ["async", "async-rustls"] }
+suppaftp = { version = "8.0", features = ["tokio-rustls-ring"] }
 flate2 = "1.0"
 tar = "0.4"
 

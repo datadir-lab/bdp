@@ -86,7 +86,6 @@ inquire = "0.7"  # Interactive prompts and selection
 comfy-table = "7.1"  # Table formatting
 strsim = "0.11"  # Fuzzy string matching
 open = "5.3"  # Open URLs in browser
-atty = "0.2"  # TTY detection for interactive mode
 arboard = "3.4"  # Clipboard access
 
 [dev-dependencies]
@@ -94,7 +93,7 @@ arboard = "3.4"  # Clipboard access
 assert_cmd = "2.0"
 predicates = "3.1"
 wiremock = "0.6"
-testcontainers = "0.23"
+testcontainers = "0.26"
 
 # Test utilities from workspace
 tokio = { workspace = true, features = ["test-util"] }
