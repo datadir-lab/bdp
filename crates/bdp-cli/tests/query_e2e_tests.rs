@@ -225,7 +225,7 @@ async fn test_query_json_format() {
 
     cmd.assert()
         .success()
-        .stdout(predicate::str::is_match(r#"\[.*\]"#).unwrap()) // JSON array
+        .stdout(predicate::str::is_match(r#"(?s)\[.*\]"#).unwrap()) // JSON array ((?s) enables dotall mode)
         .stdout(predicate::str::contains("UniProt Human Proteome"));
 }
 

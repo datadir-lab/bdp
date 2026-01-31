@@ -415,7 +415,7 @@ pub fn init_logging(config: &LogConfig) -> Result<()> {
 /// Initialize console-only logging
 fn init_console_logging(config: &LogConfig, filter: EnvFilter) -> Result<()> {
     let fmt_layer = fmt::layer()
-        .with_writer(std::io::stdout)
+        .with_writer(std::io::stderr)
         .with_target(config.include_targets)
         .with_thread_ids(config.include_thread_ids)
         .with_file(config.include_location)
@@ -501,7 +501,7 @@ fn init_both_logging(config: &LogConfig, filter: EnvFilter) -> Result<()> {
         LogFormat::Text => {
             // Console layer (text format)
             let console_layer = fmt::layer()
-                .with_writer(std::io::stdout)
+                .with_writer(std::io::stderr)
                 .with_target(config.include_targets)
                 .with_thread_ids(config.include_thread_ids)
                 .with_file(config.include_location)
@@ -528,7 +528,7 @@ fn init_both_logging(config: &LogConfig, filter: EnvFilter) -> Result<()> {
             // Console layer (JSON format)
             let console_layer = fmt::layer()
                 .json()
-                .with_writer(std::io::stdout)
+                .with_writer(std::io::stderr)
                 .with_target(config.include_targets)
                 .with_thread_ids(config.include_thread_ids)
                 .with_file(config.include_location)
