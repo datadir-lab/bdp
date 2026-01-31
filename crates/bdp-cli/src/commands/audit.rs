@@ -265,8 +265,8 @@ async fn export(
 mod tests {
     use super::*;
     use crate::audit::{AuditEvent, AuditLogger, EventType};
-    use serial_test::serial;
     use serde_json::json;
+    use serial_test::serial;
     use tempfile::TempDir;
 
     #[tokio::test]
