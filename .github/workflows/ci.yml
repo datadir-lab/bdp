@@ -379,14 +379,11 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Run cargo audit using actions-rust-lang
-        uses: actions-rust-lang/audit@v1
-        with:
-          # Use audit.toml configuration from repository root
-          denyWarnings: false
-          # Ignore vulnerabilities listed in audit.toml (newline-separated)
-          ignore: |
-            RUSTSEC-2026-0001
-            RUSTSEC-2023-0071
+        run: |
+          cargo install cargo-audit --locked
+          cargo audit --deny warnings \
+            --ignore RUSTSEC-2026-0001 \
+            --ignore RUSTSEC-2023-0071
 
   # Docker: Build verification
   docker-build:
