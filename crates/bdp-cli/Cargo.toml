@@ -83,7 +83,7 @@ hostname = "0.4"
 
 # Interactive CLI
 inquire = "0.7"  # Interactive prompts and selection
-comfy-table = "7.1"  # Table formatting
+comfy-table = "=7.1.4"  # Table formatting (pinned to avoid unstable features in 7.2.x)
 strsim = "0.11"  # Fuzzy string matching
 open = "5.3"  # Open URLs in browser
 arboard = "3.4"  # Clipboard access
