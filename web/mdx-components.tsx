@@ -150,7 +150,7 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
         const className = childElement.props?.className || '';
         const code = String(childElement.props?.children || '');
 
-        return <CodeBlock className={className}>{code}</CodeBlock>;
+        return <CodeBlock className={className} children={code} />;
       }
 
       // Fallback for non-code pre blocks

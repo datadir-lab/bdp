@@ -17,6 +17,7 @@ WORKDIR /app
 # Copy workspace configuration
 COPY Cargo.toml Cargo.lock ./
 COPY crates ./crates
+COPY xtask ./xtask
 
 # Build release binary with optimizations
 RUN cargo build --release --package bdp-ingest --locked

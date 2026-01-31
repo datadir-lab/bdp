@@ -406,7 +406,6 @@ jobs:
 
       - name: Build Docker images via just
         run: just docker-build
-        continue-on-error: true
 
   # CI Success - All checks must pass
   ci-success:
@@ -421,6 +420,7 @@ jobs:
       - frontend-lint
       - frontend-typecheck
       - frontend-build
+      - docker-build
       # security-audit runs independently and doesn't block CI
     runs-on: ubuntu-latest
     if: always()
