@@ -9,6 +9,7 @@ use std::fs;
 use std::io::{self, Write};
 #[cfg(unix)]
 use std::path::Path;
+#[cfg(windows)]
 use std::path::PathBuf;
 
 /// Uninstall BDP from the system
