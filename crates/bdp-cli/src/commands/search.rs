@@ -147,9 +147,13 @@ async fn execute_search_with_cache(
     cache_filters: &SearchFilters,
 ) -> Result<crate::api::types::SearchResponse> {
     // Initialize cache
-    let cache_dir = dirs::cache_dir()
-        .ok_or_else(|| CliError::config("Cannot find cache directory"))?
-        .join("bdp");
+    let cache_dir = if let Ok(custom_cache) = std::env::var("BDP_CACHE_DIR") {
+        std::path::PathBuf::from(custom_cache)
+    } else {
+        dirs::cache_dir()
+            .ok_or_else(|| CliError::config("Cannot find cache directory"))?
+            .join("bdp")
+    };
     std::fs::create_dir_all(&cache_dir)?;
     let cache_path = cache_dir.join("bdp.db");
 
