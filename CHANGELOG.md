@@ -118,10 +118,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Development roadmap (updated with audit system phases)
 - Internationalized documentation (English and German) with audit features
 
-## [0.1.0] - 2024-01-16
+## [0.1.0] - 2026-02-01
 
 ### Added
-- Initial release (in development)
+- Initial release with comprehensive features
+- CLI tool with 10 commands (init, source, pull, status, clean, search, query, uninstall, audit, config)
+- Custom universal installers with channel support (stable, canary, specific version)
+- Backend server with CQRS architecture
+- PostgreSQL database with 67 migrations
+- Data ingestion pipelines for UniProt, NCBI, GO
+- Next.js web interface
+- Complete audit trail system
+- 750+ tests across all components
 - Project scaffolding and infrastructure setup
 
 ---
