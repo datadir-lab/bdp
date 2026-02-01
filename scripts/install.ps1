@@ -133,7 +133,7 @@ function Get-BinaryArchive {
         [string]$Version
     )
 
-    $archiveName = "$BinaryName-$Platform.tar.gz"
+    $archiveName = "$BinaryName-cli-$Platform.zip"
     $downloadUrl = "$GitHubDownload/$Repo/releases/download/$Version/$archiveName"
     $checksumUrl = "$downloadUrl.sha256"
     $tempDir = Join-Path $env:TEMP "bdp-install-$(Get-Random)"
@@ -206,12 +206,11 @@ function Install-Binary {
 
     Write-Info "Extracting binary..."
 
-    # PowerShell's built-in tar support (Windows 10 1903+)
-    if (Get-Command tar -ErrorAction SilentlyContinue) {
-        tar -xzf $ArchivePath -C $TempDir
-    } else {
-        # Fallback: Use .NET for extraction (requires .tar.gz to be extracted in two steps)
-        Write-Error "tar command not found. Please install tar or use Windows 10 1903 or later."
+    # Extract .zip file using PowerShell's Expand-Archive
+    try {
+        Expand-Archive -Path $ArchivePath -DestinationPath $TempDir -Force
+    } catch {
+        Write-Error "Failed to extract archive: $($_.Exception.Message)"
     }
 
     # Create install directory if it doesn't exist

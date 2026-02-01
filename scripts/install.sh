@@ -224,7 +224,7 @@ resolve_version() {
 # Download binary and checksum
 download_binary() {
     local platform="$1"
-    local archive_name="${BINARY_NAME}-${platform}.tar.gz"
+    local archive_name="${BINARY_NAME}-cli-${platform}.tar.xz"
     local download_url="${GITHUB_DOWNLOAD}/${REPO}/releases/download/${VERSION}/${archive_name}"
     local checksum_url="${download_url}.sha256"
     local temp_dir
@@ -252,7 +252,7 @@ download_binary() {
 verify_checksum() {
     local temp_dir="$1"
     local platform="$2"
-    local archive_name="${BINARY_NAME}-${platform}.tar.gz"
+    local archive_name="${BINARY_NAME}-cli-${platform}.tar.xz"
     local archive_path="$temp_dir/$archive_name"
     local checksum_path="$temp_dir/$archive_name.sha256"
 
@@ -289,13 +289,13 @@ verify_checksum() {
 install_binary() {
     local temp_dir="$1"
     local platform="$2"
-    local archive_name="${BINARY_NAME}-${platform}.tar.gz"
+    local archive_name="${BINARY_NAME}-cli-${platform}.tar.xz"
     local archive_path="$temp_dir/$archive_name"
 
     info "Extracting binary..."
 
-    # Extract archive
-    tar -xzf "$archive_path" -C "$temp_dir" || error "Failed to extract archive"
+    # Extract archive (xz compressed)
+    tar -xJf "$archive_path" -C "$temp_dir" || error "Failed to extract archive"
 
     # Create install directory if it doesn't exist
     if [ ! -d "$INSTALL_PATH" ]; then
