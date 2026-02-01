@@ -1,29 +1,32 @@
-# Test installers after release is created (as draft)
-# This workflow runs after release.yml creates a draft release
+# Test installers after release is published
+# This workflow verifies that published releases work correctly
 # It tests install/upgrade/uninstall on all platforms
-# If all tests pass, it publishes the release
+# Can be triggered manually to verify any published release
+#
+# Note: This runs on PUBLISHED releases to verify they work.
+# Draft releases don't have publicly accessible download URLs.
 
-name: Test and Publish Release
+name: Verify Release Installers
 
 on:
   release:
-    types: [created]  # Triggered when a draft release is created
+    types: [published]  # Triggered when a release is published
   workflow_dispatch:
     inputs:
       release_tag:
-        description: 'Release tag to test (e.g., v0.1.0)'
+        description: 'Release tag to test (e.g., v0.1.0) - must be published'
         required: true
         type: string
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  # Test install scripts on all platforms
+  # Test cargo-dist installers on all platforms
   test-installers:
     name: Test Installer (${{ matrix.os }})
-    # Run for draft releases or manual workflow_dispatch
-    if: (github.event_name == 'release' && github.event.release.draft == true) || github.event_name == 'workflow_dispatch'
+    # Run for published releases or manual workflow_dispatch
+    if: (github.event_name == 'release' && github.event.release.draft == false) || github.event_name == 'workflow_dispatch'
     strategy:
       fail-fast: false
       matrix:
@@ -34,7 +37,7 @@ jobs:
             verify-command: "bdp --version"
             uninstall-command: "bdp uninstall --purge -y"
           # macOS x86_64
-          - os: macos-13
+          - os: macos-latest
             install-script: "curl --proto '=https' --tlsv1.2 -LsSf https://github.com/${{ github.repository }}/releases/download/${{ github.event.release.tag_name }}/bdp-installer.sh | sh"
             verify-command: "bdp --version"
             uninstall-command: "bdp uninstall --purge -y"
@@ -145,11 +148,11 @@ jobs:
   # Test custom install scripts from repository
   test-custom-installers:
     name: Test Custom Installer (${{ matrix.os }}, ${{ matrix.channel }})
-    if: (github.event_name == 'release' && github.event.release.draft == true) || github.event_name == 'workflow_dispatch'
+    if: (github.event_name == 'release' && github.event.release.draft == false) || github.event_name == 'workflow_dispatch'
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, macos-13, macos-14]
+        os: [ubuntu-22.04, macos-latest, macos-14]
         channel: [stable, specific-version]
         include:
           # Windows PowerShell installer
@@ -269,13 +272,11 @@ jobs:
           fi
           echo "Uninstall verified successfully"
 
-  # Publish the release after all tests pass
-  publish-release:
+  # Verification summary after all tests pass
+  verify-release:
     needs: [test-installers, test-custom-installers]
-    if: needs.test-installers.result == 'success' && needs.test-custom-installers.result == 'success'
+    if: always()
     runs-on: ubuntu-22.04
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Set Release Tag
         id: get-tag
@@ -287,37 +288,33 @@ jobs:
             echo "tag=${{ github.event.release.tag_name }}" >> $GITHUB_OUTPUT
           fi
 
-      - name: Check if Release is Draft
-        id: check-draft
+      - name: Check Test Results
         run: |
-          RELEASE_INFO=$(gh release view "${{ steps.get-tag.outputs.tag }}" --repo ${{ github.repository }} --json isDraft)
-          IS_DRAFT=$(echo "$RELEASE_INFO" | jq -r '.isDraft')
-          echo "is_draft=$IS_DRAFT" >> $GITHUB_OUTPUT
-          echo "Release ${{ steps.get-tag.outputs.tag }} is draft: $IS_DRAFT"
+          INSTALLERS_RESULT="${{ needs.test-installers.result }}"
+          CUSTOM_RESULT="${{ needs.test-custom-installers.result }}"
 
-      - name: Publish Release
-        if: steps.check-draft.outputs.is_draft == 'true'
-        run: |
-          echo "All tests passed! Publishing release ${{ steps.get-tag.outputs.tag }}..."
-          gh release edit "${{ steps.get-tag.outputs.tag }}" --draft=false --repo ${{ github.repository }}
-          echo "✅ Release published successfully!"
+          echo "🧪 Release Verification Results"
+          echo "================================"
+          echo ""
+          echo "Release: ${{ steps.get-tag.outputs.tag }}"
+          echo ""
+          echo "Test Results:"
+          echo "  cargo-dist installers: $INSTALLERS_RESULT"
+          echo "  Custom installers: $CUSTOM_RESULT"
+          echo ""
 
-      - name: Skip Publishing (Already Published)
-        if: steps.check-draft.outputs.is_draft != 'true'
-        run: |
-          echo "ℹ️ Release ${{ steps.get-tag.outputs.tag }} is already published. Skipping publish step."
-          echo "All tests passed successfully!"
-
-      - name: Announce Success
-        run: |
-          echo ""
-          echo "🎉 Release ${{ steps.get-tag.outputs.tag }} testing complete!"
-          echo ""
-          echo "Install with cargo-dist installers:"
-          echo "  curl -LsSf https://github.com/${{ github.repository }}/releases/latest/download/bdp-cli-installer.sh | sh"
-          echo ""
-          echo "Or use our custom installer (when available at install.bdp.dev):"
-          echo "  curl -fsSL https://install.bdp.dev/install.sh | sh"
-          echo ""
-          echo "Or install specific version:"
-          echo "  curl -fsSL https://install.bdp.dev/install.sh | sh -s -- --version ${{ steps.get-tag.outputs.tag }}"
+          if [ "$INSTALLERS_RESULT" = "success" ] && [ "$CUSTOM_RESULT" = "success" ]; then
+            echo "✅ All tests passed! Release ${{ steps.get-tag.outputs.tag }} is verified."
+            echo ""
+            echo "Installation commands:"
+            echo "  curl -LsSf https://github.com/${{ github.repository }}/releases/latest/download/bdp-cli-installer.sh | sh"
+            echo ""
+            echo "Custom installer (when available):"
+            echo "  curl -fsSL https://install.bdp.dev/install.sh | sh"
+            exit 0
+          else
+            echo "❌ Some tests failed! Release ${{ steps.get-tag.outputs.tag }} verification incomplete."
+            echo ""
+            echo "Please review the failed jobs above."
+            exit 1
+          fi
