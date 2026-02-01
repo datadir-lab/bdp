@@ -110,8 +110,12 @@ jobs:
         shell: bash
         run: |
           echo "Testing uninstall..."
-          export PATH="$HOME/.cargo/bin:$PATH"
-          ${{ matrix.uninstall-command }}
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            export PATH="$USERPROFILE/.cargo/bin:$PATH"
+          else
+            export PATH="$HOME/.cargo/bin:$PATH"
+          fi
+          bdp uninstall --purge -y
 
       - name: Verify Uninstall
         shell: bash

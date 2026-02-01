@@ -31,15 +31,15 @@ NC='\033[0m' # No Color
 
 # Helper functions
 info() {
-    printf "${BLUE}==>${NC} %s\n" "$1"
+    printf "${BLUE}==>${NC} %s\n" "$1" >&2
 }
 
 success() {
-    printf "${GREEN}==>${NC} %s\n" "$1"
+    printf "${GREEN}==>${NC} %s\n" "$1" >&2
 }
 
 warn() {
-    printf "${YELLOW}Warning:${NC} %s\n" "$1"
+    printf "${YELLOW}Warning:${NC} %s\n" "$1" >&2
 }
 
 error() {
