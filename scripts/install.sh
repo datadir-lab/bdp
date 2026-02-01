@@ -295,7 +295,15 @@ install_binary() {
     info "Extracting binary..."
 
     # Extract archive (xz compressed)
-    tar -xJf "$archive_path" -C "$temp_dir" || error "Failed to extract archive"
+    # Try auto-detection first (works on modern tar), fallback to explicit xz
+    if ! tar -xf "$archive_path" -C "$temp_dir" 2>/dev/null; then
+        # Fallback: explicit xz decompression
+        if command_exists xz; then
+            xz -dc "$archive_path" | tar -x -C "$temp_dir" || error "Failed to extract archive"
+        else
+            error "Failed to extract archive. xz or modern tar required."
+        fi
+    fi
 
     # Create install directory if it doesn't exist
     if [ ! -d "$INSTALL_PATH" ]; then

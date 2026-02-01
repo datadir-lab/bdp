@@ -30,27 +30,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          # Linux x86_64
-          - os: ubuntu-22.04
-            install-script: "curl --proto '=https' --tlsv1.2 -LsSf https://github.com/${{ github.repository }}/releases/download/${{ github.event.release.tag_name }}/bdp-installer.sh | sh"
-            verify-command: "bdp --version"
-            uninstall-command: "bdp uninstall --purge -y"
-          # macOS x86_64
-          - os: macos-latest
-            install-script: "curl --proto '=https' --tlsv1.2 -LsSf https://github.com/${{ github.repository }}/releases/download/${{ github.event.release.tag_name }}/bdp-installer.sh | sh"
-            verify-command: "bdp --version"
-            uninstall-command: "bdp uninstall --purge -y"
-          # macOS ARM64
-          - os: macos-14
-            install-script: "curl --proto '=https' --tlsv1.2 -LsSf https://github.com/${{ github.repository }}/releases/download/${{ github.event.release.tag_name }}/bdp-installer.sh | sh"
-            verify-command: "bdp --version"
-            uninstall-command: "bdp uninstall --purge -y"
-          # Windows
-          - os: windows-2022
-            install-script: "irm https://github.com/${{ github.repository }}/releases/download/${{ github.event.release.tag_name }}/bdp-installer.ps1 | iex"
-            verify-command: "bdp --version"
-            uninstall-command: "bdp uninstall --purge -y"
+        os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Set Release Tag
@@ -152,13 +132,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, macos-latest, macos-14]
+        os: [ubuntu-latest, macos-latest]
         channel: [stable, specific-version]
         include:
           # Windows PowerShell installer
-          - os: windows-2022
+          - os: windows-latest
             channel: specific-version
-            shell: powershell
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
