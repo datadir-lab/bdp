@@ -8,6 +8,12 @@ name: Test and Publish Release
 on:
   release:
     types: [created]  # Triggered when a draft release is created
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release tag to test (e.g., v0.1.0)'
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -16,8 +22,8 @@ jobs:
   # Test install scripts on all platforms
   test-installers:
     name: Test Installer (${{ matrix.os }})
-    # Only run for draft releases
-    if: github.event.release.draft == true
+    # Run for draft releases or manual workflow_dispatch
+    if: (github.event_name == 'release' && github.event.release.draft == true) || github.event_name == 'workflow_dispatch'
     strategy:
       fail-fast: false
       matrix:
@@ -44,26 +50,78 @@ jobs:
             uninstall-command: "bdp uninstall --purge -y"
     runs-on: ${{ matrix.os }}
     steps:
+      - name: Set Release Tag
+        id: get-tag
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ inputs.release_tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${{ github.event.release.tag_name }}" >> $GITHUB_OUTPUT
+          fi
+
       - name: Test Fresh Install
         shell: bash
         run: |
-          echo "Testing fresh install..."
-          ${{ matrix.install-script }}
+          echo "Testing fresh install of ${{ steps.get-tag.outputs.tag }}..."
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            powershell -Command "irm https://github.com/${{ github.repository }}/releases/download/${{ steps.get-tag.outputs.tag }}/bdp-cli-installer.ps1 | iex"
+          else
+            curl --proto '=https' --tlsv1.2 -LsSf https://github.com/${{ github.repository }}/releases/download/${{ steps.get-tag.outputs.tag }}/bdp-cli-installer.sh | sh
+          fi
 
       - name: Verify Installation
         shell: bash
         run: |
           echo "Verifying installation..."
-          export PATH="$HOME/.cargo/bin:$PATH"
-          ${{ matrix.verify-command }}
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            export PATH="$USERPROFILE/.cargo/bin:$PATH"
+          else
+            export PATH="$HOME/.cargo/bin:$PATH"
+          fi
+
+          # Test version
+          bdp --version
+          echo "Version check passed"
+
+          # Verify version matches release tag
+          VERSION_OUTPUT=$(bdp --version)
+          EXPECTED_VERSION="${{ steps.get-tag.outputs.tag }}"
+          if ! echo "$VERSION_OUTPUT" | grep -q "${EXPECTED_VERSION#v}"; then
+            echo "ERROR: Version mismatch! Expected ${EXPECTED_VERSION#v}, got: $VERSION_OUTPUT"
+            exit 1
+          fi
+          echo "Version matches release tag"
+
+          # Test help command
+          bdp --help
+          echo "Help command passed"
+
+          # Test basic CLI functionality
+          bdp init --help
+          echo "Init command help passed"
+
+          bdp source --help
+          echo "Source command help passed"
+
+          bdp search --help
+          echo "Search command help passed"
+
+          echo "✅ All verification tests passed"
 
       - name: Test Upgrade (Re-install)
         shell: bash
         run: |
-          echo "Testing upgrade..."
-          ${{ matrix.install-script }}
-          export PATH="$HOME/.cargo/bin:$PATH"
-          ${{ matrix.verify-command }}
+          echo "Testing upgrade (re-install)..."
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            powershell -Command "irm https://github.com/${{ github.repository }}/releases/download/${{ steps.get-tag.outputs.tag }}/bdp-cli-installer.ps1 | iex"
+            export PATH="$USERPROFILE/.cargo/bin:$PATH"
+          else
+            curl --proto '=https' --tlsv1.2 -LsSf https://github.com/${{ github.repository }}/releases/download/${{ steps.get-tag.outputs.tag }}/bdp-cli-installer.sh | sh
+            export PATH="$HOME/.cargo/bin:$PATH"
+          fi
+          bdp --version
+          echo "✅ Upgrade test passed"
 
       - name: Test Uninstall
         shell: bash
@@ -87,7 +145,7 @@ jobs:
   # Test custom install scripts from repository
   test-custom-installers:
     name: Test Custom Installer (${{ matrix.os }}, ${{ matrix.channel }})
-    if: github.event.release.draft == true
+    if: (github.event_name == 'release' && github.event.release.draft == true) || github.event_name == 'workflow_dispatch'
     strategy:
       fail-fast: false
       matrix:
@@ -102,12 +160,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set Release Tag
+        id: get-tag
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ inputs.release_tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${{ github.event.release.tag_name }}" >> $GITHUB_OUTPUT
+          fi
+
       - name: Test Custom Install Script (Unix - Specific Version)
         if: runner.os != 'Windows' && matrix.channel == 'specific-version'
         shell: bash
         run: |
           echo "Testing custom install script with specific version..."
-          sh scripts/install.sh --version ${{ github.event.release.tag_name }}
+          sh scripts/install.sh --version ${{ steps.get-tag.outputs.tag }}
 
       - name: Test Custom Install Script (Unix - Stable)
         if: runner.os != 'Windows' && matrix.channel == 'stable'
@@ -122,28 +190,50 @@ jobs:
         run: |
           Write-Host "Testing custom PowerShell install script..."
           . .\scripts\install.ps1
-          Install-BDP -Version "${{ github.event.release.tag_name }}"
+          Install-BDP -Version "${{ steps.get-tag.outputs.tag }}"
 
       - name: Verify Installation
         shell: bash
         run: |
-          echo "Verifying installation..."
+          echo "Verifying custom installer installation..."
           if [ "$RUNNER_OS" = "Windows" ]; then
             export PATH="$USERPROFILE/.cargo/bin:$PATH"
           else
             export PATH="$HOME/.cargo/bin:$PATH"
           fi
+
+          # Test version
           bdp --version
-          bdp --version | grep "${{ github.event.release.tag_name }}"
+          echo "Version check passed"
+
+          # Verify version matches release tag
+          VERSION_OUTPUT=$(bdp --version)
+          EXPECTED_VERSION="${{ steps.get-tag.outputs.tag }}"
+          if ! echo "$VERSION_OUTPUT" | grep -q "${EXPECTED_VERSION#v}"; then
+            echo "ERROR: Version mismatch! Expected ${EXPECTED_VERSION#v}, got: $VERSION_OUTPUT"
+            exit 1
+          fi
+          echo "Version matches release tag"
+
+          # Test help command
+          bdp --help
+          echo "Help command passed"
+
+          # Test CLI commands
+          bdp init --help
+          bdp source --help
+          bdp search --help
+          echo "✅ Custom installer verification passed"
 
       - name: Test Upgrade (Re-install)
         if: runner.os != 'Windows'
         shell: bash
         run: |
           echo "Testing upgrade with custom installer..."
-          sh scripts/install.sh --version ${{ github.event.release.tag_name }}
+          sh scripts/install.sh --version ${{ steps.get-tag.outputs.tag }}
           export PATH="$HOME/.cargo/bin:$PATH"
           bdp --version
+          echo "✅ Custom installer upgrade test passed"
 
       - name: Test Custom Install Path
         if: runner.os != 'Windows' && matrix.channel == 'specific-version'
@@ -151,9 +241,11 @@ jobs:
         run: |
           echo "Testing custom install path..."
           TEMP_INSTALL="$HOME/bdp-test-install"
-          sh scripts/install.sh --version ${{ github.event.release.tag_name }} --path "$TEMP_INSTALL"
+          sh scripts/install.sh --version ${{ steps.get-tag.outputs.tag }} --path "$TEMP_INSTALL"
           "$TEMP_INSTALL/bdp" --version
+          "$TEMP_INSTALL/bdp" --help
           rm -rf "$TEMP_INSTALL"
+          echo "✅ Custom install path test passed"
 
       - name: Test Uninstall
         shell: bash
@@ -180,22 +272,52 @@ jobs:
   # Publish the release after all tests pass
   publish-release:
     needs: [test-installers, test-custom-installers]
-    if: needs.test-installers.result == 'success' && needs.test-custom-installers.result == 'success' && github.event.release.draft == true
+    if: needs.test-installers.result == 'success' && needs.test-custom-installers.result == 'success'
     runs-on: ubuntu-22.04
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - name: Publish Release
+      - name: Set Release Tag
+        id: get-tag
+        shell: bash
         run: |
-          echo "All tests passed! Publishing release..."
-          gh release edit "${{ github.event.release.tag_name }}" --draft=false --repo ${{ github.repository }}
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ inputs.release_tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${{ github.event.release.tag_name }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check if Release is Draft
+        id: check-draft
+        run: |
+          RELEASE_INFO=$(gh release view "${{ steps.get-tag.outputs.tag }}" --repo ${{ github.repository }} --json isDraft)
+          IS_DRAFT=$(echo "$RELEASE_INFO" | jq -r '.isDraft')
+          echo "is_draft=$IS_DRAFT" >> $GITHUB_OUTPUT
+          echo "Release ${{ steps.get-tag.outputs.tag }} is draft: $IS_DRAFT"
+
+      - name: Publish Release
+        if: steps.check-draft.outputs.is_draft == 'true'
+        run: |
+          echo "All tests passed! Publishing release ${{ steps.get-tag.outputs.tag }}..."
+          gh release edit "${{ steps.get-tag.outputs.tag }}" --draft=false --repo ${{ github.repository }}
+          echo "✅ Release published successfully!"
+
+      - name: Skip Publishing (Already Published)
+        if: steps.check-draft.outputs.is_draft != 'true'
+        run: |
+          echo "ℹ️ Release ${{ steps.get-tag.outputs.tag }} is already published. Skipping publish step."
+          echo "All tests passed successfully!"
 
       - name: Announce Success
         run: |
-          echo "✅ Release ${{ github.event.release.tag_name }} published successfully!"
+          echo ""
+          echo "🎉 Release ${{ steps.get-tag.outputs.tag }} testing complete!"
           echo ""
           echo "Install with cargo-dist installers:"
-          echo "  curl -LsSf https://github.com/${{ github.repository }}/releases/latest/download/bdp-installer.sh | sh"
+          echo "  curl -LsSf https://github.com/${{ github.repository }}/releases/latest/download/bdp-cli-installer.sh | sh"
           echo ""
           echo "Or use our custom installer (when available at install.bdp.dev):"
           echo "  curl -fsSL https://install.bdp.dev/install.sh | sh"
+          echo ""
+          echo "Or install specific version:"
+          echo "  curl -fsSL https://install.bdp.dev/install.sh | sh -s -- --version ${{ steps.get-tag.outputs.tag }}"
