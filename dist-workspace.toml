@@ -17,3 +17,5 @@ license = "LICENSE"
 install-path = "CARGO_HOME"
 # Publish jobs to run in dist
 publish-jobs = []
+# Allow manual modifications to generated workflow files
+allow-dirty = ["ci"]
