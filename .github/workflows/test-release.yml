@@ -84,10 +84,103 @@ jobs:
           fi
           echo "Uninstall verified successfully"
 
+  # Test custom install scripts from repository
+  test-custom-installers:
+    name: Test Custom Installer (${{ matrix.os }}, ${{ matrix.channel }})
+    if: github.event.release.draft == true
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, macos-13, macos-14]
+        channel: [stable, specific-version]
+        include:
+          # Windows PowerShell installer
+          - os: windows-2022
+            channel: specific-version
+            shell: powershell
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Test Custom Install Script (Unix - Specific Version)
+        if: runner.os != 'Windows' && matrix.channel == 'specific-version'
+        shell: bash
+        run: |
+          echo "Testing custom install script with specific version..."
+          sh scripts/install.sh --version ${{ github.event.release.tag_name }}
+
+      - name: Test Custom Install Script (Unix - Stable)
+        if: runner.os != 'Windows' && matrix.channel == 'stable'
+        shell: bash
+        run: |
+          echo "Testing custom install script with stable channel..."
+          sh scripts/install.sh --channel stable
+
+      - name: Test Custom Install Script (Windows)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          Write-Host "Testing custom PowerShell install script..."
+          . .\scripts\install.ps1
+          Install-BDP -Version "${{ github.event.release.tag_name }}"
+
+      - name: Verify Installation
+        shell: bash
+        run: |
+          echo "Verifying installation..."
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            export PATH="$USERPROFILE/.cargo/bin:$PATH"
+          else
+            export PATH="$HOME/.cargo/bin:$PATH"
+          fi
+          bdp --version
+          bdp --version | grep "${{ github.event.release.tag_name }}"
+
+      - name: Test Upgrade (Re-install)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          echo "Testing upgrade with custom installer..."
+          sh scripts/install.sh --version ${{ github.event.release.tag_name }}
+          export PATH="$HOME/.cargo/bin:$PATH"
+          bdp --version
+
+      - name: Test Custom Install Path
+        if: runner.os != 'Windows' && matrix.channel == 'specific-version'
+        shell: bash
+        run: |
+          echo "Testing custom install path..."
+          TEMP_INSTALL="$HOME/bdp-test-install"
+          sh scripts/install.sh --version ${{ github.event.release.tag_name }} --path "$TEMP_INSTALL"
+          "$TEMP_INSTALL/bdp" --version
+          rm -rf "$TEMP_INSTALL"
+
+      - name: Test Uninstall
+        shell: bash
+        run: |
+          echo "Testing uninstall..."
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            export PATH="$USERPROFILE/.cargo/bin:$PATH"
+          else
+            export PATH="$HOME/.cargo/bin:$PATH"
+          fi
+          bdp uninstall --purge -y
+
+      - name: Verify Uninstall
+        shell: bash
+        run: |
+          echo "Verifying uninstall..."
+          sleep 3
+          if command -v bdp &> /dev/null; then
+            echo "ERROR: bdp command still exists after uninstall"
+            exit 1
+          fi
+          echo "Uninstall verified successfully"
+
   # Publish the release after all tests pass
   publish-release:
-    needs: test-installers
-    if: needs.test-installers.result == 'success' && github.event.release.draft == true
+    needs: [test-installers, test-custom-installers]
+    if: needs.test-installers.result == 'success' && needs.test-custom-installers.result == 'success' && github.event.release.draft == true
     runs-on: ubuntu-22.04
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -100,4 +193,9 @@ jobs:
       - name: Announce Success
         run: |
           echo "✅ Release ${{ github.event.release.tag_name }} published successfully!"
-          echo "Install with: curl -LsSf https://github.com/${{ github.repository }}/releases/latest/download/bdp-installer.sh | sh"
+          echo ""
+          echo "Install with cargo-dist installers:"
+          echo "  curl -LsSf https://github.com/${{ github.repository }}/releases/latest/download/bdp-installer.sh | sh"
+          echo ""
+          echo "Or use our custom installer (when available at install.bdp.dev):"
+          echo "  curl -fsSL https://install.bdp.dev/install.sh | sh"

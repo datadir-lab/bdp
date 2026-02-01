@@ -28,7 +28,11 @@ Only 11% of bioinformatics studies can be reproduced ([Leipzig et al., 2021](htt
 ## Quick Start
 
 ```bash
-# Install
+# Install (choose one method)
+# Method 1: Universal installer (coming soon to install.bdp.dev)
+curl -fsSL https://install.bdp.dev/install.sh | sh
+
+# Method 2: cargo-dist installer
 curl --proto '=https' --tlsv1.2 -LsSf https://github.com/datadir-lab/bdp/releases/latest/download/bdp-installer.sh | sh
 
 # Create project

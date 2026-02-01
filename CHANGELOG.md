@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Custom Install Scripts**
+  - Universal install.sh for Linux/macOS with smart channel support
+  - PowerShell install.ps1 for Windows with same features
+  - SHA256 checksum verification for security
+  - Channel support: stable (default), canary (pre-release), specific version
+  - Custom install path option
+  - Auto-detect platform (x86_64/ARM64, Linux/macOS/Windows)
+  - GitHub API integration for version resolution
+  - Idempotent installation (safe to re-run)
+  - Enhanced CI testing with 7 additional test scenarios
+  - Comprehensive installation documentation
+  - Fallback to wget if curl unavailable
+  - Progress indicators and clear error messages
 - **Search Command** (`bdp search`)
   - Full-text search across organizations, data sources, and tools
   - Interactive mode with result browsing and navigation
