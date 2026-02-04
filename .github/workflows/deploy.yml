@@ -170,7 +170,8 @@ jobs:
           set -e
           cd /opt/bdp
           for i in {1..5}; do
-            if curl -sf http://localhost/health; then
+            if docker exec bdp-server curl -sf http://localhost:8000/health; then
+              echo ""
               echo "Health check passed!"
               exit 0
             fi
