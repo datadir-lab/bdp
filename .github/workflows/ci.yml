@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main, develop]
 
+permissions:
+  contents: read
+  packages: write
+
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
@@ -272,6 +276,9 @@ jobs:
     name: Trigger Deploy
     needs: [ci-success]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.ci-success.result == 'success'
+    permissions:
+      contents: read
+      packages: write
     uses: ./.github/workflows/deploy.yml
     with:
       environment: production
