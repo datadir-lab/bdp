@@ -89,7 +89,7 @@ services:
         condition: service_healthy
 
   traefik:
-    image: traefik:v3.0
+    image: traefik:v3.3
     container_name: bdp-traefik
     restart: unless-stopped
     command:
