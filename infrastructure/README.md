@@ -1,200 +1,102 @@
-# BDP Infrastructure - OVH Cloud
+# BDP Infrastructure
 
-Terraform configuration for deploying BDP to OVH Cloud.
+> **Status**: Managed manually until OVH startup grant approved.
 
-## Architecture (MVP)
+## Current Setup (OVH Cloud - DE Region)
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                        Internet                              │
-└─────────────────────────┬───────────────────────────────────┘
-                          │
-                          ▼
-┌─────────────────────────────────────────────────────────────┐
-│              OVH Public Cloud Instance                       │
-│                    (d2-2: 1 vCPU, 2GB RAM)                  │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │  Caddy (reverse proxy, auto HTTPS)                  │   │
-│  │    ├── :443 → Next.js (:3000)                       │   │
-│  │    └── :443/api → Rust Backend (:8000)              │   │
-│  └─────────────────────────────────────────────────────┘   │
-│  ┌──────────────────┐  ┌───────────────────────────────┐   │
-│  │  Next.js Frontend │  │  Rust Backend (axum)         │   │
-│  │  (Docker)         │  │  (Docker)                    │   │
-│  └──────────────────┘  └───────────────────────────────┘   │
-└─────────────────────────┬───────────────────────────────────┘
-                          │
-          ┌───────────────┴───────────────┐
-          ▼                               ▼
-┌──────────────────────┐    ┌─────────────────────────────────┐
-│  OVH Managed         │    │  OVH Object Storage              │
-│  PostgreSQL          │    │  (S3-compatible)                 │
-│  (Essential Plan)    │    │                                  │
-│  - 1 node            │    │  - Data files                    │
-│  - 4GB RAM           │    │  - No egress fees                │
-│  - Auto backups      │    │                                  │
-└──────────────────────┘    └─────────────────────────────────┘
-```
+| Resource | Details |
+|----------|---------|
+| **Instance** | B3-8 (2 vCPU, 8GB RAM, 50GB NVMe) |
+| **OS** | Ubuntu 24.04 LTS |
+| **SSH Key** | `bdp-production SSH key` |
+| **S3 Bucket** | `bdp-production` (DE region, SSE-OMK encrypted) |
+| **Domain** | bdp.dev |
 
-## Estimated Monthly Cost (MVP)
+## Stack
 
-| Component | Service | Cost |
-|-----------|---------|------|
-| Compute | d2-2 (1 vCPU, 2GB RAM) | ~5 EUR |
-| Database | PostgreSQL Essential db1-4 | ~30 EUR |
-| Storage | Object Storage 100GB | ~1 EUR |
-| Bandwidth | Included (no egress fees!) | 0 EUR |
-| **Total** | | **~36 EUR/month** |
+- PostgreSQL 16 (container)
+- BDP Backend (Rust)
+- BDP Frontend (Next.js)
+- Traefik (reverse proxy + Let's Encrypt TLS)
 
-## Prerequisites
+## Deployment
 
-1. **OVH Account** with Public Cloud project
-2. **API Credentials** from https://api.ovh.com/createToken/
-3. **OpenStack User** created in OVH Control Panel
-4. **SSH Key** for instance access
-5. **Terraform** >= 1.0.0 installed
+Automatic via `.github/workflows/deploy.yml` on push to main.
 
-## Quick Start
+Manual trigger supports environment selection.
 
-### 1. Get OVH API Credentials
+## GitHub Configuration
 
-1. Go to https://api.ovh.com/createToken/
-2. Set permissions:
-   - GET, POST, PUT, DELETE on `/cloud/project/*`
-3. Save Application Key, Application Secret, and Consumer Key
+### Secrets (sensitive)
 
-### 2. Get OpenStack Credentials
+| Secret | Description |
+|--------|-------------|
+| `SERVER_IP` | OVH instance public IP |
+| `DEPLOY_SSH_KEY` | Private SSH key for deployment |
+| `POSTGRES_PASSWORD` | PostgreSQL password |
+| `STORAGE_S3_ACCESS_KEY` | OVH S3 access key |
+| `STORAGE_S3_SECRET_KEY` | OVH S3 secret key |
 
-1. OVH Control Panel → Public Cloud → Users & Roles
-2. Create User with "Administrator" role
-3. Note the username and password
+### Variables (config, non-sensitive)
 
-### 3. Configure Terraform
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `DOMAIN` | Domain name | `bdp.dev` |
+| `STORAGE_S3_ENDPOINT` | S3 endpoint | `https://s3.de.io.cloud.ovh.net` |
+| `STORAGE_S3_REGION` | S3 region | `de` |
+| `STORAGE_S3_BUCKET` | S3 bucket | `bdp-production` |
+| `ACME_EMAIL` | Let's Encrypt email | `you@example.com` |
+| `RUST_LOG` | Log level (optional) | `info,bdp_server=debug` |
+
+### Setup via gh CLI
 
 ```bash
-cd infrastructure
+# Secrets
+gh secret set SERVER_IP --env production --body "<ip>"
+gh secret set DEPLOY_SSH_KEY --env production --body (Get-Content ~/.ssh/bdp-production -Raw)
+gh secret set POSTGRES_PASSWORD --env production --body "<password>"
+gh secret set STORAGE_S3_ACCESS_KEY --env production --body "<key>"
+gh secret set STORAGE_S3_SECRET_KEY --env production --body "<secret>"
 
-# Copy example variables
-cp terraform.tfvars.example terraform.tfvars
-
-# Edit with your values
-nano terraform.tfvars  # or your preferred editor
+# Variables
+gh variable set DOMAIN --env production --body "bdp.dev"
+gh variable set STORAGE_S3_ENDPOINT --env production --body "https://s3.de.io.cloud.ovh.net"
+gh variable set STORAGE_S3_REGION --env production --body "de"
+gh variable set STORAGE_S3_BUCKET --env production --body "bdp-production"
+gh variable set ACME_EMAIL --env production --body "you@example.com"
+gh variable set RUST_LOG --env production --body "info,bdp_server=info,sqlx=warn"
 ```
 
-### 4. Deploy
+## Application Config
 
-```bash
-# Initialize Terraform
-terraform init
+App-specific settings are in `infrastructure/deploy/docker-compose.prod.yml`:
 
-# Preview changes
-terraform plan
+```yaml
+# Ingestion - general
+INGEST_ENABLED: "true"
+INGEST_SCHEDULE: "0 2 * * 0"    # Weekly Sunday 2am
+INGEST_WORKERS: "2"
+INGEST_BATCH_SIZE: "1000"
 
-# Apply (creates resources)
-terraform apply
+# Ingestion - sources (enable + version)
+INGEST_UNIPROT_ENABLED: "true"
+INGEST_UNIPROT_VERSION: "2025_06"   # releases: 2025_06, 2026_01
+INGEST_ENSEMBL_ENABLED: "true"
+INGEST_ENSEMBL_VERSION: "115"       # releases: 114, 115, 116
+INGEST_NCBI_ENABLED: "true"
+INGEST_NCBI_VERSION: "229"          # releases: 228, 229, 230
 
-# Get connection info
-terraform output
-terraform output -raw env_file_content > ../production.env
+# API
+API_RATE_LIMIT: "100"
+API_TIMEOUT_SECS: "30"
 ```
 
-### 5. Connect to Instance
+Edit docker-compose.prod.yml and push to deploy changes.
 
-```bash
-# SSH into the server
-ssh ubuntu@$(terraform output -raw instance_ip)
+## DNS Setup
 
-# Check Docker is running
-docker --version
-docker compose version
-```
+Point domain A record to server IP.
 
-### 6. Deploy Application
+## Backups
 
-```bash
-# On your local machine, copy files to server
-scp -r ../docker ubuntu@$(terraform output -raw instance_ip):/opt/bdp/
-scp ../docker-compose.yml ubuntu@$(terraform output -raw instance_ip):/opt/bdp/
-scp ../production.env ubuntu@$(terraform output -raw instance_ip):/opt/bdp/.env
-
-# SSH into server
-ssh ubuntu@$(terraform output -raw instance_ip)
-
-# Deploy
-cd /opt/bdp
-docker compose up -d
-```
-
-## Files
-
-| File | Description |
-|------|-------------|
-| `main.tf` | Provider configuration |
-| `variables.tf` | Input variables |
-| `compute.tf` | Instance and security groups |
-| `database.tf` | Managed PostgreSQL |
-| `storage.tf` | S3 object storage credentials |
-| `outputs.tf` | Connection information |
-| `terraform.tfvars.example` | Example variable values |
-
-## Useful Commands
-
-```bash
-# View all outputs
-terraform output
-
-# Get database password
-terraform output -raw database_password
-
-# Get S3 credentials
-terraform output -raw s3_access_key
-terraform output -raw s3_secret_key
-
-# Generate .env file
-terraform output -raw env_file_content > .env
-
-# SSH command
-terraform output -raw ssh_command
-
-# Destroy everything (careful!)
-terraform destroy
-```
-
-## Scaling Up (Post-MVP)
-
-When ready to scale:
-
-1. **More CPU/RAM**: Change `instance_flavor` to `d2-4` or `d2-8`
-2. **Database HA**: Change `db_plan` to `business` (2 nodes)
-3. **Load Balancer**: Uncomment load balancer resources (create `loadbalancer.tf`)
-4. **Multiple Instances**: Create instance count variable
-5. **Kubernetes**: Consider migrating to OVH Managed Kubernetes
-
-## Security Notes
-
-- Database only accessible from instance IP
-- SSH key authentication only (no passwords)
-- HTTPS via Caddy with auto Let's Encrypt
-- Consider adding firewall rules for production
-
-## Troubleshooting
-
-### Cannot connect to database
-1. Check IP restriction includes instance IP
-2. Verify SSL mode is `require`
-3. Check password in Terraform output
-
-### Instance not accessible
-1. Check security group rules
-2. Verify SSH key is correct
-3. Check instance status in OVH Control Panel
-
-### S3 bucket not found
-1. Create bucket manually via AWS CLI or OVH Control Panel
-2. Bucket is created on first application use
-
-## Support
-
-- OVH Documentation: https://help.ovhcloud.com/
-- Terraform OVH Provider: https://registry.terraform.io/providers/ovh/ovh/latest/docs
-- OVH API Console: https://api.ovh.com/console/
+pg_dump runs daily at 3am, keeps 7 days. Backups stored in `/opt/bdp/backups/`.

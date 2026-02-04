@@ -12,75 +12,44 @@ env:
   SQLX_OFFLINE: true
 
 jobs:
-  # Rust: Formatting check
   rust-format:
-    name: Rust Format Check
+    name: Rust Format
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: dtolnay/rust-toolchain@4be9e76fd7c4901c61fb841f559994984270fce7 # stable
         with:
           components: rustfmt
+      - run: cargo fmt --all -- --check
 
-      - name: Install just
-        uses: extractions/setup-just@v2
-
-      - name: Check formatting
-        run: cargo fmt --all -- --check
-
-  # Rust: Linting with Clippy
   rust-lint:
-    name: Rust Lint (Clippy)
+    name: Rust Lint
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: dtolnay/rust-toolchain@4be9e76fd7c4901c61fb841f559994984270fce7 # stable
         with:
           components: clippy
-
-      - name: Install just
-        uses: extractions/setup-just@v2
-
-      - name: Cache cargo registry
-        uses: actions/cache@v4
+      - uses: extractions/setup-just@e33e0265a09d6d736e2ee1e0eb685ef1de4669ff # v3
+      - uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         with:
           path: |
             ~/.cargo/bin/
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
+            target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
+          restore-keys: ${{ runner.os }}-cargo-
+      - run: just lint
 
-      - name: Cache cargo build
-        uses: actions/cache@v4
-        with:
-          path: target
-          key: ${{ runner.os }}-cargo-build-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-build-
-
-      - name: Run Clippy via just
-        run: just lint
-
-  # Rust: Tests with multiple versions
   rust-test:
     name: Rust Tests (${{ matrix.rust }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        rust:
-          - stable
-          - beta
-          - nightly
+        rust: [stable, beta, nightly]
     services:
       postgres:
         image: postgres:16
@@ -95,143 +64,82 @@ jobs:
           --health-retries 5
         ports:
           - 5432/tcp
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Rust toolchain
-        uses: dtolnay/rust-toolchain@master
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: dtolnay/rust-toolchain@4be9e76fd7c4901c61fb841f559994984270fce7 # master
         with:
           toolchain: ${{ matrix.rust }}
-
-      - name: Install just
-        uses: extractions/setup-just@v2
-
-      - name: Cache cargo registry
-        uses: actions/cache@v4
+      - uses: extractions/setup-just@e33e0265a09d6d736e2ee1e0eb685ef1de4669ff # v3
+      - uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         with:
           path: |
             ~/.cargo/bin/
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
+            target
           key: ${{ runner.os }}-${{ matrix.rust }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ matrix.rust }}-cargo-
-
-      - name: Cache cargo build
-        uses: actions/cache@v4
-        with:
-          path: target
-          key: ${{ runner.os }}-${{ matrix.rust }}-cargo-build-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ matrix.rust }}-cargo-build-
-
+          restore-keys: ${{ runner.os }}-${{ matrix.rust }}-cargo-
       - name: Install SQLx CLI
         run: cargo install sqlx-cli --no-default-features --features postgres --locked
         continue-on-error: true
-
-      - name: Run database migrations
+      - name: Run migrations
         run: sqlx migrate run
         env:
           DATABASE_URL: postgresql://bdp:bdp_test_password@localhost:${{ job.services.postgres.ports[5432] }}/bdp_test
-
-      - name: Run tests via just
+      - name: Run tests
         run: just test
         continue-on-error: ${{ matrix.rust == 'nightly' }}
         env:
           TEST_DATABASE_URL: postgresql://bdp:bdp_test_password@localhost:${{ job.services.postgres.ports[5432] }}/bdp_test
           DATABASE_URL: postgresql://bdp:bdp_test_password@localhost:${{ job.services.postgres.ports[5432] }}/bdp_test
 
-  # CLI Documentation: Verify CLI docs are up to date
   cli-docs-check:
-    name: CLI Documentation Check
+    name: CLI Docs Check
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install just
-        uses: extractions/setup-just@v2
-
-      - name: Cache cargo registry
-        uses: actions/cache@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: dtolnay/rust-toolchain@4be9e76fd7c4901c61fb841f559994984270fce7 # stable
+      - uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         with:
           path: |
             ~/.cargo/bin/
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
+            target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
-
-      - name: Cache cargo build
-        uses: actions/cache@v4
-        with:
-          path: target
-          key: ${{ runner.os }}-cargo-build-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-build-
-
-      - name: Generate CLI docs
-        run: cargo run --package xtask -- generate-cli-docs
-
-      - name: Check for uncommitted CLI docs changes
+          restore-keys: ${{ runner.os }}-cargo-
+      - run: cargo run --package xtask -- generate-cli-docs
+      - name: Check for changes
         run: |
           if ! git diff --exit-code web/app/\[locale\]/docs/content/en/cli-reference.mdx; then
-            echo "❌ CLI documentation is out of date!"
-            echo "Please run 'just docs-cli' and commit the changes."
+            echo "CLI docs out of date. Run 'just docs-cli' and commit."
             exit 1
           fi
-          echo "✅ CLI documentation is up to date"
 
-  # SQLx: Verify prepared queries
   sqlx-check:
-    name: SQLx Prepared Query Check
+    name: SQLx Check
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install just
-        uses: extractions/setup-just@v2
-
-      - name: Cache cargo registry
-        uses: actions/cache@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: dtolnay/rust-toolchain@4be9e76fd7c4901c61fb841f559994984270fce7 # stable
+      - uses: extractions/setup-just@e33e0265a09d6d736e2ee1e0eb685ef1de4669ff # v3
+      - uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         with:
           path: |
             ~/.cargo/bin/
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
+            target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
-
-      - name: Cache cargo build
-        uses: actions/cache@v4
-        with:
-          path: target
-          key: ${{ runner.os }}-cargo-build-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-build-
-
+          restore-keys: ${{ runner.os }}-cargo-
       - name: Install SQLx CLI
         run: cargo install sqlx-cli --no-default-features --features postgres --locked
         continue-on-error: true
+      - run: just sqlx-check
 
-      - name: Verify SQLx metadata via just
-        run: just sqlx-check
-
-  # Rust: Build verification with multiple targets
   rust-build:
     name: Rust Build (${{ matrix.target }})
     runs-on: ${{ matrix.os }}
@@ -248,138 +156,75 @@ jobs:
             os: macos-latest
           - target: x86_64-pc-windows-msvc
             os: windows-latest
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: dtolnay/rust-toolchain@4be9e76fd7c4901c61fb841f559994984270fce7 # stable
         with:
           targets: ${{ matrix.target }}
-
-      - name: Install just
-        uses: extractions/setup-just@v2
-
+      - uses: extractions/setup-just@e33e0265a09d6d736e2ee1e0eb685ef1de4669ff # v3
       - name: Install musl tools
         if: matrix.musl
         run: sudo apt-get update && sudo apt-get install -y musl-tools
-
-      - name: Cache cargo registry
-        uses: actions/cache@v4
+      - uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         with:
           path: |
             ~/.cargo/bin/
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
+            target
           key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ matrix.target }}-cargo-
+          restore-keys: ${{ runner.os }}-${{ matrix.target }}-cargo-
+      - run: just build-release
 
-      - name: Cache cargo build
-        uses: actions/cache@v4
-        with:
-          path: target
-          key: ${{ runner.os }}-${{ matrix.target }}-cargo-build-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ matrix.target }}-cargo-build-
-
-      - name: Build release via just
-        run: just build-release
-
-  # Frontend: Linting with ESLint
   frontend-lint:
-    name: Frontend Lint (ESLint)
+    name: Frontend Lint
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
         with:
           node-version: '20'
           cache: 'yarn'
           cache-dependency-path: web/package.json
+      - run: cd web && yarn install
+      - run: cd web && yarn lint
 
-      - name: Install just
-        uses: extractions/setup-just@v2
-
-      - name: Install dependencies
-        run: cd web && yarn install
-
-      - name: Run ESLint
-        run: cd web && yarn lint
-
-  # Frontend: Type checking
   frontend-typecheck:
     name: Frontend Type Check
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
         with:
           node-version: '20'
           cache: 'yarn'
           cache-dependency-path: web/package.json
+      - run: cd web && yarn install
+      - run: cd web && yarn type-check
 
-      - name: Install just
-        uses: extractions/setup-just@v2
-
-      - name: Install dependencies
-        run: cd web && yarn install
-
-      - name: Type check
-        run: cd web && yarn type-check
-
-  # Frontend: Build verification
   frontend-build:
-    name: Frontend Build Verification
+    name: Frontend Build
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
         with:
           node-version: '20'
           cache: 'yarn'
           cache-dependency-path: web/package.json
+      - uses: extractions/setup-just@e33e0265a09d6d736e2ee1e0eb685ef1de4669ff # v3
+      - run: cd web && yarn install
+      - run: just build-web
+      - name: Verify Pagefind
+        run: test -d "web/public/_pagefind"
 
-      - name: Install just
-        uses: extractions/setup-just@v2
-
-      - name: Install dependencies
-        run: cd web && yarn install
-
-      - name: Build frontend (includes Pagefind indexing)
-        run: just build-web
-
-      - name: Verify Pagefind index was created
-        run: |
-          if [ -d "web/public/_pagefind" ]; then
-            echo "✓ Pagefind search index created successfully"
-            ls -lh web/public/_pagefind/
-          else
-            echo "✗ Pagefind search index not found"
-            exit 1
-          fi
-
-  # Security: Cargo audit
   security-audit:
     name: Security Audit
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Run cargo audit using actions-rust-lang
-        run: |
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - run: |
           cargo install cargo-audit --locked
           cargo audit --deny warnings \
             --ignore RUSTSEC-2026-0001 \
@@ -389,25 +234,16 @@ jobs:
             --ignore RUSTSEC-2025-0134 \
             --ignore RUSTSEC-2026-0002
 
-  # Docker: Build verification
   docker-build:
-    name: Docker Build Verification
+    name: Docker Build
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main'
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+      - uses: extractions/setup-just@e33e0265a09d6d736e2ee1e0eb685ef1de4669ff # v3
+      - run: just docker-build
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Install just
-        uses: extractions/setup-just@v2
-
-      - name: Build Docker images via just
-        run: just docker-build
-
-  # CI Success - All checks must pass
   ci-success:
     name: CI Success
     needs:
@@ -421,14 +257,22 @@ jobs:
       - frontend-typecheck
       - frontend-build
       - docker-build
-      # security-audit runs independently and doesn't block CI
     runs-on: ubuntu-latest
     if: always()
     steps:
-      - name: Check all jobs
+      - name: Check results
         run: |
           if [ "${{ contains(needs.*.result, 'failure') }}" == "true" ]; then
-            echo "One or more CI jobs failed"
+            echo "CI failed"
             exit 1
           fi
-          echo "All CI jobs passed successfully"
+          echo "CI passed"
+
+  trigger-deploy:
+    name: Trigger Deploy
+    needs: [ci-success]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.ci-success.result == 'success'
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment: production
+    secrets: inherit

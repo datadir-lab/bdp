@@ -1,0 +1,207 @@
+name: Deploy
+
+run-name: "Deploy to ${{ inputs.environment || 'production' }}"
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment'
+        type: environment
+        required: true
+        default: production
+      skip_build:
+        description: 'Skip building images (just deploy)'
+        type: boolean
+        default: false
+  workflow_call:
+    inputs:
+      environment:
+        type: string
+        required: true
+        default: production
+
+concurrency:
+  group: deploy-${{ inputs.environment || 'production' }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}/bdp
+
+jobs:
+  build:
+    name: Build Images
+    runs-on: ubuntu-latest
+    if: ${{ !inputs.skip_build }}
+    permissions:
+      contents: read
+      packages: write
+
+    strategy:
+      matrix:
+        include:
+          - name: server
+            dockerfile: docker/Dockerfile.server
+            context: .
+          - name: web
+            dockerfile: docker/Dockerfile.web
+            context: .
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
+        with:
+          images: ${{ env.IMAGE_PREFIX }}-${{ matrix.name }}
+          tags: |
+            type=sha,prefix=
+            type=raw,value=latest
+
+      - name: Build and push
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy to ${{ inputs.environment || 'production' }}
+    runs-on: ubuntu-latest
+    needs: [build]
+    if: always() && (needs.build.result == 'success' || needs.build.result == 'skipped')
+    environment: ${{ inputs.environment || 'production' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
+
+      - name: Setup server (idempotent)
+        run: |
+          ssh -i ~/.ssh/deploy_key ubuntu@${{ secrets.SERVER_IP }} << 'SETUP'
+          set -e
+
+          if ! command -v docker &> /dev/null; then
+            echo "Installing Docker..."
+            curl -fsSL https://get.docker.com | sh
+            sudo usermod -aG docker ubuntu
+            echo "Docker installed. You may need to re-run this workflow."
+          fi
+
+          if ! docker ps &> /dev/null; then
+            echo "Docker permission issue - trying with sudo for this run"
+            sudo docker ps > /dev/null
+          fi
+
+          sudo mkdir -p /opt/bdp/backups /opt/bdp/data
+          sudo chown -R ubuntu:ubuntu /opt/bdp
+
+          if ! crontab -l 2>/dev/null | grep -q pg_dump; then
+            echo "Setting up PostgreSQL backup cron..."
+            (crontab -l 2>/dev/null || true; echo "0 3 * * * docker exec bdp-postgres pg_dump -U bdp bdp | gzip > /opt/bdp/backups/bdp-\$(date +\%Y\%m\%d-\%H\%M\%S).sql.gz") | crontab -
+            (crontab -l 2>/dev/null; echo "0 4 * * * find /opt/bdp/backups -name '*.sql.gz' -mtime +7 -delete") | crontab -
+          fi
+
+          echo "Server setup complete"
+          SETUP
+
+      - name: Deploy docker-compose
+        run: |
+          scp -i ~/.ssh/deploy_key \
+            infrastructure/deploy/docker-compose.prod.yml \
+            ubuntu@${{ secrets.SERVER_IP }}:/opt/bdp/docker-compose.yml
+
+      - name: Deploy and start services
+        env:
+          SERVER_IP: ${{ secrets.SERVER_IP }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          S3_ACCESS_KEY: ${{ secrets.STORAGE_S3_ACCESS_KEY }}
+          S3_SECRET_KEY: ${{ secrets.STORAGE_S3_SECRET_KEY }}
+          DOMAIN: ${{ vars.DOMAIN }}
+          S3_ENDPOINT: ${{ vars.STORAGE_S3_ENDPOINT }}
+          S3_REGION: ${{ vars.STORAGE_S3_REGION }}
+          S3_BUCKET: ${{ vars.STORAGE_S3_BUCKET }}
+          ACME_EMAIL: ${{ vars.ACME_EMAIL }}
+          RUST_LOG: ${{ vars.RUST_LOG || 'info,bdp_server=info,sqlx=warn' }}
+        run: |
+          ssh -i ~/.ssh/deploy_key ubuntu@${{ secrets.SERVER_IP }} << DEPLOY
+          set -e
+          cd /opt/bdp
+
+          cat > .env << 'EOF'
+          DOMAIN=${DOMAIN}
+          ACME_EMAIL=${ACME_EMAIL}
+          PUBLIC_URL=https://${DOMAIN}
+          POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+          STORAGE_S3_ENDPOINT=${S3_ENDPOINT}
+          STORAGE_S3_REGION=${S3_REGION}
+          STORAGE_S3_BUCKET=${S3_BUCKET}
+          STORAGE_S3_ACCESS_KEY=${S3_ACCESS_KEY}
+          STORAGE_S3_SECRET_KEY=${S3_SECRET_KEY}
+          RUST_LOG=${RUST_LOG}
+          EOF
+
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          docker compose pull
+          docker compose up -d --remove-orphans
+
+          sleep 10
+          if docker exec bdp-server curl -sf http://localhost:8000/health > /dev/null 2>&1; then
+            echo "Server healthy"
+          else
+            echo "Warning: Server may still be starting..."
+          fi
+
+          docker compose ps
+          DEPLOY
+
+      - name: Health check
+        run: |
+          echo "Waiting for services..."
+          sleep 30
+          ssh -i ~/.ssh/deploy_key ubuntu@${{ secrets.SERVER_IP }} << 'CHECK'
+          set -e
+          for i in {1..5}; do
+            if curl -sf http://localhost/health; then
+              echo "Health check passed!"
+              exit 0
+            fi
+            echo "Attempt $i failed, retrying..."
+            sleep 10
+          done
+          echo "Health check failed!"
+          docker compose logs --tail=50
+          exit 1
+          CHECK
+
+      - name: Summary
+        if: success()
+        run: |
+          echo "## Deployment Successful" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment**: ${{ inputs.environment || 'production' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Domain**: https://${{ vars.DOMAIN }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY

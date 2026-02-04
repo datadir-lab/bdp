@@ -1,64 +1,115 @@
-# Production Docker Compose for BDP
-# Deploy on OVH instance
-#
-# Usage:
-#   1. Copy this file and .env to /opt/bdp/ on server
-#   2. Run: docker compose -f docker-compose.prod.yml up -d
+# BDP Production - Docker Compose
+# Deployed via GitHub Actions
+# Secrets/config from GitHub environment, app config below
 
 services:
-  # Backend API Server
+  postgres:
+    image: postgres:16-alpine
+    container_name: bdp-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: bdp
+      POSTGRES_USER: bdp
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backups:/backups
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bdp -d bdp"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   bdp-server:
     image: ghcr.io/datadir-lab/bdp-server:latest
     container_name: bdp-server
     restart: unless-stopped
-    env_file:
-      - .env  # Load all variables from .env file
     environment:
-      # Server Configuration
+      # Server
       SERVER_HOST: "0.0.0.0"
       SERVER_PORT: "8000"
       RUST_LOG: "${RUST_LOG:-info,bdp_server=info,sqlx=warn}"
-
-      # Database (from Terraform output)
-      DATABASE_URL: "${DATABASE_URL}"
-      DATABASE_MAX_CONNECTIONS: "${DATABASE_MAX_CONNECTIONS:-10}"
-
-      # S3 Storage (from Terraform output)
+      # Database
+      DATABASE_URL: "postgresql://bdp:${POSTGRES_PASSWORD}@postgres:5432/bdp"
+      # Storage
       STORAGE_TYPE: "s3"
       STORAGE_S3_ENDPOINT: "${STORAGE_S3_ENDPOINT}"
       STORAGE_S3_REGION: "${STORAGE_S3_REGION}"
       STORAGE_S3_BUCKET: "${STORAGE_S3_BUCKET}"
       STORAGE_S3_ACCESS_KEY: "${STORAGE_S3_ACCESS_KEY}"
       STORAGE_S3_SECRET_KEY: "${STORAGE_S3_SECRET_KEY}"
-      STORAGE_S3_PATH_STYLE: "false"
-
-      # API Configuration
-      API_BASE_URL: "${API_BASE_URL}"
-      CORS_ORIGINS: "${CORS_ORIGINS}"
-
-      # Ingestion (enable if needed)
-      INGEST_ENABLED: "${INGEST_ENABLED:-false}"
-    ports:
-      - "127.0.0.1:8000:8000"  # Only localhost, Caddy handles public
+      # App config - Ingestion
+      INGEST_ENABLED: "${INGEST_ENABLED:-true}"
+      INGEST_SCHEDULE: "0 2 * * 0"
+      INGEST_WORKERS: "2"
+      INGEST_BATCH_SIZE: "1000"
+      # UniProt (releases: 2025_06, 2026_01, etc.)
+      INGEST_UNIPROT_ENABLED: "true"
+      INGEST_UNIPROT_VERSION: "2025_06"
+      # Ensembl (releases: 114, 115, 116, etc.)
+      INGEST_ENSEMBL_ENABLED: "true"
+      INGEST_ENSEMBL_VERSION: "115"
+      # NCBI RefSeq (releases: 228, 229, 230, etc.)
+      INGEST_NCBI_ENABLED: "true"
+      INGEST_NCBI_VERSION: "229"
+      # App config - API
+      API_RATE_LIMIT: "100"
+      API_TIMEOUT_SECS: "30"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.api.rule=Host(`${DOMAIN}`) && (PathPrefix(`/api`) || PathPrefix(`/health`))"
+      - "traefik.http.routers.api.entrypoints=websecure"
+      - "traefik.http.routers.api.tls.certresolver=letsencrypt"
+      - "traefik.http.services.api.loadbalancer.server.port=8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 30s
 
-  # Frontend (Next.js)
   bdp-web:
     image: ghcr.io/datadir-lab/bdp-web:latest
     container_name: bdp-web
     restart: unless-stopped
-    env_file:
-      - .env  # Load all variables from .env file
     environment:
-      NEXT_PUBLIC_API_URL: "${API_BASE_URL}"
+      NEXT_PUBLIC_API_URL: "${PUBLIC_URL}"
       NODE_ENV: "production"
-    ports:
-      - "127.0.0.1:3000:3000"  # Only localhost, Caddy handles public
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.web.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.routers.web.entrypoints=websecure"
+      - "traefik.http.routers.web.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.web.priority=1"
+      - "traefik.http.services.web.loadbalancer.server.port=3000"
     depends_on:
       bdp-server:
         condition: service_healthy
+
+  traefik:
+    image: traefik:v3.0
+    container_name: bdp-traefik
+    restart: unless-stopped
+    command:
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge=true"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
+      - "--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL}"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik_letsencrypt:/letsencrypt
+
+volumes:
+  postgres_data:
+  traefik_letsencrypt:
