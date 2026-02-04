@@ -1,6 +1,6 @@
 name: Deploy
 
-run-name: "Deploy to ${{ inputs.environment || 'production' }}"
+run-name: "Deploy ${{ inputs.version || 'latest' }} to ${{ inputs.environment || 'production' }}"
 
 on:
   workflow_dispatch:
@@ -10,82 +10,32 @@ on:
         type: environment
         required: true
         default: production
-      skip_build:
-        description: 'Skip building images (just deploy)'
-        type: boolean
-        default: false
+      version:
+        description: 'Version to deploy (e.g., 0.1.3). Leave empty for latest.'
+        type: string
+        required: false
   workflow_call:
     inputs:
       environment:
         type: string
         required: true
         default: production
+      version:
+        type: string
+        required: false
+
+permissions:
+  contents: read
+  packages: read
 
 concurrency:
   group: deploy-${{ inputs.environment || 'production' }}
   cancel-in-progress: false
 
-env:
-  REGISTRY: ghcr.io
-  IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}/bdp
-
 jobs:
-  build:
-    name: Build Images
-    runs-on: ubuntu-latest
-    if: ${{ !inputs.skip_build }}
-    permissions:
-      contents: read
-      packages: write
-
-    strategy:
-      matrix:
-        include:
-          - name: server
-            dockerfile: docker/Dockerfile.server
-            context: .
-          - name: web
-            dockerfile: docker/Dockerfile.web
-            context: .
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-
-      - name: Log in to Container Registry
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
-
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
-        with:
-          images: ${{ env.IMAGE_PREFIX }}-${{ matrix.name }}
-          tags: |
-            type=sha,prefix=
-            type=raw,value=latest
-
-      - name: Build and push
-        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
-        with:
-          context: ${{ matrix.context }}
-          file: ${{ matrix.dockerfile }}
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
   deploy:
     name: Deploy to ${{ inputs.environment || 'production' }}
     runs-on: ubuntu-latest
-    needs: [build]
-    if: always() && (needs.build.result == 'success' || needs.build.result == 'skipped')
     environment: ${{ inputs.environment || 'production' }}
 
     steps:
@@ -172,8 +122,35 @@ jobs:
           EOF
 
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-          docker compose pull
-          docker compose up -d --remove-orphans
+
+          # Pull specific version if provided, otherwise pull latest
+          VERSION="${{ inputs.version }}"
+          if [ -n "\$VERSION" ]; then
+            echo "Deploying version \$VERSION"
+            docker pull ghcr.io/${{ github.repository_owner }}/bdp-server:\$VERSION
+            docker pull ghcr.io/${{ github.repository_owner }}/bdp-web:\$VERSION
+            docker tag ghcr.io/${{ github.repository_owner }}/bdp-server:\$VERSION ghcr.io/${{ github.repository_owner }}/bdp-server:latest
+            docker tag ghcr.io/${{ github.repository_owner }}/bdp-web:\$VERSION ghcr.io/${{ github.repository_owner }}/bdp-web:latest
+          else
+            echo "Deploying latest"
+            docker compose pull
+          fi
+
+          # Start postgres first to sync password
+          docker compose up -d postgres
+          sleep 5
+
+          # Sync postgres password (handles password changes)
+          if docker exec bdp-postgres pg_isready -U bdp > /dev/null 2>&1; then
+            echo "Syncing postgres password..."
+            docker exec bdp-postgres psql -U bdp -c "ALTER USER bdp PASSWORD '${POSTGRES_PASSWORD}';" || true
+          fi
+
+          docker compose up -d --remove-orphans || {
+            echo "Docker compose failed, showing logs..."
+            docker compose logs --tail=100
+            exit 1
+          }
 
           sleep 10
           if docker exec bdp-server curl -sf http://localhost:8000/health > /dev/null 2>&1; then
@@ -191,6 +168,7 @@ jobs:
           sleep 30
           ssh -i ~/.ssh/deploy_key ubuntu@${{ secrets.SERVER_IP }} << 'CHECK'
           set -e
+          cd /opt/bdp
           for i in {1..5}; do
             if curl -sf http://localhost/health; then
               echo "Health check passed!"
@@ -210,5 +188,5 @@ jobs:
           echo "## Deployment Successful" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- **Environment**: ${{ inputs.environment || 'production' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version**: ${{ inputs.version || 'latest' }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Domain**: https://${{ vars.DOMAIN }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY

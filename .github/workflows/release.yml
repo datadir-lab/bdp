@@ -322,96 +322,11 @@ jobs:
   deploy:
     name: Deploy to ${{ inputs.environment }}
     needs: [version, test-installers]
-    runs-on: ubuntu-latest
-    environment: ${{ inputs.environment }}
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-
-      - name: Setup SSH
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
-
-      - name: Setup server (idempotent)
-        run: |
-          ssh -i ~/.ssh/deploy_key ubuntu@${{ secrets.SERVER_IP }} << 'SETUP'
-          set -e
-
-          # Force Docker to use IPv4 (ghcr.io has IPv6 connectivity issues on some hosts)
-          if ! grep -q '"ipv6": false' /etc/docker/daemon.json 2>/dev/null; then
-            echo "Configuring Docker to use IPv4..."
-            echo '{"ipv6": false}' | sudo tee /etc/docker/daemon.json > /dev/null
-            sudo systemctl restart docker
-          fi
-
-          sudo mkdir -p /opt/bdp/backups /opt/bdp/data
-          sudo chown -R ubuntu:ubuntu /opt/bdp
-          SETUP
-
-      - name: Deploy
-        env:
-          VERSION: ${{ needs.version.outputs.new }}
-          SERVER_IP: ${{ secrets.SERVER_IP }}
-          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
-          S3_ACCESS_KEY: ${{ secrets.STORAGE_S3_ACCESS_KEY }}
-          S3_SECRET_KEY: ${{ secrets.STORAGE_S3_SECRET_KEY }}
-          DOMAIN: ${{ vars.DOMAIN }}
-          S3_ENDPOINT: ${{ vars.STORAGE_S3_ENDPOINT }}
-          S3_REGION: ${{ vars.STORAGE_S3_REGION }}
-          S3_BUCKET: ${{ vars.STORAGE_S3_BUCKET }}
-          ACME_EMAIL: ${{ vars.ACME_EMAIL }}
-          RUST_LOG: ${{ vars.RUST_LOG || 'info,bdp_server=info,sqlx=warn' }}
-        run: |
-          scp -i ~/.ssh/deploy_key \
-            infrastructure/deploy/docker-compose.prod.yml \
-            ubuntu@${{ secrets.SERVER_IP }}:/opt/bdp/docker-compose.yml
-
-          ssh -i ~/.ssh/deploy_key ubuntu@${{ secrets.SERVER_IP }} << DEPLOY
-          set -e
-          cd /opt/bdp
-
-          cat > .env << 'EOF'
-          DOMAIN=${DOMAIN}
-          ACME_EMAIL=${ACME_EMAIL}
-          PUBLIC_URL=https://${DOMAIN}
-          POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-          STORAGE_S3_ENDPOINT=${S3_ENDPOINT}
-          STORAGE_S3_REGION=${S3_REGION}
-          STORAGE_S3_BUCKET=${S3_BUCKET}
-          STORAGE_S3_ACCESS_KEY=${S3_ACCESS_KEY}
-          STORAGE_S3_SECRET_KEY=${S3_SECRET_KEY}
-          RUST_LOG=${RUST_LOG}
-          EOF
-
-          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-
-          # Pull specific version
-          docker pull ghcr.io/${{ github.repository_owner }}/bdp-server:${{ needs.version.outputs.new }}
-          docker pull ghcr.io/${{ github.repository_owner }}/bdp-web:${{ needs.version.outputs.new }}
-
-          # Tag as latest for docker-compose
-          docker tag ghcr.io/${{ github.repository_owner }}/bdp-server:${{ needs.version.outputs.new }} ghcr.io/${{ github.repository_owner }}/bdp-server:latest
-          docker tag ghcr.io/${{ github.repository_owner }}/bdp-web:${{ needs.version.outputs.new }} ghcr.io/${{ github.repository_owner }}/bdp-web:latest
-
-          docker compose up -d --remove-orphans
-          docker compose ps
-          DEPLOY
-
-      - name: Health check
-        run: |
-          sleep 30
-          ssh -i ~/.ssh/deploy_key ubuntu@${{ secrets.SERVER_IP }} << 'CHECK'
-          for i in {1..5}; do
-            if curl -sf http://localhost/health; then
-              echo "Health check passed"
-              exit 0
-            fi
-            sleep 10
-          done
-          exit 1
-          CHECK
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment: ${{ inputs.environment }}
+      version: ${{ needs.version.outputs.new }}
+    secrets: inherit
 
   # Publish release (after successful deploy)
   publish-release:

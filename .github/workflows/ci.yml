@@ -276,14 +276,3 @@ jobs:
           fi
           echo "CI passed"
 
-  trigger-deploy:
-    name: Trigger Deploy
-    needs: [ci-success]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.ci-success.result == 'success'
-    permissions:
-      contents: read
-      packages: write
-    uses: ./.github/workflows/deploy.yml
-    with:
-      environment: production
-    secrets: inherit
