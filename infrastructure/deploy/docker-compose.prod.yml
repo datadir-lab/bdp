@@ -73,6 +73,7 @@ services:
       # API Configuration
       API_RATE_LIMIT: "100"
       API_TIMEOUT_SECS: "30"
+      CORS_ALLOWED_ORIGINS: "https://${DOMAIN}"
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.api.rule=Host(`${DOMAIN}`) && (PathPrefix(`/api`) || PathPrefix(`/health`))"
