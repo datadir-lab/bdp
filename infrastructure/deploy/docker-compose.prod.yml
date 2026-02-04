@@ -40,18 +40,11 @@ services:
       STORAGE_S3_SECRET_KEY: "${STORAGE_S3_SECRET_KEY}"
       # App config - Ingestion
       INGEST_ENABLED: "${INGEST_ENABLED:-true}"
-      INGEST_SCHEDULE: "0 2 * * 0"
-      INGEST_WORKERS: "2"
-      INGEST_BATCH_SIZE: "1000"
-      # UniProt (releases: 2025_06, 2026_01, etc.)
-      INGEST_UNIPROT_ENABLED: "true"
-      INGEST_UNIPROT_VERSION: "2025_06"
-      # Ensembl (releases: 114, 115, 116, etc.)
-      INGEST_ENSEMBL_ENABLED: "true"
-      INGEST_ENSEMBL_VERSION: "115"
-      # NCBI RefSeq (releases: 228, 229, 230, etc.)
-      INGEST_NCBI_ENABLED: "true"
-      INGEST_NCBI_VERSION: "229"
+      # Start ingesting from this UniProt version (format: YYYY_MM)
+      INGEST_START_FROM_VERSION: "2025_01"
+      # Worker configuration
+      INGEST_WORKER_THREADS: "2"
+      INGEST_UNIPROT_BATCH_SIZE: "5000"
       # App config - API
       API_RATE_LIMIT: "100"
       API_TIMEOUT_SECS: "30"
