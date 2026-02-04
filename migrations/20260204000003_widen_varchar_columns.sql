@@ -4,6 +4,10 @@
 -- Drop the materialized view and dependent functions
 DROP MATERIALIZED VIEW IF EXISTS search_registry_entries_mv CASCADE;
 
+-- Drop expression-based indexes on registry_entries.name that block ALTER TYPE
+DROP INDEX IF EXISTS registry_entries_search_idx;
+DROP INDEX IF EXISTS idx_registry_entries_name_trgm;
+
 -- Widen columns
 ALTER TABLE protein_features ALTER COLUMN feature_type TYPE varchar(100);
 ALTER TABLE protein_cross_references ALTER COLUMN database TYPE varchar(100);
@@ -11,6 +15,12 @@ ALTER TABLE protein_signatures ALTER COLUMN database TYPE varchar(100);
 ALTER TABLE protein_signatures ALTER COLUMN accession TYPE varchar(100);
 ALTER TABLE protein_signatures ALTER COLUMN clan_accession TYPE varchar(100);
 ALTER TABLE registry_entries ALTER COLUMN name TYPE varchar(500);
+
+-- Recreate expression-based indexes on registry_entries.name
+CREATE INDEX registry_entries_search_idx ON registry_entries
+    USING GIN (to_tsvector('english', name || ' ' || COALESCE(description, '')));
+CREATE INDEX idx_registry_entries_name_trgm
+    ON registry_entries USING GIN (name gin_trgm_ops);
 
 -- Recreate the materialized view
 CREATE MATERIALIZED VIEW search_registry_entries_mv AS
