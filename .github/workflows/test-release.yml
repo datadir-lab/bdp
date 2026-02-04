@@ -22,7 +22,7 @@ permissions:
   contents: read
 
 jobs:
-  # Test cargo-dist installers on all platforms
+  # Test installers via bdp.dev short URL redirects on all platforms
   test-installers:
     name: Test Installer (${{ matrix.os }})
     # Run for published releases or manual workflow_dispatch
@@ -46,11 +46,11 @@ jobs:
       - name: Test Fresh Install
         shell: bash
         run: |
-          echo "Testing fresh install of ${{ steps.get-tag.outputs.tag }}..."
+          echo "Testing fresh install via bdp.dev redirect..."
           if [ "$RUNNER_OS" = "Windows" ]; then
-            powershell -Command "irm https://github.com/${{ github.repository }}/releases/download/${{ steps.get-tag.outputs.tag }}/bdp-cli-installer.ps1 | iex"
+            powershell -Command "irm https://bdp.dev/install.ps1 | iex"
           else
-            curl --proto '=https' --tlsv1.2 -LsSf https://github.com/${{ github.repository }}/releases/download/${{ steps.get-tag.outputs.tag }}/bdp-cli-installer.sh | sh
+            curl -sSfL https://bdp.dev/install.sh | sh
           fi
 
       - name: Verify Installation
@@ -95,12 +95,12 @@ jobs:
       - name: Test Upgrade (Re-install)
         shell: bash
         run: |
-          echo "Testing upgrade (re-install)..."
+          echo "Testing upgrade (re-install) via bdp.dev redirect..."
           if [ "$RUNNER_OS" = "Windows" ]; then
-            powershell -Command "irm https://github.com/${{ github.repository }}/releases/download/${{ steps.get-tag.outputs.tag }}/bdp-cli-installer.ps1 | iex"
+            powershell -Command "irm https://bdp.dev/install.ps1 | iex"
             export PATH="$USERPROFILE/.cargo/bin:$PATH"
           else
-            curl --proto '=https' --tlsv1.2 -LsSf https://github.com/${{ github.repository }}/releases/download/${{ steps.get-tag.outputs.tag }}/bdp-cli-installer.sh | sh
+            curl -sSfL https://bdp.dev/install.sh | sh
             export PATH="$HOME/.cargo/bin:$PATH"
           fi
           bdp --version
@@ -282,7 +282,7 @@ jobs:
           echo "Release: ${{ steps.get-tag.outputs.tag }}"
           echo ""
           echo "Test Results:"
-          echo "  cargo-dist installers: $INSTALLERS_RESULT"
+          echo "  bdp.dev redirect installers: $INSTALLERS_RESULT"
           echo "  Custom installers: $CUSTOM_RESULT"
           echo ""
 
@@ -290,10 +290,8 @@ jobs:
             echo "All tests passed! Release ${{ steps.get-tag.outputs.tag }} is verified."
             echo ""
             echo "Installation commands:"
-            echo "  curl -LsSf https://github.com/${{ github.repository }}/releases/latest/download/bdp-cli-installer.sh | sh"
-            echo ""
-            echo "Custom installer (when available):"
-            echo "  curl -fsSL https://install.bdp.dev/install.sh | sh"
+            echo "  curl -sSfL https://bdp.dev/install.sh | sh"
+            echo "  irm https://bdp.dev/install.ps1 | iex  # Windows"
             exit 0
           else
             echo "Some tests failed! Release ${{ steps.get-tag.outputs.tag }} verification incomplete."
