@@ -107,7 +107,7 @@ export default function DataSourceVersionPage() {
             <div className="rounded-lg border border-destructive bg-destructive/10 p-6">
               <h2 className="text-lg font-semibold mb-2">Cannot Connect to API</h2>
               <p className="text-sm text-muted-foreground mb-4">
-                Please check that the backend server is running on {process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}
+                Unable to reach the backend service. Please try again later.
               </p>
               <button
                 onClick={() => window.location.reload()}

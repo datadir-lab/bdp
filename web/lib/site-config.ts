@@ -1,7 +1,15 @@
+// Use window.location.origin in browser, env vars for SSR
+const getBaseUrl = () => {
+  if (typeof window !== 'undefined') {
+    return window.location.origin;
+  }
+  return process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+};
+
 export const siteConfig = {
   name: process.env.NEXT_PUBLIC_APP_NAME || 'BDP',
-  url: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
-  apiUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
+  get url() { return getBaseUrl(); },
+  get apiUrl() { return getBaseUrl(); },
   contactEmail: process.env.NEXT_PUBLIC_CONTACT_EMAIL || 'sebastian.stupak@pm.me',
   github: {
     url: process.env.NEXT_PUBLIC_GITHUB_URL || 'https://github.com/datadir-lab/bdp',
