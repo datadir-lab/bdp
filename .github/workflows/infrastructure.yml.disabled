@@ -296,7 +296,7 @@ jobs:
 
       - name: Summary
         run: |
-          echo "## Infrastructure Deployed 🚀" >> $GITHUB_STEP_SUMMARY
+          echo "## Infrastructure Deployed" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Resource | Value |" >> $GITHUB_STEP_SUMMARY
           echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
@@ -351,6 +351,6 @@ jobs:
 
       - name: Summary
         run: |
-          echo "## Infrastructure Destroyed ⚠️" >> $GITHUB_STEP_SUMMARY
+          echo "## Infrastructure Destroyed" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "All resources have been destroyed." >> $GITHUB_STEP_SUMMARY

@@ -90,7 +90,7 @@ jobs:
           bdp search --help
           echo "Search command help passed"
 
-          echo "✅ All verification tests passed"
+          echo "All verification tests passed"
 
       - name: Test Upgrade (Re-install)
         shell: bash
@@ -104,7 +104,7 @@ jobs:
             export PATH="$HOME/.cargo/bin:$PATH"
           fi
           bdp --version
-          echo "✅ Upgrade test passed"
+          echo "Upgrade test passed"
 
       - name: Test Uninstall
         shell: bash
@@ -209,7 +209,7 @@ jobs:
           bdp init --help
           bdp source --help
           bdp search --help
-          echo "✅ Custom installer verification passed"
+          echo "Custom installer verification passed"
 
       - name: Test Upgrade (Re-install)
         if: runner.os != 'Windows'
@@ -219,7 +219,7 @@ jobs:
           sh scripts/install.sh --version ${{ steps.get-tag.outputs.tag }}
           export PATH="$HOME/.cargo/bin:$PATH"
           bdp --version
-          echo "✅ Custom installer upgrade test passed"
+          echo "Custom installer upgrade test passed"
 
       - name: Test Custom Install Path
         if: runner.os != 'Windows' && matrix.channel == 'specific-version'
@@ -231,7 +231,7 @@ jobs:
           "$TEMP_INSTALL/bdp" --version
           "$TEMP_INSTALL/bdp" --help
           rm -rf "$TEMP_INSTALL"
-          echo "✅ Custom install path test passed"
+          echo "Custom install path test passed"
 
       - name: Test Uninstall
         shell: bash
@@ -287,7 +287,7 @@ jobs:
           echo ""
 
           if [ "$INSTALLERS_RESULT" = "success" ] && [ "$CUSTOM_RESULT" = "success" ]; then
-            echo "✅ All tests passed! Release ${{ steps.get-tag.outputs.tag }} is verified."
+            echo "All tests passed! Release ${{ steps.get-tag.outputs.tag }} is verified."
             echo ""
             echo "Installation commands:"
             echo "  curl -LsSf https://github.com/${{ github.repository }}/releases/latest/download/bdp-cli-installer.sh | sh"
@@ -296,7 +296,7 @@ jobs:
             echo "  curl -fsSL https://install.bdp.dev/install.sh | sh"
             exit 0
           else
-            echo "❌ Some tests failed! Release ${{ steps.get-tag.outputs.tag }} verification incomplete."
+            echo "Some tests failed! Release ${{ steps.get-tag.outputs.tag }} verification incomplete."
             echo ""
             echo "Please review the failed jobs above."
             exit 1

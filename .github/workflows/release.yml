@@ -308,7 +308,7 @@ jobs:
             exit 1
           fi
           bdp --help
-          echo "✅ Installation verified"
+          echo "Installation verified"
 
   # Deploy to server (requires approval)
   deploy:
@@ -381,7 +381,7 @@ jobs:
           ssh -i ~/.ssh/deploy_key ubuntu@${{ secrets.SERVER_IP }} << 'CHECK'
           for i in {1..5}; do
             if curl -sf http://localhost/health; then
-              echo "✅ Health check passed"
+              echo "Health check passed"
               exit 0
             fi
             sleep 10
@@ -405,7 +405,7 @@ jobs:
 
       - name: Summary
         run: |
-          echo "## Release Published 🚀" >> $GITHUB_STEP_SUMMARY
+          echo "## Release Published" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- **Version**: ${{ needs.version.outputs.new }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Tag**: ${{ needs.version.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
