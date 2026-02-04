@@ -5,7 +5,11 @@ import type {
   QueryParams,
 } from '@/lib/types';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+// In browser: use current origin (frontend and API on same domain)
+// On server: use env var or localhost for development
+const API_BASE_URL = typeof window !== 'undefined'
+  ? window.location.origin
+  : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000');
 
 class ApiClient {
   private baseUrl: string;

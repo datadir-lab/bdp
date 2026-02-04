@@ -38,14 +38,39 @@ services:
       STORAGE_S3_BUCKET: "${STORAGE_S3_BUCKET}"
       STORAGE_S3_ACCESS_KEY: "${STORAGE_S3_ACCESS_KEY}"
       STORAGE_S3_SECRET_KEY: "${STORAGE_S3_SECRET_KEY}"
-      # App config - Ingestion
+      # Ingestion - Global Settings
       INGEST_ENABLED: "${INGEST_ENABLED:-true}"
-      # Start ingesting from this UniProt version (format: YYYY_MM)
+      INGEST_WORKER_THREADS: "4"
+      INGEST_MAX_RETRIES: "3"
+      INGEST_JOB_TIMEOUT_SECS: "7200"
+      # Ingestion - UniProt (Protein sequences)
+      # Source: ftp.uniprot.org
       INGEST_START_FROM_VERSION: "2025_01"
-      # Worker configuration
-      INGEST_WORKER_THREADS: "2"
+      INGEST_UNIPROT_FTP_HOST: "ftp.uniprot.org"
+      INGEST_UNIPROT_FTP_TIMEOUT_SECS: "300"
       INGEST_UNIPROT_BATCH_SIZE: "5000"
-      # App config - API
+      INGEST_UNIPROT_MODE: "latest"
+      INGEST_UNIPROT_AUTO_INGEST: "true"
+      # Ingestion - NCBI Taxonomy
+      # Source: ftp.ncbi.nlm.nih.gov/pub/taxonomy
+      INGEST_NCBI_ENABLED: "${INGEST_NCBI_ENABLED:-false}"
+      # Ingestion - GenBank/RefSeq (Genomic sequences)
+      # Source: ftp.ncbi.nlm.nih.gov/genbank or /refseq
+      INGEST_GENBANK_ENABLED: "${INGEST_GENBANK_ENABLED:-false}"
+      INGEST_GENBANK_SOURCE_DATABASE: "genbank"
+      INGEST_GENBANK_BATCH_SIZE: "500"
+      INGEST_GENBANK_CONCURRENCY: "4"
+      # Ingestion - Gene Ontology (GO terms and annotations)
+      # Source: ftp.ebi.ac.uk/pub/databases/GO
+      INGEST_GO_ENABLED: "${INGEST_GO_ENABLED:-false}"
+      GO_TIMEOUT_SECS: "600"
+      GO_MAX_RETRIES: "3"
+      # Ingestion - InterPro (Domain/signature annotations)
+      # Source: ftp.ebi.ac.uk/pub/databases/interpro
+      INGEST_INTERPRO_ENABLED: "${INGEST_INTERPRO_ENABLED:-false}"
+      INGEST_INTERPRO_FTP_TIMEOUT_SECS: "300"
+      INGEST_INTERPRO_BATCH_SIZE: "500"
+      # API Configuration
       API_RATE_LIMIT: "100"
       API_TIMEOUT_SECS: "30"
     labels:
@@ -68,6 +93,9 @@ services:
     container_name: bdp-web
     restart: unless-stopped
     environment:
+      # Internal URL for server-side rendering (Docker network)
+      INTERNAL_API_URL: "http://bdp-server:8000"
+      # Public URL (browser-side uses window.location.origin instead)
       NEXT_PUBLIC_API_URL: "${PUBLIC_URL}"
       NODE_ENV: "production"
     healthcheck:
