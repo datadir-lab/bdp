@@ -343,22 +343,82 @@ impl IngestionCoordinator {
         Ok(())
     }
 
-    /// Mark job as failed
+    /// Mark job as failed with detailed error information
     pub async fn fail_job(&self, job_id: Uuid, error_message: &str) -> Result<()> {
+        // Build error details JSON
+        let error_details = serde_json::json!({
+            "message": error_message,
+            "timestamp": chrono::Utc::now().to_rfc3339(),
+            "job_id": job_id.to_string()
+        });
+
         sqlx::query!(
             r#"
             UPDATE ingestion_jobs
-            SET status = $1, completed_at = NOW(),
-                metadata = jsonb_set(COALESCE(metadata, '{}'), '{error}', to_jsonb($2::text))
-            WHERE id = $3
+            SET status = $1,
+                completed_at = NOW(),
+                last_error = $2,
+                error_details = $3,
+                metadata = jsonb_set(COALESCE(metadata, '{}'), '{error}', to_jsonb($2::text)),
+                updated_at = NOW()
+            WHERE id = $4
             "#,
             JobStatus::Failed.as_str(),
             error_message,
+            error_details,
             job_id
         )
         .execute(&*self.pool)
         .await
         .context("Failed to update job status to failed")?;
+
+        tracing::error!(job_id = %job_id, error = %error_message, "Job marked as failed");
+
+        Ok(())
+    }
+
+    /// Mark job as failed with extended error details
+    pub async fn fail_job_with_details(
+        &self,
+        job_id: Uuid,
+        error_message: &str,
+        error_type: &str,
+        context: Option<serde_json::Value>,
+    ) -> Result<()> {
+        let error_details = serde_json::json!({
+            "message": error_message,
+            "error_type": error_type,
+            "timestamp": chrono::Utc::now().to_rfc3339(),
+            "job_id": job_id.to_string(),
+            "context": context
+        });
+
+        sqlx::query!(
+            r#"
+            UPDATE ingestion_jobs
+            SET status = $1,
+                completed_at = NOW(),
+                last_error = $2,
+                error_details = $3,
+                metadata = jsonb_set(COALESCE(metadata, '{}'), '{error}', to_jsonb($2::text)),
+                updated_at = NOW()
+            WHERE id = $4
+            "#,
+            JobStatus::Failed.as_str(),
+            error_message,
+            error_details,
+            job_id
+        )
+        .execute(&*self.pool)
+        .await
+        .context("Failed to update job status to failed")?;
+
+        tracing::error!(
+            job_id = %job_id,
+            error = %error_message,
+            error_type = %error_type,
+            "Job marked as failed"
+        );
 
         Ok(())
     }

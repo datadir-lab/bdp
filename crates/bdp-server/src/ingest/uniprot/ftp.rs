@@ -1,4 +1,4 @@
-//! UniProt FTP download functionality
+//! UniProt FTP download functionality with robust timeout and retry handling
 
 use anyhow::{Context, Result};
 use chrono::NaiveDate;
@@ -6,11 +6,18 @@ use flate2::read::GzDecoder;
 use std::io::Read;
 use std::time::Duration;
 use suppaftp::FtpStream;
+use tokio::time::timeout;
 use tracing::{debug, info, warn};
 
 use super::config::UniProtFtpConfig;
 use super::models::ReleaseInfo;
 use crate::ingest::common::ftp::{MAX_RETRIES, RETRY_DELAY_SECS};
+
+/// Timeout for individual FTP operations (connection + download)
+const FTP_OPERATION_TIMEOUT_SECS: u64 = 180; // 3 minutes per operation
+
+/// Timeout for large file downloads (DAT files can be several GB)
+const FTP_LARGE_FILE_TIMEOUT_SECS: u64 = 1800; // 30 minutes for large files
 
 /// FTP client for downloading UniProt data
 pub struct UniProtFtp {
@@ -114,14 +121,37 @@ impl UniProtFtp {
             .config
             .dat_file_path(version, dataset)
             .context("Failed to build DAT file path")?;
-        let compressed = self.download_file(&path).await?;
 
-        // Decompress gzip
-        let mut decoder = GzDecoder::new(&compressed[..]);
-        let mut decompressed = Vec::new();
-        decoder
-            .read_to_end(&mut decompressed)
-            .context("Failed to decompress DAT file")?;
+        info!("Downloading DAT file: {} (using extended timeout)", path);
+
+        // Use longer timeout for large DAT files (can be several GB)
+        let compressed = self
+            .download_file_with_timeout(&path, FTP_LARGE_FILE_TIMEOUT_SECS)
+            .await
+            .context("Failed to download DAT file")?;
+
+        info!(
+            "Downloaded {} bytes, decompressing...",
+            compressed.len()
+        );
+
+        // Decompress gzip in a blocking task to not block the async runtime
+        let decompressed = tokio::task::spawn_blocking(move || {
+            let mut decoder = GzDecoder::new(&compressed[..]);
+            let mut decompressed = Vec::new();
+            decoder
+                .read_to_end(&mut decompressed)
+                .context("Failed to decompress DAT file")?;
+            Ok::<_, anyhow::Error>(decompressed)
+        })
+        .await
+        .context("Decompression task panicked")??;
+
+        info!(
+            "Decompressed to {} bytes ({:.1}x ratio)",
+            decompressed.len(),
+            decompressed.len() as f64 / compressed.len().max(1) as f64
+        );
 
         Ok(decompressed)
     }
@@ -145,47 +175,135 @@ impl UniProtFtp {
         }
     }
 
-    /// Download a file from the FTP server using synchronous FTP with retry logic
+    /// Download a file from the FTP server using synchronous FTP with retry logic and timeout
     async fn download_file(&self, path: &str) -> Result<Vec<u8>> {
+        self.download_file_with_timeout(path, FTP_OPERATION_TIMEOUT_SECS)
+            .await
+    }
+
+    /// Download a file with a custom timeout (for large files)
+    async fn download_file_with_timeout(&self, path: &str, timeout_secs: u64) -> Result<Vec<u8>> {
         let config = self.config.clone();
         let path = path.to_string();
 
         // Retry loop
         for attempt in 1..=MAX_RETRIES {
-            debug!("Download attempt {}/{} for: {}", attempt, MAX_RETRIES, path);
+            debug!(
+                "Download attempt {}/{} for: {} (timeout: {}s)",
+                attempt, MAX_RETRIES, path, timeout_secs
+            );
 
-            match tokio::task::spawn_blocking({
+            let download_task = tokio::task::spawn_blocking({
                 let config = config.clone();
                 let path = path.clone();
                 move || Self::download_file_sync(&config, &path)
-            })
-            .await
-            {
-                Ok(Ok(data)) => {
+            });
+
+            // Wrap in timeout
+            let timeout_duration = Duration::from_secs(timeout_secs);
+            match timeout(timeout_duration, download_task).await {
+                // Task completed within timeout
+                Ok(Ok(Ok(data))) => {
                     info!("Successfully downloaded {} ({} bytes)", path, data.len());
                     return Ok(data);
-                },
-                Ok(Err(e)) => {
-                    if attempt < MAX_RETRIES {
+                }
+                // Task completed but FTP failed
+                Ok(Ok(Err(e))) => {
+                    let is_transient = Self::is_transient_error(&e);
+                    if is_transient && attempt < MAX_RETRIES {
+                        let delay = RETRY_DELAY_SECS * attempt as u64;
                         warn!(
-                            "Download attempt {}/{} failed: {}. Retrying in {}s...",
-                            attempt, MAX_RETRIES, e, RETRY_DELAY_SECS
+                            "Download attempt {}/{} failed (transient): {}. Retrying in {}s...",
+                            attempt, MAX_RETRIES, e, delay
                         );
-                        tokio::time::sleep(Duration::from_secs(RETRY_DELAY_SECS * attempt as u64))
-                            .await;
+                        tokio::time::sleep(Duration::from_secs(delay)).await;
+                    } else if !is_transient {
+                        // Permanent error - don't retry
+                        return Err(e).with_context(|| {
+                            format!("Permanent FTP error downloading {}", path)
+                        });
                     } else {
                         return Err(e).with_context(|| {
                             format!("Failed to download {} after {} attempts", path, MAX_RETRIES)
                         });
                     }
-                },
-                Err(e) => {
+                }
+                // Task panicked
+                Ok(Err(e)) => {
                     return Err(anyhow::anyhow!("FTP download task panicked: {}", e));
-                },
+                }
+                // Timeout occurred
+                Err(_) => {
+                    if attempt < MAX_RETRIES {
+                        let delay = RETRY_DELAY_SECS * attempt as u64;
+                        warn!(
+                            "Download attempt {}/{} timed out after {}s. Retrying in {}s...",
+                            attempt, MAX_RETRIES, timeout_secs, delay
+                        );
+                        tokio::time::sleep(Duration::from_secs(delay)).await;
+                    } else {
+                        return Err(anyhow::anyhow!(
+                            "FTP download timed out after {} seconds (attempted {} times)",
+                            timeout_secs,
+                            MAX_RETRIES
+                        ));
+                    }
+                }
             }
         }
 
         unreachable!("Retry loop should always return")
+    }
+
+    /// Check if an error is transient (worth retrying) or permanent
+    fn is_transient_error(error: &anyhow::Error) -> bool {
+        let error_str = error.to_string().to_lowercase();
+
+        // Transient errors (should retry)
+        let transient_patterns = [
+            "connection reset",
+            "connection refused",
+            "connection timed out",
+            "broken pipe",
+            "network unreachable",
+            "host unreachable",
+            "service unavailable",
+            "421",  // FTP service unavailable
+            "425",  // Can't open data connection
+            "426",  // Connection closed; transfer aborted
+            "450",  // Requested file action not taken (file busy)
+            "timeout",
+            "temporarily",
+        ];
+
+        // Permanent errors (don't retry)
+        let permanent_patterns = [
+            "530",  // Not logged in
+            "550",  // File not found / permission denied
+            "553",  // File name not allowed
+            "login",
+            "authentication",
+            "permission denied",
+            "not found",
+            "no such file",
+        ];
+
+        // Check for permanent patterns first
+        for pattern in permanent_patterns {
+            if error_str.contains(pattern) {
+                return false;
+            }
+        }
+
+        // Check for transient patterns
+        for pattern in transient_patterns {
+            if error_str.contains(pattern) {
+                return true;
+            }
+        }
+
+        // Default to transient (retry) for unknown errors
+        true
     }
 
     /// Synchronous FTP download implementation
@@ -240,7 +358,7 @@ impl UniProtFtp {
         Ok(data)
     }
 
-    /// List directories in a given FTP path
+    /// List directories in a given FTP path with timeout protection
     ///
     /// # Arguments
     /// * `path` - The FTP directory path to list
@@ -253,36 +371,66 @@ impl UniProtFtp {
 
         // Retry loop for FTP listing
         for attempt in 1..=MAX_RETRIES {
-            debug!("FTP LIST attempt {}/{} for: {}", attempt, MAX_RETRIES, path);
+            debug!(
+                "FTP LIST attempt {}/{} for: {} (timeout: {}s)",
+                attempt, MAX_RETRIES, path, FTP_OPERATION_TIMEOUT_SECS
+            );
 
-            match tokio::task::spawn_blocking({
+            let list_task = tokio::task::spawn_blocking({
                 let config = config.clone();
                 let path = path.clone();
                 move || Self::list_directories_sync(&config, &path)
-            })
-            .await
-            {
-                Ok(Ok(dirs)) => {
+            });
+
+            // Wrap in timeout
+            let timeout_duration = Duration::from_secs(FTP_OPERATION_TIMEOUT_SECS);
+            match timeout(timeout_duration, list_task).await {
+                // Task completed successfully
+                Ok(Ok(Ok(dirs))) => {
                     info!("Successfully listed {} directories in {}", dirs.len(), path);
                     return Ok(dirs);
-                },
-                Ok(Err(e)) => {
-                    if attempt < MAX_RETRIES {
+                }
+                // Task completed but FTP failed
+                Ok(Ok(Err(e))) => {
+                    let is_transient = Self::is_transient_error(&e);
+                    if is_transient && attempt < MAX_RETRIES {
+                        let delay = RETRY_DELAY_SECS * attempt as u64;
                         warn!(
-                            "FTP LIST attempt {}/{} failed: {}. Retrying in {}s...",
-                            attempt, MAX_RETRIES, e, RETRY_DELAY_SECS
+                            "FTP LIST attempt {}/{} failed (transient): {}. Retrying in {}s...",
+                            attempt, MAX_RETRIES, e, delay
                         );
-                        tokio::time::sleep(Duration::from_secs(RETRY_DELAY_SECS * attempt as u64))
-                            .await;
+                        tokio::time::sleep(Duration::from_secs(delay)).await;
+                    } else if !is_transient {
+                        return Err(e).with_context(|| {
+                            format!("Permanent FTP error listing {}", path)
+                        });
                     } else {
                         return Err(e).with_context(|| {
                             format!("Failed to list {} after {} attempts", path, MAX_RETRIES)
                         });
                     }
-                },
-                Err(e) => {
+                }
+                // Task panicked
+                Ok(Err(e)) => {
                     return Err(anyhow::anyhow!("FTP LIST task panicked: {}", e));
-                },
+                }
+                // Timeout occurred
+                Err(_) => {
+                    if attempt < MAX_RETRIES {
+                        let delay = RETRY_DELAY_SECS * attempt as u64;
+                        warn!(
+                            "FTP LIST attempt {}/{} timed out after {}s. Retrying in {}s...",
+                            attempt, MAX_RETRIES, FTP_OPERATION_TIMEOUT_SECS, delay
+                        );
+                        tokio::time::sleep(Duration::from_secs(delay)).await;
+                    } else {
+                        return Err(anyhow::anyhow!(
+                            "FTP LIST timed out after {} seconds (attempted {} times)",
+                            FTP_OPERATION_TIMEOUT_SECS,
+                            MAX_RETRIES
+                        ));
+                    }
+                }
             }
         }
 
