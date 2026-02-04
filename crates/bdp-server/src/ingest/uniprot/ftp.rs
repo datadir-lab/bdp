@@ -204,7 +204,7 @@ impl UniProtFtp {
                 Ok(Ok(Ok(data))) => {
                     info!("Successfully downloaded {} ({} bytes)", path, data.len());
                     return Ok(data);
-                }
+                },
                 // Task completed but FTP failed
                 Ok(Ok(Err(e))) => {
                     let is_transient = Self::is_transient_error(&e);
@@ -217,19 +217,18 @@ impl UniProtFtp {
                         tokio::time::sleep(Duration::from_secs(delay)).await;
                     } else if !is_transient {
                         // Permanent error - don't retry
-                        return Err(e).with_context(|| {
-                            format!("Permanent FTP error downloading {}", path)
-                        });
+                        return Err(e)
+                            .with_context(|| format!("Permanent FTP error downloading {}", path));
                     } else {
                         return Err(e).with_context(|| {
                             format!("Failed to download {} after {} attempts", path, MAX_RETRIES)
                         });
                     }
-                }
+                },
                 // Task panicked
                 Ok(Err(e)) => {
                     return Err(anyhow::anyhow!("FTP download task panicked: {}", e));
-                }
+                },
                 // Timeout occurred
                 Err(_) => {
                     if attempt < MAX_RETRIES {
@@ -246,7 +245,7 @@ impl UniProtFtp {
                             MAX_RETRIES
                         ));
                     }
-                }
+                },
             }
         }
 
@@ -266,19 +265,19 @@ impl UniProtFtp {
             "network unreachable",
             "host unreachable",
             "service unavailable",
-            "421",  // FTP service unavailable
-            "425",  // Can't open data connection
-            "426",  // Connection closed; transfer aborted
-            "450",  // Requested file action not taken (file busy)
+            "421", // FTP service unavailable
+            "425", // Can't open data connection
+            "426", // Connection closed; transfer aborted
+            "450", // Requested file action not taken (file busy)
             "timeout",
             "temporarily",
         ];
 
         // Permanent errors (don't retry)
         let permanent_patterns = [
-            "530",  // Not logged in
-            "550",  // File not found / permission denied
-            "553",  // File name not allowed
+            "530", // Not logged in
+            "550", // File not found / permission denied
+            "553", // File name not allowed
             "login",
             "authentication",
             "permission denied",
@@ -387,7 +386,7 @@ impl UniProtFtp {
                 Ok(Ok(Ok(dirs))) => {
                     info!("Successfully listed {} directories in {}", dirs.len(), path);
                     return Ok(dirs);
-                }
+                },
                 // Task completed but FTP failed
                 Ok(Ok(Err(e))) => {
                     let is_transient = Self::is_transient_error(&e);
@@ -399,19 +398,18 @@ impl UniProtFtp {
                         );
                         tokio::time::sleep(Duration::from_secs(delay)).await;
                     } else if !is_transient {
-                        return Err(e).with_context(|| {
-                            format!("Permanent FTP error listing {}", path)
-                        });
+                        return Err(e)
+                            .with_context(|| format!("Permanent FTP error listing {}", path));
                     } else {
                         return Err(e).with_context(|| {
                             format!("Failed to list {} after {} attempts", path, MAX_RETRIES)
                         });
                     }
-                }
+                },
                 // Task panicked
                 Ok(Err(e)) => {
                     return Err(anyhow::anyhow!("FTP LIST task panicked: {}", e));
-                }
+                },
                 // Timeout occurred
                 Err(_) => {
                     if attempt < MAX_RETRIES {
@@ -428,7 +426,7 @@ impl UniProtFtp {
                             MAX_RETRIES
                         ));
                     }
-                }
+                },
             }
         }
 

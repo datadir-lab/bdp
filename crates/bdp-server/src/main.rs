@@ -81,9 +81,9 @@ async fn main() -> Result<()> {
         if ingest_config.enabled {
             info!("Ingestion is enabled, starting orchestrator");
 
-            // Get or create UniProt organization
-            let org_id = get_or_create_uniprot_org(&db_pool).await?;
-            info!("Using UniProt organization: {}", org_id);
+            // Get or create system organization for all pipelines
+            let org_id = get_or_create_system_org(&db_pool).await?;
+            info!("Using system organization: {}", org_id);
 
             // Start orchestrator
             let orchestrator = ingest::IngestOrchestrator::new(
@@ -311,13 +311,13 @@ async fn shutdown_signal(timeout_secs: u64) {
     tokio::time::sleep(Duration::from_secs(timeout_secs.min(5))).await;
 }
 
-/// Get or create UniProt organization
-async fn get_or_create_uniprot_org(pool: &sqlx::PgPool) -> Result<uuid::Uuid> {
-    const UNIPROT_SLUG: &str = "uniprot";
+/// Get or create system organization for all ingestion pipelines
+async fn get_or_create_system_org(pool: &sqlx::PgPool) -> Result<uuid::Uuid> {
+    const SYSTEM_SLUG: &str = "bdp-system";
 
-    // Check for existing UniProt organization by slug
+    // Check for existing system organization by slug
     let result: Option<_> =
-        sqlx::query!(r#"SELECT id FROM organizations WHERE slug = $1"#, UNIPROT_SLUG)
+        sqlx::query!(r#"SELECT id FROM organizations WHERE slug = $1"#, SYSTEM_SLUG)
             .fetch_optional(pool)
             .await?;
 
@@ -333,16 +333,16 @@ async fn get_or_create_uniprot_org(pool: &sqlx::PgPool) -> Result<uuid::Uuid> {
             ON CONFLICT (slug) DO NOTHING
             "#,
             id,
-            "Universal Protein Resource",
-            UNIPROT_SLUG,
-            "UniProt Knowledgebase - Protein sequences and functional information",
+            "BDP System",
+            SYSTEM_SLUG,
+            "System organization for all bioinformatics data ingestion pipelines",
             true
         )
         .execute(pool)
         .await?;
 
         // Fetch the ID in case another process created it concurrently
-        let record = sqlx::query!(r#"SELECT id FROM organizations WHERE slug = $1"#, UNIPROT_SLUG)
+        let record = sqlx::query!(r#"SELECT id FROM organizations WHERE slug = $1"#, SYSTEM_SLUG)
             .fetch_one(pool)
             .await?;
 

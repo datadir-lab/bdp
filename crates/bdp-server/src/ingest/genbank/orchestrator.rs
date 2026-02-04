@@ -157,18 +157,24 @@ impl GenbankOrchestrator {
         );
 
         // Create pipeline for each division
-        let results: Vec<Option<PipelineResult>> = stream::iter(divisions.iter().enumerate())
-            .map(|(index, division): (usize, &Division)| {
+        let total_divisions = divisions.len();
+        let indexed_divisions: Vec<(usize, Division)> = divisions
+            .iter()
+            .enumerate()
+            .map(|(i, d)| (i, d.clone()))
+            .collect();
+
+        let results: Vec<Option<PipelineResult>> = stream::iter(indexed_divisions)
+            .map(|(index, division)| {
                 let pipeline =
                     GenbankPipeline::new(self.config.clone(), self.db.clone(), self.s3.clone());
-                let division = division.clone();
                 let release = release.to_string();
                 let org_id = organization_id;
 
                 async move {
                     let div_name = division.as_str();
 
-                    info!("Starting division {} ({} / {})", div_name, index + 1, divisions.len());
+                    info!("Starting division {} ({} / {})", div_name, index + 1, total_divisions);
 
                     match pipeline
                         .run_division(org_id, division.clone(), &release)
@@ -179,7 +185,7 @@ impl GenbankOrchestrator {
                                 "Completed division {} ({} / {}): {} records in {:.2}s",
                                 result.division,
                                 index + 1,
-                                divisions.len(),
+                                total_divisions,
                                 result.records_processed,
                                 result.duration_seconds
                             );
@@ -190,7 +196,7 @@ impl GenbankOrchestrator {
                                 "Failed division {} ({} / {}): {}",
                                 div_name,
                                 index + 1,
-                                divisions.len(),
+                                total_divisions,
                                 e
                             );
                             None
