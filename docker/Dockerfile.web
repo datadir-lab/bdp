@@ -80,8 +80,9 @@ ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 
 # Health check - use Node.js to avoid installing curl
-HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-    CMD node -e "require('http').get('http://localhost:3000/', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})" || exit 1
+# Accept 2xx and 3xx (redirects) as healthy since i18n may redirect / to /en
+HEALTHCHECK --interval=30s --timeout=3s --start-period=15s --retries=3 \
+    CMD node -e "require('http').get('http://localhost:3000/', (r) => {process.exit(r.statusCode < 400 ? 0 : 1)})" || exit 1
 
 # Start Next.js server
 CMD ["node", "server.js"]
