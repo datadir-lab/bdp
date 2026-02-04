@@ -116,6 +116,13 @@ jobs:
             sudo docker ps > /dev/null
           fi
 
+          # Force Docker to use IPv4 (ghcr.io has IPv6 connectivity issues on some hosts)
+          if ! grep -q '"ipv6": false' /etc/docker/daemon.json 2>/dev/null; then
+            echo "Configuring Docker to use IPv4..."
+            echo '{"ipv6": false}' | sudo tee /etc/docker/daemon.json > /dev/null
+            sudo systemctl restart docker
+          fi
+
           sudo mkdir -p /opt/bdp/backups /opt/bdp/data
           sudo chown -R ubuntu:ubuntu /opt/bdp
 

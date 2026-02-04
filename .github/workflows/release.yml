@@ -325,6 +325,22 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
 
+      - name: Setup server (idempotent)
+        run: |
+          ssh -i ~/.ssh/deploy_key ubuntu@${{ secrets.SERVER_IP }} << 'SETUP'
+          set -e
+
+          # Force Docker to use IPv4 (ghcr.io has IPv6 connectivity issues on some hosts)
+          if ! grep -q '"ipv6": false' /etc/docker/daemon.json 2>/dev/null; then
+            echo "Configuring Docker to use IPv4..."
+            echo '{"ipv6": false}' | sudo tee /etc/docker/daemon.json > /dev/null
+            sudo systemctl restart docker
+          fi
+
+          sudo mkdir -p /opt/bdp/backups /opt/bdp/data
+          sudo chown -R ubuntu:ubuntu /opt/bdp
+          SETUP
+
       - name: Deploy
         env:
           VERSION: ${{ needs.version.outputs.new }}
