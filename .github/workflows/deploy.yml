@@ -166,22 +166,8 @@ jobs:
         run: |
           echo "Waiting for services..."
           sleep 30
-          ssh -i ~/.ssh/deploy_key ubuntu@${{ secrets.SERVER_IP }} << 'CHECK'
-          set -e
-          cd /opt/bdp
-          for i in {1..5}; do
-            if docker exec bdp-server curl -sf http://localhost:8000/health; then
-              echo ""
-              echo "Health check passed!"
-              exit 0
-            fi
-            echo "Attempt $i failed, retrying..."
-            sleep 10
-          done
-          echo "Health check failed!"
-          docker compose logs --tail=50
-          exit 1
-          CHECK
+          ssh -i ~/.ssh/deploy_key ubuntu@${{ secrets.SERVER_IP }} \
+            'docker exec bdp-server curl -sf http://localhost:8000/health && echo " - Health check passed!"'
 
       - name: Summary
         if: success()
