@@ -66,15 +66,8 @@ jobs:
           echo "tag=v$NEW" >> $GITHUB_OUTPUT
 
           echo "Version: $CURRENT → $NEW (v$NEW)"
-
-      - name: Update workflow run name
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh api \
-            --method PATCH \
-            /repos/${{ github.repository }}/actions/runs/${{ github.run_id }} \
-            -f name="Release v${{ steps.version.outputs.new }} → ${{ inputs.environment }}"
+          echo "## Release $NEW" >> $GITHUB_STEP_SUMMARY
+          echo "Bumping from v$CURRENT to v$NEW (${{ inputs.version_bump }})" >> $GITHUB_STEP_SUMMARY
 
   # Bump versions across all crates
   bump-versions:
