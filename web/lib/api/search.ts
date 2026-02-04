@@ -27,7 +27,7 @@ export interface SearchParams {
 
 /**
  * Get autocomplete suggestions for search
- * GET /api/v1/search/suggestions
+ * GET /v1/search/suggestions
  */
 export async function getSuggestions(
   params: SearchSuggestionsParams
@@ -51,14 +51,14 @@ export async function getSuggestions(
   const response = await apiClient.get<{
     success: boolean;
     data: SearchSuggestion[];
-  }>('/api/v1/search/suggestions', queryParams);
+  }>('/v1/search/suggestions', queryParams);
 
   return response.data.data;
 }
 
 /**
  * Perform full-text search with filters and pagination
- * GET /api/v1/search
+ * GET /v1/search
  */
 export async function searchFullText(params: SearchParams): Promise<{
   items: SearchResult[];
@@ -102,7 +102,7 @@ export async function searchFullText(params: SearchParams): Promise<{
     meta: {
       pagination: SearchPagination;
     };
-  }>('/api/v1/search', queryParams);
+  }>('/v1/search', queryParams);
 
   return {
     items: response.data.data,
@@ -112,7 +112,7 @@ export async function searchFullText(params: SearchParams): Promise<{
 
 /**
  * Get available source types for data sources
- * GET /api/v1/data-sources/source-types
+ * GET /v1/data-sources/source-types
  */
 export async function getAvailableSourceTypes(): Promise<string[]> {
   // Fallback list
@@ -133,7 +133,7 @@ export async function getAvailableSourceTypes(): Promise<string[]> {
     const response = await apiClient.get<{
       success: boolean;
       data: string[];
-    }>('/api/v1/data-sources/source-types');
+    }>('/v1/data-sources/source-types');
 
     // Validate response
     if (response.data.data && Array.isArray(response.data.data) && response.data.data.length > 0) {

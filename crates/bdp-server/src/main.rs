@@ -141,16 +141,22 @@ fn create_router(state: AppState, config: &Config) -> Router {
     // Feature routes (CQRS architecture) - these have mixed states internally
     let feature_routes = features::router(feature_state);
 
-    // Build the main router with middleware stack
-    Router::new()
-        // .route("/", get(root))  // Commented out to avoid conflicts with feature routes
-        .route("/health", get(health_check))
+    // API routes - all under /api prefix for Traefik routing
+    let api_routes = Router::new()
         .route("/stats", get(get_stats))
         .route("/audit", get(query_audit_logs))
         .route("/organizations", get(list_organizations))
         .route("/sources", get(list_sources))
         .with_state(state.clone())
-        .nest("/api/v1", feature_routes)
+        .nest("/v1", feature_routes);
+
+    // Build the main router with middleware stack
+    Router::new()
+        // Health check at root level (explicitly routed by Traefik)
+        .route("/health", get(health_check))
+        .with_state(state.clone())
+        // All API routes under /api prefix
+        .nest("/api", api_routes)
         // Apply layers from innermost to outermost
         .layer(CompressionLayer::new())
         .layer(middleware::tracing_layer())

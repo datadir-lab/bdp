@@ -7,9 +7,10 @@ import type {
 
 // In browser: use current origin (frontend and API on same domain)
 // On server: use env var or localhost for development
+// All API endpoints are under /api prefix for Traefik routing
 const API_BASE_URL = typeof window !== 'undefined'
-  ? window.location.origin
-  : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000');
+  ? `${window.location.origin}/api`
+  : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api');
 
 class ApiClient {
   private baseUrl: string;

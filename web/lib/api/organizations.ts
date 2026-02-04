@@ -17,18 +17,18 @@ export interface ListOrganizationsParams {
 
 /**
  * Get an organization by slug
- * GET /api/v1/organizations/:slug
+ * GET /v1/organizations/:slug
  */
 export async function getOrganization(slug: string): Promise<Organization> {
   const response = await apiClient.get<OrganizationResponse>(
-    `/api/v1/organizations/${slug}`
+    `/v1/organizations/${slug}`
   );
   return response.data.data;
 }
 
 /**
  * List all organizations with pagination
- * GET /api/v1/organizations
+ * GET /v1/organizations
  */
 export async function listOrganizations(
   params: ListOrganizationsParams = {}
@@ -46,7 +46,7 @@ export async function listOrganizations(
   if (params.name_contains) queryParams.name_contains = params.name_contains;
 
   const response = await apiClient.get<OrganizationsListResponse>(
-    '/api/v1/organizations',
+    '/v1/organizations',
     queryParams
   );
 

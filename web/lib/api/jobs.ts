@@ -17,7 +17,7 @@ export interface ListJobsParams {
 
 /**
  * List all jobs with optional filters
- * GET /api/v1/jobs
+ * GET /v1/jobs
  */
 export async function listJobs(
   params: ListJobsParams = {}
@@ -30,7 +30,7 @@ export async function listJobs(
   if (params.offset) queryParams.offset = params.offset.toString();
 
   const response = await apiClient.get<JobsListResponse>(
-    '/api/v1/jobs',
+    '/v1/jobs',
     queryParams
   );
 
@@ -39,11 +39,11 @@ export async function listJobs(
 
 /**
  * List all organization sync statuses
- * GET /api/v1/sync-status
+ * GET /v1/sync-status
  */
 export async function listSyncStatus(): Promise<SyncStatusListResponse> {
   const response = await apiClient.get<SyncStatusListResponse>(
-    '/api/v1/sync-status'
+    '/v1/sync-status'
   );
 
   return response.data;
@@ -51,11 +51,11 @@ export async function listSyncStatus(): Promise<SyncStatusListResponse> {
 
 /**
  * Get single organization sync status
- * GET /api/v1/sync-status/:organizationId
+ * GET /v1/sync-status/:organizationId
  */
 export async function getSyncStatus(organizationId: string): Promise<SyncStatus> {
   const response = await apiClient.get<{ data: SyncStatus }>(
-    `/api/v1/sync-status/${organizationId}`
+    `/v1/sync-status/${organizationId}`
   );
 
   return response.data.data;
