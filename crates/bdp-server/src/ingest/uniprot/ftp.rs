@@ -130,10 +130,8 @@ impl UniProtFtp {
             .await
             .context("Failed to download DAT file")?;
 
-        info!(
-            "Downloaded {} bytes, decompressing...",
-            compressed.len()
-        );
+        let compressed_len = compressed.len();
+        info!("Downloaded {} bytes, decompressing...", compressed_len);
 
         // Decompress gzip in a blocking task to not block the async runtime
         let decompressed = tokio::task::spawn_blocking(move || {
@@ -150,7 +148,7 @@ impl UniProtFtp {
         info!(
             "Decompressed to {} bytes ({:.1}x ratio)",
             decompressed.len(),
-            decompressed.len() as f64 / compressed.len().max(1) as f64
+            decompressed.len() as f64 / compressed_len.max(1) as f64
         );
 
         Ok(decompressed)
