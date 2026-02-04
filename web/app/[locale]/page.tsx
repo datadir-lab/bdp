@@ -33,15 +33,15 @@ export default function HomePage() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const response = await fetch('http://localhost:8000/stats');
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data = await response.json();
+        const response = await apiClient.get<{
+          datasources: number;
+          organizations: number;
+          downloads: number;
+        }>('/stats');
         setStats({
-          datasources: data.datasources,
-          organizations: data.organizations,
-          downloads: data.downloads,
+          datasources: response.data.datasources,
+          organizations: response.data.organizations,
+          downloads: response.data.downloads,
         });
       } catch (error) {
         console.error('Failed to fetch stats:', error);
