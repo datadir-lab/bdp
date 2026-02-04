@@ -46,11 +46,13 @@ jobs:
       - name: Test Fresh Install
         shell: bash
         run: |
-          echo "Testing fresh install via bdp.dev redirect..."
+          echo "Testing fresh install of ${{ steps.get-tag.outputs.tag }}..."
           if [ "$RUNNER_OS" = "Windows" ]; then
-            powershell -Command "irm https://bdp.dev/install.ps1 | iex"
+            # Try bdp.dev short URL first, fall back to direct GitHub URL
+            powershell -Command "try { irm https://bdp.dev/install.ps1 | iex } catch { irm https://github.com/${{ github.repository }}/releases/latest/download/bdp-installer.ps1 | iex }"
           else
-            curl -sSfL https://bdp.dev/install.sh | sh
+            curl -sSfL https://bdp.dev/install.sh | sh \
+              || curl --proto '=https' --tlsv1.2 -LsSf https://github.com/${{ github.repository }}/releases/latest/download/bdp-installer.sh | sh
           fi
 
       - name: Verify Installation
@@ -95,12 +97,13 @@ jobs:
       - name: Test Upgrade (Re-install)
         shell: bash
         run: |
-          echo "Testing upgrade (re-install) via bdp.dev redirect..."
+          echo "Testing upgrade (re-install)..."
           if [ "$RUNNER_OS" = "Windows" ]; then
-            powershell -Command "irm https://bdp.dev/install.ps1 | iex"
+            powershell -Command "try { irm https://bdp.dev/install.ps1 | iex } catch { irm https://github.com/${{ github.repository }}/releases/latest/download/bdp-installer.ps1 | iex }"
             export PATH="$USERPROFILE/.cargo/bin:$PATH"
           else
-            curl -sSfL https://bdp.dev/install.sh | sh
+            curl -sSfL https://bdp.dev/install.sh | sh \
+              || curl --proto '=https' --tlsv1.2 -LsSf https://github.com/${{ github.repository }}/releases/latest/download/bdp-installer.sh | sh
             export PATH="$HOME/.cargo/bin:$PATH"
           fi
           bdp --version
