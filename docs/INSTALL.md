@@ -2,43 +2,19 @@
 
 ## Quick Install (Recommended)
 
-### Universal Installer (Coming Soon)
-
-Once deployed to install.bdp.dev, use our smart installer with channel support:
-
 **Linux/macOS:**
 ```bash
-# Stable release (default)
-curl -fsSL https://install.bdp.dev/install.sh | sh
-
-# Canary release (pre-release)
-curl -fsSL https://install.bdp.dev/install.sh | sh -s -- --channel canary
-
-# Specific version
-curl -fsSL https://install.bdp.dev/install.sh | sh -s -- --version v0.1.0
-
-# Custom install path
-curl -fsSL https://install.bdp.dev/install.sh | sh -s -- --path /usr/local/bin
+curl -sSfL https://bdp.dev/install.sh | sh
 ```
 
 **Windows:**
 ```powershell
-# Stable release (default)
-iwr https://install.bdp.dev/install.ps1 -useb | iex
-
-# Canary release
-iwr https://install.bdp.dev/install.ps1 -useb | iex; Install-BDP -Channel canary
-
-# Specific version
-iwr https://install.bdp.dev/install.ps1 -useb | iex; Install-BDP -Version v0.1.0
-
-# Custom install path
-iwr https://install.bdp.dev/install.ps1 -useb | iex; Install-BDP -Path C:\Tools
+irm https://bdp.dev/install.ps1 | iex
 ```
 
-### cargo-dist Installers
+### Direct GitHub Installer
 
-Official installers from GitHub releases:
+You can also install directly from GitHub releases without the redirect:
 
 **Linux/macOS:**
 ```bash

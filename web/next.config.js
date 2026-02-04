@@ -6,6 +6,23 @@ const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
 
+  async redirects() {
+    return [
+      {
+        source: '/install.sh',
+        destination:
+          'https://github.com/datadir-lab/bdp/releases/latest/download/bdp-installer.sh',
+        permanent: false,
+      },
+      {
+        source: '/install.ps1',
+        destination:
+          'https://github.com/datadir-lab/bdp/releases/latest/download/bdp-installer.ps1',
+        permanent: false,
+      },
+    ];
+  },
+
   // MDX support
   pageExtensions: ['js', 'jsx', 'md', 'mdx', 'ts', 'tsx'],
 

@@ -21,8 +21,8 @@ export const siteConfig = {
     discord: process.env.NEXT_PUBLIC_DISCORD_URL,
   },
   install: {
-    unix: "curl --proto '=https' --tlsv1.2 -LsSf https://github.com/datadir-lab/bdp/releases/latest/download/bdp-installer.sh | sh",
-    windows: 'irm https://github.com/datadir-lab/bdp/releases/latest/download/bdp-installer.ps1 | iex',
+    unix: 'curl -sSfL https://bdp.dev/install.sh | sh',
+    windows: 'irm https://bdp.dev/install.ps1 | iex',
   },
 };
 

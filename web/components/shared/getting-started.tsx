@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Copy, Check } from 'lucide-react';
 import { cn, formatSourceId } from '@/lib/utils';
 import { siteConfig } from '@/lib/site-config';
@@ -116,6 +116,12 @@ function TerminalWindow({ children, platform, activeTab, onTabChange }: Terminal
 
 export function GettingStarted() {
   const [activeTab, setActiveTab] = useState<'unix' | 'windows'>('unix');
+
+  useEffect(() => {
+    if (/Windows|Win32/i.test(navigator.userAgent)) {
+      setActiveTab('windows');
+    }
+  }, []);
 
   // Standard example source identifier
   const exampleSource = formatSourceId('uniprot', 'P01308', 'fasta', '1.0');
