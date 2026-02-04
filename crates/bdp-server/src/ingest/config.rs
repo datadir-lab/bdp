@@ -135,6 +135,14 @@ pub struct IngestConfig {
     pub job_timeout_secs: u64,
     /// UniProt-specific configuration
     pub uniprot: UniProtConfig,
+    /// Whether the NCBI Taxonomy pipeline is enabled
+    pub ncbi_taxonomy_enabled: bool,
+    /// Whether the GenBank pipeline is enabled
+    pub genbank_enabled: bool,
+    /// Whether the Gene Ontology pipeline is enabled
+    pub gene_ontology_enabled: bool,
+    /// Whether the InterPro pipeline is enabled
+    pub interpro_enabled: bool,
 }
 
 /// UniProt-specific ingestion configuration
@@ -186,6 +194,22 @@ impl IngestConfig {
                 .and_then(|s| s.parse().ok())
                 .unwrap_or(DEFAULT_JOB_TIMEOUT_SECS),
             uniprot: UniProtConfig::from_env()?,
+            ncbi_taxonomy_enabled: std::env::var("INGEST_NCBI_ENABLED")
+                .unwrap_or_else(|_| "true".to_string())
+                .parse()
+                .unwrap_or(true),
+            genbank_enabled: std::env::var("INGEST_GENBANK_ENABLED")
+                .unwrap_or_else(|_| "true".to_string())
+                .parse()
+                .unwrap_or(true),
+            gene_ontology_enabled: std::env::var("INGEST_GO_ENABLED")
+                .unwrap_or_else(|_| "true".to_string())
+                .parse()
+                .unwrap_or(true),
+            interpro_enabled: std::env::var("INGEST_INTERPRO_ENABLED")
+                .unwrap_or_else(|_| "true".to_string())
+                .parse()
+                .unwrap_or(true),
         };
 
         config.validate()?;
@@ -354,6 +378,10 @@ impl Default for IngestConfig {
             max_retries: DEFAULT_MAX_RETRIES,
             job_timeout_secs: DEFAULT_JOB_TIMEOUT_SECS,
             uniprot: UniProtConfig::default(),
+            ncbi_taxonomy_enabled: true,
+            genbank_enabled: true,
+            gene_ontology_enabled: true,
+            interpro_enabled: true,
         }
     }
 }
@@ -427,6 +455,10 @@ mod tests {
         assert!(!config.enabled);
         assert_eq!(config.worker_threads, DEFAULT_WORKER_THREADS);
         assert_eq!(config.max_retries, DEFAULT_MAX_RETRIES);
+        assert!(config.ncbi_taxonomy_enabled);
+        assert!(config.genbank_enabled);
+        assert!(config.gene_ontology_enabled);
+        assert!(config.interpro_enabled);
     }
 
     #[test]

@@ -66,34 +66,42 @@ impl IngestOrchestrator {
             }
 
             // 2. NCBI Taxonomy
-            {
+            if self.config.ncbi_taxonomy_enabled {
                 let db = self.db.clone();
                 let storage = self.storage.clone();
                 let org_id = self.org_id;
                 set.spawn(async move { Self::run_ncbi_taxonomy(db, storage, org_id).await });
+            } else {
+                info!("NCBI Taxonomy pipeline disabled (INGEST_NCBI_ENABLED=false)");
             }
 
             // 3. GenBank
-            {
+            if self.config.genbank_enabled {
                 let db = self.db.clone();
                 let storage = self.storage.clone();
                 let org_id = self.org_id;
                 set.spawn(async move { Self::run_genbank(db, storage, org_id).await });
+            } else {
+                info!("GenBank pipeline disabled (INGEST_GENBANK_ENABLED=false)");
             }
 
             // 4. Gene Ontology
-            {
+            if self.config.gene_ontology_enabled {
                 let db = self.db.clone();
                 let storage = self.storage.clone();
                 let org_id = self.org_id;
                 set.spawn(async move { Self::run_gene_ontology(db, storage, org_id).await });
+            } else {
+                info!("Gene Ontology pipeline disabled (INGEST_GO_ENABLED=false)");
             }
 
             // 5. InterPro
-            {
+            if self.config.interpro_enabled {
                 let db = self.db.clone();
                 let cache_dir = self.config.uniprot.cache_dir.clone();
                 set.spawn(async move { Self::run_interpro(db, cache_dir).await });
+            } else {
+                info!("InterPro pipeline disabled (INGEST_INTERPRO_ENABLED=false)");
             }
 
             // Wait for all pipelines, log results
