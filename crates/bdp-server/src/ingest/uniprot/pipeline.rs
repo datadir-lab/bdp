@@ -1292,6 +1292,32 @@ impl UniProtPipeline {
             handles.push(handle);
         }
 
+        // Spawn periodic search index refresh task (every 10 minutes during long jobs)
+        let refresh_pool = self.pool.clone();
+        let refresh_job_id = job_id;
+        let (refresh_cancel_tx, mut refresh_cancel_rx) = tokio::sync::oneshot::channel::<()>();
+        let refresh_handle = tokio::spawn(async move {
+            let mut interval = tokio::time::interval(std::time::Duration::from_secs(600)); // 10 minutes
+            interval.tick().await; // Skip first immediate tick
+            loop {
+                tokio::select! {
+                    _ = interval.tick() => {
+                        tracing::info!(job_id = %refresh_job_id, "Periodic search index refresh");
+                        if let Err(e) = sqlx::query("REFRESH MATERIALIZED VIEW CONCURRENTLY search_registry_entries_mv")
+                            .execute(&*refresh_pool)
+                            .await
+                        {
+                            tracing::warn!(job_id = %refresh_job_id, error = %e, "Periodic search refresh failed");
+                        }
+                    }
+                    _ = &mut refresh_cancel_rx => {
+                        tracing::debug!(job_id = %refresh_job_id, "Search refresh task cancelled");
+                        break;
+                    }
+                }
+            }
+        });
+
         // Wait for all workers to complete
         let mut total_processed = 0;
         let mut total_failed = 0;
@@ -1326,6 +1352,10 @@ impl UniProtPipeline {
             total_failed = total_failed,
             "All workers completed"
         );
+
+        // Cancel the periodic refresh task
+        let _ = refresh_cancel_tx.send(());
+        let _ = refresh_handle.await;
 
         // Update final counts
         sqlx::query!(

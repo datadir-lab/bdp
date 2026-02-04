@@ -340,6 +340,25 @@ impl IngestionCoordinator {
         .await
         .context("Failed to update job status to completed")?;
 
+        // Refresh the search materialized view so new entries are searchable
+        self.refresh_search_index().await?;
+
+        Ok(())
+    }
+
+    /// Refresh the search materialized view
+    ///
+    /// Called after job completion and can be called periodically during long jobs.
+    /// Uses CONCURRENTLY to avoid locking the view during refresh.
+    pub async fn refresh_search_index(&self) -> Result<()> {
+        tracing::info!("Refreshing search index materialized view");
+
+        sqlx::query("REFRESH MATERIALIZED VIEW CONCURRENTLY search_registry_entries_mv")
+            .execute(&*self.pool)
+            .await
+            .context("Failed to refresh search materialized view")?;
+
+        tracing::info!("Search index refresh completed");
         Ok(())
     }
 
