@@ -40,10 +40,6 @@ name = "go_test_local_ontology"
 path = "src/bin/go_test_local_ontology.rs"
 
 [[bench]]
-name = "search_benchmark"
-harness = false
-
-[[bench]]
 name = "genbank_streaming_bench"
 harness = false
 
