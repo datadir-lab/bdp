@@ -461,7 +461,7 @@ impl NcbiTaxonomyStorage {
         let mut version_id_map = HashMap::new();
 
         let mut query_builder: QueryBuilder<Postgres> = QueryBuilder::new(
-            "INSERT INTO versions (id, registry_entry_id, version_string, status) ",
+            "INSERT INTO versions (id, entry_id, version) ",
         );
 
         query_builder.push_values(entry_id_map, |mut b, (tax_id, entry_id)| {
@@ -470,11 +470,10 @@ impl NcbiTaxonomyStorage {
 
             b.push_bind(version_id)
                 .push_bind(entry_id)
-                .push_bind(&self.internal_version)
-                .push_bind("published");
+                .push_bind(&self.internal_version);
         });
 
-        query_builder.push(" ON CONFLICT (registry_entry_id, version_string) DO NOTHING");
+        query_builder.push(" ON CONFLICT (entry_id, version) DO NOTHING");
 
         query_builder.build().execute(&mut **tx).await?;
 
@@ -482,7 +481,7 @@ impl NcbiTaxonomyStorage {
         let mut result_map = HashMap::new();
         for (tax_id, entry_id) in entry_id_map {
             let version_id = sqlx::query_scalar::<_, Uuid>(
-                "SELECT id FROM versions WHERE registry_entry_id = $1 AND version_string = $2",
+                "SELECT id FROM versions WHERE entry_id = $1 AND version = $2",
             )
             .bind(entry_id)
             .bind(&self.internal_version)

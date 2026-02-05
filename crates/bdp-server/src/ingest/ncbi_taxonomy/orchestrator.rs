@@ -161,7 +161,7 @@ impl NcbiTaxonomyOrchestrator {
                 Err(e) => {
                     warn!(
                         version = %version,
-                        error = %e,
+                        error = format!("{:#}", e),
                         "✗ Failed to ingest version (continuing with next version)"
                     );
                     // Continue with next version even if one fails
@@ -334,7 +334,7 @@ impl NcbiTaxonomyOrchestrator {
                         Err(e) => {
                             warn!(
                                 version = %version,
-                                error = %e,
+                                error = format!("{:#}", e),
                                 "✗ Failed to ingest version"
                             );
                             None
