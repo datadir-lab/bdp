@@ -158,6 +158,11 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y musl-tools
 
       - name: Build CLI
+        env:
+          # Set default server URL at compile-time based on DOMAIN variable
+          # DOMAIN should be set in GitHub repo variables (e.g., "bdp.dev")
+          # Falls back to localhost if not set (for dev builds)
+          BUILD_BASE_SERVER_URL: https://${{ vars.DOMAIN || 'localhost:8000' }}
         run: cargo build --release --package bdp-cli --target ${{ matrix.target }}
 
       - name: Package (Unix)

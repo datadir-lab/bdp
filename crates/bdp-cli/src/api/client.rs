@@ -17,8 +17,8 @@ use std::time::Duration;
 /// Set to 5 minutes to accommodate large file downloads.
 pub const DEFAULT_API_TIMEOUT_SECS: u64 = 300;
 
-/// Default BDP server URL when not specified via environment variable.
-pub const DEFAULT_SERVER_URL: &str = "https://api.datadir.dev";
+/// Default BDP server URL - references the crate-level BASE_SERVER_URL constant
+pub use crate::BASE_SERVER_URL as DEFAULT_SERVER_URL;
 
 /// API client for BDP server
 pub struct ApiClient {

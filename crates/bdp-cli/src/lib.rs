@@ -17,6 +17,15 @@
 //! - **Cache Management**: Clean unused cache (`bdp clean`)
 //! - **Configuration**: Manage CLI settings (`bdp config`)
 
+/// Default base server URL - set at compile time from BUILD_BASE_SERVER_URL
+/// BUILD_BASE_SERVER_URL should be the full URL (e.g., "https://bdp.dev")
+/// Falls back to localhost for development if not set
+pub const BASE_SERVER_URL: &str = if let Some(url) = option_env!("BUILD_BASE_SERVER_URL") {
+    url
+} else {
+    "http://localhost:8000"
+};
+
 pub mod api;
 pub mod audit;
 pub mod cache;
@@ -54,7 +63,7 @@ pub struct Cli {
     #[arg(
         long,
         env = "BDP_SERVER_URL",
-        default_value = "https://api.datadir.dev",
+        default_value = BASE_SERVER_URL,
         global = true
     )]
     pub server_url: String,

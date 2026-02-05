@@ -10,8 +10,8 @@ use std::path::PathBuf;
 // CLI Configuration Constants
 // ============================================================================
 
-/// Default BDP server URL when not specified via environment variable.
-pub const DEFAULT_SERVER_URL: &str = "https://api.datadir.dev";
+/// Default BDP server URL - references the crate-level BASE_SERVER_URL constant
+pub use crate::BASE_SERVER_URL as DEFAULT_SERVER_URL;
 
 /// CLI configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
