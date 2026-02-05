@@ -62,7 +62,7 @@ services:
       INGEST_GENBANK_ENABLED: "${INGEST_GENBANK_ENABLED:-true}"
       INGEST_GENBANK_SOURCE_DATABASE: "genbank"
       INGEST_GENBANK_BATCH_SIZE: "500"
-      INGEST_GENBANK_CONCURRENCY: "4"
+      INGEST_GENBANK_CONCURRENCY: "1"
       # Ingestion - Gene Ontology (GO terms and annotations)
       # Source: ftp.ebi.ac.uk/pub/databases/GO
       INGEST_GO_ENABLED: "${INGEST_GO_ENABLED:-true}"
