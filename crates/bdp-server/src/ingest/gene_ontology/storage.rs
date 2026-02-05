@@ -135,28 +135,22 @@ impl GoStorage {
         .fetch_one(&mut **tx)
         .await?;
 
-        // Create data source
+        // Create data source (uses shared PK with registry_entries)
         let data_source_id: Uuid = sqlx::query_scalar(
             r#"
             INSERT INTO data_sources (
-                registry_entry_id,
+                id,
                 source_type,
-                external_id,
-                metadata
+                external_id
             )
-            VALUES ($1, 'go_term', $2, $3)
-            ON CONFLICT (registry_entry_id, external_id)
-            DO UPDATE SET metadata = EXCLUDED.metadata
+            VALUES ($1, 'go_term', $2)
+            ON CONFLICT (id)
+            DO UPDATE SET external_id = EXCLUDED.external_id
             RETURNING id
             "#,
         )
         .bind(entry_id)
         .bind(go_release_version)
-        .bind(serde_json::json!({
-            "go_release_version": go_release_version,
-            "source": "Gene Ontology Consortium",
-            "url": format!("http://release.geneontology.org/{}/ontology/go-basic.obo", go_release_version)
-        }))
         .fetch_one(&mut **tx)
         .await?;
 
@@ -164,17 +158,17 @@ impl GoStorage {
         sqlx::query(
             r#"
             INSERT INTO versions (
-                data_source_id,
-                version_number,
+                entry_id,
+                version,
                 external_version,
-                metadata
+                additional_metadata
             )
             VALUES ($1, $2, $3, $4)
-            ON CONFLICT (data_source_id, version_number)
+            ON CONFLICT (entry_id, version)
             DO NOTHING
             "#,
         )
-        .bind(data_source_id)
+        .bind(entry_id)
         .bind(internal_version)
         .bind(go_release_version)
         .bind(serde_json::json!({
