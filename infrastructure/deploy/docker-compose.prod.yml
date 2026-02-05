@@ -59,7 +59,7 @@ services:
       INGEST_NCBI_START_DATE: "${INGEST_NCBI_START_DATE:-2025-01-01}"
       # Ingestion - GenBank/RefSeq (Genomic sequences)
       # Source: ftp.ncbi.nlm.nih.gov/genbank or /refseq
-      INGEST_GENBANK_ENABLED: "${INGEST_GENBANK_ENABLED:-false}"
+      INGEST_GENBANK_ENABLED: "${INGEST_GENBANK_ENABLED:-true}"
       INGEST_GENBANK_SOURCE_DATABASE: "genbank"
       INGEST_GENBANK_BATCH_SIZE: "500"
       INGEST_GENBANK_CONCURRENCY: "1"
