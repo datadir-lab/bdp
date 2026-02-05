@@ -24,7 +24,7 @@ services:
     image: ghcr.io/datadir-lab/bdp-server:latest
     container_name: bdp-server
     restart: unless-stopped
-    mem_limit: 6g
+    mem_limit: 7g
     memswap_limit: 8g
     environment:
       # Server
