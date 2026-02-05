@@ -53,21 +53,21 @@ services:
       INGEST_UNIPROT_AUTO_INGEST: "true"
       # Ingestion - NCBI Taxonomy
       # Source: ftp.ncbi.nlm.nih.gov/pub/taxonomy
-      INGEST_NCBI_ENABLED: "${INGEST_NCBI_ENABLED:-false}"
+      INGEST_NCBI_ENABLED: "${INGEST_NCBI_ENABLED:-true}"
       # Ingestion - GenBank/RefSeq (Genomic sequences)
       # Source: ftp.ncbi.nlm.nih.gov/genbank or /refseq
-      INGEST_GENBANK_ENABLED: "${INGEST_GENBANK_ENABLED:-false}"
+      INGEST_GENBANK_ENABLED: "${INGEST_GENBANK_ENABLED:-true}"
       INGEST_GENBANK_SOURCE_DATABASE: "genbank"
       INGEST_GENBANK_BATCH_SIZE: "500"
       INGEST_GENBANK_CONCURRENCY: "4"
       # Ingestion - Gene Ontology (GO terms and annotations)
       # Source: ftp.ebi.ac.uk/pub/databases/GO
-      INGEST_GO_ENABLED: "${INGEST_GO_ENABLED:-false}"
+      INGEST_GO_ENABLED: "${INGEST_GO_ENABLED:-true}"
       GO_TIMEOUT_SECS: "600"
       GO_MAX_RETRIES: "3"
       # Ingestion - InterPro (Domain/signature annotations)
       # Source: ftp.ebi.ac.uk/pub/databases/interpro
-      INGEST_INTERPRO_ENABLED: "${INGEST_INTERPRO_ENABLED:-false}"
+      INGEST_INTERPRO_ENABLED: "${INGEST_INTERPRO_ENABLED:-true}"
       INGEST_INTERPRO_FTP_TIMEOUT_SECS: "300"
       INGEST_INTERPRO_BATCH_SIZE: "500"
       # API Configuration
