@@ -107,8 +107,8 @@ impl InterProFtpDownloader {
 
         info!("Downloading protein2ipr.dat.gz from {} to {:?}", remote_path, local_path);
 
-        // Change to directory - use "current" since InterPro FTP doesn't have versioned directories
-        let dir_path = format!("{}current", self.config.ftp_path);
+        // Change to directory - use "current_release" since InterPro FTP doesn't have versioned directories
+        let dir_path = format!("{}current_release", self.config.ftp_path);
         ftp.cwd(&dir_path)
             .map_err(|e| Error::Other(format!("Failed to change directory to {}: {}", dir_path, e)))?;
 
@@ -148,8 +148,8 @@ impl InterProFtpDownloader {
 
         info!("Downloading entry.list from {} to {:?}", remote_path, local_path);
 
-        // Change to directory - use "current" since InterPro FTP doesn't have versioned directories
-        let dir_path = format!("{}current", self.config.ftp_path);
+        // Change to directory - use "current_release" since InterPro FTP doesn't have versioned directories
+        let dir_path = format!("{}current_release", self.config.ftp_path);
         ftp.cwd(&dir_path)
             .map_err(|e| Error::Other(format!("Failed to change directory to {}: {}", dir_path, e)))?;
 
