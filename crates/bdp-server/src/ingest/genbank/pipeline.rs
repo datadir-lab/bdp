@@ -54,26 +54,34 @@ impl GenbankPipeline {
             release
         );
 
-        // Step 1: Download division files
+        // Step 1: List division files
         let ftp = GenbankFtp::new(self.config.clone());
-        let files = ftp
-            .download_division(&division)
+        let file_list = ftp
+            .list_division_files(&division)
             .await
-            .context("Failed to download division files")?;
+            .context("Failed to list division files")?;
 
-        info!("Downloaded {} files for division {}", files.len(), division.as_str());
+        info!("Found {} files for division {}", file_list.len(), division.as_str());
 
-        // Step 2: Parse all files
+        // Step 2: Parse all files using streaming decompression
         let parser = GenbankParser::new(self.config.source_database);
         let mut all_records = Vec::new();
 
-        for (filename, data) in files {
-            info!("Parsing file: {} ({} bytes)", filename, data.len());
+        for (filename, size) in file_list {
+            info!("Downloading {} for division {} ({} bytes)", filename, division.as_str(), size);
+
+            // Use streaming decompression to reduce memory usage
+            let reader = ftp
+                .download_division_file_streaming(&filename)
+                .await
+                .context(format!("Failed to download file: {}", filename))?;
+
+            info!("Parsing file: {} (streaming)", filename);
 
             let records = if let Some(limit) = self.config.parse_limit {
-                parser.parse_with_limit(data.as_slice(), limit)?
+                parser.parse_with_limit(reader, limit)?
             } else {
-                parser.parse_all(data.as_slice())?
+                parser.parse_all(reader)?
             };
 
             info!("Parsed {} records from {}", records.len(), filename);
@@ -151,21 +159,21 @@ impl GenbankPipeline {
 
         info!("Starting GenBank pipeline for file: {}", filename);
 
-        // Step 1: Download file
+        // Step 1: Download file using streaming decompression
         let ftp = GenbankFtp::new(self.config.clone());
-        let data = ftp
-            .download_and_decompress(filename)
+        let reader = ftp
+            .download_division_file_streaming(filename)
             .await
             .context("Failed to download file")?;
 
-        info!("Downloaded {} ({} bytes)", filename, data.len());
+        info!("Downloaded {} (streaming)", filename);
 
-        // Step 2: Parse file
+        // Step 2: Parse file with streaming reader
         let parser = GenbankParser::new(self.config.source_database);
         let records = if let Some(limit) = self.config.parse_limit {
-            parser.parse_with_limit(data.as_slice(), limit)?
+            parser.parse_with_limit(reader, limit)?
         } else {
-            parser.parse_all(data.as_slice())?
+            parser.parse_all(reader)?
         };
 
         info!("Parsed {} records from {}", records.len(), filename);

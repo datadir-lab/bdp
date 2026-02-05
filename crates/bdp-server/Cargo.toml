@@ -39,10 +39,13 @@ path = "src/bin/go_test_human.rs"
 name = "go_test_local_ontology"
 path = "src/bin/go_test_local_ontology.rs"
 
-# Temporarily disabled - schema changed
-# [[bench]]
-# name = "search_performance"
-# harness = false
+[[bench]]
+name = "search_benchmark"
+harness = false
+
+[[bench]]
+name = "genbank_streaming_bench"
+harness = false
 
 [dependencies]
 # ============================================================================
