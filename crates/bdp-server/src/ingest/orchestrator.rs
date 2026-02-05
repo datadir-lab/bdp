@@ -282,7 +282,19 @@ impl IngestOrchestrator {
     async fn run_genbank(db: Arc<PgPool>, storage: Storage, org_id: Uuid) -> Result<&'static str> {
         info!("Starting GenBank pipeline");
 
-        let config = GenbankFtpConfig::default();
+        let concurrency: usize = std::env::var("INGEST_GENBANK_CONCURRENCY")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(1);
+        let batch_size: usize = std::env::var("INGEST_GENBANK_BATCH_SIZE")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(500);
+
+        let config = GenbankFtpConfig::default()
+            .with_concurrency(concurrency)
+            .with_batch_size(batch_size);
+        info!(concurrency, batch_size, "GenBank config loaded from env");
         let orchestrator = GenbankOrchestrator::new(config, (*db).clone(), storage);
 
         let result = orchestrator.run_release(org_id).await?;
