@@ -27,7 +27,24 @@ impl GenbankFtp {
         let path = self.config.get_release_number_path();
         info!("Fetching current release number from: {}", path);
 
-        let data = self.download_file(&path).await?;
+        let host = format!("{}:{}", self.config.host, self.config.port);
+        let path_owned = path.to_string();
+
+        let data = tokio::task::spawn_blocking(move || -> Result<Vec<u8>> {
+            let mut ftp = FtpStream::connect(&host)
+                .context("Failed to connect to FTP server")?;
+            ftp.login("anonymous", "anonymous")
+                .context("Failed to login")?;
+            ftp.transfer_type(suppaftp::types::FileType::Binary)
+                .context("Failed to set binary mode")?;
+            let cursor = ftp
+                .retr_as_buffer(&path_owned)
+                .context(format!("Failed to retrieve file: {}", path_owned))?;
+            Ok(cursor.into_inner())
+        })
+        .await
+        .context("FTP release number task panicked")??;
+
         let release = String::from_utf8(data)
             .context("Failed to parse release number")?
             .trim()
@@ -42,34 +59,44 @@ impl GenbankFtp {
     pub async fn list_division_files(&self, division: &Division) -> Result<Vec<(String, u64)>> {
         let base_path = self.config.get_base_path();
         let pattern = self.config.get_division_file_pattern(division);
+        let file_prefix = division.file_prefix().to_string();
 
         info!("Listing files for division {} (pattern: {})", division.as_str(), pattern);
 
-        let mut ftp = self.connect().await?;
-        ftp.cwd(base_path)
-            .context("Failed to change to GenBank directory")?;
+        let host = format!("{}:{}", self.config.host, self.config.port);
+        let base_path_owned = base_path.to_string();
 
-        let list = ftp.list(None).context("Failed to list files")?;
-        let mut files = Vec::new();
+        let files = tokio::task::spawn_blocking(move || -> Result<Vec<(String, u64)>> {
+            let mut ftp = FtpStream::connect(&host)
+                .context("Failed to connect to FTP server")?;
+            ftp.login("anonymous", "anonymous")
+                .context("Failed to login")?;
+            ftp.cwd(&base_path_owned)
+                .context("Failed to change to GenBank directory")?;
 
-        // Parse FTP LIST output
-        // Format: "-rw-r--r--   1 ftp anonymous 12345678 Jan 15 12:00 gbvrl1.seq.gz"
-        for line in list {
-            let parts: Vec<&str> = line.split_whitespace().collect();
-            if parts.len() < 9 {
-                continue;
-            }
+            let list = ftp.list(None).context("Failed to list files")?;
+            let mut files = Vec::new();
 
-            let filename = parts[8];
-            let size_str = parts[4];
+            for line in list {
+                let parts: Vec<&str> = line.split_whitespace().collect();
+                if parts.len() < 9 {
+                    continue;
+                }
 
-            // Match files for this division
-            if filename.starts_with(division.file_prefix()) && filename.ends_with(".seq.gz") {
-                if let Ok(size) = size_str.parse::<u64>() {
-                    files.push((filename.to_string(), size));
+                let filename = parts[8];
+                let size_str = parts[4];
+
+                if filename.starts_with(&file_prefix) && filename.ends_with(".seq.gz") {
+                    if let Ok(size) = size_str.parse::<u64>() {
+                        files.push((filename.to_string(), size));
+                    }
                 }
             }
-        }
+
+            Ok(files)
+        })
+        .await
+        .context("FTP list task panicked")??;
 
         info!("Found {} files for division {}", files.len(), division.as_str());
 
@@ -190,20 +217,32 @@ impl GenbankFtp {
     }
 
     /// Single attempt to download a file
+    ///
+    /// Uses spawn_blocking to avoid blocking tokio worker threads during
+    /// the synchronous FTP download. This is critical on servers with few
+    /// CPU cores (e.g., 2 cores = 2 tokio threads) where a blocked thread
+    /// prevents HTTP health checks from responding.
     async fn try_download_file(&self, path: &str) -> Result<Vec<u8>> {
-        let mut ftp = self.connect().await?;
+        let host = format!("{}:{}", self.config.host, self.config.port);
+        let path = path.to_string();
 
-        // Set binary mode
-        ftp.transfer_type(suppaftp::types::FileType::Binary)
-            .context("Failed to set binary mode")?;
+        tokio::task::spawn_blocking(move || {
+            let mut ftp = FtpStream::connect(&host)
+                .context("Failed to connect to FTP server")?;
+            ftp.login("anonymous", "anonymous")
+                .context("Failed to login")?;
+            ftp.transfer_type(suppaftp::types::FileType::Binary)
+                .context("Failed to set binary mode")?;
 
-        // Download file
-        debug!("Retrieving file: {}", path);
-        let cursor = ftp
-            .retr_as_buffer(path)
-            .context(format!("Failed to retrieve file: {}", path))?;
+            debug!("Retrieving file: {}", path);
+            let cursor = ftp
+                .retr_as_buffer(&path)
+                .context(format!("Failed to retrieve file: {}", path))?;
 
-        Ok(cursor.into_inner())
+            Ok(cursor.into_inner())
+        })
+        .await
+        .context("FTP download task panicked")?
     }
 
     /// List release directories (for historical version discovery)
@@ -214,50 +253,41 @@ impl GenbankFtp {
 
         info!("Listing release directories in: {}", base_path);
 
-        let mut ftp = self.connect().await?;
-        ftp.cwd(base_path)
-            .context("Failed to change to release directory")?;
+        let host = format!("{}:{}", self.config.host, self.config.port);
+        let base_path_owned = base_path.to_string();
 
-        let list = ftp.list(None).context("Failed to list directories")?;
-        let mut directories = Vec::new();
+        let directories = tokio::task::spawn_blocking(move || -> Result<Vec<String>> {
+            let mut ftp = FtpStream::connect(&host)
+                .context("Failed to connect to FTP server")?;
+            ftp.login("anonymous", "anonymous")
+                .context("Failed to login")?;
+            ftp.cwd(&base_path_owned)
+                .context("Failed to change to release directory")?;
 
-        // Parse FTP LIST output to extract directory names
-        for line in list {
-            let parts: Vec<&str> = line.split_whitespace().collect();
-            if parts.is_empty() {
-                continue;
-            }
+            let list = ftp.list(None).context("Failed to list directories")?;
+            let mut directories = Vec::new();
 
-            // Check if this is a directory (first char is 'd')
-            if parts[0].starts_with('d') {
-                // Directory name is typically the last part
-                if let Some(name) = parts.last() {
-                    directories.push(name.to_string());
+            for line in list {
+                let parts: Vec<&str> = line.split_whitespace().collect();
+                if parts.is_empty() {
+                    continue;
+                }
+
+                if parts[0].starts_with('d') {
+                    if let Some(name) = parts.last() {
+                        directories.push(name.to_string());
+                    }
                 }
             }
-        }
+
+            Ok(directories)
+        })
+        .await
+        .context("FTP list directories task panicked")??;
 
         info!("Found {} directories in {}", directories.len(), base_path);
 
         Ok(directories)
-    }
-
-    /// Connect to FTP server
-    async fn connect(&self) -> Result<FtpStream> {
-        debug!("Connecting to FTP server: {}:{}", self.config.host, self.config.port);
-
-        let mut ftp = FtpStream::connect(format!("{}:{}", self.config.host, self.config.port))
-            .context("Failed to connect to FTP server")?;
-
-        // Note: Timeout is configured at the TCP socket level via FTP library defaults
-        // set_read_timeout is not available in current suppaftp version
-
-        // Login anonymously
-        ftp.login("anonymous", "anonymous")
-            .context("Failed to login")?;
-
-        debug!("Successfully connected to FTP server");
-        Ok(ftp)
     }
 }
 
