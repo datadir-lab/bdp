@@ -34,10 +34,11 @@ async fn main() {
             .log_file_prefix("bdp-cli".to_string())
             .build()
     } else {
-        // Normal mode: only errors to console, info+ to file
+        // Normal mode: disable console logging (users see println! output only)
+        // All logs go to file only to avoid polluting user output
         LogConfig::builder()
-            .level(LogLevel::Warn)
-            .output(LogOutput::Console)
+            .level(LogLevel::Info)
+            .output(LogOutput::File)
             .log_file_prefix("bdp-cli".to_string())
             .build()
     };

@@ -28,7 +28,7 @@ pub async fn set(key: String, value: String) -> Result<()> {
     // In the future, could implement a config file
 
     println!("{} Configuration is managed via environment variables:", "ℹ".cyan());
-    println!("  BDP_SERVER_URL  - Server URL (default: http://localhost:8000)");
+    println!("  BDP_SERVER_URL  - Server URL (default: https://api.datadir.dev)");
     println!("  BDP_CACHE_DIR   - Cache directory");
     println!();
     println!("To set {}:", key);

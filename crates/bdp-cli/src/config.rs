@@ -11,7 +11,7 @@ use std::path::PathBuf;
 // ============================================================================
 
 /// Default BDP server URL when not specified via environment variable.
-pub const DEFAULT_SERVER_URL: &str = "http://localhost:8000";
+pub const DEFAULT_SERVER_URL: &str = "https://api.datadir.dev";
 
 /// CLI configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -18,7 +18,7 @@ use std::time::Duration;
 pub const DEFAULT_API_TIMEOUT_SECS: u64 = 300;
 
 /// Default BDP server URL when not specified via environment variable.
-pub const DEFAULT_SERVER_URL: &str = "http://localhost:8000";
+pub const DEFAULT_SERVER_URL: &str = "https://api.datadir.dev";
 
 /// API client for BDP server
 pub struct ApiClient {

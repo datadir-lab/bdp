@@ -54,7 +54,7 @@ pub struct Cli {
     #[arg(
         long,
         env = "BDP_SERVER_URL",
-        default_value = "http://localhost:8000",
+        default_value = "https://api.datadir.dev",
         global = true
     )]
     pub server_url: String,

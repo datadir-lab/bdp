@@ -78,7 +78,7 @@ pub async fn run(
     };
 
     // Execute search with caching and retries
-    info!("Searching for '{}'...", query_str);
+    println!("Searching for '{}'...", query_str);
 
     // Create cache filters
     let cache_filters = SearchFilters {
