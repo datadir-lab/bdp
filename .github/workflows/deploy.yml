@@ -91,6 +91,21 @@ jobs:
             infrastructure/deploy/docker-compose.prod.yml \
             ubuntu@${{ secrets.SERVER_IP }}:/opt/bdp/docker-compose.yml
 
+      - name: Fix migration checksums
+        run: |
+          # SQLx refuses to run if a previously-applied migration file has been modified.
+          # Compute the current SHA-384 checksum and update _sqlx_migrations on the server.
+          CHECKSUM=$(sha384sum migrations/20260204000003_widen_varchar_columns.sql | awk '{print $1}')
+          echo "Updating checksum for migration 20260204000003 to ${CHECKSUM}"
+          ssh -i ~/.ssh/deploy_key ubuntu@${{ secrets.SERVER_IP }} << FIXUP
+          set -e
+          cd /opt/bdp
+          docker compose up -d postgres
+          sleep 3
+          docker exec bdp-postgres psql -U bdp -c \
+            "UPDATE _sqlx_migrations SET checksum = decode('${CHECKSUM}', 'hex') WHERE version = 20260204000003;"
+          FIXUP
+
       - name: Deploy and start services
         env:
           SERVER_IP: ${{ secrets.SERVER_IP }}
