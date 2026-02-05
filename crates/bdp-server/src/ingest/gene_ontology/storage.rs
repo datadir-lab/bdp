@@ -120,12 +120,13 @@ impl GoStorage {
             r#"
             INSERT INTO registry_entries (
                 organization_id,
-                source_type,
+                slug,
                 name,
-                description
+                description,
+                entry_type
             )
-            VALUES ($1, 'go_term', 'Gene Ontology', 'Gene Ontology Consortium')
-            ON CONFLICT (organization_id, source_type, name)
+            VALUES ($1, 'gene-ontology', 'Gene Ontology', 'Gene Ontology Consortium', 'data_source')
+            ON CONFLICT (slug)
             DO UPDATE SET description = EXCLUDED.description
             RETURNING id
             "#,
