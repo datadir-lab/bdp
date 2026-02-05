@@ -47,6 +47,7 @@ use aws_config::BehaviorVersion;
 use aws_sdk_s3::Client as S3Client;
 use sqlx::postgres::PgPoolOptions;
 use sqlx::PgPool;
+use testcontainers::ImageExt;
 use std::time::Duration;
 use testcontainers::{
     core::{IntoContainerPort, WaitFor},
@@ -666,8 +667,8 @@ impl<'a> TestDataHelper<'a> {
     pub async fn create_version(&self, entry_id: uuid::Uuid, version: &str) -> Result<uuid::Uuid> {
         let id = sqlx::query_scalar!(
             r#"
-            INSERT INTO versions (entry_id, version, status)
-            VALUES ($1, $2, 'published')
+            INSERT INTO versions (entry_id, version)
+            VALUES ($1, $2)
             RETURNING id
             "#,
             entry_id,
