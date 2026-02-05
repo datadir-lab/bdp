@@ -224,7 +224,7 @@ resolve_version() {
 # Download binary and checksum
 download_binary() {
     local platform="$1"
-    local archive_name="${BINARY_NAME}-cli-${platform}.tar.xz"
+    local archive_name="${BINARY_NAME}-cli-${VERSION#v}-${platform}.tar.gz"
     local download_url="${GITHUB_DOWNLOAD}/${REPO}/releases/download/${VERSION}/${archive_name}"
     local checksum_url="${download_url}.sha256"
     local temp_dir
@@ -252,7 +252,7 @@ download_binary() {
 verify_checksum() {
     local temp_dir="$1"
     local platform="$2"
-    local archive_name="${BINARY_NAME}-cli-${platform}.tar.xz"
+    local archive_name="${BINARY_NAME}-cli-${VERSION#v}-${platform}.tar.gz"
     local archive_path="$temp_dir/$archive_name"
     local checksum_path="$temp_dir/$archive_name.sha256"
 
@@ -289,21 +289,13 @@ verify_checksum() {
 install_binary() {
     local temp_dir="$1"
     local platform="$2"
-    local archive_name="${BINARY_NAME}-cli-${platform}.tar.xz"
+    local archive_name="${BINARY_NAME}-cli-${VERSION#v}-${platform}.tar.gz"
     local archive_path="$temp_dir/$archive_name"
 
     info "Extracting binary..."
 
-    # Extract archive (xz compressed)
-    # Try auto-detection first (works on modern tar), fallback to explicit xz
-    if ! tar -xf "$archive_path" -C "$temp_dir" 2>/dev/null; then
-        # Fallback: explicit xz decompression
-        if command_exists xz; then
-            xz -dc "$archive_path" | tar -x -C "$temp_dir" || error "Failed to extract archive"
-        else
-            error "Failed to extract archive. xz or modern tar required."
-        fi
-    fi
+    # Extract archive (gzip compressed)
+    tar -xzf "$archive_path" -C "$temp_dir" || error "Failed to extract archive"
 
     # Create install directory if it doesn't exist
     if [ ! -d "$INSTALL_PATH" ]; then

@@ -133,7 +133,8 @@ function Get-BinaryArchive {
         [string]$Version
     )
 
-    $archiveName = "$BinaryName-cli-$Platform.zip"
+    $versionNum = $Version.TrimStart("v")
+    $archiveName = "$BinaryName-cli-$versionNum-$Platform.zip"
     $downloadUrl = "$GitHubDownload/$Repo/releases/download/$Version/$archiveName"
     $checksumUrl = "$downloadUrl.sha256"
     $tempDir = Join-Path $env:TEMP "bdp-install-$(Get-Random)"
