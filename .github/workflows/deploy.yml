@@ -190,19 +190,20 @@ jobs:
           DEPLOY
 
       - name: Health check
+        timeout-minutes: 5
         run: |
           echo "Waiting for services to stabilize..."
-          for i in $(seq 1 12); do
+          for i in $(seq 1 20); do
             sleep 15
-            echo "Attempt $i/12..."
-            if ssh -i ~/.ssh/deploy_key ubuntu@${{ secrets.SERVER_IP }} \
+            echo "Attempt $i/20..."
+            if timeout 10 ssh -i ~/.ssh/deploy_key ubuntu@${{ secrets.SERVER_IP }} \
               'docker exec bdp-server curl -sf http://localhost:8000/health' 2>/dev/null; then
               echo "Health check passed!"
               exit 0
             fi
             echo "Not ready yet, retrying..."
           done
-          echo "Health check failed after 12 attempts"
+          echo "Health check failed after 20 attempts"
           ssh -i ~/.ssh/deploy_key ubuntu@${{ secrets.SERVER_IP }} \
             'docker compose -f /opt/bdp/docker-compose.yml ps && docker compose -f /opt/bdp/docker-compose.yml logs --tail=50 bdp-server'
           exit 1
