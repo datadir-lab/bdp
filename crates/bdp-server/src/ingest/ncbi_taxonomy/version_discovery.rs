@@ -228,9 +228,10 @@ impl TaxonomyVersionDiscovery {
             LIMIT 1
             "#,
         )
-        .fetch_one(&self.db)
+        .fetch_optional(&self.db)
         .await
-        .context("Failed to get latest internal version")?;
+        .context("Failed to get latest internal version")?
+        .flatten();
 
         debug!(
             latest_version = ?latest,
@@ -487,9 +488,10 @@ impl TaxonomyVersionDiscovery {
             LIMIT 1
             "#,
         )
-        .fetch_one(&self.db)
+        .fetch_optional(&self.db)
         .await
-        .context("Failed to get last ingested version")?;
+        .context("Failed to get last ingested version")?
+        .flatten();
 
         debug!(
             last_version = ?result,

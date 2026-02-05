@@ -20,7 +20,7 @@ import { listOrganizations } from '@/lib/api/organizations';
 import type { Job, SyncStatus, OrganizationJobSummary, JobStatus } from '@/lib/types/job';
 import type { OrganizationListItem } from '@/lib/types/organization';
 
-export function JobsDashboard() {
+export function DataDashboard() {
   const [jobs, setJobs] = React.useState<Job[]>([]);
   const [syncStatuses, setSyncStatuses] = React.useState<SyncStatus[]>([]);
   const [organizations, setOrganizations] = React.useState<OrganizationListItem[]>([]);
@@ -91,11 +91,9 @@ export function JobsDashboard() {
     const summaries: OrganizationJobSummary[] = [];
 
     for (const org of organizations) {
-      // Find jobs for this organization (match by job_type containing org name)
+      // Match jobs to organization by organization_id
       const orgJobs = jobs
-        .filter((job) =>
-          job.job_type.toLowerCase().includes(org.name.toLowerCase())
-        )
+        .filter((job) => job.organization_id === org.id)
         .sort((a, b) => {
           const aTime = a.started_at || a.created_at;
           const bTime = b.started_at || b.created_at;
@@ -135,8 +133,8 @@ export function JobsDashboard() {
       });
     }
 
-    // Only show organizations that have jobs OR sync status (have been synced at least once)
-    return summaries.filter((s) => s.recent_jobs.length > 0 || s.sync_status !== null);
+    // Show all organizations (even those without jobs yet)
+    return summaries;
   }, [jobs, syncStatuses, organizations]);
 
   const filteredSummaries = React.useMemo(() => {
@@ -163,9 +161,7 @@ export function JobsDashboard() {
 
   const timelineJobs = React.useMemo(() => {
     const jobsWithOrg = jobs.map((job) => {
-      const org = organizations.find((o) =>
-        job.job_type.toLowerCase().includes(o.name.toLowerCase())
-      );
+      const org = organizations.find((o) => job.organization_id === o.id);
       return {
         ...job,
         organization: org
@@ -208,7 +204,7 @@ export function JobsDashboard() {
     return (
       <div className="flex flex-col items-center justify-center py-12">
         <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
-        <p className="text-muted-foreground">Loading jobs...</p>
+        <p className="text-muted-foreground">Loading data...</p>
       </div>
     );
   }
@@ -219,7 +215,7 @@ export function JobsDashboard() {
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Ingestion Jobs</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Ingestion Data</h1>
             <p className="text-muted-foreground mt-1">
               Monitor data ingestion jobs across all organizations
             </p>
@@ -318,7 +314,7 @@ export function JobsDashboard() {
             <div className="text-center py-12">
               <AlertCircle className="h-12 w-12 mx-auto mb-3 text-muted-foreground opacity-50" />
               <p className="text-muted-foreground">
-                No jobs found matching the selected filter
+                No organizations found
               </p>
             </div>
           )}

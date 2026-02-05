@@ -28,6 +28,7 @@ pub struct ListJobsQuery {
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct JobListItem {
     pub id: String,
+    pub organization_id: String,
     pub job_type: String,
     pub status: String,
     pub started_at: Option<DateTime<Utc>>,
@@ -62,7 +63,7 @@ pub async fn handle(pool: PgPool, query: ListJobsQuery) -> Result<ListJobsRespon
     // Build query based on filters
     let mut sql_query = String::from(
         r#"
-        SELECT id::text, job_type, status, started_at, completed_at, created_at,
+        SELECT id::text, organization_id::text, job_type, status, started_at, completed_at, created_at,
                total_records, records_processed, records_stored, records_failed
         FROM ingestion_jobs
         WHERE 1=1

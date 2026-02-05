@@ -54,6 +54,7 @@ services:
       # Ingestion - NCBI Taxonomy
       # Source: ftp.ncbi.nlm.nih.gov/pub/taxonomy
       INGEST_NCBI_ENABLED: "${INGEST_NCBI_ENABLED:-true}"
+      INGEST_NCBI_START_DATE: "${INGEST_NCBI_START_DATE:-2025-01-01}"
       # Ingestion - GenBank/RefSeq (Genomic sequences)
       # Source: ftp.ncbi.nlm.nih.gov/genbank or /refseq
       INGEST_GENBANK_ENABLED: "${INGEST_GENBANK_ENABLED:-true}"
@@ -63,11 +64,13 @@ services:
       # Ingestion - Gene Ontology (GO terms and annotations)
       # Source: ftp.ebi.ac.uk/pub/databases/GO
       INGEST_GO_ENABLED: "${INGEST_GO_ENABLED:-true}"
+      INGEST_GO_START_DATE: "${INGEST_GO_START_DATE:-}"
       GO_TIMEOUT_SECS: "600"
       GO_MAX_RETRIES: "3"
       # Ingestion - InterPro (Domain/signature annotations)
       # Source: ftp.ebi.ac.uk/pub/databases/interpro
       INGEST_INTERPRO_ENABLED: "${INGEST_INTERPRO_ENABLED:-true}"
+      INGEST_INTERPRO_START_VERSION: "${INGEST_INTERPRO_START_VERSION:-}"
       INGEST_INTERPRO_FTP_TIMEOUT_SECS: "300"
       INGEST_INTERPRO_BATCH_SIZE: "500"
       # API Configuration

@@ -13,6 +13,7 @@ export type JobType = 'UniProt' | 'NCBI Taxonomy' | 'GenBank';
  */
 export interface Job {
   id: string;
+  organization_id: string;
   job_type: string;
   status: JobStatus;
   started_at: string | null;

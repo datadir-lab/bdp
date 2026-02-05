@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { Link } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
-import { Github, BookOpen, Activity } from 'lucide-react';
+import { Github, BookOpen, Database } from 'lucide-react';
 import { ThemeToggle } from '@/components/shared/theme-toggle';
 import { LocaleSwitcher } from '@/components/shared/locale-switcher';
 import { Logo } from '@/components/shared/logo';
@@ -30,14 +30,14 @@ export function Header() {
             <span className="hidden md:inline leading-none">{t('docs')}</span>
           </Link>
 
-          {/* Jobs Link - Icon only on mobile, Icon + Text on desktop */}
+          {/* Data Link - Icon only on mobile, Icon + Text on desktop */}
           <Link
-            href="/jobs"
+            href="/data"
             className="flex items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-            title={t('jobs')}
+            title={t('data')}
           >
-            <Activity className="h-5 w-5 flex-shrink-0 pt-[1px]" />
-            <span className="hidden md:inline leading-none">{t('jobs')}</span>
+            <Database className="h-5 w-5 flex-shrink-0 pt-[1px]" />
+            <span className="hidden md:inline leading-none">{t('data')}</span>
           </Link>
         </div>
 

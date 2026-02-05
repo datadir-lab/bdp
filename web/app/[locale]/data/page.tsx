@@ -1,15 +1,14 @@
 import * as React from 'react';
 import { Suspense } from 'react';
 import { Metadata } from 'next';
-import { JobsDashboard } from './jobs-dashboard';
-import { Loader2 } from 'lucide-react';
+import { DataDashboard } from './data-dashboard';
 
 export const metadata: Metadata = {
-  title: 'Ingestion Jobs',
+  title: 'Ingestion Data',
   description: 'Monitor data ingestion jobs across all organizations',
 };
 
-function JobsPageSkeleton() {
+function DataPageSkeleton() {
   return (
     <div className="space-y-6">
       {/* Header Skeleton */}
@@ -40,11 +39,11 @@ function JobsPageSkeleton() {
   );
 }
 
-export default function JobsPage() {
+export default function DataPage() {
   return (
     <div className="container py-8">
-      <Suspense fallback={<JobsPageSkeleton />}>
-        <JobsDashboard />
+      <Suspense fallback={<DataPageSkeleton />}>
+        <DataDashboard />
       </Suspense>
     </div>
   );

@@ -143,6 +143,12 @@ pub struct IngestConfig {
     pub gene_ontology_enabled: bool,
     /// Whether the InterPro pipeline is enabled
     pub interpro_enabled: bool,
+    /// NCBI start date (format: "YYYY-MM-DD", e.g., "2025-01-01"). Empty = all.
+    pub ncbi_start_date: String,
+    /// GO start date (format: "YYYY-MM-DD"). Empty = latest only.
+    pub go_start_date: String,
+    /// InterPro start version (format: "X.Y", e.g., "96.0"). Empty = latest only.
+    pub interpro_start_version: String,
 }
 
 /// UniProt-specific ingestion configuration
@@ -210,6 +216,12 @@ impl IngestConfig {
                 .unwrap_or_else(|_| "true".to_string())
                 .parse()
                 .unwrap_or(true),
+            ncbi_start_date: std::env::var("INGEST_NCBI_START_DATE")
+                .unwrap_or_default(),
+            go_start_date: std::env::var("INGEST_GO_START_DATE")
+                .unwrap_or_default(),
+            interpro_start_version: std::env::var("INGEST_INTERPRO_START_VERSION")
+                .unwrap_or_default(),
         };
 
         config.validate()?;
@@ -382,6 +394,9 @@ impl Default for IngestConfig {
             genbank_enabled: true,
             gene_ontology_enabled: true,
             interpro_enabled: true,
+            ncbi_start_date: String::new(),
+            go_start_date: String::new(),
+            interpro_start_version: String::new(),
         }
     }
 }

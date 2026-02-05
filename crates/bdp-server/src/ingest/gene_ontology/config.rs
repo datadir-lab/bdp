@@ -70,12 +70,9 @@ impl GoHttpConfig {
     pub fn ontology_url_for_version(&self, version: Option<&str>) -> String {
         let ver = version.unwrap_or(&self.go_release_version);
 
-        // Use HTTP release archive for all downloads
-        // This is the canonical source for GO releases
         if ver == "current" {
-            // For "current", use the latest from release archive
-            // In practice, we should discover the actual latest version
-            format!("http://release.geneontology.org/2025-09-08/ontology/go-basic.obo")
+            // Use the canonical stable URL that always points to the latest release
+            "https://current.geneontology.org/ontology/go-basic.obo".to_string()
         } else {
             format!("http://release.geneontology.org/{}/ontology/go-basic.obo", ver)
         }
@@ -335,10 +332,10 @@ mod tests {
     #[test]
     fn test_ontology_url() {
         let config = GoHttpConfig::default();
-        // With FTP base URL, falls back to HTTP release URL
+        // Default version is "current", uses the canonical stable URL
         assert_eq!(
             config.ontology_url(),
-            "http://release.geneontology.org/2025-09-08/ontology/go-basic.obo"
+            "https://current.geneontology.org/ontology/go-basic.obo"
         );
     }
 

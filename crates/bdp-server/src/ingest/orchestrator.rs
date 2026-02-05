@@ -70,7 +70,10 @@ impl IngestOrchestrator {
                 let db = self.db.clone();
                 let storage = self.storage.clone();
                 let org_id = self.org_id;
-                set.spawn(async move { Self::run_ncbi_taxonomy(db, storage, org_id).await });
+                let ncbi_start_date = self.config.ncbi_start_date.clone();
+                set.spawn(async move {
+                    Self::run_ncbi_taxonomy(db, storage, org_id, ncbi_start_date).await
+                });
             } else {
                 info!("NCBI Taxonomy pipeline disabled (INGEST_NCBI_ENABLED=false)");
             }
@@ -90,7 +93,10 @@ impl IngestOrchestrator {
                 let db = self.db.clone();
                 let storage = self.storage.clone();
                 let org_id = self.org_id;
-                set.spawn(async move { Self::run_gene_ontology(db, storage, org_id).await });
+                let go_start_date = self.config.go_start_date.clone();
+                set.spawn(async move {
+                    Self::run_gene_ontology(db, storage, org_id, go_start_date).await
+                });
             } else {
                 info!("Gene Ontology pipeline disabled (INGEST_GO_ENABLED=false)");
             }
@@ -99,7 +105,10 @@ impl IngestOrchestrator {
             if self.config.interpro_enabled {
                 let db = self.db.clone();
                 let cache_dir = self.config.uniprot.cache_dir.clone();
-                set.spawn(async move { Self::run_interpro(db, cache_dir).await });
+                let interpro_start_version = self.config.interpro_start_version.clone();
+                set.spawn(async move {
+                    Self::run_interpro(db, cache_dir, interpro_start_version).await
+                });
             } else {
                 info!("InterPro pipeline disabled (INGEST_INTERPRO_ENABLED=false)");
             }
@@ -246,13 +255,23 @@ impl IngestOrchestrator {
         db: Arc<PgPool>,
         storage: Storage,
         org_id: Uuid,
+        ncbi_start_date: String,
     ) -> Result<&'static str> {
         info!("Starting NCBI Taxonomy pipeline");
 
         let config = NcbiTaxonomyFtpConfig::default();
         let orchestrator = NcbiTaxonomyOrchestrator::with_s3(config, (*db).clone(), storage);
 
-        let results = orchestrator.catchup_and_current(org_id, None).await?;
+        let start_date = if ncbi_start_date.is_empty() {
+            None
+        } else {
+            info!(start_date = %ncbi_start_date, "NCBI Taxonomy: using configured start date");
+            Some(ncbi_start_date)
+        };
+
+        let results = orchestrator
+            .catchup_and_current(org_id, start_date.as_deref())
+            .await?;
 
         info!("NCBI Taxonomy pipeline completed: {} versions processed", results.len());
 
@@ -278,33 +297,66 @@ impl IngestOrchestrator {
         db: Arc<PgPool>,
         storage: Storage,
         org_id: Uuid,
+        go_start_date: String,
     ) -> Result<&'static str> {
         info!("Starting Gene Ontology pipeline");
 
-        let config = GoHttpConfig::default();
-        let pipeline = GoPipeline::new(config, (*db).clone(), storage, org_id);
-
-        let stats = pipeline.run_full("1.0").await?;
-
-        info!("Gene Ontology pipeline completed: {:?}", stats);
+        if go_start_date.is_empty() {
+            // Default: just ingest latest (current) version
+            info!("Gene Ontology: ingesting latest version");
+            let config = GoHttpConfig::default();
+            let pipeline = GoPipeline::new(config, (*db).clone(), storage, org_id);
+            let stats = pipeline.run_full("1.0").await?;
+            info!("Gene Ontology pipeline completed: {:?}", stats);
+        } else {
+            // Use the start date as a specific version to ingest from
+            info!(
+                start_date = %go_start_date,
+                "Gene Ontology: ingesting specific version"
+            );
+            let mut config = GoHttpConfig::default();
+            config.go_release_version = go_start_date;
+            let pipeline = GoPipeline::new(config, (*db).clone(), storage, org_id);
+            let stats = pipeline.run_full("1.0").await?;
+            info!("Gene Ontology pipeline completed: {:?}", stats);
+        }
 
         Ok("gene_ontology")
     }
 
     /// Run InterPro ingestion pipeline
-    async fn run_interpro(db: Arc<PgPool>, cache_dir: std::path::PathBuf) -> Result<&'static str> {
+    async fn run_interpro(
+        db: Arc<PgPool>,
+        cache_dir: std::path::PathBuf,
+        interpro_start_version: String,
+    ) -> Result<&'static str> {
         info!("Starting InterPro pipeline");
 
         let config = InterProConfig::default();
         let pipeline = InterProPipeline::new((*db).clone(), config, cache_dir);
 
-        match pipeline.ingest_latest().await? {
-            Some((version, stats)) => {
-                info!("InterPro pipeline completed: version {} ({:?})", version, stats);
-            },
-            None => {
-                info!("InterPro pipeline: no new versions to ingest");
-            },
+        if interpro_start_version.is_empty() {
+            // Default: just ingest latest version
+            match pipeline.ingest_latest().await? {
+                Some((version, stats)) => {
+                    info!("InterPro pipeline completed: version {} ({:?})", version, stats);
+                },
+                None => {
+                    info!("InterPro pipeline: no new versions to ingest");
+                },
+            }
+        } else {
+            info!(
+                start_version = %interpro_start_version,
+                "InterPro: ingesting all versions from start version"
+            );
+            let results = pipeline
+                .ingest_from_version(&interpro_start_version, true)
+                .await?;
+            info!(
+                "InterPro pipeline completed: {} versions ingested",
+                results.len()
+            );
         }
 
         Ok("interpro")

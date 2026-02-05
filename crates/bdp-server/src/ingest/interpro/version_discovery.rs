@@ -422,20 +422,31 @@ impl VersionDiscovery {
         Ok(result.exists)
     }
 
-    /// Get InterPro organization ID
+    /// Get InterPro organization ID, creating the organization if it doesn't exist
     pub async fn get_organization_id(&self, pool: &PgPool) -> Result<Uuid> {
-        let result: _ = sqlx::query!(
+        // Upsert: create InterPro org if it doesn't exist
+        sqlx::query(
             r#"
-            SELECT id
-            FROM organizations
-            WHERE name = 'InterPro'
-            "#
+            INSERT INTO organizations (name, slug, description, is_system)
+            VALUES ('InterPro', 'interpro', 'InterPro protein families, domains and functional sites', true)
+            ON CONFLICT (slug) DO NOTHING
+            "#,
+        )
+        .execute(pool)
+        .await
+        .context("Failed to upsert InterPro organization")?;
+
+        // Now fetch the org ID
+        let id = sqlx::query_scalar::<_, Uuid>(
+            r#"
+            SELECT id FROM organizations WHERE slug = 'interpro'
+            "#,
         )
         .fetch_one(pool)
         .await
-        .context("InterPro organization not found in database")?;
+        .context("Failed to fetch InterPro organization ID after upsert")?;
 
-        Ok(result.id)
+        Ok(id)
     }
 }
 
