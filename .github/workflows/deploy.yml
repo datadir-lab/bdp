@@ -190,7 +190,7 @@ jobs:
           DEPLOY
 
       - name: Health check
-        timeout-minutes: 5
+        timeout-minutes: 10
         run: |
           echo "Waiting for services to stabilize..."
           for i in $(seq 1 20); do
