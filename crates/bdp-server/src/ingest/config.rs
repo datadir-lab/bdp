@@ -216,10 +216,8 @@ impl IngestConfig {
                 .unwrap_or_else(|_| "true".to_string())
                 .parse()
                 .unwrap_or(true),
-            ncbi_start_date: std::env::var("INGEST_NCBI_START_DATE")
-                .unwrap_or_default(),
-            go_start_date: std::env::var("INGEST_GO_START_DATE")
-                .unwrap_or_default(),
+            ncbi_start_date: std::env::var("INGEST_NCBI_START_DATE").unwrap_or_default(),
+            go_start_date: std::env::var("INGEST_GO_START_DATE").unwrap_or_default(),
             interpro_start_version: std::env::var("INGEST_INTERPRO_START_VERSION")
                 .unwrap_or_default(),
         };

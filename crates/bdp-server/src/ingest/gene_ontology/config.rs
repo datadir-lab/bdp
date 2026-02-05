@@ -333,10 +333,7 @@ mod tests {
     fn test_ontology_url() {
         let config = GoHttpConfig::default();
         // Default version is "current", uses the canonical stable URL
-        assert_eq!(
-            config.ontology_url(),
-            "https://current.geneontology.org/ontology/go-basic.obo"
-        );
+        assert_eq!(config.ontology_url(), "https://current.geneontology.org/ontology/go-basic.obo");
     }
 
     #[test]

@@ -353,10 +353,7 @@ impl IngestOrchestrator {
             let results = pipeline
                 .ingest_from_version(&interpro_start_version, true)
                 .await?;
-            info!(
-                "InterPro pipeline completed: {} versions ingested",
-                results.len()
-            );
+            info!("InterPro pipeline completed: {} versions ingested", results.len());
         }
 
         Ok("interpro")
