@@ -47,8 +47,8 @@ use aws_config::BehaviorVersion;
 use aws_sdk_s3::Client as S3Client;
 use sqlx::postgres::PgPoolOptions;
 use sqlx::PgPool;
-use testcontainers::ImageExt;
 use std::time::Duration;
+use testcontainers::ImageExt;
 use testcontainers::{
     core::{IntoContainerPort, WaitFor},
     runners::AsyncRunner,

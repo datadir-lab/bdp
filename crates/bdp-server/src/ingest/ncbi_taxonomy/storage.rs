@@ -460,9 +460,8 @@ impl NcbiTaxonomyStorage {
     ) -> Result<HashMap<i32, Uuid>> {
         let mut version_id_map = HashMap::new();
 
-        let mut query_builder: QueryBuilder<Postgres> = QueryBuilder::new(
-            "INSERT INTO versions (id, entry_id, version) ",
-        );
+        let mut query_builder: QueryBuilder<Postgres> =
+            QueryBuilder::new("INSERT INTO versions (id, entry_id, version) ");
 
         query_builder.push_values(entry_id_map, |mut b, (tax_id, entry_id)| {
             let version_id = Uuid::new_v4();
