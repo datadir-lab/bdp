@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT entry_name, data_source_id FROM protein_metadata WHERE accession = 'P01308'",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "entry_name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 1,
+        "name": "data_source_id",
+        "type_info": "Uuid"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      true,
+      false
+    ]
+  },
+  "hash": "30075e6420fd0a0caecdf524ba6153950a86e92237a3d989782de2c9798b7933"
+}

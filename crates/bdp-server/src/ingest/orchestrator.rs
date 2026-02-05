@@ -314,8 +314,10 @@ impl IngestOrchestrator {
                 start_date = %go_start_date,
                 "Gene Ontology: ingesting specific version"
             );
-            let mut config = GoHttpConfig::default();
-            config.go_release_version = go_start_date;
+            let config = GoHttpConfig {
+                go_release_version: go_start_date,
+                ..GoHttpConfig::default()
+            };
             let pipeline = GoPipeline::new(config, (*db).clone(), storage, org_id);
             let stats = pipeline.run_full("1.0").await?;
             info!("Gene Ontology pipeline completed: {:?}", stats);

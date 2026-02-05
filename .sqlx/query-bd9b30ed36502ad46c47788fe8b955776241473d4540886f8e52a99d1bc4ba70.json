@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                INSERT INTO registry_entries (organization_id, slug, name, description, entry_type)\n                VALUES ($1, $2, $3, $4, $5)\n                RETURNING id\n                ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Varchar",
+        "Varchar",
+        "Text",
+        "Varchar"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "bd9b30ed36502ad46c47788fe8b955776241473d4540886f8e52a99d1bc4ba70"
+}
