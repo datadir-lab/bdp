@@ -243,6 +243,11 @@ jobs:
           path: artifacts
           merge-multiple: true
 
+      - name: Copy installer scripts
+        run: |
+          cp scripts/install.sh artifacts/bdp-installer.sh
+          cp scripts/install.ps1 artifacts/bdp-installer.ps1
+
       - name: Generate checksums
         run: |
           cd artifacts
