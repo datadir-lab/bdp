@@ -73,6 +73,18 @@ jobs:
             sudo systemctl restart docker
           fi
 
+          # Ensure swap exists (prevents OOM kills on 8GB servers)
+          if [ ! -f /swapfile ]; then
+            echo "Creating 4GB swap file..."
+            sudo fallocate -l 4G /swapfile
+            sudo chmod 600 /swapfile
+            sudo mkswap /swapfile
+            sudo swapon /swapfile
+            echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+          elif ! swapon --show | grep -q /swapfile; then
+            sudo swapon /swapfile
+          fi
+
           sudo mkdir -p /opt/bdp/backups /opt/bdp/data
           sudo chown -R ubuntu:ubuntu /opt/bdp
 
@@ -179,10 +191,21 @@ jobs:
 
       - name: Health check
         run: |
-          echo "Waiting for services..."
-          sleep 30
+          echo "Waiting for services to stabilize..."
+          for i in $(seq 1 12); do
+            sleep 15
+            echo "Attempt $i/12..."
+            if ssh -i ~/.ssh/deploy_key ubuntu@${{ secrets.SERVER_IP }} \
+              'docker exec bdp-server curl -sf http://localhost:8000/health' 2>/dev/null; then
+              echo "Health check passed!"
+              exit 0
+            fi
+            echo "Not ready yet, retrying..."
+          done
+          echo "Health check failed after 12 attempts"
           ssh -i ~/.ssh/deploy_key ubuntu@${{ secrets.SERVER_IP }} \
-            'docker exec bdp-server curl -sf http://localhost:8000/health && echo " - Health check passed!"'
+            'docker compose -f /opt/bdp/docker-compose.yml ps && docker compose -f /opt/bdp/docker-compose.yml logs --tail=50 bdp-server'
+          exit 1
 
       - name: Summary
         if: success()

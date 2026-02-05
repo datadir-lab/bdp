@@ -24,6 +24,8 @@ services:
     image: ghcr.io/datadir-lab/bdp-server:latest
     container_name: bdp-server
     restart: unless-stopped
+    mem_limit: 6g
+    memswap_limit: 8g
     environment:
       # Server
       SERVER_HOST: "0.0.0.0"
@@ -40,7 +42,7 @@ services:
       STORAGE_S3_SECRET_KEY: "${STORAGE_S3_SECRET_KEY}"
       # Ingestion - Global Settings
       INGEST_ENABLED: "${INGEST_ENABLED:-true}"
-      INGEST_WORKER_THREADS: "4"
+      INGEST_WORKER_THREADS: "2"
       INGEST_MAX_RETRIES: "3"
       INGEST_JOB_TIMEOUT_SECS: "7200"
       # Ingestion - UniProt (Protein sequences)
