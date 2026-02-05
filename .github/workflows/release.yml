@@ -129,6 +129,7 @@ jobs:
     name: Build CLI (${{ matrix.target }})
     needs: [version, bump-versions]
     if: always() && (needs.bump-versions.result == 'success' || inputs.dry_run)
+    environment: ${{ inputs.environment || 'production' }}
     strategy:
       fail-fast: false
       matrix:
