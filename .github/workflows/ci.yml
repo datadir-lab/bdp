@@ -12,6 +12,7 @@ concurrency:
 
 permissions:
   contents: read
+  actions: write
   packages: write
 
 env:
@@ -275,4 +276,20 @@ jobs:
             exit 1
           fi
           echo "CI passed"
+
+  trigger-release:
+    name: Trigger Release
+    needs: [ci-success]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger release workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run release.yml \
+            --repo ${{ github.repository }} \
+            --ref main \
+            -f version_bump=patch \
+            -f environment=production
 
