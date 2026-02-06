@@ -62,7 +62,7 @@ pub async fn run(server_url: String, force: bool) -> Result<()> {
                 resolved_source.format.clone(),
                 resolved_source.checksum.clone(),
                 resolved_source.size,
-                resolved_source.external_version.clone(),
+                resolved_source.external_version.clone().unwrap_or_default(),
             );
             lockfile.add_source(spec.clone(), entry);
 
@@ -107,7 +107,7 @@ pub async fn run(server_url: String, force: bool) -> Result<()> {
             resolved_source.format.clone(),
             resolved_source.checksum.clone(),
             resolved_source.size,
-            resolved_source.external_version.clone(),
+            resolved_source.external_version.clone().unwrap_or_default(),
         );
         lockfile.add_source(spec.clone(), entry);
     }

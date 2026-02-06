@@ -68,12 +68,7 @@ impl ApiClient {
             tools: manifest.tools.clone(),
         };
 
-        let response = self
-            .client
-            .post(&url)
-            .json(&request)
-            .send()
-            .await?;
+        let response = self.client.post(&url).json(&request).send().await?;
 
         let status = response.status();
         if !status.is_success() {

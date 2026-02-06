@@ -1,8 +1,11 @@
 //! Search command implementation
 //!
 //! Interactive search for data sources and tools in the BDP registry.
+//! Features fzf-style multi-select with fuzzy filtering, bulk actions,
+//! and smart pipe detection.
 
 use crate::api::client::ApiClient;
+use crate::api::types::{SearchResponse, SearchResult};
 use crate::cache::search_cache::{SearchCache, SearchFilters};
 use crate::error::{CliError, Result};
 use colored::Colorize;
@@ -14,6 +17,7 @@ use tracing::{debug, warn};
 /// # Arguments
 ///
 /// * `query` - Search query terms (will be joined with spaces)
+/// * `org` - Optional filter by organization slug
 /// * `entry_type` - Optional filter by entry type (data_source, tool, organization)
 /// * `source_type` - Optional filter by source type (protein, genome, etc.)
 /// * `format` - Output format (interactive, compact, table, json)
@@ -24,6 +28,7 @@ use tracing::{debug, warn};
 #[allow(clippy::too_many_arguments)]
 pub async fn run(
     query: Vec<String>,
+    org: Option<String>,
     entry_type: Vec<String>,
     source_type: Vec<String>,
     format: String,
@@ -41,6 +46,7 @@ pub async fn run(
 
     debug!(
         query = %query_str,
+        org = ?org,
         entry_type = ?entry_type,
         source_type = ?source_type,
         format = %format,
@@ -59,7 +65,7 @@ pub async fn run(
     }
 
     // Create API client
-    let client = ApiClient::new(server_url.clone())?;
+    let client = ApiClient::new(server_url)?;
 
     // Determine if we should use interactive mode
     let use_interactive = should_use_interactive(&format, no_interactive);
@@ -80,24 +86,42 @@ pub async fn run(
     // Execute search with caching and retries
     println!("Searching for '{}'...", query_str);
 
+    // For interactive mode, fetch a larger page to maximize local filtering candidates
+    let fetch_limit = if use_interactive { 100 } else { limit };
+
     // Create cache filters
     let cache_filters = SearchFilters {
         type_filter: type_filter.clone(),
         source_type_filter: source_type_filter.clone(),
         organism: None,
         format: None,
+        org: org.clone(),
     };
 
     let search_results = execute_search_with_cache(
         &client,
         &query_str,
-        type_filter.clone(),
-        source_type_filter.clone(),
+        type_filter,
+        source_type_filter,
         page,
-        limit,
+        fetch_limit,
         &cache_filters,
     )
     .await?;
+
+    // Apply client-side org filter
+    let search_results = if let Some(ref org_filter) = org {
+        SearchResponse {
+            results: search_results
+                .results
+                .into_iter()
+                .filter(|r| r.organization_slug.eq_ignore_ascii_case(org_filter))
+                .collect(),
+            ..search_results
+        }
+    } else {
+        search_results
+    };
 
     if search_results.results.is_empty() {
         handle_empty_results(&query_str)?;
@@ -106,15 +130,7 @@ pub async fn run(
 
     // Display results based on mode
     if use_interactive {
-        let state = InteractiveState {
-            query: query_str.clone(),
-            type_filter: type_filter.clone(),
-            source_type_filter: source_type_filter.clone(),
-            limit,
-            current_page: page,
-            server_url,
-        };
-        display_interactive(search_results, state).await?;
+        display_interactive_multiselect(search_results).await?;
     } else {
         display_non_interactive(search_results, &format)?;
     }
@@ -145,7 +161,7 @@ async fn execute_search_with_cache(
     page: i32,
     limit: i32,
     cache_filters: &SearchFilters,
-) -> Result<crate::api::types::SearchResponse> {
+) -> Result<SearchResponse> {
     // Initialize cache
     let cache_dir = if let Ok(custom_cache) = std::env::var("BDP_CACHE_DIR") {
         std::path::PathBuf::from(custom_cache)
@@ -187,7 +203,7 @@ async fn execute_search(
     source_type_filter: Option<Vec<String>>,
     page: i32,
     limit: i32,
-) -> Result<crate::api::types::SearchResponse> {
+) -> Result<SearchResponse> {
     const MAX_RETRIES: u32 = 3;
     const INITIAL_BACKOFF_MS: u64 = 100;
 
@@ -293,134 +309,217 @@ fn find_similar_terms(query: &str) -> Vec<String> {
     suggestions
 }
 
-/// Interactive mode state for pagination
-struct InteractiveState {
-    query: String,
-    type_filter: Option<Vec<String>>,
-    source_type_filter: Option<Vec<String>>,
-    limit: i32,
-    current_page: i32,
-    server_url: String,
+/// Format a single search result as a display line for the MultiSelect picker.
+///
+/// Format: `org:slug -- Name [fmt1, fmt2] v1.0`
+fn format_result_line(r: &SearchResult) -> String {
+    let spec = format!("{}:{}", r.organization_slug, r.slug);
+    let fmts = if r.available_formats.is_empty() {
+        String::new()
+    } else {
+        format!(" [{}]", r.available_formats.join(", "))
+    };
+    let ver = r
+        .latest_version
+        .as_deref()
+        .map(|v| format!(" v{v}"))
+        .unwrap_or_default();
+    format!("{spec} -- {}{fmts}{ver}", r.name)
 }
 
-/// Display results in interactive mode
-async fn display_interactive(
-    results: crate::api::types::SearchResponse,
-    state: InteractiveState,
-) -> Result<()> {
-    use inquire::Select;
+/// Display results in interactive multi-select mode.
+///
+/// Users can fuzzy-filter results by typing, toggle selections with Space,
+/// confirm with Enter, and then choose bulk actions.
+async fn display_interactive_multiselect(results: SearchResponse) -> Result<()> {
+    use inquire::MultiSelect;
 
-    let mut current_results = results;
-    let mut current_page = state.current_page;
+    // Show result count summary
+    println!();
+    println!("{} Found {} results", "✓".green(), results.results.len());
+    println!();
 
-    loop {
-        // Display search summary
-        println!();
-        println!("{} Found {} results for your search", "✓".green(), current_results.total);
-        let total_pages =
-            (current_results.total as f64 / current_results.page_size as f64).ceil() as i32;
-        println!("  Showing page {}/{}", current_page, total_pages);
-        println!();
-
-        // Create selection options with formatted display
-        let options: Vec<String> = current_results
-            .results
-            .iter()
-            .map(|r| {
-                let spec = format!("{}:{}@{}", r.organization_slug, r.slug, r.latest_version.as_deref().unwrap_or("latest"));
-                let desc = r
-                    .description
-                    .as_ref()
-                    .map(|d| truncate_string(d, 60))
-                    .unwrap_or_else(|| "No description".to_string());
-                format!("{} - {}", spec.cyan(), desc)
-            })
-            .collect();
-
-        // Add pagination options if needed
-        let mut all_options = options.clone();
-        if current_page > 1 {
-            all_options.push(format!("{}", "← Previous page".yellow()));
-        }
-        if current_page < total_pages {
-            all_options.push(format!("{}", "→ Next page".yellow()));
-        }
-        all_options.push(format!("{}", "✕ Exit".red()));
-
-        // Show selection menu
-        let selection = Select::new("Select a data source:", all_options.clone())
-            .with_page_size(15)
-            .prompt();
-
-        match selection {
-            Ok(selected) => {
-                // Check for special options
-                if selected.contains("✕ Exit") {
-                    break;
-                } else if selected.contains("← Previous page") {
-                    // Fetch previous page
-                    current_page -= 1;
-                    println!("{}", "Loading previous page...".cyan());
-                    let client = ApiClient::new(state.server_url.clone())?;
-                    let cache_filters = SearchFilters {
-                        type_filter: state.type_filter.clone(),
-                        source_type_filter: state.source_type_filter.clone(),
-                        organism: None,
-                        format: None,
-                    };
-                    current_results = execute_search_with_cache(
-                        &client,
-                        &state.query,
-                        state.type_filter.clone(),
-                        state.source_type_filter.clone(),
-                        current_page,
-                        state.limit,
-                        &cache_filters,
-                    )
-                    .await?;
-                    continue;
-                } else if selected.contains("→ Next page") {
-                    // Fetch next page
-                    current_page += 1;
-                    println!("{}", "Loading next page...".cyan());
-                    let client = ApiClient::new(state.server_url.clone())?;
-                    let cache_filters = SearchFilters {
-                        type_filter: state.type_filter.clone(),
-                        source_type_filter: state.source_type_filter.clone(),
-                        organism: None,
-                        format: None,
-                    };
-                    current_results = execute_search_with_cache(
-                        &client,
-                        &state.query,
-                        state.type_filter.clone(),
-                        state.source_type_filter.clone(),
-                        current_page,
-                        state.limit,
-                        &cache_filters,
-                    )
-                    .await?;
-                    continue;
-                }
-
-                // Find the selected result
-                let selected_index = all_options
-                    .iter()
-                    .position(|o| o == &selected)
-                    .ok_or_else(|| CliError::config("Invalid selection"))?;
-
-                if selected_index < current_results.results.len() {
-                    let result = &current_results.results[selected_index];
-                    show_result_actions(result).await?;
-                }
-            },
-            Err(_) => {
-                // User cancelled (Ctrl+C or ESC)
-                break;
-            },
-        }
+    if results.results.is_empty() {
+        return Ok(());
     }
 
+    // Build display lines (one per result)
+    let display_lines: Vec<String> = results.results.iter().map(format_result_line).collect();
+
+    // Present multi-select picker
+    let selections = MultiSelect::new(
+        "Select sources (type to filter, Space to toggle, Enter to confirm):",
+        display_lines.clone(),
+    )
+    .with_page_size(15)
+    .with_vim_mode(true)
+    .prompt();
+
+    let selected_labels = match selections {
+        Ok(sel) if sel.is_empty() => {
+            println!("No sources selected.");
+            return Ok(());
+        },
+        Ok(sel) => sel,
+        Err(_) => {
+            // User cancelled (Esc / Ctrl+C)
+            return Ok(());
+        },
+    };
+
+    // Map selected labels back to SearchResult refs
+    let selected_results: Vec<&SearchResult> = selected_labels
+        .iter()
+        .filter_map(|label| {
+            display_lines
+                .iter()
+                .position(|l| l == label)
+                .map(|idx| &results.results[idx])
+        })
+        .collect();
+
+    if selected_results.is_empty() {
+        return Ok(());
+    }
+
+    // Show what was selected
+    println!();
+    println!(
+        "{} {} selected:",
+        selected_results.len().to_string().bold(),
+        if selected_results.len() == 1 {
+            "source"
+        } else {
+            "sources"
+        }
+    );
+    for r in &selected_results {
+        let ver = r.latest_version.as_deref().unwrap_or("latest");
+        println!("  {} {}:{}@{}", "•".blue(), r.organization_slug, r.slug, ver);
+    }
+    println!();
+
+    // Show bulk actions menu
+    show_bulk_actions(&selected_results).await?;
+
+    Ok(())
+}
+
+/// Show the bulk actions menu after multi-select.
+async fn show_bulk_actions(selected: &[&SearchResult]) -> Result<()> {
+    use inquire::Select;
+
+    let actions = vec![
+        "Add all to manifest (bdp.yml)",
+        "Copy all specs to clipboard",
+        "View details",
+        "Cancel",
+    ];
+
+    let action = Select::new("What would you like to do?", actions).prompt();
+
+    match action {
+        Ok("Add all to manifest (bdp.yml)") => {
+            add_multiple_to_manifest(selected)?;
+        },
+        Ok("Copy all specs to clipboard") => {
+            copy_multiple_to_clipboard(selected)?;
+        },
+        Ok("View details") => {
+            for r in selected {
+                display_result_details(r)?;
+            }
+        },
+        Ok("Cancel") | Err(_) => {},
+        _ => {},
+    }
+
+    Ok(())
+}
+
+/// Add multiple selected results to the manifest.
+///
+/// For each result, builds the spec with format suffix (prompting user if
+/// there are multiple formats). Skips duplicates, saves the manifest once
+/// at the end.
+fn add_multiple_to_manifest(selected: &[&SearchResult]) -> Result<()> {
+    use crate::manifest::Manifest;
+
+    let manifest_path = find_manifest_file()?;
+    let mut manifest = Manifest::load(&manifest_path)?;
+
+    let mut added = 0usize;
+    let mut skipped = 0usize;
+
+    for result in selected {
+        let spec = match build_manifest_spec(result) {
+            Ok(s) => s,
+            Err(e) => {
+                println!(
+                    "  {} Skipped {}:{} ({})",
+                    "⚠".yellow(),
+                    result.organization_slug,
+                    result.slug,
+                    e
+                );
+                skipped += 1;
+                continue;
+            },
+        };
+
+        if manifest.sources.contains(&spec) {
+            println!("  {} Already in manifest: {}", "⚠".yellow(), spec.cyan());
+            skipped += 1;
+            continue;
+        }
+
+        manifest.add_source(spec.clone());
+        println!("  {} {}", "✓".green(), spec.cyan());
+        added += 1;
+    }
+
+    // Save once
+    if added > 0 {
+        manifest.save(&manifest_path)?;
+    }
+
+    println!();
+    println!(
+        "Added {} source{}, skipped {} (already in manifest or cancelled)",
+        added,
+        if added == 1 { "" } else { "s" },
+        skipped,
+    );
+
+    Ok(())
+}
+
+/// Copy specs for all selected results to the clipboard.
+fn copy_multiple_to_clipboard(selected: &[&SearchResult]) -> Result<()> {
+    let specs: Vec<String> = selected
+        .iter()
+        .map(|r| {
+            let ver = r.latest_version.as_deref().unwrap_or("latest");
+            format!("{}:{}@{}", r.organization_slug, r.slug, ver)
+        })
+        .collect();
+
+    let joined = specs.join("\n");
+    match copy_to_clipboard(&joined) {
+        Ok(()) => {
+            println!("{} Copied {} specs to clipboard:", "✓".green(), specs.len());
+            for s in &specs {
+                println!("  {}", s.cyan());
+            }
+        },
+        Err(e) => {
+            println!("{} Failed to copy to clipboard: {}", "✗".red(), e);
+            println!("Specs:");
+            for s in &specs {
+                println!("  {}", s.cyan());
+            }
+        },
+    }
     Ok(())
 }
 
@@ -429,7 +528,7 @@ async fn display_interactive(
 ///
 /// If the source has multiple formats, prompts the user to choose.
 /// If no formats are available, returns the spec without a format suffix.
-fn build_manifest_spec(result: &crate::api::types::SearchResult) -> Result<String> {
+fn build_manifest_spec(result: &SearchResult) -> Result<String> {
     use inquire::Select;
 
     let version = result.latest_version.as_deref().unwrap_or("latest");
@@ -445,7 +544,7 @@ fn build_manifest_spec(result: &crate::api::types::SearchResult) -> Result<Strin
         },
         _ => {
             let choice = Select::new(
-                "Which format?",
+                &format!("Which format for {}:{}?", result.organization_slug, result.slug),
                 result.available_formats.clone(),
             )
             .prompt()
@@ -455,84 +554,8 @@ fn build_manifest_spec(result: &crate::api::types::SearchResult) -> Result<Strin
     }
 }
 
-/// Show action menu for a selected result
-async fn show_result_actions(result: &crate::api::types::SearchResult) -> Result<()> {
-    use inquire::Select;
-
-    let display_spec = format!(
-        "{}:{}@{}",
-        result.organization_slug,
-        result.slug,
-        result.latest_version.as_deref().unwrap_or("latest")
-    );
-
-    loop {
-        println!();
-        println!("{}", format!("Selected: {}", display_spec).bold());
-        if !result.available_formats.is_empty() {
-            println!("  Formats: {}", result.available_formats.join(", ").cyan());
-        }
-        println!();
-
-        let actions = vec![
-            "📋 View details",
-            "➕ Add to manifest (bdp.yml)",
-            "📝 Copy spec to clipboard",
-            "← Back to results",
-        ];
-
-        let action = Select::new("What would you like to do?", actions).prompt();
-
-        match action {
-            Ok("📋 View details") => {
-                display_result_details(result)?;
-            },
-            Ok("➕ Add to manifest (bdp.yml)") => {
-                match build_manifest_spec(result) {
-                    Ok(spec) => match add_to_manifest(&spec).await {
-                        Ok(()) => {
-                            println!("{} Added to manifest: {}", "✓".green(), spec.cyan());
-                        },
-                        Err(e) => {
-                            println!("{} Failed to add to manifest: {}", "✗".red(), e);
-                            println!("You can manually add to bdp.yml:");
-                            println!("  sources:");
-                            println!("    - \"{}\"", spec.cyan());
-                        },
-                    },
-                    Err(e) => {
-                        println!("{} {}", "✗".red(), e);
-                    },
-                }
-            },
-            Ok("📝 Copy spec to clipboard") => {
-                match build_manifest_spec(result) {
-                    Ok(spec) => match copy_to_clipboard(&spec) {
-                        Ok(()) => {
-                            println!("{} Copied to clipboard: {}", "✓".green(), spec.cyan());
-                        },
-                        Err(e) => {
-                            println!("{} Failed to copy to clipboard: {}", "✗".red(), e);
-                            println!("Spec: {}", spec.cyan());
-                        },
-                    },
-                    Err(e) => {
-                        println!("{} {}", "✗".red(), e);
-                    },
-                }
-            },
-            Ok("← Back to results") | Err(_) => {
-                break;
-            },
-            _ => {},
-        }
-    }
-
-    Ok(())
-}
-
 /// Display detailed information about a search result
-fn display_result_details(result: &crate::api::types::SearchResult) -> Result<()> {
+fn display_result_details(result: &SearchResult) -> Result<()> {
     use comfy_table::{modifiers::UTF8_ROUND_CORNERS, presets::UTF8_FULL, Table};
 
     println!();
@@ -561,36 +584,60 @@ fn display_result_details(result: &crate::api::types::SearchResult) -> Result<()
     println!();
 
     // Spec for copying
-    let spec = format!("{}:{}@{}", result.organization_slug, result.slug, result.latest_version.as_deref().unwrap_or("latest"));
+    let spec = format!(
+        "{}:{}@{}",
+        result.organization_slug,
+        result.slug,
+        result.latest_version.as_deref().unwrap_or("latest")
+    );
     println!("Spec: {}", spec.cyan());
     println!();
 
     Ok(())
 }
 
-/// Display results in non-interactive mode
-fn display_non_interactive(results: crate::api::types::SearchResponse, format: &str) -> Result<()> {
+/// Display results in non-interactive mode with smart pipe detection.
+fn display_non_interactive(results: SearchResponse, format: &str) -> Result<()> {
     match format {
         "compact" => display_compact(&results),
         "table" => display_table(&results),
         "json" => display_json(&results),
         _ => {
-            // Default to table for non-interactive
-            display_table(&results)
+            // Default: if piped, use compact specs; if TTY, use table
+            if io::stdout().is_terminal() {
+                display_table(&results)
+            } else {
+                display_compact(&results)
+            }
         },
     }
 }
 
-/// Display results in compact format (one per line)
-fn display_compact(results: &crate::api::types::SearchResponse) -> Result<()> {
+/// Display results in compact format.
+///
+/// When piped (non-TTY): bare specs only (`org:slug@version`, one per line).
+/// When TTY: rich format (`org:slug -- Name [formats] vX.Y`).
+fn display_compact(results: &SearchResponse) -> Result<()> {
+    let is_tty = io::stdout().is_terminal();
+
     for result in &results.results {
-        println!("{}:{}@{}", result.organization_slug, result.slug, result.latest_version.as_deref().unwrap_or("latest"));
+        if is_tty {
+            println!("{}", format_result_line(result));
+        } else {
+            // Bare spec for piping
+            println!(
+                "{}:{}@{}",
+                result.organization_slug,
+                result.slug,
+                result.latest_version.as_deref().unwrap_or("latest")
+            );
+        }
     }
     Ok(())
 }
 
 /// Display results in table format
-fn display_table(results: &crate::api::types::SearchResponse) -> Result<()> {
+fn display_table(results: &SearchResponse) -> Result<()> {
     use comfy_table::{modifiers::UTF8_ROUND_CORNERS, presets::UTF8_FULL, Table};
 
     let mut table = Table::new();
@@ -631,7 +678,7 @@ fn display_table(results: &crate::api::types::SearchResponse) -> Result<()> {
 }
 
 /// Display results in JSON format
-fn display_json(results: &crate::api::types::SearchResponse) -> Result<()> {
+fn display_json(results: &SearchResponse) -> Result<()> {
     let json = serde_json::to_string_pretty(results)?;
     println!("{}", json);
     Ok(())
@@ -647,6 +694,7 @@ fn truncate_string(s: &str, max_len: usize) -> String {
 }
 
 /// Add a source to the manifest (bdp.yml)
+#[cfg(test)]
 async fn add_to_manifest(spec: &str) -> Result<()> {
     use crate::manifest::Manifest;
 
@@ -734,6 +782,54 @@ mod tests {
         assert!(!should_use_interactive("table", false));
         assert!(!should_use_interactive("interactive", true));
         assert!(!should_use_interactive("json", false));
+    }
+
+    #[test]
+    fn test_format_result_line() {
+        let result = SearchResult {
+            id: "test-id".to_string(),
+            organization_slug: "uniprot".to_string(),
+            slug: "P01308".to_string(),
+            name: "Insulin".to_string(),
+            description: Some("Insulin protein".to_string()),
+            entry_type: "data_source".to_string(),
+            source_type: Some("protein".to_string()),
+            latest_version: Some("1.0".to_string()),
+            external_version: None,
+            available_formats: vec!["fasta".to_string(), "xml".to_string()],
+            organism: None,
+            rank: None,
+        };
+
+        let line = format_result_line(&result);
+        assert!(line.contains("uniprot:P01308"));
+        assert!(line.contains("Insulin"));
+        assert!(line.contains("[fasta, xml]"));
+        assert!(line.contains("v1.0"));
+    }
+
+    #[test]
+    fn test_format_result_line_no_formats() {
+        let result = SearchResult {
+            id: "test-id".to_string(),
+            organization_slug: "ncbi".to_string(),
+            slug: "NC_000001".to_string(),
+            name: "Chromosome 1".to_string(),
+            description: None,
+            entry_type: "data_source".to_string(),
+            source_type: None,
+            latest_version: None,
+            external_version: None,
+            available_formats: vec![],
+            organism: None,
+            rank: None,
+        };
+
+        let line = format_result_line(&result);
+        assert!(line.contains("ncbi:NC_000001"));
+        assert!(line.contains("Chromosome 1"));
+        assert!(!line.contains('['));
+        assert!(!line.contains('v'));
     }
 
     #[tokio::test]

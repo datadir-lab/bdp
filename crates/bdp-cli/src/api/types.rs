@@ -63,11 +63,13 @@ pub struct ResolvedSource {
     /// File size in bytes
     pub size: i64,
 
-    /// External version string
-    pub external_version: String,
+    /// External version string (may be null/missing from server)
+    #[serde(default)]
+    pub external_version: Option<String>,
 
-    /// Download URL (presigned if from S3)
-    pub download_url: String,
+    /// Download URL (presigned if from S3; not always present)
+    #[serde(default)]
+    pub download_url: Option<String>,
 
     /// Number of dependencies
     #[serde(skip_serializing_if = "Option::is_none")]

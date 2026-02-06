@@ -34,34 +34,48 @@ tools: []
     manifest_path
 }
 
-/// Helper to create a mock search response
+/// Helper to create a mock search response matching the server API format.
+///
+/// The server returns: `{ "success": true, "data": [...], "meta": { "pagination": { ... } } }`
+/// Each item in `data` is a `SearchResult` with fields like `organization_slug`, `slug`, etc.
 fn mock_search_response() -> serde_json::Value {
     serde_json::json!({
         "success": true,
-        "data": {
-            "results": [
-                {
-                    "id": "123e4567-e89b-12d3-a456-426614174000",
-                    "organization": "uniprot",
-                    "name": "P01308",
-                    "version": "1.0",
-                    "description": "Insulin precursor",
-                    "format": "fasta",
-                    "entry_type": "data_source"
-                },
-                {
-                    "id": "223e4567-e89b-12d3-a456-426614174001",
-                    "organization": "genbank",
-                    "name": "NC_000001",
-                    "version": "2.0",
-                    "description": "Homo sapiens chromosome 1",
-                    "format": "gbk",
-                    "entry_type": "data_source"
-                }
-            ],
-            "total": 2,
-            "page": 1,
-            "page_size": 10
+        "data": [
+            {
+                "id": "123e4567-e89b-12d3-a456-426614174000",
+                "organization_slug": "uniprot",
+                "slug": "P01308",
+                "name": "P01308",
+                "description": "Insulin precursor",
+                "entry_type": "data_source",
+                "source_type": "protein",
+                "latest_version": "1.0",
+                "available_formats": ["fasta"],
+                "rank": 1.0
+            },
+            {
+                "id": "223e4567-e89b-12d3-a456-426614174001",
+                "organization_slug": "genbank",
+                "slug": "NC_000001",
+                "name": "NC_000001",
+                "description": "Homo sapiens chromosome 1",
+                "entry_type": "data_source",
+                "source_type": "genome",
+                "latest_version": "2.0",
+                "available_formats": ["gbk"],
+                "rank": 0.8
+            }
+        ],
+        "meta": {
+            "pagination": {
+                "page": 1,
+                "pages": 1,
+                "per_page": 10,
+                "total": 2,
+                "has_next": false,
+                "has_prev": false
+            }
         }
     })
 }
@@ -70,11 +84,16 @@ fn mock_search_response() -> serde_json::Value {
 fn empty_search_response() -> serde_json::Value {
     serde_json::json!({
         "success": true,
-        "data": {
-            "results": [],
-            "total": 0,
-            "page": 1,
-            "page_size": 10
+        "data": [],
+        "meta": {
+            "pagination": {
+                "page": 1,
+                "pages": 0,
+                "per_page": 10,
+                "total": 0,
+                "has_next": false,
+                "has_prev": false
+            }
         }
     })
 }
@@ -155,9 +174,8 @@ async fn test_search_json_format() {
 
     cmd.assert()
         .success()
-        .stdout(predicate::str::contains(r#""organization": "uniprot""#))
-        .stdout(predicate::str::contains(r#""name": "P01308""#))
-        .stdout(predicate::str::contains(r#""format": "fasta""#));
+        .stdout(predicate::str::contains(r#""organization_slug": "uniprot""#))
+        .stdout(predicate::str::contains(r#""slug": "P01308""#));
 }
 
 #[tokio::test]
@@ -529,4 +547,33 @@ async fn test_search_fuzzy_suggestions() {
         .success()
         .stdout(predicate::str::contains("No results found"))
         .stdout(predicate::str::contains("Did you mean"));
+}
+
+#[tokio::test]
+async fn test_search_with_org_filter() {
+    let mock_server = MockServer::start().await;
+
+    Mock::given(method("GET"))
+        .and(path("/api/v1/search"))
+        .and(query_param("query", "insulin"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(mock_search_response()))
+        .mount(&mock_server)
+        .await;
+
+    // Filter to uniprot only — should show P01308 but not NC_000001
+    let mut cmd = Command::cargo_bin("bdp").unwrap();
+    cmd.arg("search")
+        .arg("insulin")
+        .arg("--org")
+        .arg("uniprot")
+        .arg("--no-interactive")
+        .arg("--format")
+        .arg("compact")
+        .arg("--server-url")
+        .arg(mock_server.uri());
+
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("uniprot:P01308@1.0"))
+        .stdout(predicate::str::contains("genbank:NC_000001").not());
 }

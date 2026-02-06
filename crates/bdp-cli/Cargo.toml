@@ -96,6 +96,14 @@ wiremock = "0.6"
 testcontainers = "0.26"
 serial_test = "3.2"
 
+# Real E2E testing (testcontainers + in-process axum server)
+testcontainers-modules = { version = "0.14", features = ["postgres"] }
+# NOTE: bdp-server dependency removed to avoid apalis-postgres sqlx macro compilation issues
+# Test infrastructure is self-contained in the test files
+sqlx = { workspace = true, features = ["runtime-tokio", "postgres"] }
+axum = { workspace = true }
+tower-http = { workspace = true }
+
 # Test utilities from workspace
 tokio = { workspace = true, features = ["test-util"] }
 

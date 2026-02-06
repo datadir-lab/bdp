@@ -155,6 +155,10 @@ pub enum Commands {
         #[arg(required = true)]
         query: Vec<String>,
 
+        /// Filter by organization (e.g., uniprot, ncbi)
+        #[arg(short = 'o', long = "org")]
+        org: Option<String>,
+
         /// Filter by entry type (can be repeated)
         #[arg(short = 't', long = "type")]
         entry_type: Vec<String>,

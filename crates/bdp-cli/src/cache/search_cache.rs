@@ -220,6 +220,8 @@ pub struct SearchFilters {
     pub source_type_filter: Option<Vec<String>>,
     pub organism: Option<String>,
     pub format: Option<String>,
+    #[serde(default)]
+    pub org: Option<String>,
 }
 
 /// Cache statistics
@@ -259,6 +261,7 @@ mod tests {
             source_type_filter: None,
             organism: None,
             format: None,
+            org: None,
         }
     }
 

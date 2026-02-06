@@ -118,6 +118,7 @@ async fn execute_command(cli: &Cli) -> bdp_cli::Result<()> {
 
         Commands::Search {
             query,
+            org,
             entry_type,
             source_type,
             format,
@@ -127,6 +128,7 @@ async fn execute_command(cli: &Cli) -> bdp_cli::Result<()> {
         } => {
             bdp_cli::commands::search::run(
                 query.clone(),
+                org.clone(),
                 entry_type.clone(),
                 source_type.clone(),
                 format.clone(),
