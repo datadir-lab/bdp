@@ -31,8 +31,7 @@ impl GenbankFtp {
         let path_owned = path.to_string();
 
         let data = tokio::task::spawn_blocking(move || -> Result<Vec<u8>> {
-            let mut ftp = FtpStream::connect(&host)
-                .context("Failed to connect to FTP server")?;
+            let mut ftp = FtpStream::connect(&host).context("Failed to connect to FTP server")?;
             ftp.login("anonymous", "anonymous")
                 .context("Failed to login")?;
             ftp.transfer_type(suppaftp::types::FileType::Binary)
@@ -67,8 +66,7 @@ impl GenbankFtp {
         let base_path_owned = base_path.to_string();
 
         let files = tokio::task::spawn_blocking(move || -> Result<Vec<(String, u64)>> {
-            let mut ftp = FtpStream::connect(&host)
-                .context("Failed to connect to FTP server")?;
+            let mut ftp = FtpStream::connect(&host).context("Failed to connect to FTP server")?;
             ftp.login("anonymous", "anonymous")
                 .context("Failed to login")?;
             ftp.cwd(&base_path_owned)
@@ -227,8 +225,7 @@ impl GenbankFtp {
         let path = path.to_string();
 
         tokio::task::spawn_blocking(move || {
-            let mut ftp = FtpStream::connect(&host)
-                .context("Failed to connect to FTP server")?;
+            let mut ftp = FtpStream::connect(&host).context("Failed to connect to FTP server")?;
             ftp.login("anonymous", "anonymous")
                 .context("Failed to login")?;
             ftp.transfer_type(suppaftp::types::FileType::Binary)
@@ -257,8 +254,7 @@ impl GenbankFtp {
         let base_path_owned = base_path.to_string();
 
         let directories = tokio::task::spawn_blocking(move || -> Result<Vec<String>> {
-            let mut ftp = FtpStream::connect(&host)
-                .context("Failed to connect to FTP server")?;
+            let mut ftp = FtpStream::connect(&host).context("Failed to connect to FTP server")?;
             ftp.login("anonymous", "anonymous")
                 .context("Failed to login")?;
             ftp.cwd(&base_path_owned)
