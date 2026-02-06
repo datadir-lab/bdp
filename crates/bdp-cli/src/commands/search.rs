@@ -424,15 +424,54 @@ async fn display_interactive(
     Ok(())
 }
 
+/// Build the full source spec including format suffix.
+/// Format: `org:slug-format@version` (e.g., `uniprot:P01308-fasta@1.0`)
+///
+/// If the source has multiple formats, prompts the user to choose.
+/// If no formats are available, returns the spec without a format suffix.
+fn build_manifest_spec(result: &crate::api::types::SearchResult) -> Result<String> {
+    use inquire::Select;
+
+    let version = result.latest_version.as_deref().unwrap_or("latest");
+
+    match result.available_formats.len() {
+        0 => {
+            // No formats known — return without format suffix
+            Ok(format!("{}:{}@{}", result.organization_slug, result.slug, version))
+        },
+        1 => {
+            let fmt = &result.available_formats[0];
+            Ok(format!("{}:{}-{}@{}", result.organization_slug, result.slug, fmt, version))
+        },
+        _ => {
+            let choice = Select::new(
+                "Which format?",
+                result.available_formats.clone(),
+            )
+            .prompt()
+            .map_err(|_| CliError::config("Format selection cancelled"))?;
+            Ok(format!("{}:{}-{}@{}", result.organization_slug, result.slug, choice, version))
+        },
+    }
+}
+
 /// Show action menu for a selected result
 async fn show_result_actions(result: &crate::api::types::SearchResult) -> Result<()> {
     use inquire::Select;
 
-    let spec = format!("{}:{}@{}", result.organization_slug, result.slug, result.latest_version.as_deref().unwrap_or("latest"));
+    let display_spec = format!(
+        "{}:{}@{}",
+        result.organization_slug,
+        result.slug,
+        result.latest_version.as_deref().unwrap_or("latest")
+    );
 
     loop {
         println!();
-        println!("{}", format!("Selected: {}", spec).bold());
+        println!("{}", format!("Selected: {}", display_spec).bold());
+        if !result.available_formats.is_empty() {
+            println!("  Formats: {}", result.available_formats.join(", ").cyan());
+        }
         println!();
 
         let actions = vec![
@@ -448,25 +487,39 @@ async fn show_result_actions(result: &crate::api::types::SearchResult) -> Result
             Ok("📋 View details") => {
                 display_result_details(result)?;
             },
-            Ok("➕ Add to manifest (bdp.yml)") => match add_to_manifest(&spec).await {
-                Ok(()) => {
-                    println!("{} Added to manifest: {}", "✓".green(), spec.cyan());
-                },
-                Err(e) => {
-                    println!("{} Failed to add to manifest: {}", "✗".red(), e);
-                    println!("You can manually add to bdp.yml:");
-                    println!("  sources:");
-                    println!("    - spec: \"{}\"", spec.cyan());
-                },
+            Ok("➕ Add to manifest (bdp.yml)") => {
+                match build_manifest_spec(result) {
+                    Ok(spec) => match add_to_manifest(&spec).await {
+                        Ok(()) => {
+                            println!("{} Added to manifest: {}", "✓".green(), spec.cyan());
+                        },
+                        Err(e) => {
+                            println!("{} Failed to add to manifest: {}", "✗".red(), e);
+                            println!("You can manually add to bdp.yml:");
+                            println!("  sources:");
+                            println!("    - \"{}\"", spec.cyan());
+                        },
+                    },
+                    Err(e) => {
+                        println!("{} {}", "✗".red(), e);
+                    },
+                }
             },
-            Ok("📝 Copy spec to clipboard") => match copy_to_clipboard(&spec) {
-                Ok(()) => {
-                    println!("{} Copied to clipboard: {}", "✓".green(), spec.cyan());
-                },
-                Err(e) => {
-                    println!("{} Failed to copy to clipboard: {}", "✗".red(), e);
-                    println!("Spec: {}", spec.cyan());
-                },
+            Ok("📝 Copy spec to clipboard") => {
+                match build_manifest_spec(result) {
+                    Ok(spec) => match copy_to_clipboard(&spec) {
+                        Ok(()) => {
+                            println!("{} Copied to clipboard: {}", "✓".green(), spec.cyan());
+                        },
+                        Err(e) => {
+                            println!("{} Failed to copy to clipboard: {}", "✗".red(), e);
+                            println!("Spec: {}", spec.cyan());
+                        },
+                    },
+                    Err(e) => {
+                        println!("{} {}", "✗".red(), e);
+                    },
+                }
             },
             Ok("← Back to results") | Err(_) => {
                 break;

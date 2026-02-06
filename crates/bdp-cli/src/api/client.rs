@@ -73,8 +73,22 @@ impl ApiClient {
             .post(&url)
             .json(&request)
             .send()
-            .await?
-            .error_for_status()?;
+            .await?;
+
+        let status = response.status();
+        if !status.is_success() {
+            // Try to extract the server's error message from the response body
+            let body = response.text().await.unwrap_or_default();
+            if let Ok(api_err) = serde_json::from_str::<ApiResponse<serde_json::Value>>(&body) {
+                if let Some(err_msg) = api_err.error {
+                    return Err(CliError::api(err_msg));
+                }
+            }
+            return Err(CliError::api(format!(
+                "Server returned {} for resolve. Check that all source specifications use format 'org:name-format@version' (e.g., 'uniprot:P01308-fasta@1.0').",
+                status
+            )));
+        }
 
         let api_response: ApiResponse<ResolvedManifest> = response.json().await?;
 
