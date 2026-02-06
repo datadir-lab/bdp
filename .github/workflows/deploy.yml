@@ -173,32 +173,11 @@ jobs:
             docker exec bdp-postgres psql -U bdp -c "ALTER USER bdp PASSWORD '${POSTGRES_PASSWORD}';" || true
           fi
 
-          # Stage 1: Start server + traefik (without web dependency)
-          docker compose up -d --force-recreate bdp-server bdp-traefik || {
-            echo "Server/traefik start failed, showing logs..."
+          # Start all services at once (faster, no staging needed)
+          # Health checks are handled by docker-compose healthcheck + the next step
+          docker compose up -d --force-recreate --remove-orphans || {
+            echo "Service start failed, showing logs..."
             docker compose logs --tail=50
-            exit 1
-          }
-
-          # Stage 2: Wait for server to become healthy
-          echo "Waiting for server to become healthy..."
-          for i in $(seq 1 30); do
-            if docker exec bdp-server curl -sf http://localhost:8000/health > /dev/null 2>&1; then
-              echo "Server healthy after $i attempts"
-              break
-            fi
-            if [ $i -eq 30 ]; then
-              echo "Server failed to become healthy after 30 attempts"
-              docker compose logs bdp-server --tail=50
-              exit 1
-            fi
-            sleep 5
-          done
-
-          # Stage 3: Start web (depends on healthy server)
-          docker compose up -d --force-recreate bdp-web || {
-            echo "Web start failed, showing logs..."
-            docker compose logs bdp-web --tail=50
             exit 1
           }
 
