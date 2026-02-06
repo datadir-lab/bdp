@@ -12,6 +12,26 @@ pub struct ApiResponse<T> {
     pub data: T,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub meta: Option<ResponseMeta>,
+}
+
+/// Response metadata (pagination, etc.)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ResponseMeta {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pagination: Option<Pagination>,
+}
+
+/// Pagination metadata
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Pagination {
+    pub page: i32,
+    pub pages: i32,
+    pub per_page: i32,
+    pub total: i64,
+    pub has_next: bool,
+    pub has_prev: bool,
 }
 
 /// Request to resolve manifest dependencies
@@ -103,7 +123,7 @@ pub struct Organization {
     pub is_system: bool,
 }
 
-/// Search results
+/// Search results (data is a flat array; pagination is in ApiResponse.meta)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchResponse {
     pub results: Vec<SearchResult>,
@@ -112,16 +132,35 @@ pub struct SearchResponse {
     pub page_size: i32,
 }
 
-/// A single search result
+/// A single search result matching the server API
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchResult {
     pub id: String,
-    pub organization: String,
+    pub organization_slug: String,
+    pub slug: String,
     pub name: String,
-    pub version: String,
     pub description: Option<String>,
-    pub format: String,
     pub entry_type: String,
+    #[serde(default)]
+    pub source_type: Option<String>,
+    #[serde(default)]
+    pub latest_version: Option<String>,
+    #[serde(default)]
+    pub external_version: Option<String>,
+    #[serde(default)]
+    pub available_formats: Vec<String>,
+    #[serde(default)]
+    pub organism: Option<SearchOrganism>,
+    #[serde(default)]
+    pub rank: Option<f64>,
+}
+
+/// Organism info in search results
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SearchOrganism {
+    pub scientific_name: String,
+    #[serde(default)]
+    pub ncbi_taxonomy_id: Option<i64>,
 }
 
 /// Query request payload
@@ -147,6 +186,7 @@ mod tests {
             success: true,
             data: "test data".to_string(),
             error: None,
+            meta: None,
         };
 
         let json = serde_json::to_string(&response).unwrap();

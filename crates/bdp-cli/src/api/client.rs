@@ -171,7 +171,8 @@ impl ApiClient {
 
         let response = self.client.get(&url).send().await?.error_for_status()?;
 
-        let api_response: ApiResponse<SearchResponse> = response.json().await?;
+        // Server returns data as array with pagination in meta
+        let api_response: ApiResponse<Vec<SearchResult>> = response.json().await?;
 
         if !api_response.success {
             return Err(CliError::api(
@@ -184,7 +185,18 @@ impl ApiClient {
             ));
         }
 
-        Ok(api_response.data)
+        // Build SearchResponse from flat array + meta pagination
+        let pagination = api_response
+            .meta
+            .as_ref()
+            .and_then(|m| m.pagination.as_ref());
+
+        Ok(SearchResponse {
+            results: api_response.data,
+            total: pagination.map_or(0, |p| p.total),
+            page: pagination.map_or(1, |p| p.page),
+            page_size: pagination.map_or(20, |p| p.per_page),
+        })
     }
 
     /// List all organizations

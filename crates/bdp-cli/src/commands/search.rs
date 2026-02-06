@@ -7,7 +7,7 @@ use crate::cache::search_cache::{SearchCache, SearchFilters};
 use crate::error::{CliError, Result};
 use colored::Colorize;
 use std::io::{self, IsTerminal};
-use tracing::{debug, info, warn};
+use tracing::{debug, warn};
 
 /// Run the search command
 ///
@@ -327,7 +327,7 @@ async fn display_interactive(
             .results
             .iter()
             .map(|r| {
-                let spec = format!("{}:{}@{}", r.organization, r.name, r.version);
+                let spec = format!("{}:{}@{}", r.organization_slug, r.slug, r.latest_version.as_deref().unwrap_or("latest"));
                 let desc = r
                     .description
                     .as_ref()
@@ -428,7 +428,7 @@ async fn display_interactive(
 async fn show_result_actions(result: &crate::api::types::SearchResult) -> Result<()> {
     use inquire::Select;
 
-    let spec = format!("{}:{}@{}", result.organization, result.name, result.version);
+    let spec = format!("{}:{}@{}", result.organization_slug, result.slug, result.latest_version.as_deref().unwrap_or("latest"));
 
     loop {
         println!();
@@ -494,10 +494,10 @@ fn display_result_details(result: &crate::api::types::SearchResult) -> Result<()
         .apply_modifier(UTF8_ROUND_CORNERS);
 
     table.add_row(vec!["ID", &result.id]);
-    table.add_row(vec!["Organization", &result.organization]);
+    table.add_row(vec!["Organization", &result.organization_slug]);
     table.add_row(vec!["Name", &result.name]);
-    table.add_row(vec!["Version", &result.version]);
-    table.add_row(vec!["Format", &result.format]);
+    table.add_row(vec!["Version", result.latest_version.as_deref().unwrap_or("latest")]);
+    table.add_row(vec!["Formats", &result.available_formats.join(", ")]);
     table.add_row(vec!["Type", &result.entry_type]);
 
     if let Some(ref desc) = result.description {
@@ -508,7 +508,7 @@ fn display_result_details(result: &crate::api::types::SearchResult) -> Result<()
     println!();
 
     // Spec for copying
-    let spec = format!("{}:{}@{}", result.organization, result.name, result.version);
+    let spec = format!("{}:{}@{}", result.organization_slug, result.slug, result.latest_version.as_deref().unwrap_or("latest"));
     println!("Spec: {}", spec.cyan());
     println!();
 
@@ -531,7 +531,7 @@ fn display_non_interactive(results: crate::api::types::SearchResponse, format: &
 /// Display results in compact format (one per line)
 fn display_compact(results: &crate::api::types::SearchResponse) -> Result<()> {
     for result in &results.results {
-        println!("{}:{}@{}", result.organization, result.name, result.version);
+        println!("{}:{}@{}", result.organization_slug, result.slug, result.latest_version.as_deref().unwrap_or("latest"));
     }
     Ok(())
 }
@@ -547,7 +547,7 @@ fn display_table(results: &crate::api::types::SearchResponse) -> Result<()> {
         .set_header(vec!["Source", "Name", "Format", "Type", "Description"]);
 
     for result in &results.results {
-        let source = format!("{}:{}", result.organization, result.name);
+        let source = format!("{}:{}", result.organization_slug, result.slug);
         let description = result
             .description
             .as_ref()
@@ -557,7 +557,7 @@ fn display_table(results: &crate::api::types::SearchResponse) -> Result<()> {
         table.add_row(vec![
             source,
             result.name.clone(),
-            result.format.clone(),
+            result.available_formats.join(", "),
             result.entry_type.clone(),
             description,
         ]);
