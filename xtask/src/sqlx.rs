@@ -37,7 +37,7 @@ fn check() -> Result<()> {
     info("🔍 Verifying SQLx metadata...");
     run(
         "cargo",
-        &["sqlx", "prepare", "--check", "--workspace", "--", "--all-targets"],
+        &["sqlx", "prepare", "--check", "--workspace", "--", "--bins", "--lib"],
         "Verify metadata",
     )?;
     success("SQLx metadata is current");

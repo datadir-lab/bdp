@@ -22,6 +22,7 @@ pub fn run(cmd: &str, args: &[&str], description: &str) -> Result<()> {
 }
 
 /// Execute and capture output
+#[allow(dead_code)]
 pub fn run_output(cmd: &str, args: &[&str]) -> Result<String> {
     let output = Command::new(cmd)
         .args(args)
