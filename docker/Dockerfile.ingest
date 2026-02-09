@@ -1,6 +1,6 @@
 # Multi-stage build for BDP Ingest service with cron support
 # Stage 1: Builder
-FROM rust:1.85 AS builder
+FROM rust:1.88 AS builder
 
 LABEL maintainer="BDP Team"
 LABEL description="BDP Ingest - Data ingestion service"
