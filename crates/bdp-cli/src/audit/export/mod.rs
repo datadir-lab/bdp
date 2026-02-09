@@ -1,6 +1,7 @@
 //! Audit trail export functionality
 //!
-//! Provides export formats for regulatory compliance and research documentation.
+//! Provides export formats for regulatory compliance and research
+//! documentation.
 
 pub mod das;
 pub mod ema;
@@ -9,6 +10,8 @@ pub mod formats;
 pub mod nih;
 pub mod snapshot;
 
+use std::{path::PathBuf, sync::Arc};
+
 pub use das::DasExporter;
 pub use ema::EmaExporter;
 pub use fda::FdaExporter;
@@ -16,10 +19,7 @@ pub use formats::{ExportFormat, ExportOptions};
 pub use nih::NihExporter;
 pub use snapshot::SnapshotManager;
 
-use crate::audit::logger::AuditLogger;
-use crate::error::Result;
-use std::path::PathBuf;
-use std::sync::Arc;
+use crate::{audit::logger::AuditLogger, error::Result};
 
 /// Main export interface
 pub struct AuditExporter {

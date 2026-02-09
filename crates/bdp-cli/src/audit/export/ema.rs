@@ -1,13 +1,14 @@
 //! EMA ALCOA++ compliance export
 
-use crate::audit::export::formats::ExportOptions;
-use crate::audit::logger::AuditLogger;
-use crate::error::{CliError, Result};
+use std::{fs, path::PathBuf, sync::Arc};
+
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
-use std::fs;
-use std::path::PathBuf;
-use std::sync::Arc;
+
+use crate::{
+    audit::{export::formats::ExportOptions, logger::AuditLogger},
+    error::{CliError, Result},
+};
 
 /// EMA ALCOA++ compliance report
 #[derive(Debug, Serialize, Deserialize)]
@@ -77,7 +78,10 @@ impl EmaExporter {
         let report = EmaReport {
             alcoa_plus_compliance_report: AlcoaPlusReport {
                 generated_at: Utc::now().to_rfc3339(),
-                project: options.project_name.as_ref().zip(options.project_version.as_ref())
+                project: options
+                    .project_name
+                    .as_ref()
+                    .zip(options.project_version.as_ref())
                     .map(|(name, version)| ProjectInfo {
                         name: name.clone(),
                         version: version.clone(),
@@ -92,7 +96,9 @@ impl EmaExporter {
                 },
                 legible: ComplianceItem {
                     status: "compliant".to_string(),
-                    evidence: "Human-readable JSON/YAML/Markdown exports, machine-processable SQLite database".to_string(),
+                    evidence: "Human-readable JSON/YAML/Markdown exports, machine-processable \
+                               SQLite database"
+                        .to_string(),
                     details: Some(serde_json::json!({
                         "formats": ["JSON", "YAML", "Markdown", "SQLite"]
                     })),
@@ -114,7 +120,8 @@ impl EmaExporter {
                 },
                 accurate: ComplianceItem {
                     status: "compliant".to_string(),
-                    evidence: "Cryptographic checksums, automated integrity verification".to_string(),
+                    evidence: "Cryptographic checksums, automated integrity verification"
+                        .to_string(),
                     details: Some(serde_json::json!({
                         "checksum_algorithm": "SHA-256",
                         "hash_chain": "Event linking via cryptographic hashes"
@@ -122,7 +129,8 @@ impl EmaExporter {
                 },
                 complete: ComplianceItem {
                     status: "compliant".to_string(),
-                    evidence: "All data operations logged (download, verify, post-pull)".to_string(),
+                    evidence: "All data operations logged (download, verify, post-pull)"
+                        .to_string(),
                     details: Some(serde_json::json!({
                         "event_types": ["init", "download", "verify", "post_pull", "config"]
                     })),
@@ -156,13 +164,19 @@ impl EmaExporter {
                 },
                 traceable: ComplianceItem {
                     status: "compliant".to_string(),
-                    evidence: format!("Full provenance from source to derived files. Chain verified: {}", chain_verified),
+                    evidence: format!(
+                        "Full provenance from source to derived files. Chain verified: {}",
+                        chain_verified
+                    ),
                     details: Some(serde_json::json!({
                         "provenance": "Source files → Post-pull outputs",
                         "chain_verified": chain_verified
                     })),
                 },
-                disclaimer: "This audit trail is stored locally in SQLite and is editable by the user. It is intended for research documentation and regulatory reporting, not for legal evidence or forensic purposes.".to_string(),
+                disclaimer: "This audit trail is stored locally in SQLite and is editable by the \
+                             user. It is intended for research documentation and regulatory \
+                             reporting, not for legal evidence or forensic purposes."
+                    .to_string(),
             },
         };
 
@@ -172,9 +186,10 @@ impl EmaExporter {
 
 #[cfg(test)]
 mod tests {
+    use tempfile::TempDir;
+
     use super::*;
     use crate::audit::logger::LocalAuditLogger;
-    use tempfile::TempDir;
 
     #[tokio::test]
     async fn test_ema_report_structure() {

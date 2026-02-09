@@ -1,12 +1,14 @@
 //! Lockfile handling (bdl.lock)
 //!
-//! The lockfile stores resolved dependency information with exact versions and checksums.
+//! The lockfile stores resolved dependency information with exact versions and
+//! checksums.
 
-use crate::error::Result;
+use std::{collections::HashMap, path::Path};
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::path::Path;
+
+use crate::error::Result;
 
 /// BDP lockfile (bdl.lock)
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -203,8 +205,9 @@ impl ToolEntry {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use tempfile::NamedTempFile;
+
+    use super::*;
 
     #[test]
     fn test_lockfile_creation() {

@@ -1,12 +1,14 @@
 //! Export snapshot management
 
-use crate::audit::export::formats::ExportFormat;
-use crate::audit::logger::AuditLogger;
-use crate::error::{CliError, Result};
+use std::{path::Path, sync::Arc};
+
 use rusqlite::{Connection, params};
-use std::path::Path;
-use std::sync::Arc;
 use uuid::Uuid;
+
+use crate::{
+    audit::{export::formats::ExportFormat, logger::AuditLogger},
+    error::{CliError, Result},
+};
 
 /// Manages export snapshots
 pub struct SnapshotManager {
@@ -72,10 +74,13 @@ impl SnapshotManager {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::audit::logger::LocalAuditLogger;
-    use crate::audit::types::{AuditEvent, EventType};
     use serde_json::json;
+
+    use super::*;
+    use crate::audit::{
+        logger::LocalAuditLogger,
+        types::{AuditEvent, EventType},
+    };
 
     #[tokio::test]
     async fn test_create_snapshot() {

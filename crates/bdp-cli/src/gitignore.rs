@@ -4,9 +4,9 @@
 //! The entire `.bdp/` directory is gitignored since it contains
 //! local cache, config, and database files.
 
+use std::{fs, path::Path};
+
 use crate::error::Result;
-use std::fs;
-use std::path::Path;
 
 /// Marker comment for BDP section in .gitignore
 const BDP_SECTION_MARKER: &str = "# BDP cache and runtime files";
@@ -195,8 +195,9 @@ pub fn remove_from_gitignore(project_dir: &Path) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use tempfile::TempDir;
+
+    use super::*;
 
     #[test]
     fn test_gitignore_new_file() {

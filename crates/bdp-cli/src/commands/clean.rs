@@ -2,12 +2,14 @@
 //!
 //! Cleans cached sources.
 
-use crate::cache::CacheManager;
-use crate::cache::search_cache::SearchCache;
-use crate::error::{CliError, Result};
-use crate::progress::format_bytes;
-use crate::project;
 use colored::Colorize;
+
+use crate::{
+    cache::{CacheManager, search_cache::SearchCache},
+    error::{CliError, Result},
+    progress::format_bytes,
+    project,
+};
 
 /// Clean cache
 pub async fn run(all: bool, search_cache_only: bool) -> Result<()> {

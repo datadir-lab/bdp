@@ -1,11 +1,14 @@
 //! Data Availability Statement generator
 
-use crate::audit::export::formats::ExportOptions;
-use crate::audit::export::nih::NihExporter;
-use crate::audit::logger::AuditLogger;
-use crate::error::Result;
-use std::path::PathBuf;
-use std::sync::Arc;
+use std::{path::PathBuf, sync::Arc};
+
+use crate::{
+    audit::{
+        export::{formats::ExportOptions, nih::NihExporter},
+        logger::AuditLogger,
+    },
+    error::Result,
+};
 
 /// Data Availability Statement exporter
 ///

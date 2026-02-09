@@ -2,15 +2,18 @@
 //!
 //! Downloads and caches sources from the manifest.
 
-use crate::api::ApiClient;
-use crate::cache::CacheManager;
-use crate::checksum;
-use crate::error::{CliError, Result};
-use crate::lockfile::{Lockfile, SourceEntry};
-use crate::manifest::{Manifest, parse_source_spec};
-use crate::progress;
-use crate::project;
 use colored::Colorize;
+
+use crate::{
+    api::ApiClient,
+    cache::CacheManager,
+    checksum,
+    error::{CliError, Result},
+    lockfile::{Lockfile, SourceEntry},
+    manifest::{Manifest, parse_source_spec},
+    progress,
+    project,
+};
 
 /// Pull sources from manifest
 pub async fn run(server_url: String, force: bool) -> Result<()> {
@@ -38,7 +41,8 @@ pub async fn run(server_url: String, force: bool) -> Result<()> {
     // Check server health
     if !api_client.health_check().await? {
         return Err(CliError::api(format!(
-            "Cannot connect to BDP server at '{}'. Ensure the server is running or set BDP_SERVER_URL to the correct address.",
+            "Cannot connect to BDP server at '{}'. Ensure the server is running or set \
+             BDP_SERVER_URL to the correct address.",
             server_url
         )));
     }

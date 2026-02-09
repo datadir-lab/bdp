@@ -2,11 +2,17 @@
 //!
 //! Wraps commands with automatic audit logging.
 
-use crate::audit::logger::AuditLogger;
-use crate::audit::types::{AuditEvent, EventType};
-use crate::error::Result;
-use serde_json::{Value as JsonValue, json};
 use std::sync::Arc;
+
+use serde_json::{Value as JsonValue, json};
+
+use crate::{
+    audit::{
+        logger::AuditLogger,
+        types::{AuditEvent, EventType},
+    },
+    error::Result,
+};
 
 /// Execute a command with audit logging
 ///
@@ -71,8 +77,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::audit::logger::LocalAuditLogger;
-    use crate::error::CliError;
+    use crate::{audit::logger::LocalAuditLogger, error::CliError};
 
     #[tokio::test]
     async fn test_execute_with_audit_success() {

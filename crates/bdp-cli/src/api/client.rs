@@ -2,11 +2,15 @@
 //!
 //! Provides methods to interact with the BDP backend API.
 
-use crate::api::{endpoints, types::*};
-use crate::error::{CliError, Result};
-use crate::manifest::Manifest;
-use reqwest::Client;
 use std::time::Duration;
+
+use reqwest::Client;
+
+use crate::{
+    api::{endpoints, types::*},
+    error::{CliError, Result},
+    manifest::Manifest,
+};
 
 // ============================================================================
 // API Client Constants
@@ -80,7 +84,8 @@ impl ApiClient {
                 }
             }
             return Err(CliError::api(format!(
-                "Server returned {} for resolve. Check that all source specifications use format 'org:name-format@version' (e.g., 'uniprot:P01308-fasta@1.0').",
+                "Server returned {} for resolve. Check that all source specifications use format \
+                 'org:name-format@version' (e.g., 'uniprot:P01308-fasta@1.0').",
                 status
             )));
         }
@@ -88,11 +93,11 @@ impl ApiClient {
         let api_response: ApiResponse<ResolvedManifest> = response.json().await?;
 
         if !api_response.success {
-            return Err(CliError::api(
-                api_response.error.unwrap_or_else(|| {
-                    "Failed to resolve manifest dependencies. Check that all source specifications are valid and available.".to_string()
-                }),
-            ));
+            return Err(CliError::api(api_response.error.unwrap_or_else(|| {
+                "Failed to resolve manifest dependencies. Check that all source specifications are \
+                 valid and available."
+                    .to_string()
+            })));
         }
 
         Ok(api_response.data)
@@ -131,14 +136,13 @@ impl ApiClient {
         let api_response: ApiResponse<DataSource> = response.json().await?;
 
         if !api_response.success {
-            return Err(CliError::api(
-                api_response.error.unwrap_or_else(|| {
-                    format!(
-                        "Data source '{}/{}@{}' not found or unavailable. Run 'bdp search {}' to find available sources.",
-                        org, name, version, name
-                    )
-                }),
-            ));
+            return Err(CliError::api(api_response.error.unwrap_or_else(|| {
+                format!(
+                    "Data source '{}/{}@{}' not found or unavailable. Run 'bdp search {}' to find \
+                     available sources.",
+                    org, name, version, name
+                )
+            })));
         }
 
         Ok(api_response.data)
@@ -184,14 +188,13 @@ impl ApiClient {
         let api_response: ApiResponse<Vec<SearchResult>> = response.json().await?;
 
         if !api_response.success {
-            return Err(CliError::api(
-                api_response.error.unwrap_or_else(|| {
-                    format!(
-                        "Search for '{}' failed. Try a different search term or check your server connection.",
-                        query
-                    )
-                }),
-            ));
+            return Err(CliError::api(api_response.error.unwrap_or_else(|| {
+                format!(
+                    "Search for '{}' failed. Try a different search term or check your server \
+                     connection.",
+                    query
+                )
+            })));
         }
 
         // Build SearchResponse from flat array + meta pagination
@@ -234,14 +237,13 @@ impl ApiClient {
         let api_response: ApiResponse<Organization> = response.json().await?;
 
         if !api_response.success {
-            return Err(CliError::api(
-                api_response.error.unwrap_or_else(|| {
-                    format!(
-                        "Organization '{}' not found. Run 'bdp org list' to see available organizations.",
-                        name
-                    )
-                }),
-            ));
+            return Err(CliError::api(api_response.error.unwrap_or_else(|| {
+                format!(
+                    "Organization '{}' not found. Run 'bdp org list' to see available \
+                     organizations.",
+                    name
+                )
+            })));
         }
 
         Ok(api_response.data)

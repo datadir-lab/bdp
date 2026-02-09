@@ -2,15 +2,19 @@
 //!
 //! Uninstalls BDP from the system.
 
-use crate::error::{CliError, Result};
-use colored::Colorize;
-use std::env;
-use std::fs;
-use std::io::{self, Write};
 #[cfg(unix)]
 use std::path::Path;
 #[cfg(windows)]
 use std::path::PathBuf;
+use std::{
+    env,
+    fs,
+    io::{self, Write},
+};
+
+use colored::Colorize;
+
+use crate::error::{CliError, Result};
 
 /// Uninstall BDP from the system
 pub async fn run(yes: bool, purge: bool) -> Result<()> {

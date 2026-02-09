@@ -1,15 +1,15 @@
 //! FDA 21 CFR Part 11 compliance export
 
-use crate::audit::export::formats::ExportOptions;
-use crate::audit::logger::AuditLogger;
-use crate::audit::types::AuditEvent;
-use crate::error::{CliError, Result};
+use std::{fs, path::PathBuf, sync::Arc};
+
 use chrono::Utc;
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
-use std::fs;
-use std::path::PathBuf;
-use std::sync::Arc;
+
+use crate::{
+    audit::{export::formats::ExportOptions, logger::AuditLogger, types::AuditEvent},
+    error::{CliError, Result},
+};
 
 /// FDA compliance report structure
 #[derive(Debug, Serialize, Deserialize)]
@@ -135,7 +135,10 @@ impl FdaExporter {
             audit_report: FdaAuditReport {
                 standard: "FDA 21 CFR Part 11".to_string(),
                 generated_at: Utc::now().to_rfc3339(),
-                project: options.project_name.as_ref().zip(options.project_version.as_ref())
+                project: options
+                    .project_name
+                    .as_ref()
+                    .zip(options.project_version.as_ref())
                     .map(|(name, version)| FdaProject {
                         name: name.clone(),
                         version: version.clone(),
@@ -154,7 +157,10 @@ impl FdaExporter {
                     no_gaps_in_sequence: self.verify_no_gaps(&events),
                     all_timestamps_valid: true, // All timestamps are generated, so always valid
                 },
-                disclaimer: "This audit trail was generated from local records and is editable. It is intended for research documentation purposes, not legal evidence.".to_string(),
+                disclaimer: "This audit trail was generated from local records and is editable. \
+                             It is intended for research documentation purposes, not legal \
+                             evidence."
+                    .to_string(),
             },
         };
 
@@ -167,7 +173,9 @@ impl FdaExporter {
         let conn = Connection::open(&db_path)
             .map_err(|e| CliError::audit(format!("Failed to open audit database: {}", e)))?;
 
-        let mut query = "SELECT id, timestamp, event_type, source_spec, details, machine_id, event_hash, previous_hash FROM audit_events".to_string();
+        let mut query = "SELECT id, timestamp, event_type, source_spec, details, machine_id, \
+                         event_hash, previous_hash FROM audit_events"
+            .to_string();
         let mut conditions = Vec::new();
 
         if options.from.is_some() {
@@ -270,11 +278,11 @@ impl FdaExporter {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::audit::logger::LocalAuditLogger;
-    use crate::audit::types::EventType;
     use serde_json::json;
     use tempfile::TempDir;
+
+    use super::*;
+    use crate::audit::{logger::LocalAuditLogger, types::EventType};
 
     #[tokio::test]
     async fn test_fda_export_structure() {

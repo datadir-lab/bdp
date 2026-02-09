@@ -2,9 +2,12 @@
 //!
 //! Manages data sources in the manifest.
 
-use crate::error::{CliError, Result};
-use crate::manifest::{Manifest, validate_source_spec};
 use colored::Colorize;
+
+use crate::{
+    error::{CliError, Result},
+    manifest::{Manifest, validate_source_spec},
+};
 
 /// Add a source to the manifest
 pub async fn add(source: String) -> Result<()> {

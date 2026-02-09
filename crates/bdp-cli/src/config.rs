@@ -2,16 +2,16 @@
 //!
 //! Handles CLI settings like server URL, cache path, etc.
 
-use crate::error::Result;
-use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+
+use serde::{Deserialize, Serialize};
 
 // ============================================================================
 // CLI Configuration Constants
 // ============================================================================
-
 /// Default BDP server URL - references the crate-level BASE_SERVER_URL constant
 pub use crate::BASE_SERVER_URL as DEFAULT_SERVER_URL;
+use crate::error::Result;
 
 /// CLI configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]

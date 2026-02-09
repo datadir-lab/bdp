@@ -1,12 +1,17 @@
 //! Audit logger trait and implementations
 
-use crate::audit::schema;
-use crate::audit::types::AuditEvent;
-use crate::error::{CliError, Result};
+use std::{
+    path::PathBuf,
+    sync::{Arc, Mutex},
+};
+
 use async_trait::async_trait;
 use rusqlite::{Connection, OptionalExtension, params};
-use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
+
+use crate::{
+    audit::{schema, types::AuditEvent},
+    error::{CliError, Result},
+};
 
 /// Trait for audit logging (dependency injection)
 #[async_trait]
@@ -226,9 +231,10 @@ impl AuditLogger for LocalAuditLogger {
 
 #[cfg(test)]
 mod tests {
+    use serde_json::json;
+
     use super::*;
     use crate::audit::types::EventType;
-    use serde_json::json;
 
     #[tokio::test]
     async fn test_local_audit_logger_creation() {

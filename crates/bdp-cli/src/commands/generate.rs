@@ -3,12 +3,11 @@
 //! Generates workflow integration files for Python, Snakemake, and Nextflow
 //! based on the project lockfile and cache configuration.
 
-use crate::error::Result;
-use crate::lockfile::Lockfile;
-use crate::manifest::parse_source_spec;
-use crate::project;
-use colored::Colorize;
 use std::path::{Path, PathBuf};
+
+use colored::Colorize;
+
+use crate::{error::Result, lockfile::Lockfile, manifest::parse_source_spec, project};
 
 /// Resolved source info for code generation
 struct SourceInfo {
@@ -219,7 +218,8 @@ fn spec_to_file_path(spec: &str, format: &str, cache_path: &str) -> Result<Strin
 
 /// Convert a relative path to Python Path() chained segments.
 /// `.bdp/data/sources/uniprot/P01308/1.0/P01308_1.0.fasta` →
-/// `".bdp" / "data" / "sources" / "uniprot" / "P01308" / "1.0" / "P01308_1.0.fasta"`
+/// `".bdp" / "data" / "sources" / "uniprot" / "P01308" / "1.0" /
+/// "P01308_1.0.fasta"`
 fn path_to_python_segments(rel_path: &str) -> String {
     let parts: Vec<&str> = rel_path.split('/').collect();
     parts
@@ -260,7 +260,8 @@ mod tests {
             path_to_python_segments(".bdp/data/sources/uniprot/P01308/1.0/P01308_1.0.fasta");
         assert_eq!(
             result,
-            "\".bdp\" / \"data\" / \"sources\" / \"uniprot\" / \"P01308\" / \"1.0\" / \"P01308_1.0.fasta\""
+            "\".bdp\" / \"data\" / \"sources\" / \"uniprot\" / \"P01308\" / \"1.0\" / \
+             \"P01308_1.0.fasta\""
         );
     }
 

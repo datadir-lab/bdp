@@ -2,9 +2,11 @@
 //!
 //! The manifest defines project metadata and data source dependencies.
 
-use crate::error::{CliError, Result};
-use serde::{Deserialize, Serialize};
 use std::path::Path;
+
+use serde::{Deserialize, Serialize};
+
+use crate::error::{CliError, Result};
 
 /// BDP manifest file (bdp.yml)
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -187,7 +189,8 @@ pub fn validate_source_spec(spec: &str) -> Result<()> {
     let parts: Vec<&str> = spec.split(':').collect();
     if parts.len() != 2 {
         return Err(CliError::invalid_source_spec(format!(
-            "Expected format 'registry:identifier@version' or 'registry:identifier-format@version', got '{}'",
+            "Expected format 'registry:identifier@version' or \
+             'registry:identifier-format@version', got '{}'",
             spec
         )));
     }
@@ -234,7 +237,8 @@ pub fn validate_source_spec(spec: &str) -> Result<()> {
 /// Format: registry:identifier-format@version
 /// - registry: The source registry (e.g., "uniprot", "ncbi")
 /// - identifier: The resource identifier (e.g., "P01308", "blast")
-/// - format: Optional format suffix (e.g., "fasta", "xml") - last segment after '-'
+/// - format: Optional format suffix (e.g., "fasta", "xml") - last segment after
+///   '-'
 /// - version: The version string (e.g., "1.0", "2.14.0")
 pub fn parse_source_spec(spec: &str) -> Result<(String, String, String, Option<String>)> {
     validate_source_spec(spec)?;
@@ -260,8 +264,9 @@ pub fn parse_source_spec(spec: &str) -> Result<(String, String, String, Option<S
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use tempfile::NamedTempFile;
+
+    use super::*;
 
     #[test]
     fn test_manifest_creation() {

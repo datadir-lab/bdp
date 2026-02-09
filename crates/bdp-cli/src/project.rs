@@ -3,9 +3,11 @@
 //! Finds the project root by walking up from CWD looking for `bdp.yml`,
 //! and manages project-local configuration in `.bdp/.config` (TOML format).
 
-use crate::error::{CliError, Result};
-use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
+
+use serde::{Deserialize, Serialize};
+
+use crate::error::{CliError, Result};
 
 /// Project-local configuration stored in `.bdp/.config`
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -89,8 +91,8 @@ fn find_project_root_from(start: &Path) -> Result<PathBuf> {
 }
 
 /// Resolve the cache path from project config.
-/// If the configured path is relative, it's resolved relative to the project root.
-/// If absolute, it's used as-is.
+/// If the configured path is relative, it's resolved relative to the project
+/// root. If absolute, it's used as-is.
 pub fn resolve_cache_path(project_root: &Path) -> Result<PathBuf> {
     let config = ProjectConfig::load(project_root)?;
     let cache_path = Path::new(&config.cache.path);
@@ -104,8 +106,9 @@ pub fn resolve_cache_path(project_root: &Path) -> Result<PathBuf> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use tempfile::TempDir;
+
+    use super::*;
 
     #[test]
     fn test_default_config() {

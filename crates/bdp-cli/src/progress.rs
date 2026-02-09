@@ -9,9 +9,10 @@ pub fn create_download_progress(size: u64, message: &str) -> ProgressBar {
     let pb = ProgressBar::new(size);
     // Template is a static string, so template() should not fail.
     // If it does, fall back to default style.
-    if let Ok(style) = ProgressStyle::default_bar()
-        .template("{msg}\n{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({eta})")
-    {
+    if let Ok(style) = ProgressStyle::default_bar().template(
+        "{msg}\n{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] \
+         {bytes}/{total_bytes} ({eta})",
+    ) {
         pb.set_style(style.progress_chars("#>-"));
     }
     pb.set_message(message.to_string());

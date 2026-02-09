@@ -1,7 +1,7 @@
 //! Error types for BDP CLI
 //!
-//! This module provides user-friendly error types with clear, actionable messages
-//! that help users understand what went wrong and how to fix it.
+//! This module provides user-friendly error types with clear, actionable
+//! messages that help users understand what went wrong and how to fix it.
 
 use thiserror::Error;
 
@@ -10,12 +10,14 @@ pub type Result<T> = std::result::Result<T, CliError>;
 
 /// Comprehensive error type for CLI operations
 ///
-/// All errors are designed to be user-facing with clear messages and suggestions.
+/// All errors are designed to be user-facing with clear messages and
+/// suggestions.
 #[derive(Error, Debug)]
 pub enum CliError {
     /// API server communication failed
     #[error(
-        "Server error: {0}. Ensure the BDP server is running (check with 'bdp status') and accessible."
+        "Server error: {0}. Ensure the BDP server is running (check with 'bdp status') and \
+         accessible."
     )]
     Api(String),
 
@@ -29,7 +31,8 @@ pub enum CliError {
 
     /// Lockfile (bdl.lock) has invalid format or content
     #[error(
-        "Invalid lockfile (bdl.lock): {0}. Delete the lockfile and run 'bdp pull' to regenerate it."
+        "Invalid lockfile (bdl.lock): {0}. Delete the lockfile and run 'bdp pull' to regenerate \
+         it."
     )]
     InvalidLockfile(String),
 
@@ -39,7 +42,8 @@ pub enum CliError {
 
     /// Downloaded file checksum verification failed
     #[error(
-        "Checksum verification failed for '{file}': expected '{expected}', got '{actual}'. The file may be corrupted. Run 'bdp pull --force' to re-download."
+        "Checksum verification failed for '{file}': expected '{expected}', got '{actual}'. The \
+         file may be corrupted. Run 'bdp pull --force' to re-download."
     )]
     ChecksumMismatch {
         file: String,
@@ -81,7 +85,8 @@ pub enum CliError {
 
     /// Source specification doesn't follow expected format
     #[error(
-        "Invalid source specification: {0}. Expected format: 'registry:identifier-format@version' (e.g., 'uniprot:P01308-fasta@1.0')."
+        "Invalid source specification: {0}. Expected format: 'registry:identifier-format@version' \
+         (e.g., 'uniprot:P01308-fasta@1.0')."
     )]
     InvalidSourceSpec(String),
 

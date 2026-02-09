@@ -2,10 +2,14 @@
 //!
 //! Manages the project-local cache directory configuration.
 
-use crate::error::Result;
-use crate::project::{self, ProjectConfig};
-use colored::Colorize;
 use std::path::Path;
+
+use colored::Colorize;
+
+use crate::{
+    error::Result,
+    project::{self, ProjectConfig},
+};
 
 /// Set the cache directory path
 pub async fn set(path: String) -> Result<()> {
@@ -80,9 +84,10 @@ fn dir_size(path: &Path) -> u64 {
 
 #[cfg(test)]
 mod tests {
+    use tempfile::TempDir;
+
     use super::*;
     use crate::project::ProjectConfig;
-    use tempfile::TempDir;
 
     #[tokio::test]
     async fn test_dir_size_empty() {

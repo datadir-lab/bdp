@@ -2,16 +2,24 @@
 //!
 //! Manages audit trail for regulatory compliance and research documentation.
 
-use crate::AuditCommand;
-use crate::audit::{
-    AuditExporter, AuditLogger, ExportFormat, ExportOptions, LocalAuditLogger, get_machine_id,
-};
-use crate::error::{CliError, Result};
+use std::{path::PathBuf, sync::Arc};
+
 use chrono::{DateTime, Utc};
 use colored::Colorize;
 use rusqlite::Connection;
-use std::path::PathBuf;
-use std::sync::Arc;
+
+use crate::{
+    AuditCommand,
+    audit::{
+        AuditExporter,
+        AuditLogger,
+        ExportFormat,
+        ExportOptions,
+        LocalAuditLogger,
+        get_machine_id,
+    },
+    error::{CliError, Result},
+};
 
 /// Execute audit command
 pub async fn run(command: &AuditCommand) -> Result<()> {
@@ -152,7 +160,9 @@ async fn verify() -> Result<()> {
 
     if !db_path.exists() {
         return Err(CliError::audit(
-            "No audit trail found at '.bdp/bdp.db'. This directory must be initialized with 'bdp init' first.".to_string(),
+            "No audit trail found at '.bdp/bdp.db'. This directory must be initialized with 'bdp \
+             init' first."
+                .to_string(),
         ));
     }
 
@@ -189,7 +199,9 @@ async fn export(
 
     if !db_path.exists() {
         return Err(CliError::audit(
-            "No audit trail found at '.bdp/bdp.db'. Initialize this directory with 'bdp init' first.".to_string(),
+            "No audit trail found at '.bdp/bdp.db'. Initialize this directory with 'bdp init' \
+             first."
+                .to_string(),
         ));
     }
 
@@ -263,11 +275,12 @@ async fn export(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::audit::{AuditEvent, AuditLogger, EventType};
     use serde_json::json;
     use serial_test::serial;
     use tempfile::TempDir;
+
+    use super::*;
+    use crate::audit::{AuditEvent, AuditLogger, EventType};
 
     #[tokio::test]
     #[serial]

@@ -1,7 +1,8 @@
 //! SQLite schema for audit trail
 
-use crate::error::Result;
 use rusqlite::Connection;
+
+use crate::error::Result;
 
 /// Initialize audit database schema
 pub fn init_schema(conn: &Connection) -> Result<()> {
@@ -117,8 +118,9 @@ pub fn init_schema(conn: &Connection) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use rusqlite::Connection;
+
+    use super::*;
 
     #[test]
     fn test_init_schema() {

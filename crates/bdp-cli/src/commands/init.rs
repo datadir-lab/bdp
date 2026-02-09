@@ -2,16 +2,21 @@
 //!
 //! Initializes a new BDP project with audit logging.
 
-use crate::audit::types::EventType;
-use crate::audit::{AuditLogger, LocalAuditLogger, execute_with_audit, get_machine_id};
-use crate::error::{CliError, Result};
-use crate::gitignore;
-use crate::manifest::Manifest;
-use crate::project::ProjectConfig;
+use std::{
+    fs,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
+
 use serde_json::json;
-use std::fs;
-use std::path::{Path, PathBuf};
-use std::sync::Arc;
+
+use crate::{
+    audit::{AuditLogger, LocalAuditLogger, execute_with_audit, get_machine_id, types::EventType},
+    error::{CliError, Result},
+    gitignore,
+    manifest::Manifest,
+    project::ProjectConfig,
+};
 
 /// Initialize a new BDP project
 pub async fn run(
@@ -124,9 +129,10 @@ fn create_bdp_directories(project_dir: &Path) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use serial_test::serial;
     use tempfile::TempDir;
+
+    use super::*;
 
     #[tokio::test]
     #[serial]

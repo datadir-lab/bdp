@@ -1,9 +1,11 @@
 //! Audit trail system for BDP CLI
 //!
-//! Provides local audit logging for regulatory compliance and research documentation.
+//! Provides local audit logging for regulatory compliance and research
+//! documentation.
 //!
 //! **IMPORTANT**: The audit trail is stored locally in SQLite and is EDITABLE.
-//! It is intended for research documentation and report generation, NOT legal evidence.
+//! It is intended for research documentation and report generation, NOT legal
+//! evidence.
 
 pub mod export;
 pub mod logger;

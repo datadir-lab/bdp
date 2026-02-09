@@ -2,9 +2,12 @@
 //!
 //! Manages CLI configuration.
 
-use crate::config::Config;
-use crate::error::{CliError, Result};
 use colored::Colorize;
+
+use crate::{
+    config::Config,
+    error::{CliError, Result},
+};
 
 /// Get configuration value
 pub async fn get(key: String) -> Result<()> {

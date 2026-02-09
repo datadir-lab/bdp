@@ -1,16 +1,21 @@
 //! Machine ID generation for audit trail
 //!
-//! Generates a stable machine identifier without collecting personal information.
+//! Generates a stable machine identifier without collecting personal
+//! information.
+
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
+
+use uuid::Uuid;
 
 use crate::error::{CliError, Result};
-use std::fs;
-use std::path::{Path, PathBuf};
-use uuid::Uuid;
 
 /// Get or create machine ID
 ///
-/// Machine ID is stored in `{base_dir}/.bdp/machine-id` and persists across commands.
-/// Format: `{hostname}-{random-suffix}`
+/// Machine ID is stored in `{base_dir}/.bdp/machine-id` and persists across
+/// commands. Format: `{hostname}-{random-suffix}`
 ///
 /// If `base_dir` is None, uses current working directory.
 pub fn get_machine_id(base_dir: Option<&Path>) -> Result<String> {
@@ -83,8 +88,9 @@ fn sanitize_hostname(hostname: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use tempfile::TempDir;
+
+    use super::*;
 
     #[test]
     fn test_generate_machine_id() {

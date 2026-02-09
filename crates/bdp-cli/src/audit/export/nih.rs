@@ -1,15 +1,14 @@
 //! NIH Data Management & Sharing (DMS) export
 
-use crate::audit::export::formats::ExportOptions;
-use crate::audit::logger::AuditLogger;
-use crate::audit::types::AuditEvent;
-use crate::error::{CliError, Result};
+use std::{collections::HashMap, fs, path::PathBuf, sync::Arc};
+
 use chrono::Utc;
 use rusqlite::Connection;
-use std::collections::HashMap;
-use std::fs;
-use std::path::PathBuf;
-use std::sync::Arc;
+
+use crate::{
+    audit::{export::formats::ExportOptions, logger::AuditLogger, types::AuditEvent},
+    error::{CliError, Result},
+};
 
 /// NIH DMS exporter
 pub struct NihExporter {
@@ -70,16 +69,25 @@ impl NihExporter {
 
         // Data Management Plan section
         md.push_str("## Data Management Plan\n\n");
-        md.push_str("This project uses the BDP (Bioinformatics Data Package Manager) for systematic data management:\n\n");
+        md.push_str(
+            "This project uses the BDP (Bioinformatics Data Package Manager) for systematic data \
+             management:\n\n",
+        );
         md.push_str("- **Version Control**: All data sources are version-pinned in `bdp.yml`\n");
-        md.push_str("- **Reproducibility**: Lockfile (`bdl.lock`) ensures exact same data across environments\n");
+        md.push_str(
+            "- **Reproducibility**: Lockfile (`bdl.lock`) ensures exact same data across \
+             environments\n",
+        );
         md.push_str("- **Integrity**: Cryptographic checksums verify data authenticity\n");
         md.push_str("- **Audit Trail**: Complete audit log tracks all data operations\n\n");
 
         // Compliance section
         md.push_str("## NIH DMS Policy Compliance\n\n");
         md.push_str("### Data Sharing\n\n");
-        md.push_str("All data sources used in this project are publicly available and can be reproduced using:\n\n");
+        md.push_str(
+            "All data sources used in this project are publicly available and can be reproduced \
+             using:\n\n",
+        );
         md.push_str("```bash\n");
         md.push_str("git clone <repository-url>\n");
         md.push_str("cd <project-directory>\n");
@@ -157,7 +165,10 @@ impl NihExporter {
             .map_err(|e| CliError::audit(format!("Failed to open audit database: {}", e)))?;
 
         let mut stmt = conn
-            .prepare("SELECT id, timestamp, event_type, source_spec, details, machine_id, event_hash, previous_hash FROM audit_events ORDER BY id ASC")
+            .prepare(
+                "SELECT id, timestamp, event_type, source_spec, details, machine_id, event_hash, \
+                 previous_hash FROM audit_events ORDER BY id ASC",
+            )
             .map_err(|e| CliError::audit(format!("Failed to prepare query: {}", e)))?;
 
         let events = stmt
@@ -217,10 +228,10 @@ impl NihExporter {
 
 #[cfg(test)]
 mod tests {
+    use serde_json::json;
+
     use super::*;
     use crate::audit::logger::LocalAuditLogger;
-
-    use serde_json::json;
 
     #[test]
     fn test_extract_data_sources() {

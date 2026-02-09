@@ -1,9 +1,10 @@
 //! BDP CLI - Main entry point
 
+use std::process;
+
 use bdp_cli::{CacheCommand, Cli, Commands, ConfigCommand, GenerateCommand, SourceCommand};
 use bdp_common::logging::{LogConfig, LogLevel, LogOutput, init_logging};
 use clap::Parser;
-use std::process;
 use tracing::error;
 
 #[tokio::main]

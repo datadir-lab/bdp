@@ -1,8 +1,9 @@
 //! Export format definitions
 
+use std::path::PathBuf;
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
 
 /// Supported export formats
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

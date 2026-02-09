@@ -2,15 +2,16 @@
 //! BDP CLI Library
 #![deny(clippy::unwrap_used, clippy::expect_used)]
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
-//!
 //! Command-line interface for managing biological datasets with BDP.
 //!
 //! # Overview
 //!
-//! The BDP CLI provides a package manager-like experience for biological datasets:
+//! The BDP CLI provides a package manager-like experience for biological
+//! datasets:
 //!
 //! - **Project Management**: Initialize and configure BDP projects (`bdp init`)
-//! - **Source Management**: Add/remove data sources (`bdp source add/remove/list`)
+//! - **Source Management**: Add/remove data sources (`bdp source
+//!   add/remove/list`)
 //! - **Dataset Installation**: Download and verify datasets (`bdp pull`)
 //! - **Status Checking**: View cached datasets (`bdp status`)
 //! - **Integrity Auditing**: Verify checksums (`bdp audit`)
@@ -40,11 +41,10 @@ pub mod progress;
 pub mod project;
 
 // Re-export commonly used types
+use clap::{Parser, Subcommand};
 pub use error::{CliError, Result};
 pub use lockfile::Lockfile;
 pub use manifest::Manifest;
-
-use clap::{Parser, Subcommand};
 
 /// BDP - Biological Dataset Package Manager
 #[derive(Parser, Debug)]
@@ -199,7 +199,8 @@ pub enum Commands {
 
     /// Advanced SQL-like querying of data sources and metadata
     Query {
-        /// Entity to query (protein, gene, genome, tools, orgs, etc.) or use --sql for raw SQL
+        /// Entity to query (protein, gene, genome, tools, orgs, etc.) or use
+        /// --sql for raw SQL
         entity: Option<String>,
 
         /// Select specific fields (comma-separated)

@@ -4,13 +4,19 @@
 //! Features fzf-style multi-select with fuzzy filtering, bulk actions,
 //! and smart pipe detection.
 
-use crate::api::client::ApiClient;
-use crate::api::types::{SearchResponse, SearchResult};
-use crate::cache::search_cache::{SearchCache, SearchFilters};
-use crate::error::{CliError, Result};
-use colored::Colorize;
 use std::io::{self, IsTerminal};
+
+use colored::Colorize;
 use tracing::{debug, warn};
+
+use crate::{
+    api::{
+        client::ApiClient,
+        types::{SearchResponse, SearchResult},
+    },
+    cache::search_cache::{SearchCache, SearchFilters},
+    error::{CliError, Result},
+};
 
 /// Run the search command
 ///
@@ -18,7 +24,8 @@ use tracing::{debug, warn};
 ///
 /// * `query` - Search query terms (will be joined with spaces)
 /// * `org` - Optional filter by organization slug
-/// * `entry_type` - Optional filter by entry type (data_source, tool, organization)
+/// * `entry_type` - Optional filter by entry type (data_source, tool,
+///   organization)
 /// * `source_type` - Optional filter by source type (protein, genome, etc.)
 /// * `format` - Output format (interactive, compact, table, json)
 /// * `no_interactive` - Force non-interactive mode
@@ -86,7 +93,8 @@ pub async fn run(
     // Execute search with caching and retries
     println!("Searching for '{}'...", query_str);
 
-    // For interactive mode, fetch a larger page to maximize local filtering candidates
+    // For interactive mode, fetch a larger page to maximize local filtering
+    // candidates
     let fetch_limit = if use_interactive { 100 } else { limit };
 
     // Create cache filters
@@ -757,9 +765,10 @@ fn copy_to_clipboard(text: &str) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use serial_test::serial;
     use tempfile::TempDir;
+
+    use super::*;
 
     #[test]
     fn test_truncate_string() {

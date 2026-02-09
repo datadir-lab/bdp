@@ -159,8 +159,9 @@ impl Default for AuditEvent {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use serde_json::json;
+
+    use super::*;
 
     #[test]
     fn test_event_type_as_str() {

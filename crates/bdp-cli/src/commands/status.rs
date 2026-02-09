@@ -2,11 +2,9 @@
 //!
 //! Shows status of cached sources.
 
-use crate::cache::CacheManager;
-use crate::error::Result;
-use crate::progress::format_bytes;
-use crate::project;
 use colored::Colorize;
+
+use crate::{cache::CacheManager, error::Result, progress::format_bytes, project};
 
 /// Show status of cached sources
 pub async fn run() -> Result<()> {

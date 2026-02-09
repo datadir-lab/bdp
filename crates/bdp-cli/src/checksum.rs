@@ -2,10 +2,11 @@
 //!
 //! Uses SHA-256 for file integrity verification.
 
-use crate::error::{CliError, Result};
+use std::{io::Read, path::Path};
+
 use sha2::{Digest, Sha256};
-use std::io::Read;
-use std::path::Path;
+
+use crate::error::{CliError, Result};
 
 /// Compute SHA-256 checksum of bytes
 pub fn compute_checksum(data: &[u8]) -> String {
@@ -60,9 +61,11 @@ pub fn verify_file_checksum(path: impl AsRef<Path>, expected: &str) -> Result<()
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::io::Write;
+
     use tempfile::NamedTempFile;
+
+    use super::*;
 
     #[test]
     fn test_compute_checksum() {

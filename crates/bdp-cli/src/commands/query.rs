@@ -2,14 +2,16 @@
 //!
 //! Advanced SQL-like querying interface for BDP data sources and metadata.
 
-use crate::api::client::ApiClient;
-use crate::error::{CliError, Result};
-use colored::Colorize;
-use sqlparser::ast::Statement;
-use sqlparser::dialect::PostgreSqlDialect;
-use sqlparser::parser::Parser;
 use std::io::{self, IsTerminal};
+
+use colored::Colorize;
+use sqlparser::{ast::Statement, dialect::PostgreSqlDialect, parser::Parser};
 use tracing::{debug, info, warn};
+
+use crate::{
+    api::client::ApiClient,
+    error::{CliError, Result},
+};
 
 /// Run the query command
 #[allow(clippy::too_many_arguments)]
@@ -108,17 +110,20 @@ fn validate_sql(sql: &str) -> Result<()> {
                     },
                     Statement::Delete { .. } => {
                         return Err(CliError::config(
-                            "DELETE statements are not allowed. Use the CLI commands for data management.",
+                            "DELETE statements are not allowed. Use the CLI commands for data \
+                             management.",
                         ));
                     },
                     Statement::Update { .. } => {
                         return Err(CliError::config(
-                            "UPDATE statements are not allowed. Use the CLI commands for data management.",
+                            "UPDATE statements are not allowed. Use the CLI commands for data \
+                             management.",
                         ));
                     },
                     Statement::Insert { .. } => {
                         return Err(CliError::config(
-                            "INSERT statements are not allowed. Use the CLI commands for data management.",
+                            "INSERT statements are not allowed. Use the CLI commands for data \
+                             management.",
                         ));
                     },
                     Statement::Truncate { .. } => {
@@ -159,7 +164,10 @@ fn build_sql_from_flags(
 ) -> Result<String> {
     // Validate entity is provided
     let entity = entity.ok_or_else(|| {
-        CliError::config("entity or --sql is required. Try 'bdp query protein' or 'bdp query --sql \"SELECT ...\"'")
+        CliError::config(
+            "entity or --sql is required. Try 'bdp query protein' or 'bdp query --sql \"SELECT \
+             ...\"'",
+        )
     })?;
 
     // Resolve entity alias to table name
@@ -272,7 +280,8 @@ fn resolve_entity_alias(entity: &str) -> Result<(String, Vec<String>, Option<Str
         _ => Err(CliError::config(format!(
             "Unknown entity: '{}'\n\nAvailable entities:\n  {}",
             entity,
-            "protein, gene, genome, transcriptome, proteome, tools, orgs,\n  protein_metadata, gene_metadata, organism_taxonomy, publication_refs"
+            "protein, gene, genome, transcriptome, proteome, tools, orgs,\n  protein_metadata, \
+             gene_metadata, organism_taxonomy, publication_refs"
         ))),
     }
 }

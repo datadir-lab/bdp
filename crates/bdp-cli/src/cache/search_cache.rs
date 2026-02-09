@@ -2,13 +2,17 @@
 //!
 //! Caches search results in SQLite to reduce API calls and improve performance.
 
-use crate::api::types::SearchResponse;
-use crate::error::{CliError, Result};
+use std::path::PathBuf;
+
 use chrono::{DateTime, Duration, Utc};
 use rusqlite::{Connection, params};
 use sha2::{Digest, Sha256};
-use std::path::PathBuf;
 use tracing::{debug, info};
+
+use crate::{
+    api::types::SearchResponse,
+    error::{CliError, Result},
+};
 
 /// Default cache TTL in minutes
 const DEFAULT_CACHE_TTL_MINUTES: i64 = 5;
@@ -234,8 +238,9 @@ pub struct CacheStats {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use tempfile::tempdir;
+
+    use super::*;
 
     #[allow(clippy::unwrap_used, clippy::expect_used)]
     fn create_test_cache() -> (SearchCache, tempfile::TempDir) {
