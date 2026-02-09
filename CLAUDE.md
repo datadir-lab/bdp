@@ -58,7 +58,7 @@ See [Logging Best Practices](./docs/agents/logging.md) for details.
 ### CLI Testing
 - **NEVER** test CLI commands in main repository directory
 - **ALWAYS** use `D:\dev\datadir\bdp-example\` for CLI testing
-- Use `just test-cli-*` commands for testing
+- Use `cargo xtask test cli-*` commands for testing
 
 ## Quick Reference by Task Type
 
@@ -131,25 +131,25 @@ See [Logging Best Practices](./docs/agents/logging.md) for details.
 - **Storage**: MinIO/S3
 - **Infrastructure**: Terraform + OVH Cloud
 - **CI/CD**: GitHub Actions
-- **Task Runner**: Just
+- **Task Runner**: xtask (Rust)
 
 ## Common Commands
 
 ```bash
 # Development
-just dev              # Start development servers
-just test             # Run all tests
-just fmt              # Format code
-just lint             # Run linters
+cargo xtask dev server        # Start development server
+cargo xtask test all          # Run all tests
+cargo xtask dev fmt           # Format code
+cargo xtask dev lint          # Run linters
 
 # CLI Testing (use bdp-example directory!)
-just test-cli-setup   # Set up test directory
-just test-cli "init"  # Test CLI command
-just test-cli-clean   # Clean test directory
+cargo xtask test cli-setup    # Set up test directory
+cargo xtask test cli "init"   # Test CLI command
+cargo xtask test cli-clean    # Clean test directory
 
 # Database
-just migrate          # Run migrations
-just sqlx-prepare     # Regenerate SQLx metadata
+cargo xtask db migrate        # Run migrations
+cargo xtask sqlx prepare      # Regenerate SQLx metadata
 
 # Frontend (use yarn!)
 cd web && yarn install

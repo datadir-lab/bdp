@@ -353,22 +353,22 @@ self.audit_logger.log(
 
 ```bash
 # View recent logs
-just audit-logs 100
+cargo xtask util audit-logs 100
 
 # Search logs
-just audit-search "organization"
+cargo xtask util audit-search "organization"
 
 # View logs for specific resource
-just audit-trail Organization "uuid-here"
+cargo xtask util audit-trail Organization "uuid-here"
 
 # View logs for specific user
-just audit-by-user "uuid-here"
+cargo xtask util audit-by-user "uuid-here"
 
 # Export to JSON
-just audit-export audit.json
+cargo xtask util audit-export audit.json
 
 # View statistics
-just audit-stats
+cargo xtask util audit-stats
 ```
 
 **API Endpoint:**

@@ -3,7 +3,7 @@
 Fork → branch → changes → tests → PR
 
 ```bash
-just setup && just dev && just test && just lint
+cargo xtask setup all && cargo xtask dev server && cargo xtask test all && cargo xtask dev lint
 ```
 
 **Rules:** Follow code style, write tests, use conventional commits

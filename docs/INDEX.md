@@ -65,7 +65,7 @@ Complete documentation index for developers and AI agents working on the Bioinfo
 - **[Quick Start - Ingestion](./development/QUICK_START_INGESTION.md)** - Ingestion pipeline quick start
 
 ### Development Workflow
-- **[Just Guide](./development/just-guide.md)** - Task runner commands
+- **[xtask Guide](./development/xtask-guide.md)** - Comprehensive cargo xtask guide (command reference, migration, adding tasks)
 - **[Testing Infrastructure](./development/testing.md)** - Testing setup
 - **[SQLx Setup](./development/sqlx-setup.md)** - SQLx configuration
 

@@ -101,7 +101,11 @@ UniProt · NCBI Taxonomy · GenBank/RefSeq · Gene Ontology
 ```bash
 # Clone and setup
 git clone https://github.com/datadir-lab/bdp.git && cd bdp
-docker-compose up -d
+cargo xtask setup all
+
+# Or manually
+docker compose up -d
+cargo xtask db migrate
 
 # Services
 # API: http://localhost:8000

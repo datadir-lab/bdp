@@ -1,0 +1,602 @@
+# BDP - Bioinformatics Dependencies Platform
+# cargo-make task runner configuration
+# Install: cargo install cargo-make
+# Usage: cargo make <command>
+# List tasks: cargo make --list-all-steps
+
+[config]
+skip_core_tasks = true
+default_to_workspace = false
+
+[env]
+CARGO_TERM_COLOR = "always"
+RUST_BACKTRACE = "1"
+DATABASE_URL = "postgresql://bdp:bdp_password@localhost:5432/bdp"
+TEST_DATABASE_URL = "postgresql://bdp:bdp_test_password@localhost:5433/bdp_test"
+
+# ============================================================================
+# Core Tasks
+# ============================================================================
+
+[tasks.default]
+description = "Show available commands"
+category = "Help"
+script = "cargo make --list-all-steps"
+
+[tasks.setup]
+description = "Complete first-time setup"
+category = "Setup"
+dependencies = ["install-deps", "env-setup", "db-setup", "db-migrate"]
+script = "echo '✓ Setup complete! Run: cargo make dev'"
+
+[tasks.install-deps]
+description = "Install all dependencies"
+category = "Setup"
+script = '''
+echo "📦 Installing dependencies..."
+cargo install sqlx-cli --features postgres
+cd web && yarn install
+'''
+
+[tasks.env-setup]
+description = "Setup environment file"
+category = "Setup"
+script = '''
+#!/usr/bin/env bash
+if [ ! -f .env ]; then
+    cp .env.example .env
+    echo "✓ Created .env from .env.example"
+else
+    echo "⚠ .env already exists, skipping"
+fi
+'''
+
+[tasks.verify]
+description = "Verify setup"
+category = "Setup"
+script = '''
+echo "🔍 Verifying setup..."
+rustc --version
+cargo --version
+docker --version
+sqlx --version 2>&1 || echo "sqlx-cli not installed"
+node --version
+npm --version
+'''
+
+[tasks.verify.windows]
+script_runner = "powershell"
+script = '''
+Write-Host "🔍 Verifying setup..."
+rustc --version
+cargo --version
+docker --version
+try { sqlx --version } catch { Write-Host "sqlx-cli not installed" }
+node --version
+npm --version
+'''
+
+# ============================================================================
+# Database
+# ============================================================================
+
+[tasks.db-up]
+description = "Start development database"
+category = "Database"
+script = '''
+echo "🐘 Starting PostgreSQL..."
+docker compose up -d postgres
+sleep 3
+echo "✓ Database ready"
+'''
+
+[tasks.db-up.windows]
+script_runner = "powershell"
+script = '''
+Write-Host "🐘 Starting PostgreSQL..."
+docker compose up -d postgres
+Start-Sleep -Seconds 3
+Write-Host "✓ Database ready"
+'''
+
+[tasks.db-down]
+description = "Stop database"
+category = "Database"
+script = "docker compose down postgres"
+
+[tasks.db-test-up]
+description = "Start test database"
+category = "Database"
+script = '''
+echo "🧪 Starting test database..."
+docker compose up -d postgres-test
+sleep 3
+echo "✓ Test database ready"
+'''
+
+[tasks.db-test-down]
+description = "Stop test database"
+category = "Database"
+script = "docker compose down postgres-test"
+
+[tasks.db-setup]
+description = "Setup database"
+category = "Database"
+dependencies = ["db-up"]
+script = "sleep 2"
+
+[tasks.db-migrate]
+description = "Run migrations"
+category = "Database"
+script = '''
+echo "🔄 Running migrations..."
+sqlx migrate run
+echo "✓ Migrations complete"
+'''
+
+[tasks.db-migrate.windows]
+script_runner = "powershell"
+script = '''
+Write-Host "🔄 Running migrations..."
+sqlx migrate run
+Write-Host "✓ Migrations complete"
+'''
+
+[tasks.db-migrate-revert]
+description = "Revert last migration"
+category = "Database"
+script = '''
+echo "⏪ Reverting last migration..."
+sqlx migrate revert
+echo "✓ Migration reverted"
+'''
+
+[tasks.db-migrate-add]
+description = "Create new migration (usage: cargo make db-migrate-add -- name)"
+category = "Database"
+script_runner = "@shell"
+script_extension = "sh"
+script = '''
+#!/usr/bin/env bash
+if [ -z "$1" ]; then
+    echo "Error: Migration name required"
+    echo "Usage: cargo make db-migrate-add -- migration_name"
+    exit 1
+fi
+echo "📝 Creating migration: $1"
+sqlx migrate add "$1"
+echo "✓ Migration file created"
+'''
+
+[tasks.db-shell]
+description = "Connect to database"
+category = "Database"
+script = "psql ${DATABASE_URL}"
+
+[tasks.db-logs]
+description = "View database logs"
+category = "Database"
+script = "docker compose logs -f postgres"
+
+# ============================================================================
+# SQLx
+# ============================================================================
+
+[tasks.sqlx-prepare]
+description = "Generate SQLx metadata"
+category = "SQLx"
+script = '''
+echo "📦 Generating SQLx metadata..."
+cargo sqlx prepare --workspace -- --all-targets
+echo "✓ Metadata generated in .sqlx/"
+'''
+
+[tasks.sqlx-check]
+description = "Verify SQLx metadata"
+category = "SQLx"
+script = '''
+echo "🔍 Verifying SQLx metadata..."
+cargo sqlx prepare --check --workspace -- --all-targets
+echo "✓ SQLx metadata is current"
+'''
+
+[tasks.sqlx-clean]
+description = "Clean SQLx metadata"
+category = "SQLx"
+script = "rm -rf .sqlx"
+
+# ============================================================================
+# Development
+# ============================================================================
+
+[tasks.dev]
+description = "Start development server"
+category = "Development"
+dependencies = ["db-up"]
+script = '''
+echo "🚀 Starting backend server..."
+cargo run --bin bdp-server
+'''
+
+[tasks.dev.windows]
+dependencies = ["db-up"]
+script_runner = "powershell"
+script = '''
+Write-Host "🚀 Starting backend server..."
+cargo run --bin bdp-server
+'''
+
+[tasks.web]
+description = "Start frontend development"
+category = "Development"
+script = "cd web && yarn dev"
+
+[tasks.web.windows]
+script_runner = "powershell"
+script = "cd web; yarn dev"
+
+[tasks.web-build]
+description = "Build frontend"
+category = "Development"
+script = '''
+#!/usr/bin/env bash
+set -euo pipefail
+echo "📚 Generating CLI documentation..."
+cargo run --package xtask -- generate-cli-docs
+echo "🌐 Building frontend..."
+cd web
+NEXT_PRIVATE_DISABLE_TURBO=1 yarn build
+cp -r public .next/standalone/
+cp -r .next/static .next/standalone/.next/
+yarn pagefind
+echo "✓ Build complete"
+'''
+
+[tasks.web-build.windows]
+script_runner = "powershell"
+script = '''
+Write-Host "📚 Generating CLI documentation..."
+cargo run --package xtask -- generate-cli-docs
+Write-Host "🌐 Building frontend..."
+cd web
+$env:NEXT_PRIVATE_DISABLE_TURBO="1"
+yarn build
+Copy-Item -Recurse -Force public .next/standalone/
+Copy-Item -Recurse -Force .next/static .next/standalone/.next/
+yarn pagefind
+Write-Host "✓ Build complete"
+'''
+
+[tasks.build-web]
+description = "Alias for CI compatibility"
+category = "Development"
+alias = "web-build"
+
+[tasks.watch]
+description = "Watch and rebuild"
+category = "Development"
+script = "cargo watch -x 'run --bin bdp-server'"
+
+[tasks.fmt]
+description = "Format code"
+category = "Development"
+script = '''
+echo "🎨 Formatting code..."
+cargo fmt --all
+cd web && yarn format
+echo "✓ Code formatted"
+'''
+
+[tasks.lint]
+description = "Lint code"
+category = "Development"
+script = '''
+echo "🔍 Linting code..."
+cargo clippy --all-targets --all-features -- -D warnings
+cd web && yarn lint
+echo "✓ Linting complete"
+'''
+
+[tasks.fix]
+description = "Fix linting issues"
+category = "Development"
+script = '''
+echo "🔧 Fixing linting issues..."
+cargo clippy --fix --allow-dirty --allow-staged
+cargo fmt --all
+echo "✓ Fixes applied"
+'''
+
+# ============================================================================
+# Building
+# ============================================================================
+
+[tasks.build]
+description = "Build Rust workspace"
+category = "Building"
+script = "cargo build --workspace"
+
+[tasks.build-release]
+description = "Build release version"
+category = "Building"
+script = '''
+echo "🔨 Building release version..."
+cargo build --workspace --release
+'''
+
+[tasks.build-all]
+description = "Build all"
+category = "Building"
+dependencies = ["build", "web-build"]
+script = "echo '✓ All builds complete'"
+
+[tasks.docker-build]
+description = "Build Docker images"
+category = "Building"
+script = '''
+echo "🐳 Building Docker images..."
+docker build -f docker/Dockerfile.server -t bdp-server:latest .
+docker build -f docker/Dockerfile.cli -t bdp-cli:latest .
+docker build -f docker/Dockerfile.ingest -t bdp-ingest:latest .
+docker build -f docker/Dockerfile.web -t bdp-web:latest .
+echo "✓ Docker images built"
+'''
+
+# ============================================================================
+# Testing
+# ============================================================================
+
+[tasks.test]
+description = "Run all tests"
+category = "Testing"
+dependencies = ["db-test-up"]
+script = '''
+#!/usr/bin/env bash
+echo "🧪 Running tests..."
+export TEST_DATABASE_URL="${TEST_DATABASE_URL:-postgresql://bdp:bdp_test_password@localhost:5433/bdp_test}"
+export DATABASE_URL="${DATABASE_URL:-postgresql://bdp:bdp_test_password@localhost:5433/bdp_test}"
+cargo test --workspace --all-features
+echo "✓ Tests complete"
+'''
+
+[tasks.test-unit]
+description = "Run unit tests only"
+category = "Testing"
+script = "cargo test --workspace --lib --all-features"
+
+[tasks.test-integration]
+description = "Run integration tests"
+category = "Testing"
+dependencies = ["db-test-up"]
+script = '''
+#!/usr/bin/env bash
+export TEST_DATABASE_URL="${TEST_DATABASE_URL:-postgresql://bdp:bdp_test_password@localhost:5433/bdp_test}"
+export DATABASE_URL="${DATABASE_URL:-postgresql://bdp:bdp_test_password@localhost:5433/bdp_test}"
+cargo test --test '*' --all-features
+'''
+
+# ============================================================================
+# CLI Testing
+# ============================================================================
+
+[tasks.test-cli-setup]
+description = "Setup CLI test directory"
+category = "CLI Testing"
+script = "mkdir -p D:/dev/datadir/bdp-example"
+
+[tasks.test-cli-clean]
+description = "Clean CLI test directory"
+category = "CLI Testing"
+script = "rm -rf D:/dev/datadir/bdp-example/*"
+
+[tasks.test-cli]
+description = "Run CLI in test directory (usage: cargo make test-cli -- command)"
+category = "CLI Testing"
+script_runner = "@shell"
+script = '''
+#!/usr/bin/env bash
+cd D:/dev/datadir/bdp-example && cargo run --bin bdp -- "$@"
+'''
+
+# ============================================================================
+# CI/CD
+# ============================================================================
+
+[tasks.ci]
+description = "Run all CI checks"
+category = "CI/CD"
+dependencies = ["docs-cli-check", "sqlx-check", "lint", "test"]
+script = "echo '✓ All CI checks passed!'"
+
+[tasks.ci-offline]
+description = "Run CI checks offline"
+category = "CI/CD"
+env = { "SQLX_OFFLINE" = "true" }
+script = '''
+echo "🔍 Running CI checks (offline mode)..."
+cargo check --workspace --all-features
+cargo clippy --workspace --all-features -- -D warnings
+cargo test --workspace --lib
+echo "✓ Offline CI checks passed!"
+'''
+
+# ============================================================================
+# Cleanup
+# ============================================================================
+
+[tasks.clean]
+description = "Clean build artifacts"
+category = "Cleanup"
+script = '''
+echo "🧹 Cleaning build artifacts..."
+cargo clean
+cd web && rm -rf .next node_modules/.cache 2>/dev/null || true
+echo "✓ Cleaned"
+'''
+
+[tasks.clean.windows]
+script_runner = "powershell"
+script = '''
+Write-Host "🧹 Cleaning build artifacts..."
+cargo clean
+cd web; Remove-Item -Recurse -Force .next, node_modules/.cache -ErrorAction SilentlyContinue
+Write-Host "✓ Cleaned"
+'''
+
+[tasks.clean-all]
+description = "Deep clean"
+category = "Cleanup"
+dependencies = ["clean"]
+script = '''
+cd web && rm -rf node_modules 2>/dev/null || true
+rm -rf target 2>/dev/null || true
+'''
+
+[tasks.clean-all.windows]
+dependencies = ["clean"]
+script_runner = "powershell"
+script = '''
+cd web; Remove-Item -Recurse -Force node_modules -ErrorAction SilentlyContinue
+Remove-Item -Recurse -Force target -ErrorAction SilentlyContinue
+'''
+
+[tasks.stop]
+description = "Stop all Docker services"
+category = "Cleanup"
+script = "docker compose down"
+
+[tasks.stop-all]
+description = "Stop all and remove volumes"
+category = "Cleanup"
+script = "docker compose down -v"
+
+# ============================================================================
+# Documentation
+# ============================================================================
+
+[tasks.docs]
+description = "Build documentation"
+category = "Documentation"
+script = "cargo doc --workspace --no-deps --open"
+
+[tasks.docs-cli]
+description = "Generate CLI documentation"
+category = "Documentation"
+script = '''
+echo "📚 Generating CLI reference documentation..."
+cargo run --package xtask -- generate-cli-docs
+echo "✓ CLI docs generated"
+'''
+
+[tasks.docs-cli-check]
+description = "Check if CLI docs are up to date"
+category = "Documentation"
+script = '''
+#!/usr/bin/env bash
+set -euo pipefail
+echo "🔍 Checking if CLI docs are up to date..."
+temp_dir=$(mktemp -d)
+trap "rm -rf $temp_dir" EXIT
+cargo run --package xtask -- generate-cli-docs --output-dir "$temp_dir"
+if diff -q "web/app/[locale]/docs/content/en/cli-reference.mdx" "$temp_dir/cli-reference.mdx" > /dev/null 2>&1; then
+    echo "✓ CLI docs are up to date"
+else
+    echo "✗ CLI docs are outdated - run 'cargo make docs-cli' to update"
+    exit 1
+fi
+'''
+
+# ============================================================================
+# E2E Testing
+# ============================================================================
+
+[tasks.e2e-ci]
+description = "Run E2E tests (CI mode)"
+category = "E2E Testing"
+env = { "BDP_E2E_MODE" = "ci" }
+script = "cargo test --test e2e -- --test-threads=1 --nocapture"
+
+[tasks.e2e-ci.windows]
+env = { "BDP_E2E_MODE" = "ci" }
+script_runner = "powershell"
+script = "cargo test --test e2e -- --test-threads=1 --nocapture"
+
+# ============================================================================
+# Utilities
+# ============================================================================
+
+[tasks.info]
+description = "Show environment info"
+category = "Utilities"
+script = '''
+echo "📊 BDP Environment Info"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+rustc --version
+cargo --version
+node --version
+docker --version
+sqlx --version 2>&1 || echo "SQLx: Not installed"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "Backend: http://localhost:8000"
+echo "Frontend: http://localhost:3000"
+echo "MinIO: http://localhost:9001"
+'''
+
+[tasks.logs]
+description = "Show all service logs"
+category = "Utilities"
+script = "docker compose logs -f"
+
+[tasks.health]
+description = "Health check services"
+category = "Utilities"
+script = '''
+echo "🏥 Checking service health..."
+curl -s http://localhost:8000/health > /dev/null && echo "✓ Backend healthy" || echo "✗ Backend down"
+curl -s http://localhost:3000 > /dev/null && echo "✓ Frontend healthy" || echo "✗ Frontend down"
+curl -s http://localhost:9000/minio/health/live > /dev/null && echo "✓ MinIO healthy" || echo "✗ MinIO down"
+'''
+
+# ============================================================================
+# Version Management
+# ============================================================================
+
+[tasks.version]
+description = "Show current version"
+category = "Version"
+script = '''
+echo "📦 BDP Version Information"
+cargo metadata --format-version 1 --no-deps | jq -r '.packages[] | select(.name=="bdp-cli") | "Rust:    v" + .version'
+cd web && node -p "'Node:    v' + require('./package.json').version"
+'''
+
+# ============================================================================
+# Infrastructure
+# ============================================================================
+
+[tasks.infra-init]
+description = "Initialize Terraform"
+category = "Infrastructure"
+script = "cd infrastructure && terraform init"
+
+[tasks.infra-init.windows]
+script_runner = "powershell"
+script = "cd infrastructure; terraform init"
+
+[tasks.infra-plan]
+description = "Preview infrastructure changes"
+category = "Infrastructure"
+script = "cd infrastructure && terraform plan"
+
+[tasks.infra-plan.windows]
+script_runner = "powershell"
+script = "cd infrastructure; terraform plan"
+
+[tasks.infra-apply]
+description = "Apply infrastructure changes"
+category = "Infrastructure"
+script = "cd infrastructure && terraform apply"
+
+[tasks.infra-apply.windows]
+script_runner = "powershell"
+script = "cd infrastructure; terraform apply"

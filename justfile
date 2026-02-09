@@ -1,3 +1,20 @@
+# ============================================================================
+# DEPRECATED: This justfile is being replaced by cargo xtask
+# ============================================================================
+#
+# This file will be archived soon. Please migrate to cargo xtask commands:
+#
+#   just dev        → cargo xtask dev
+#   just test       → cargo xtask test
+#   just lint       → cargo xtask lint
+#   just fmt        → cargo xtask fmt
+#   just migrate    → cargo xtask migrate
+#
+# For full migration guide, see: docs/development/xtask-guide.md
+# For cargo-make migration status: docs/development/cargo-make-migration.md
+#
+# ============================================================================
+
 # BDP - Bioinformatics Dependencies Platform
 # Just command runner - replaces all shell scripts
 # Install: cargo install just

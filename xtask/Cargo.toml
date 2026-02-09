@@ -23,3 +23,6 @@ anyhow = "1.0"
 
 # Date/time for timestamps
 chrono = "0.4"
+
+# For colored terminal output
+colored = "2"

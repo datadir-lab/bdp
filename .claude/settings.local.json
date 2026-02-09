@@ -264,7 +264,8 @@
       "Bash(bdp:*)",
       "Bash(command:*)",
       "WebFetch(domain:help.ovhcloud.com)",
-      "WebFetch(domain:support.us.ovhcloud.com)"
+      "WebFetch(domain:support.us.ovhcloud.com)",
+      "Bash(git -c commit.gpgsign=false commit -m \"fix\\(deploy\\): stage service startup to prevent web timeout on server health\")"
     ]
   }
 }

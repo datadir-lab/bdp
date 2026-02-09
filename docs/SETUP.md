@@ -44,14 +44,11 @@ Node.js is required for the web frontend built with Next.js.
 - **Verification**: `node --version` and `npm --version`
 - **Note**: We recommend using [nvm](https://github.com/nvm-sh/nvm) (Node Version Manager) for managing Node.js versions
 
-#### 4. Just Command Runner
-Just is used as a command runner to replace shell scripts with a cross-platform solution.
+#### 4. xtask (Built-in Task Runner)
+xtask is a Rust-based task runner built into the project workspace. No separate installation required.
 
-- **Installation**:
-  ```bash
-  cargo install just
-  ```
-- **Verification**: `just --version`
+- **Installation**: Not needed - runs via `cargo xtask`
+- **Verification**: `cargo xtask --help`
 
 #### 5. SQLx CLI
 SQLx CLI is required for running database migrations.
@@ -107,17 +104,17 @@ Follow the installation links in the [System Requirements](#system-requirements)
 
 **Quick verification** of all dependencies:
 ```bash
-just verify
+cargo xtask setup verify
 ```
 
 This command will check all required software and report their versions.
 
 ### Step 3: Install All Dependencies
 
-Use the Just command to install all required dependencies:
+Use the xtask command to install all required dependencies:
 
 ```bash
-just install-deps
+cargo xtask setup deps
 ```
 
 This will:
@@ -131,7 +128,7 @@ This will:
 The easiest way to set up your development environment is to use the setup command:
 
 ```bash
-just setup
+cargo xtask setup all
 ```
 
 This command will:
@@ -148,7 +145,7 @@ If you prefer to set up manually or if the quick setup fails:
 #### 1. Configure Environment Variables
 
 ```bash
-just env-setup
+cargo xtask setup env
 ```
 
 This copies `.env.example` to `.env`. Edit `.env` and update any values as needed.
@@ -156,7 +153,7 @@ This copies `.env.example` to `.env`. Edit `.env` and update any values as neede
 #### 2. Start Docker Services
 
 ```bash
-just db-up
+cargo xtask db up
 ```
 
 This starts PostgreSQL and waits for it to be ready.
@@ -164,7 +161,7 @@ This starts PostgreSQL and waits for it to be ready.
 #### 3. Run Database Migrations
 
 ```bash
-just db-migrate
+cargo xtask db migrate
 ```
 
 If you see "Migrations complete", the database is ready!
@@ -172,7 +169,7 @@ If you see "Migrations complete", the database is ready!
 #### 4. Verify Setup
 
 ```bash
-just verify
+cargo xtask setup verify
 ```
 
 ## Verification
@@ -181,9 +178,9 @@ just verify
 
 After completing the setup, verify the following:
 
-- [ ] All required software installed (run `just verify`)
+- [ ] All required software installed (run `cargo xtask setup verify`)
 - [ ] `.env` file exists and is configured
-- [ ] Docker services are running (`just db-up`)
+- [ ] Docker services are running (`cargo xtask db up`)
 - [ ] Database migrations applied successfully
 - [ ] Frontend dependencies installed
 
@@ -191,16 +188,16 @@ After completing the setup, verify the following:
 
 ```bash
 # Comprehensive verification
-just verify
+cargo xtask setup verify
 
 # Check environment info
-just info
+cargo xtask util info
 
 # Check database connection
-just check-db
+cargo xtask db check
 
 # View database logs
-just db-logs
+cargo xtask db logs
 ```
 
 ## Common Issues
@@ -238,18 +235,21 @@ just db-logs
 
 3. Restart Docker services:
    ```bash
-   docker compose down
-   docker compose up -d
+   cargo xtask docker down
+   cargo xtask docker up
    ```
 
-### Issue: just or sqlx-cli not found
+### Issue: sqlx-cli not found
 
-**Symptoms**: `command not found: just` or `command not found: sqlx`
+**Symptoms**: `command not found: sqlx`
 
 **Solution**:
 ```bash
-# Install both tools
-cargo install just sqlx-cli --features postgres
+# Install sqlx-cli
+cargo install sqlx-cli --features postgres
+
+# Or use the setup command
+cargo xtask setup deps
 
 # Ensure cargo bin directory is in PATH
 export PATH="$HOME/.cargo/bin:$PATH"
@@ -266,17 +266,17 @@ source ~/.bashrc
 **Solution**:
 1. Start the database:
    ```bash
-   just db-up
+   cargo xtask db up
    ```
 
 2. Check database logs:
    ```bash
-   just db-logs
+   cargo xtask db logs
    ```
 
 3. Verify database connection:
    ```bash
-   just check-db
+   cargo xtask db check
    ```
 
 4. Verify DATABASE_URL in `.env` matches Docker configuration:
@@ -284,20 +284,22 @@ source ~/.bashrc
    DATABASE_URL=postgresql://bdp:bdp_dev_password@localhost:5432/bdp
    ```
 
-### Issue: Just command not working
+### Issue: xtask command not working
 
-**Symptoms**: Just commands fail or are not recognized
+**Symptoms**: xtask commands fail or are not recognized
 
 **Solution**:
 ```bash
-# Verify Just is installed
-just --version
-
-# If not installed
-cargo install just
+# xtask is built into the project - no installation needed
+# Just use cargo to run it
+cargo xtask --help
 
 # See all available commands
-just --list
+cargo xtask --help
+
+# See commands for a specific module
+cargo xtask db --help
+cargo xtask dev --help
 ```
 
 ### Issue: Node.js version too old
@@ -377,7 +379,7 @@ After successful setup, you can:
 
 ```bash
 # Start development server
-just dev
+cargo xtask dev server
 ```
 
 The API will be available at [http://localhost:8000](http://localhost:8000)
@@ -386,7 +388,7 @@ The API will be available at [http://localhost:8000](http://localhost:8000)
 
 ```bash
 # Start frontend development server
-just web
+cargo xtask dev web
 ```
 
 The web interface will be available at [http://localhost:3000](http://localhost:3000)
@@ -395,20 +397,20 @@ The web interface will be available at [http://localhost:3000](http://localhost:
 
 ```bash
 # Start backend + frontend + database together
-just dev-all
+cargo xtask dev all
 ```
 
 ### 4. Run Tests
 
 ```bash
 # Run all tests
-just test
+cargo xtask test all
 
 # Run with verbose output
-just test-verbose
+cargo xtask test verbose
 
 # Run specific test
-just test-one test_name
+cargo xtask test one test_name
 ```
 
 ### 4. Explore the Documentation
@@ -421,72 +423,72 @@ just test-one test_name
 
 ```bash
 # 1. Start all services
-just setup      # First time only
+cargo xtask setup all      # First time only
 
 # 2. Start development
-just dev        # Backend (in one terminal)
-just web        # Frontend (in another terminal)
+cargo xtask dev server     # Backend (in one terminal)
+cargo xtask dev web        # Frontend (in another terminal)
 
 # Or start everything together
-just dev-all
+cargo xtask dev all
 
 # 3. Make changes and test
-just test       # Run tests
-just lint       # Check code quality
-just fmt        # Format code
+cargo xtask test all       # Run tests
+cargo xtask dev lint       # Check code quality
+cargo xtask dev fmt        # Format code
 ```
 
 ### 6. Useful Commands
 
 ```bash
 # View all available commands
-just --list
+cargo xtask --help
 
 # Database management
-just db-up          # Start database
-just db-down        # Stop database
-just db-migrate     # Run migrations
-just db-shell       # Access PostgreSQL shell
-just db-logs        # View database logs
-just db-reset       # Reset database (WARNING: deletes data)
+cargo xtask db up          # Start database
+cargo xtask db down        # Stop database
+cargo xtask db migrate     # Run migrations
+cargo xtask db shell       # Access PostgreSQL shell
+cargo xtask db logs        # View database logs
+cargo xtask db reset       # Reset database (WARNING: deletes data)
 
 # Development
-just dev            # Start backend
-just web            # Start frontend
-just dev-all        # Start all services
-just watch          # Watch and rebuild on changes
+cargo xtask dev server     # Start backend
+cargo xtask dev web        # Start frontend
+cargo xtask dev all        # Start all services
+cargo xtask dev watch      # Watch and rebuild on changes
 
 # Testing
-just test           # Run all tests
-just test-verbose   # Run tests with output
-just test-unit      # Run unit tests only
-just test-integration # Run integration tests only
+cargo xtask test all       # Run all tests
+cargo xtask test verbose   # Run tests with output
+cargo xtask test unit      # Run unit tests only
+cargo xtask test integration # Run integration tests only
 
 # Code quality
-just fmt            # Format code
-just lint           # Run linters
-just fix            # Auto-fix linting issues
+cargo xtask dev fmt        # Format code
+cargo xtask dev lint       # Run linters
+cargo xtask dev fix        # Auto-fix linting issues
 
 # SQLx management
-just sqlx-prepare   # Generate metadata for offline builds
-just sqlx-check     # Verify metadata is up to date
-just sqlx-clean     # Clean metadata files
+cargo xtask sqlx prepare   # Generate metadata for offline builds
+cargo xtask sqlx check     # Verify metadata is up to date
+cargo xtask sqlx clean     # Clean metadata files
 
 # CI/CD simulation
-just ci             # Run all CI checks locally
-just ci-offline     # Run CI in offline mode
+cargo xtask ci all         # Run all CI checks locally
+cargo xtask ci offline     # Run CI in offline mode
 
 # Build
-just build          # Build backend
-just build-release  # Build release version
-just build-web      # Build frontend
-just build-all      # Build everything
+cargo xtask build workspace # Build backend
+cargo xtask build release  # Build release version
+cargo xtask dev web-build  # Build frontend
+cargo xtask build all      # Build everything
 
 # Utilities
-just info           # Show environment info
-just verify         # Verify setup
-just check-db       # Check database connection
-just clean          # Clean build artifacts
+cargo xtask util info      # Show environment info
+cargo xtask setup verify   # Verify setup
+cargo xtask db check       # Check database connection
+cargo xtask clean workspace # Clean build artifacts
 ```
 
 ## Getting Help
@@ -494,11 +496,11 @@ just clean          # Clean build artifacts
 If you encounter issues not covered in this guide:
 
 1. **Check the documentation**: Look in `docs/` for more detailed guides
-2. **Review logs**: Check logs with `just db-logs` or `just logs`
-3. **Run verification**: `just verify` to identify missing dependencies
+2. **Review logs**: Check logs with `cargo xtask db logs` or `cargo xtask util logs`
+3. **Run verification**: `cargo xtask setup verify` to identify missing dependencies
 4. **Search issues**: Check GitHub issues for similar problems
 5. **Ask for help**: Create a new GitHub issue with:
-   - Output of `just verify` and `just info`
+   - Output of `cargo xtask setup verify` and `cargo xtask util info`
    - Relevant error messages
    - Your OS and software versions
    - Steps to reproduce the issue

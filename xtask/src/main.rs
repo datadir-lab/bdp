@@ -1,12 +1,33 @@
 //! Build automation tasks for BDP
 //!
-//! This tool provides various automation tasks for the BDP project, including:
-//! - Generating CLI documentation from source code
-//! - Future build-related tasks
+//! This tool provides comprehensive automation tasks for the BDP project, including:
+//! - Database operations (setup, migrations, seeding)
+//! - Development workflows (building, testing, running)
+//! - CI/CD operations (linting, testing, checks)
+//! - Documentation generation
+//! - Docker and infrastructure management
+//! - Release management
 
 use clap::Parser;
-use std::fs;
-use std::path::PathBuf;
+
+// Import all task modules
+mod build;
+mod ci;
+mod clean;
+mod db;
+mod dev;
+mod docker;
+mod docs;
+mod e2e;
+mod infra;
+mod ingest;
+mod minio;
+mod release;
+mod setup;
+mod sqlx;
+mod test;
+mod util;
+mod utils;
 
 #[derive(Parser)]
 #[command(name = "xtask")]
@@ -18,7 +39,72 @@ struct Cli {
 
 #[derive(Parser)]
 enum Command {
-    /// Generate CLI documentation in MDX format
+    /// Database operations
+    #[command(subcommand)]
+    Db(db::DbCommand),
+
+    /// Build tasks
+    #[command(subcommand)]
+    Build(build::BuildCommand),
+
+    /// Development operations
+    #[command(subcommand)]
+    Dev(dev::DevCommand),
+
+    /// Testing operations
+    #[command(subcommand)]
+    Test(test::TestCommand),
+
+    /// Documentation operations
+    #[command(subcommand)]
+    Docs(docs::DocsCommand),
+
+    /// CI/CD simulation
+    #[command(subcommand)]
+    Ci(ci::CiCommand),
+
+    /// Cleanup operations
+    #[command(subcommand)]
+    Clean(clean::CleanCommand),
+
+    /// Docker operations
+    #[command(subcommand)]
+    Docker(docker::DockerCommand),
+
+    /// SQLx operations
+    #[command(subcommand)]
+    Sqlx(sqlx::SqlxCommand),
+
+    /// MinIO operations
+    #[command(subcommand)]
+    Minio(minio::MinioCommand),
+
+    /// Ingestion operations
+    #[command(subcommand)]
+    Ingest(ingest::IngestCommand),
+
+    /// Setup operations
+    #[command(subcommand)]
+    Setup(setup::SetupCommand),
+
+    /// Infrastructure operations
+    #[command(subcommand)]
+    Infra(infra::InfraCommand),
+
+    /// E2E testing operations
+    #[command(subcommand)]
+    E2e(e2e::E2eCommand),
+
+    /// Release management
+    #[command(subcommand)]
+    Release(release::ReleaseCommand),
+
+    /// Utility operations
+    #[command(subcommand)]
+    Util(util::UtilCommand),
+
+    // ===== Flat command aliases for backward compatibility =====
+    /// Generate CLI documentation in MDX format (legacy command)
     GenerateCliDocs {
         /// Output directory for generated documentation
         #[arg(short, long, default_value = "web/app/[locale]/docs/content/en")]
@@ -30,13 +116,37 @@ fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Command::GenerateCliDocs { output_dir } => generate_cli_docs(&output_dir)?,
-    }
+        // Module commands
+        Command::Db(cmd) => db::handle(cmd),
+        Command::Build(cmd) => build::handle(cmd),
+        Command::Dev(cmd) => dev::handle(cmd),
+        Command::Test(cmd) => test::handle(cmd),
+        Command::Docs(cmd) => docs::handle(cmd),
+        Command::Ci(cmd) => ci::handle(cmd),
+        Command::Clean(cmd) => clean::handle(cmd),
+        Command::Docker(cmd) => docker::handle(cmd),
+        Command::Sqlx(cmd) => sqlx::handle(cmd),
+        Command::Minio(cmd) => minio::handle(cmd),
+        Command::Ingest(cmd) => ingest::handle(cmd),
+        Command::Setup(cmd) => setup::handle(cmd),
+        Command::Infra(cmd) => infra::handle(cmd),
+        Command::E2e(cmd) => e2e::handle(cmd),
+        Command::Release(cmd) => release::handle(cmd),
+        Command::Util(cmd) => util::handle(cmd),
 
-    Ok(())
+        // Legacy command (kept for backward compatibility)
+        Command::GenerateCliDocs { output_dir } => generate_cli_docs(&output_dir),
+    }
 }
 
+// ===== Legacy generate-cli-docs implementation =====
+// This function is kept for backward compatibility
+// New code should use: cargo xtask docs cli
+
 fn generate_cli_docs(output_dir: &str) -> anyhow::Result<()> {
+    use std::fs;
+    use std::path::PathBuf;
+
     println!("Generating CLI documentation...");
 
     // Generate markdown from clap definitions

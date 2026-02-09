@@ -984,7 +984,6 @@ dependencies = [
  "async-trait",
  "axum 0.7.9",
  "bdp-common",
- "bdp-server",
  "chrono",
  "clap",
  "clap-markdown",
@@ -1015,6 +1014,7 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "toml",
+ "tower-http",
  "tracing",
  "tracing-subscriber",
  "urlencoding",
@@ -7655,6 +7655,7 @@ dependencies = [
  "chrono",
  "clap",
  "clap-markdown",
+ "colored",
 ]
 
 [[package]]
