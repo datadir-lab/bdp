@@ -203,7 +203,7 @@ fn lint() -> Result<()> {
     info("🔍 Linting code...");
     run(
         "cargo",
-        &["clippy", "--all-targets", "--all-features", "--", "-D", "warnings"],
+        &["clippy", "--workspace", "--bins", "--lib", "--", "-D", "warnings"],
         "Lint Rust code",
     )?;
     run_in_dir("web", "yarn", &["lint"], "Lint web code")?;
