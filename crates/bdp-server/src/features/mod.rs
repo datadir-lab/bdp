@@ -84,7 +84,7 @@ pub fn router(state: FeatureState) -> Router<()> {
             data_sources::data_sources_routes().with_state(state.db.clone()),
         )
         .nest("/search", search::search_routes().with_state(state.db.clone()))
-        .nest("/resolve", resolve::resolve_routes().with_state(state.db.clone()))
+        .nest("/resolve", resolve::resolve_routes().with_state(state.clone()))
         .nest("/jobs", jobs::jobs_routes().with_state(state.db.clone()))
         .nest("/sync-status", jobs::sync_status_routes().with_state(state.db.clone()))
         .nest("/files", files::files_routes().with_state(state.storage.clone()))

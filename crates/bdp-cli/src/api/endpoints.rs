@@ -93,6 +93,11 @@ pub fn organization_details_url(base_url: &str, name: &str) -> String {
     format!("{}/api/v1/organizations/{}", base_url, name)
 }
 
+/// Build record download URL
+pub fn record_download_url(base_url: &str) -> String {
+    format!("{}/api/v1/resolve/downloads", base_url)
+}
+
 /// Build health check URL
 pub fn health_url(base_url: &str) -> String {
     format!("{}/health", base_url)
@@ -140,6 +145,12 @@ mod tests {
     fn test_organizations_url() {
         let url = organizations_url("http://localhost:8000");
         assert_eq!(url, "http://localhost:8000/api/v1/organizations");
+    }
+
+    #[test]
+    fn test_record_download_url() {
+        let url = record_download_url("http://localhost:8000");
+        assert_eq!(url, "http://localhost:8000/api/v1/resolve/downloads");
     }
 
     #[test]

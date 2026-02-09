@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        UPDATE versions SET download_count = download_count + 1 WHERE id = $1\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c7ec569b8d8d3008906e65d13d3e5c36b2c4aa2a8193899f93246ee09bb4ab88"
+}

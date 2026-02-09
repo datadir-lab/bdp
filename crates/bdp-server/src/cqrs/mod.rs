@@ -1,11 +1,13 @@
 pub use mediator::DefaultAsyncMediator;
 use sqlx::PgPool;
 
+use crate::storage::Storage;
+
 pub mod middleware;
 
 pub type AppMediator = DefaultAsyncMediator;
 
-pub fn build_mediator(pool: PgPool) -> AppMediator {
+pub fn build_mediator(pool: PgPool, storage: Storage) -> AppMediator {
     DefaultAsyncMediator::builder()
         // Organizations
         .add_handler({
@@ -111,9 +113,11 @@ pub fn build_mediator(pool: PgPool) -> AppMediator {
         // Resolve
         .add_handler({
             let pool = pool.clone();
+            let storage = storage.clone();
             move |query| {
                 let pool = pool.clone();
-                async move { crate::features::resolve::queries::resolve_manifest::handle(pool, query).await }
+                let storage = storage.clone();
+                async move { crate::features::resolve::queries::resolve_manifest::handle(pool, storage, query).await }
             }
         })
         // Organisms
@@ -160,7 +164,14 @@ mod tests {
             std::env::var("DATABASE_URL").unwrap_or_else(|_| "postgres://localhost".to_string());
 
         if let Ok(pool) = PgPool::connect(&database_url).await {
-            let _mediator = build_mediator(pool);
+            let storage_config = crate::storage::config::StorageConfig::for_minio(
+                "http://127.0.0.1:19999",
+                "bdp-test",
+            );
+            let storage = crate::storage::Storage::new(storage_config)
+                .await
+                .expect("Failed to create test storage");
+            let _mediator = build_mediator(pool, storage);
         }
     }
 }

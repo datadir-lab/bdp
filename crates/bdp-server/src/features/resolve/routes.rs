@@ -1,4 +1,5 @@
 use crate::api::response::{ApiResponse, ErrorResponse};
+use crate::features::FeatureState;
 use axum::{
     extract::State,
     http::StatusCode,
@@ -6,20 +7,22 @@ use axum::{
     routing::post,
     Json, Router,
 };
-use sqlx::PgPool;
 
+use super::commands::RecordDownloadCommand;
 use super::queries::{ResolveManifestError, ResolveManifestQuery};
 
-pub fn resolve_routes() -> Router<PgPool> {
-    Router::new().route("/", post(resolve_manifest))
+pub fn resolve_routes() -> Router<FeatureState> {
+    Router::new()
+        .route("/", post(resolve_manifest))
+        .route("/downloads", post(record_download))
 }
 
-#[tracing::instrument(skip(pool, query), fields(sources = query.sources.len(), tools = query.tools.len()))]
+#[tracing::instrument(skip(state, query), fields(sources = query.sources.len(), tools = query.tools.len()))]
 async fn resolve_manifest(
-    State(pool): State<PgPool>,
+    State(state): State<FeatureState>,
     Json(query): Json<ResolveManifestQuery>,
 ) -> Result<Response, ResolveApiError> {
-    let response = super::queries::resolve_manifest::handle(pool, query).await?;
+    let response = super::queries::resolve_manifest::handle(state.db, state.storage, query).await?;
 
     tracing::info!(
         sources_count = response.sources.len(),
@@ -28,6 +31,55 @@ async fn resolve_manifest(
     );
 
     Ok((StatusCode::OK, Json(ApiResponse::success(response))).into_response())
+}
+
+#[tracing::instrument(skip(state, command), fields(org = %command.org, name = %command.name, version = %command.version))]
+async fn record_download(
+    State(state): State<FeatureState>,
+    Json(command): Json<RecordDownloadCommand>,
+) -> Result<Response, RecordDownloadApiError> {
+    let response = super::commands::record_download::handle(state.db, command).await?;
+
+    Ok((StatusCode::OK, Json(ApiResponse::success(response))).into_response())
+}
+
+#[derive(Debug)]
+enum RecordDownloadApiError {
+    RecordError(super::commands::RecordDownloadError),
+}
+
+impl From<super::commands::RecordDownloadError> for RecordDownloadApiError {
+    fn from(err: super::commands::RecordDownloadError) -> Self {
+        Self::RecordError(err)
+    }
+}
+
+impl IntoResponse for RecordDownloadApiError {
+    fn into_response(self) -> Response {
+        match self {
+            RecordDownloadApiError::RecordError(
+                super::commands::RecordDownloadError::NotFound(msg),
+            ) => {
+                let error = ErrorResponse::new("NOT_FOUND", msg);
+                (StatusCode::NOT_FOUND, Json(error)).into_response()
+            },
+            RecordDownloadApiError::RecordError(
+                super::commands::RecordDownloadError::Database(_),
+            ) => {
+                tracing::error!("Database error recording download: {}", self);
+                let error = ErrorResponse::new("INTERNAL_ERROR", "A database error occurred");
+                (StatusCode::INTERNAL_SERVER_ERROR, Json(error)).into_response()
+            },
+        }
+    }
+}
+
+impl std::fmt::Display for RecordDownloadApiError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::RecordError(e) => write!(f, "{}", e),
+        }
+    }
 }
 
 #[derive(Debug)]

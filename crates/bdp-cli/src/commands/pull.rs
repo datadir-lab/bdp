@@ -78,10 +78,16 @@ pub async fn run(server_url: String, force: bool) -> Result<()> {
         // Create progress bar
         let pb = progress::create_download_progress(resolved_source.size as u64, spec);
 
-        // Download file
-        let bytes = api_client
-            .download_file(&org, &name, &version, format_str)
-            .await?;
+        // Download file: prefer presigned URL, fall back to legacy endpoint
+        let bytes = if let Some(ref download_url) = resolved_source.download_url {
+            tracing::debug!("Downloading from presigned URL for {}", spec);
+            api_client.download_from_url(download_url).await?
+        } else {
+            tracing::debug!("Falling back to legacy download endpoint for {}", spec);
+            api_client
+                .download_file(&org, &name, &version, format_str)
+                .await?
+        };
 
         pb.set_position(bytes.len() as u64);
         pb.finish();
@@ -100,6 +106,14 @@ pub async fn run(server_url: String, force: bool) -> Result<()> {
             spec,
             progress::format_bytes(resolved_source.size as u64)
         );
+
+        // Record download metric (best-effort, don't block pull)
+        if let Err(e) = api_client
+            .record_download(&org, &name, &version, format_str)
+            .await
+        {
+            tracing::warn!("Failed to record download metric for {}: {}", spec, e);
+        }
 
         // Add to lockfile
         let entry = SourceEntry::new(

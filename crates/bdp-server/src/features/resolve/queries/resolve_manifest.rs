@@ -2,7 +2,10 @@ use mediator::Request;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use std::collections::{HashMap, HashSet};
+use std::time::Duration;
 use uuid::Uuid;
+
+use crate::storage::Storage;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SourceSpec {
@@ -133,6 +136,8 @@ pub struct ResolvedSource {
     pub size: i64,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub external_version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub download_url: Option<String>,
     pub has_dependencies: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub dependency_count: Option<i32>,
@@ -155,6 +160,8 @@ pub struct DependencyInfo {
     pub format: String,
     pub checksum: String,
     pub size: i64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub download_url: Option<String>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -196,9 +203,10 @@ impl ResolveManifestQuery {
     }
 }
 
-#[tracing::instrument(skip(pool))]
+#[tracing::instrument(skip(pool, storage))]
 pub async fn handle(
     pool: PgPool,
+    storage: Storage,
     query: ResolveManifestQuery,
 ) -> Result<ResolveManifestResponse, ResolveManifestError> {
     query.validate()?;
@@ -210,7 +218,7 @@ pub async fn handle(
         let spec =
             SourceSpec::parse(source_spec_str).map_err(ResolveManifestError::InvalidSourceSpec)?;
 
-        let resolved = resolve_source(&pool, &spec).await?;
+        let resolved = resolve_source(&pool, &storage, &spec).await?;
         resolved_sources.insert(source_spec_str.clone(), resolved);
     }
 
@@ -231,6 +239,7 @@ pub async fn handle(
 
 async fn resolve_source(
     pool: &PgPool,
+    storage: &Storage,
     spec: &SourceSpec,
 ) -> Result<ResolvedSource, ResolveManifestError> {
     let entry: _ = sqlx::query!(
@@ -269,7 +278,7 @@ async fn resolve_source(
 
     let file: _ = sqlx::query!(
         r#"
-        SELECT checksum, size_bytes
+        SELECT s3_key, checksum, size_bytes
         FROM version_files
         WHERE version_id = $1 AND format = $2
         "#,
@@ -285,10 +294,12 @@ async fn resolve_source(
         ))
     })?;
 
+    let download_url = generate_download_url(storage, &file.s3_key).await;
+
     let has_dependencies = version.dependency_count.unwrap_or(0) > 0;
 
     let dependencies = if has_dependencies {
-        Some(fetch_dependencies(pool, version.id).await?)
+        Some(fetch_dependencies(pool, storage, version.id).await?)
     } else {
         None
     };
@@ -299,14 +310,31 @@ async fn resolve_source(
         checksum: file.checksum,
         size: file.size_bytes,
         external_version: version.external_version,
+        download_url,
         has_dependencies,
         dependency_count: version.dependency_count,
         dependencies,
     })
 }
 
+/// Generate a presigned download URL from an S3 key.
+/// Returns None if URL generation fails (e.g., S3 unreachable).
+async fn generate_download_url(storage: &Storage, s3_key: &str) -> Option<String> {
+    match storage
+        .generate_presigned_url(s3_key, Duration::from_secs(3600))
+        .await
+    {
+        Ok(url) => Some(url),
+        Err(e) => {
+            tracing::warn!("Failed to generate presigned URL for {}: {}", s3_key, e);
+            None
+        },
+    }
+}
+
 async fn fetch_dependencies(
     pool: &PgPool,
+    storage: &Storage,
     version_id: Uuid,
 ) -> Result<Vec<DependencyInfo>, ResolveManifestError> {
     let deps: Vec<_> = sqlx::query!(
@@ -316,6 +344,7 @@ async fn fetch_dependencies(
             re.slug as entry_slug,
             d.depends_on_version,
             vf.format,
+            vf.s3_key,
             vf.checksum,
             vf.size_bytes
         FROM dependencies d
@@ -332,15 +361,19 @@ async fn fetch_dependencies(
     .fetch_all(pool)
     .await?;
 
-    Ok(deps
-        .into_iter()
-        .map(|dep| DependencyInfo {
+    let mut results = Vec::with_capacity(deps.len());
+    for dep in deps {
+        let download_url = generate_download_url(storage, &dep.s3_key).await;
+        results.push(DependencyInfo {
             source: format!("{}:{}@{}", dep.org_slug, dep.entry_slug, dep.depends_on_version),
             format: dep.format,
             checksum: dep.checksum,
             size: dep.size_bytes,
-        })
-        .collect())
+            download_url,
+        });
+    }
+
+    Ok(results)
 }
 
 async fn resolve_tool(
@@ -471,6 +504,15 @@ fn check_dependencies(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Create a dummy Storage for tests (points to unreachable MinIO, so presigned URLs return None)
+    async fn test_storage() -> Storage {
+        let config =
+            crate::storage::config::StorageConfig::for_minio("http://127.0.0.1:19999", "bdp-test");
+        Storage::new(config)
+            .await
+            .expect("Failed to create test storage")
+    }
 
     #[test]
     fn test_parse_source_spec_valid() {
@@ -613,12 +655,14 @@ mod tests {
         .execute(&pool)
         .await?;
 
+        let storage = test_storage().await;
+
         let query = ResolveManifestQuery {
             sources: vec!["uniprot:P01308-fasta@1.0".to_string()],
             tools: vec![],
         };
 
-        let result = handle(pool.clone(), query).await;
+        let result = handle(pool.clone(), storage, query).await;
         assert!(result.is_ok());
         let response = result.unwrap();
         assert_eq!(response.sources.len(), 1);
@@ -627,17 +671,20 @@ mod tests {
         assert_eq!(source.format, "fasta");
         assert_eq!(source.checksum, "abc123");
         assert_eq!(source.size, 1024);
+        // download_url will be None since test storage points to unreachable MinIO
         Ok(())
     }
 
     #[sqlx::test]
     async fn test_handle_source_not_found(pool: PgPool) -> sqlx::Result<()> {
+        let storage = test_storage().await;
+
         let query = ResolveManifestQuery {
             sources: vec!["nonexistent:source-fasta@1.0".to_string()],
             tools: vec![],
         };
 
-        let result = handle(pool.clone(), query).await;
+        let result = handle(pool.clone(), storage, query).await;
         assert!(matches!(result, Err(ResolveManifestError::SourceNotFound(_))));
         Ok(())
     }
@@ -755,12 +802,14 @@ mod tests {
         .execute(&pool)
         .await?;
 
+        let storage = test_storage().await;
+
         let query = ResolveManifestQuery {
             sources: vec!["uniprot:all-fasta@1.0".to_string()],
             tools: vec![],
         };
 
-        let result = handle(pool.clone(), query).await;
+        let result = handle(pool.clone(), storage, query).await;
         assert!(result.is_ok());
         let response = result.unwrap();
         assert_eq!(response.sources.len(), 1);

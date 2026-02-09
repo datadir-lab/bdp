@@ -272,6 +272,48 @@ impl ApiClient {
         Ok(api_response.data)
     }
 
+    /// Download a file directly from a URL (e.g., presigned S3 URL)
+    ///
+    /// Returns the file bytes
+    pub async fn download_from_url(&self, url: &str) -> Result<Vec<u8>> {
+        let response = self.client.get(url).send().await?.error_for_status()?;
+        let bytes = response.bytes().await?.to_vec();
+        Ok(bytes)
+    }
+
+    /// Notify the server that a download was completed (for metrics tracking)
+    ///
+    /// This is best-effort: the caller should log but not fail on errors.
+    pub async fn record_download(
+        &self,
+        org: &str,
+        name: &str,
+        version: &str,
+        format: &str,
+    ) -> Result<()> {
+        let url = endpoints::record_download_url(&self.base_url);
+
+        let body = serde_json::json!({
+            "org": org,
+            "name": name,
+            "version": version,
+            "format": format,
+        });
+
+        let response = self.client.post(&url).json(&body).send().await?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body_text = response.text().await.unwrap_or_default();
+            return Err(CliError::api(format!(
+                "Failed to record download ({}): {}",
+                status, body_text
+            )));
+        }
+
+        Ok(())
+    }
+
     /// Get the base URL
     pub fn base_url(&self) -> &str {
         &self.base_url
