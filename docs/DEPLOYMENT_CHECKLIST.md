@@ -55,7 +55,7 @@ This checklist ensures the search and query features are ready for deployment.
 
 - [ ] **Run full test suite**
   ```bash
-  just test
+  cargo xtask test all
   # Expected: All tests passing
   ```
 
@@ -110,12 +110,12 @@ This checklist ensures the search and query features are ready for deployment.
 
 - [ ] **Apply migrations**
   ```bash
-  just db-migrate
+  cargo xtask db migrate
   ```
 
 - [ ] **Start BDP server**
   ```bash
-  just dev
+  cargo xtask dev server
   # Or: cargo run --bin bdp-server
   ```
 

@@ -146,7 +146,7 @@ Each JSON file contains:
 
 1. **Start the development database**:
    ```bash
-   just db-up
+   cargo xtask db up
    ```
 
 2. **Set environment variables** (in `.env` file):
@@ -157,52 +157,52 @@ Each JSON file contains:
 
 3. **Run migrations**:
    ```bash
-   just db-migrate
+   cargo xtask db migrate
    ```
 
 4. **Build the project**:
    ```bash
-   just build
+   cargo xtask build workspace
    ```
 
 ### Daily Development
 
 1. **Start services**:
    ```bash
-   just dev
+   cargo xtask dev server
    ```
 
 2. **Make code changes**: Edit queries, add new queries, etc.
 
 3. **Test changes**:
    ```bash
-   just test
+   cargo xtask test all
    ```
 
 4. **Build and validate**:
    ```bash
    cargo check  # Quick validation
-   just build   # Full build
+   cargo xtask build workspace   # Full build
    ```
 
 ### Making Schema Changes
 
 1. **Create a new migration**:
    ```bash
-   just db-migrate-add descriptive_name
+   cargo xtask db migrate-add descriptive_name
    # Edit the generated migration file in migrations/
    ```
 
 2. **Apply migration**:
    ```bash
-   just db-migrate
+   cargo xtask db migrate
    ```
 
 3. **Update queries** as needed in your code
 
 4. **Regenerate .sqlx files** (before committing):
    ```bash
-   just sqlx-prepare
+   cargo xtask sqlx prepare
    ```
 
 5. **Commit changes**:
@@ -348,7 +348,7 @@ cargo sqlx prepare --check
 We provide a Just command for preparing SQLx metadata:
 
 ```bash
-just sqlx-prepare
+cargo xtask sqlx prepare
 ```
 
 This command:
@@ -359,7 +359,7 @@ This command:
 
 ### When to run
 
-Run `just sqlx-prepare`:
+Run `cargo xtask sqlx prepare`:
 
 1. **After modifying SQL queries**: When you add, remove, or change any SQL query
 2. **After schema migrations**: After running `just db-migrate`
@@ -383,7 +383,7 @@ if git diff --cached --name-only | grep -qE '\.rs$'; then
     # Run prepare in check mode
     if ! cargo sqlx prepare --check -- --all-targets 2>/dev/null; then
         echo "Error: .sqlx files are out of date!"
-        echo "Run: just sqlx-prepare"
+        echo "Run: cargo xtask sqlx prepare"
         echo "Then: git add .sqlx/"
         exit 1
     fi
@@ -403,7 +403,7 @@ BDP uses a separate database for tests to:
 
 1. **Start test database** (runs on different port):
    ```bash
-   just db-test-up
+   cargo xtask db test-up
    ```
 
 2. **Verify it's running**:
@@ -413,7 +413,7 @@ BDP uses a separate database for tests to:
 
 3. **Run tests**:
    ```bash
-   just test
+   cargo xtask test all
    ```
 
 ### Test Configuration
@@ -501,7 +501,7 @@ pub async fn cleanup_test_db(pool: &PgPool) {
 **Cause**: `.sqlx` files not committed or out of date.
 
 **Solutions**:
-1. Run locally: `just sqlx-prepare`
+1. Run locally: `cargo xtask sqlx prepare`
 2. Commit generated files: `git add .sqlx/ && git commit`
 3. Verify `.sqlx/` is not in `.gitignore`
 4. Ensure `SQLX_OFFLINE=true` is set in CI/CD
@@ -511,7 +511,7 @@ pub async fn cleanup_test_db(pool: &PgPool) {
 **Cause**: SQL query text changed but `.sqlx` files not regenerated.
 
 **Solutions**:
-1. Regenerate metadata: `just sqlx-prepare`
+1. Regenerate metadata: `cargo xtask sqlx prepare`
 2. Commit updated files: `git add .sqlx/`
 3. Note: Even whitespace changes in queries require regeneration
 
@@ -535,7 +535,7 @@ pub async fn cleanup_test_db(pool: &PgPool) {
 
 **Solutions**:
 1. Update sqlx-cli: `cargo install sqlx-cli --force`
-2. Regenerate: `just sqlx-clean && just sqlx-prepare`
+2. Regenerate: `just sqlx-clean && cargo xtask sqlx prepare`
 3. Use workspace-relative paths in newer versions
 
 ### Problem: "too many open connections" during tests
@@ -591,7 +591,7 @@ Each migration should:
 
 ```bash
 # Before committing query changes
-just sqlx-prepare
+cargo xtask sqlx prepare
 git add .sqlx/
 git commit -m "Add user search query"
 ```

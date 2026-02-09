@@ -11,10 +11,10 @@
 **Run All Tests**:
 ```bash
 # Unit tests
-just test
+cargo xtask test all
 
 # Integration tests
-just test-integration
+cargo xtask test integration
 
 # E2E tests
 cargo test --test query_e2e_tests
@@ -44,7 +44,7 @@ cargo build --release --bin bdp-server
 docker-compose up -d postgres minio
 
 # Run server
-just dev
+cargo xtask dev server
 
 # In another terminal, test CLI
 cargo run --bin bdp -- search insulin
@@ -236,7 +236,7 @@ git push origin v0.2.0
 
 2. **Run Tests**
    ```bash
-   just test
+   cargo xtask test all
    ```
 
 3. **Push to GitHub**

@@ -5,29 +5,29 @@ One-page reference for AI agents working with SQLx in the BDP project.
 ## Essential Commands
 
 ```bash
-# Install SQLx CLI and Just
-cargo install just sqlx-cli --features postgres
+# Install SQLx CLI
+cargo install sqlx-cli --features postgres
 
 # Create migration
-just db-migrate-add <description>
+cargo xtask db migrate-add -- <description>
 
 # Run migrations
-just db-migrate
+cargo xtask db migrate
 
 # Revert last migration
-just db-migrate-revert
+cargo xtask db migrate-revert
 
 # Generate offline data (REQUIRED after schema changes)
-just sqlx-prepare
+cargo xtask sqlx prepare
 
 # Verify metadata is up to date
-just sqlx-check
+cargo xtask sqlx check
 
 # Build with offline mode (no database needed)
-just ci-offline
+cargo xtask ci offline
 
 # Build with database (compile-time checking)
-just build
+cargo xtask build workspace
 ```
 
 ## Environment Variables
@@ -154,24 +154,24 @@ impl Storage {
 }
 
 # 3. Test locally
-just test
+cargo xtask test all
 
 # 4. Generate offline data
-just sqlx-prepare
+cargo xtask sqlx prepare
 
 # 5. Commit
 git add crates/ .sqlx/
 git commit -m "feat: add get_user query"
 
 # 6. Verify offline build
-just ci-offline
+cargo xtask ci offline
 ```
 
 ### Adding a Migration
 
 ```bash
 # 1. Create migration file
-just db-migrate-add add_users_table
+cargo xtask db migrate-add add_users_table
 
 # 2. Write SQL (migrations/TIMESTAMP_add_users_table.sql)
 CREATE TABLE users (
@@ -185,18 +185,18 @@ CREATE TABLE users (
 DROP TABLE IF EXISTS users;
 
 # 4. Test migration up
-just db-migrate
+cargo xtask db migrate
 
 # 5. Verify in database
-just db-shell
+cargo xtask db shell
 \d users
 
 # 6. Test migration down (optional)
-just db-migrate-revert
-just db-migrate
+cargo xtask db migrate-revert
+cargo xtask db migrate
 
 # 7. Update .sqlx if queries affected
-just sqlx-prepare
+cargo xtask sqlx prepare
 
 # 8. Commit
 git add migrations/ .sqlx/
@@ -209,13 +209,13 @@ git commit -m "feat: add users table migration"
 # After ANY schema change (new table, column, type change):
 
 # 1. Apply migration
-just db-migrate
+cargo xtask db migrate
 
 # 2. Update offline data
-just sqlx-prepare
+cargo xtask sqlx prepare
 
 # 3. Verify build
-just build
+cargo xtask build workspace
 
 # 4. Commit both
 git add migrations/ .sqlx/
@@ -312,30 +312,30 @@ pub async fn get_user(&self, id: i64) -> ServerResult<Option<User>> {
 
 ```bash
 # Solution 1: Setup environment
-just env-setup
+cargo xtask setup env
 
 # Solution 2: Use offline mode for builds
-just ci-offline
+cargo xtask ci offline
 ```
 
 ### Connection refused
 
 ```bash
 # Start database
-just db-up
+cargo xtask db up
 
 # Verify connection
-just check-db
+cargo xtask db check
 ```
 
 ### Column does not exist
 
 ```bash
 # Run migrations
-just db-migrate
+cargo xtask db migrate
 
 # Regenerate .sqlx
-just sqlx-prepare
+cargo xtask sqlx prepare
 ```
 
 ### Type mismatch (expected String, found Option<String>)
@@ -352,15 +352,15 @@ pub struct User {
 
 ```bash
 # Regenerate metadata
-just sqlx-prepare
+cargo xtask sqlx prepare
 ```
 
 ### Stale .sqlx data after schema change
 
 ```bash
 # Always regenerate after migrations
-just db-migrate
-just sqlx-prepare
+cargo xtask db migrate
+cargo xtask sqlx prepare
 git add .sqlx/
 ```
 
@@ -609,9 +609,9 @@ pub async fn init(config: &Config) -> anyhow::Result<Storage> {
 
 ## Remember
 
-1. **After every schema change:** Run `just sqlx-prepare`
+1. **After every schema change:** Run `cargo xtask sqlx prepare`
 2. **Before committing:** Verify `.sqlx/` files are included
-3. **Use Just commands:** `just --list` to see all available commands
+3. **Use xtask commands:** `cargo xtask --help` to see all available commands
 4. **For nullable columns:** Use `Option<T>` in structs
 5. **For primary keys:** Use `BIGSERIAL` → `i64`
 6. **For timestamps:** Use `TIMESTAMPTZ` → `DateTime<Utc>`

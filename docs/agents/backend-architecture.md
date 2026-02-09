@@ -510,7 +510,7 @@ touch crates/bdp-server/src/features/my_feature/queries/{mod.rs,list.rs}
 
 - [ ] Add database functions in `db/my_feature.rs`
 - [ ] Use SQLx `query!` or `query_as!` macros
-- [ ] Run `just sqlx-prepare` to generate metadata
+- [ ] Run `cargo xtask sqlx prepare` to generate metadata
 
 ### 9. Documentation
 

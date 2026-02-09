@@ -80,7 +80,7 @@ In a monorepo with both Rust and Node.js projects, versions can get out of sync:
 ### 1. Install cargo-release
 
 ```bash
-just install-cargo-release
+cargo xtask setup install-cargo-release
 # OR
 cargo install cargo-release
 ```
@@ -88,7 +88,7 @@ cargo install cargo-release
 ### 2. Check Current Version
 
 ```bash
-just version
+cargo xtask util version
 # Output:
 # 📦 BDP Version Information
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -101,13 +101,13 @@ just version
 
 ```bash
 # Patch release (0.1.0 → 0.1.1)
-just release-patch
+cargo xtask release patch
 
 # Minor release (0.1.0 → 0.2.0)
-just release-minor
+cargo xtask release minor
 
 # Major release (0.1.0 → 1.0.0)
-just release-major
+cargo xtask release major
 ```
 
 **That's it!** This automatically:
@@ -128,10 +128,10 @@ Before making a release, see what will change:
 
 ```bash
 # Preview patch release
-just release-patch-dry
+cargo xtask release patch-dry
 
 # Preview minor release
-just release-minor-dry
+cargo xtask release minor-dry
 ```
 
 **Output shows:**
@@ -145,7 +145,7 @@ just release-minor-dry
 For local testing without git operations:
 
 ```bash
-just bump-version 0.2.0-beta.1
+cargo xtask release bump 0.2.0-beta.1
 ```
 
 This updates files but **does NOT**:
@@ -258,7 +258,7 @@ Examples:
 - Internal refactoring
 
 ```bash
-just release-patch
+cargo xtask release patch
 ```
 
 **MINOR (0.1.0 → 0.2.0)**
@@ -268,7 +268,7 @@ just release-patch
 - Deprecations (with backward compatibility)
 
 ```bash
-just release-minor
+cargo xtask release minor
 ```
 
 **MAJOR (0.1.0 → 1.0.0)**
@@ -278,7 +278,7 @@ just release-minor
 - Changed behavior of existing features
 
 ```bash
-just release-major
+cargo xtask release major
 ```
 
 ---
@@ -289,20 +289,20 @@ just release-major
 
 ```bash
 # 1. Check current version
-just version
+cargo xtask util version
 
 # 2. Make sure you're on main and up to date
 git checkout main
 git pull
 
 # 3. Make sure tests pass
-just ci
+cargo xtask ci all
 
 # 4. Preview what will change (optional)
-just release-patch-dry
+cargo xtask release patch-dry
 
 # 5. Bump version and release
-just release-patch
+cargo xtask release patch
 
 # 6. Monitor CI/CD
 # Go to https://github.com/datadir-lab/bdp/actions
@@ -318,7 +318,7 @@ just release-patch
 6. Installers tested
 7. Release published
 
-**Total time:** ~15-20 minutes from `just release-patch` to public release
+**Total time:** ~15-20 minutes from `cargo xtask release patch` to public release
 
 ### Pre-release
 
@@ -326,7 +326,7 @@ For alpha/beta releases:
 
 ```bash
 # Manually set pre-release version
-just bump-version 0.2.0-beta.1
+cargo xtask release bump 0.2.0-beta.1
 
 # Commit and tag manually
 git add .
@@ -345,7 +345,7 @@ Pre-release versions will be marked as "Pre-release" on GitHub.
 ### Trigger Flow
 
 ```bash
-just release-patch
+cargo xtask release patch
    ↓
 Version bumped to 0.1.1
    ↓
@@ -393,7 +393,7 @@ git tag -d v0.1.0
 git push origin :refs/tags/v0.1.0
 
 # Re-run release
-just release-patch
+cargo xtask release patch
 ```
 
 ### "sync-version.js failed"
@@ -420,7 +420,7 @@ node --version  # Should be v18+
 
 **Solution:**
 ```bash
-just install-cargo-release
+cargo xtask setup install-cargo-release
 # OR
 cargo install cargo-release
 ```
@@ -432,7 +432,7 @@ cargo install cargo-release
 **Solution:**
 ```bash
 # Check versions
-just version
+cargo xtask util version
 
 # Manually sync
 NEW_VERSION=$(cargo metadata --format-version 1 --no-deps | jq -r '.packages[] | select(.name=="bdp-cli") | .version')
@@ -448,11 +448,11 @@ NEW_VERSION=$NEW_VERSION node scripts/sync-version.js
 
 ```bash
 # Preview changes
-just release-patch-dry
+cargo xtask release patch-dry
 
 # Review output
 # If looks good, run actual release
-just release-patch
+cargo xtask release patch
 ```
 
 ### 2. Keep main Up to Date
@@ -460,17 +460,17 @@ just release-patch
 ```bash
 git checkout main
 git pull
-just release-patch
+cargo xtask release patch
 ```
 
 ### 3. Test Before Releasing
 
 ```bash
 # Run all tests
-just ci
+cargo xtask ci all
 
 # Then release
-just release-patch
+cargo xtask release patch
 ```
 
 ### 4. Write Changelog
@@ -528,7 +528,7 @@ git push origin v0.1.1
 ### Now (Automated)
 
 ```bash
-just release-patch
+cargo xtask release patch
 
 # ✅ One command
 # ✅ No manual editing
@@ -551,7 +551,7 @@ If you need a specific version (not patch/minor/major):
 cargo release --execute --no-publish 0.2.0-rc.1
 
 # Using manual bump (no git operations)
-just bump-version 0.2.0-rc.1
+cargo xtask release bump 0.2.0-rc.1
 git add .
 git commit -m "chore: Release v0.2.0-rc.1"
 git tag v0.2.0-rc.1
@@ -631,30 +631,30 @@ git push origin v0.1.1
 
 ```bash
 # Check version
-just version
+cargo xtask util version
 
 # Dry run
-just release-patch-dry
-just release-minor-dry
+cargo xtask release patch-dry
+cargo xtask release minor-dry
 
 # Release
-just release-patch   # 0.1.0 → 0.1.1
-just release-minor   # 0.1.0 → 0.2.0
-just release-major   # 0.1.0 → 1.0.0
+cargo xtask release patch   # 0.1.0 → 0.1.1
+cargo xtask release minor   # 0.1.0 → 0.2.0
+cargo xtask release major   # 0.1.0 → 1.0.0
 
 # Manual bump (no git)
-just bump-version 0.2.0-beta.1
+cargo xtask release bump 0.2.0-beta.1
 
 # Install cargo-release
-just install-cargo-release
+cargo xtask setup install-cargo-release
 ```
 
 ---
 
 **Next Steps:**
 
-1. Install cargo-release: `just install-cargo-release`
-2. Check current version: `just version`
-3. Make a test release: `just release-patch-dry`
-4. Actually release: `just release-patch`
+1. Install cargo-release: `cargo xtask setup install-cargo-release`
+2. Check current version: `cargo xtask util version`
+3. Make a test release: `cargo xtask release patch-dry`
+4. Actually release: `cargo xtask release patch`
 5. Monitor: https://github.com/datadir-lab/bdp/actions

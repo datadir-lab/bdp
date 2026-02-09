@@ -128,13 +128,13 @@ The project includes a dedicated Docker Compose configuration for testing:
 
 ```bash
 # Start test database
-just db-test-up
+cargo xtask db test-up
 
 # Run tests
-just test
+cargo xtask test all
 
 # Clean up
-just db-test-down
+cargo xtask db test-down
 ```
 
 ### Configuration
@@ -167,39 +167,39 @@ DATABASE_URL=postgresql://bdp_test:test_password@localhost:5433/bdp_test
 
 ```bash
 # Run all tests (including integration tests)
-just test
+cargo xtask test all
 
 # Run tests with output
-just test-verbose
+cargo xtask test all-verbose
 
 # Run tests with logging
-RUST_LOG=debug just test
+RUST_LOG=debug cargo xtask test all
 ```
 
 ### Specific Test Categories
 
 ```bash
 # Run only unit tests
-just test-unit
+cargo xtask test all-unit
 
 # Run only integration tests
-just test-integration
+cargo xtask test all-integration
 
 # Run specific test function
-just test-one test_create_organization
+cargo xtask test all-one test_create_organization
 ```
 
 ### Using Just for Testing
 
 ```bash
 # Run all tests with automated setup
-just test
+cargo xtask test all
 
 # Run tests with output
-just test-verbose
+cargo xtask test all-verbose
 
 # Run fresh tests (reset database first)
-just test-fresh
+cargo xtask test all-fresh
 ```
 
 ### Testing with SQLx Prepared Queries
@@ -208,13 +208,13 @@ SQLx can verify queries at compile time. To enable this:
 
 ```bash
 # Prepare query metadata
-just sqlx-prepare
+cargo xtask sqlx prepare
 
 # Verify prepared queries are up to date
-just sqlx-check
+cargo xtask sqlx check
 
 # Run CI checks locally (includes offline mode)
-just ci
+cargo xtask ci all
 ```
 
 ## Integration Test Patterns
@@ -595,16 +595,16 @@ mod tests {
 ### Common Issues
 
 **Issue**: Tests fail with "database does not exist"
-**Solution**: Ensure migrations have run: `just db-migrate`
+**Solution**: Ensure migrations have run: `cargo xtask db migrate`
 
 **Issue**: SQLx prepare fails with "query ... not found"
-**Solution**: Run `just sqlx-prepare` to regenerate query metadata
+**Solution**: Run `cargo xtask sqlx prepare` to regenerate query metadata
 
 **Issue**: Tests hang indefinitely
 **Solution**: Check for unclosed database connections or transactions
 
 **Issue**: "too many open connections"
-**Solution**: Restart test database: `just db-test-down && just db-test-up`
+**Solution**: Restart test database: `cargo xtask db test-down && cargo xtask db test-up`
 
 **Issue**: Fixture not found
 **Solution**: Ensure fixture files are in `tests/fixtures/` directory

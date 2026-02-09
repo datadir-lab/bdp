@@ -1,11 +1,11 @@
 # Quick Start
 
-**Prerequisites:** Docker, Rust 1.75+, just
+**Prerequisites:** Docker, Rust 1.75+
 
 ```bash
 docker-compose up -d postgres minio
 cp .env.example .env
-just db-migrate
+cargo xtask db migrate
 cargo run --bin bdp-server
 # Server: http://localhost:8000
 ```
@@ -27,10 +27,10 @@ curl http://localhost:8000/api/v1/organizations
 ## Common Commands
 
 ```bash
-just dev               # Run with hot reload
-just test              # Run tests
-just docker-up         # Start all services
-just db-migrate        # Apply migrations
+cargo xtask dev server        # Run with hot reload
+cargo xtask test all          # Run tests
+cargo xtask docker up         # Start all services
+cargo xtask db migrate        # Apply migrations
 ```
 
 ## Troubleshooting

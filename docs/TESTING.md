@@ -17,26 +17,26 @@ BDP uses a comprehensive testing strategy that includes:
 
 ```bash
 # Run all tests (recommended)
-just test
+cargo xtask test all
 
 # Run tests with verbose output
-just test-verbose
+cargo xtask test verbose
 ```
 
 ### Run Specific Tests
 
 ```bash
 # Unit tests only
-just test-unit
+cargo xtask test unit
 
 # Integration tests only
-just test-integration
+cargo xtask test integration
 
 # Specific test function
-just test-one test_create_organization
+cargo xtask test one -- test_create_organization
 
 # Fresh test run (resets database)
-just test-fresh
+cargo xtask test fresh
 ```
 
 ## Project Structure
@@ -99,7 +99,7 @@ bdp/
 
 ### 4. Automated Test Scripts
 
-- Just commands handle database setup automatically
+- xtask commands handle database setup automatically
 - Test database runs on separate port (5433)
 - Configurable via environment variables in `.env.test`
 - Full CI/CD integration
@@ -117,8 +117,8 @@ bdp/
 ### Development Workflow
 
 1. Write test using `#[sqlx::test]` macro
-2. Run tests: `just test`
-3. If test fails, run with verbose output: `just test-verbose`
+2. Run tests: `cargo xtask test all`
+3. If test fails, run with verbose output: `cargo xtask test verbose`
 4. Iterate until tests pass
 
 ### Example Test
@@ -236,41 +236,41 @@ GitHub Actions workflow includes:
 **Database connection fails**:
 ```bash
 # Start test database
-just db-test-up
+cargo xtask db test-up
 ```
 
 **Migrations fail**:
 ```bash
 # Run migrations
-just db-migrate
+cargo xtask db migrate
 ```
 
 **Tests hang**:
 ```bash
 # Reset test database
-just db-test-down
-just db-test-up
-just test
+cargo xtask db test-down
+cargo xtask db test-up
+cargo xtask test all
 ```
 
 **Too many connections**:
 ```bash
 # Restart test database
-just db-test-down
-just db-test-up
+cargo xtask db test-down
+cargo xtask db test-up
 ```
 
 ### Debugging Failed Tests
 
 ```bash
 # Run with full logging
-RUST_LOG=debug just test-verbose
+RUST_LOG=debug cargo xtask test verbose
 
 # Run specific test with output
-just test-one test_name
+cargo xtask test one -- test_name
 
 # Connect to test database manually
-just db-shell
+cargo xtask db shell
 ```
 
 ## Documentation
@@ -289,8 +289,8 @@ When adding new tests:
 3. Add fixtures for reusable test data
 4. Document complex test scenarios
 5. Ensure tests are independent
-6. Run `just test` before committing
-7. Verify with `just ci` before pushing
+6. Run `cargo xtask test all` before committing
+7. Verify with `cargo xtask ci all` before pushing
 
 ## Performance
 
