@@ -1,6 +1,8 @@
 //! .gitignore management for BDP projects
 //!
-//! Automatically manages .gitignore entries for BDP cache and runtime files.
+//! Automatically manages .gitignore entries for BDP project files.
+//! The entire `.bdp/` directory is gitignored since it contains
+//! local cache, config, and database files.
 
 use crate::error::Result;
 use std::fs;
@@ -10,21 +12,15 @@ use std::path::Path;
 const BDP_SECTION_MARKER: &str = "# BDP cache and runtime files";
 
 /// Entries to add to .gitignore for BDP
-const BDP_ENTRIES: &[&str] = &[
-    ".bdp/cache/",
-    ".bdp/bdp.db",
-    ".bdp/bdp.db-shm",
-    ".bdp/bdp.db-wal",
-    ".bdp/resolved-dependencies.json",
-    ".bdp/audit.log",
-];
+const BDP_ENTRIES: &[&str] = &[".bdp/"];
 
 /// Update .gitignore with BDP entries
 ///
 /// This function is idempotent - it can be called multiple times safely.
 /// - If .gitignore doesn't exist, creates it with BDP entries
 /// - If .gitignore exists but doesn't have BDP section, appends it
-/// - If BDP section exists, ensures all entries are present
+/// - If old-style BDP section exists with individual entries, replaces it
+/// - If BDP section exists with current entries, does nothing
 pub fn update_gitignore(project_dir: &Path) -> Result<()> {
     let gitignore_path = project_dir.join(".gitignore");
 
@@ -52,12 +48,12 @@ fn append_to_gitignore(path: &Path) -> Result<()> {
 
     // Check if BDP section already exists
     if content.contains(BDP_SECTION_MARKER) {
-        // Section exists - check if all entries are present
+        // Section exists - check if it needs updating (migration from old entries)
         if has_all_entries(&content) {
             return Ok(()); // Nothing to do
         }
-        // Update existing section
-        update_bdp_section(path, &content)?;
+        // Replace the existing section with new simplified entries
+        replace_bdp_section(path, &content)?;
     } else {
         // Append new section
         let mut new_content = content;
@@ -86,55 +82,42 @@ fn format_bdp_section() -> String {
     section
 }
 
-/// Check if all BDP entries are present in the content
+/// Check if all BDP entries are present as exact lines in the content
 fn has_all_entries(content: &str) -> bool {
-    BDP_ENTRIES.iter().all(|entry| content.contains(entry))
+    let lines: Vec<&str> = content.lines().collect();
+    BDP_ENTRIES
+        .iter()
+        .all(|entry| lines.iter().any(|line| line.trim() == *entry))
 }
 
-/// Update the existing BDP section with missing entries
-fn update_bdp_section(path: &Path, content: &str) -> Result<()> {
+/// Replace the existing BDP section with updated entries.
+/// Handles migration from old-style individual entries to single `.bdp/`.
+fn replace_bdp_section(path: &Path, content: &str) -> Result<()> {
     let lines: Vec<&str> = content.lines().collect();
     let mut new_lines = Vec::new();
-    let mut bdp_section_lines = Vec::new();
-
-    // Find the BDP section
     let mut i = 0;
+
     while i < lines.len() {
         let line = lines[i];
 
         if line == BDP_SECTION_MARKER {
-            // Found BDP section marker
-            new_lines.push(line.to_string());
-            bdp_section_lines.clear();
+            // Replace entire BDP section with new format
+            new_lines.push(BDP_SECTION_MARKER.to_string());
+            for entry in BDP_ENTRIES {
+                new_lines.push((*entry).to_string());
+            }
             i += 1;
 
-            // Collect existing BDP section lines
+            // Skip old section lines
             while i < lines.len() {
-                let bdp_line = lines[i];
-                if bdp_line.trim().is_empty() {
-                    // Empty line marks end of section
+                let old_line = lines[i];
+                if old_line.trim().is_empty() {
                     break;
                 }
-                if bdp_line.starts_with('#') && bdp_line != BDP_SECTION_MARKER {
-                    // New comment section starts
+                if old_line.starts_with('#') && old_line != BDP_SECTION_MARKER {
                     break;
                 }
-                bdp_section_lines.push(bdp_line);
-                i += 1;
-            }
-
-            // Add all required entries (deduplicated)
-            let mut added_entries = std::collections::HashSet::new();
-            for existing_line in &bdp_section_lines {
-                added_entries.insert(existing_line.trim());
-                new_lines.push(existing_line.to_string());
-            }
-
-            // Add missing entries
-            for entry in BDP_ENTRIES {
-                if !added_entries.contains(*entry) {
-                    new_lines.push(entry.to_string());
-                }
+                i += 1; // Skip old entry
             }
         } else {
             new_lines.push(line.to_string());
@@ -142,7 +125,6 @@ fn update_bdp_section(path: &Path, content: &str) -> Result<()> {
         }
     }
 
-    // Write updated content
     let mut result = new_lines.join("\n");
     if content.ends_with('\n') {
         result.push('\n');
@@ -223,9 +205,7 @@ mod tests {
 
         let content = fs::read_to_string(temp.path().join(".gitignore")).unwrap();
         assert!(content.contains(BDP_SECTION_MARKER));
-        for entry in BDP_ENTRIES {
-            assert!(content.contains(entry), "Missing entry: {}", entry);
-        }
+        assert!(content.contains(".bdp/"));
     }
 
     #[test]
@@ -241,7 +221,7 @@ mod tests {
         assert!(content.contains("node_modules/"));
         assert!(content.contains("*.log"));
         assert!(content.contains(BDP_SECTION_MARKER));
-        assert!(content.contains(".bdp/cache/"));
+        assert!(content.contains(".bdp/"));
     }
 
     #[test]
@@ -260,29 +240,43 @@ mod tests {
         // Should be identical
         assert_eq!(content1, content2);
 
-        // Count occurrences of BDP entries
-        let count1 = content1.matches(".bdp/cache/").count();
-        let count2 = content2.matches(".bdp/cache/").count();
-        assert_eq!(count1, 1);
-        assert_eq!(count2, 1);
+        // Count occurrences of BDP entry
+        let count = content1.matches(".bdp/").count();
+        assert_eq!(count, 1);
     }
 
     #[test]
-    fn test_gitignore_updates_incomplete_section() {
+    fn test_gitignore_migrates_old_entries() {
         let temp = TempDir::new().unwrap();
         let gitignore = temp.path().join(".gitignore");
 
-        // Create .gitignore with incomplete BDP section
-        let initial_content = format!("{}\n.bdp/cache/\n.bdp/bdp.db\n", BDP_SECTION_MARKER);
-        fs::write(&gitignore, initial_content).unwrap();
+        // Create .gitignore with old-style BDP section
+        let old_content = format!(
+            "{}\n.bdp/cache/\n.bdp/bdp.db\n.bdp/bdp.db-shm\n.bdp/bdp.db-wal\n",
+            BDP_SECTION_MARKER
+        );
+        fs::write(&gitignore, old_content).unwrap();
 
-        // Update should add missing entries
+        // Update should replace with new simplified entries
         update_gitignore(temp.path()).unwrap();
 
         let content = fs::read_to_string(&gitignore).unwrap();
-        for entry in BDP_ENTRIES {
-            assert!(content.contains(entry), "Missing entry: {}", entry);
-        }
+        // Should contain the single .bdp/ entry
+        assert!(content.contains(".bdp/"));
+        // Old individual entries should be gone - check line by line
+        let lines: Vec<&str> = content.lines().collect();
+        assert!(
+            !lines.iter().any(|l| *l == ".bdp/cache/"),
+            "Should not have .bdp/cache/ as a separate line"
+        );
+        assert!(
+            !lines.iter().any(|l| *l == ".bdp/bdp.db"),
+            "Should not have .bdp/bdp.db as a separate line"
+        );
+        assert!(
+            !lines.iter().any(|l| *l == ".bdp/bdp.db-shm"),
+            "Should not have .bdp/bdp.db-shm as a separate line"
+        );
     }
 
     #[test]
@@ -318,7 +312,7 @@ mod tests {
 
         let content_after = fs::read_to_string(&gitignore).unwrap();
         assert!(!content_after.contains(BDP_SECTION_MARKER));
-        assert!(!content_after.contains(".bdp/cache/"));
+        assert!(!content_after.contains(".bdp/"));
     }
 
     #[test]
@@ -326,8 +320,6 @@ mod tests {
         let section = format_bdp_section();
         assert!(section.starts_with(BDP_SECTION_MARKER));
         assert!(section.ends_with('\n'));
-        for entry in BDP_ENTRIES {
-            assert!(section.contains(entry));
-        }
+        assert!(section.contains(".bdp/"));
     }
 }

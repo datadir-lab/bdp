@@ -2,11 +2,11 @@
 //!
 //! Manages audit trail for regulatory compliance and research documentation.
 
+use crate::AuditCommand;
 use crate::audit::{
-    get_machine_id, AuditExporter, AuditLogger, ExportFormat, ExportOptions, LocalAuditLogger,
+    AuditExporter, AuditLogger, ExportFormat, ExportOptions, LocalAuditLogger, get_machine_id,
 };
 use crate::error::{CliError, Result};
-use crate::AuditCommand;
 use chrono::{DateTime, Utc};
 use colored::Colorize;
 use rusqlite::Connection;
@@ -204,7 +204,7 @@ async fn export(
             return Err(CliError::audit(format!(
                 "Unknown export format: {}. Valid formats: fda, nih, ema, das, json",
                 format
-            )))
+            )));
         },
     };
 

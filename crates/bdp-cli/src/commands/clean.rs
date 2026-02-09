@@ -2,10 +2,11 @@
 //!
 //! Cleans cached sources.
 
-use crate::cache::search_cache::SearchCache;
 use crate::cache::CacheManager;
+use crate::cache::search_cache::SearchCache;
 use crate::error::{CliError, Result};
 use crate::progress::format_bytes;
+use crate::project;
 use colored::Colorize;
 
 /// Clean cache
@@ -15,8 +16,9 @@ pub async fn run(all: bool, search_cache_only: bool) -> Result<()> {
         return clean_search_cache().await;
     }
 
-    // Clean data cache
-    let cache = CacheManager::new().await?;
+    // Clean project-local data cache
+    let project_root = project::find_project_root()?;
+    let cache = CacheManager::for_project(&project_root).await?;
 
     if all {
         let size_before = cache.total_size().await?;

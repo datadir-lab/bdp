@@ -37,6 +37,7 @@ pub mod gitignore;
 pub mod lockfile;
 pub mod manifest;
 pub mod progress;
+pub mod project;
 
 // Re-export commonly used types
 pub use error::{CliError, Result};
@@ -184,6 +185,18 @@ pub enum Commands {
         page: i32,
     },
 
+    /// Manage local data cache directory
+    Cache {
+        #[command(subcommand)]
+        command: CacheCommand,
+    },
+
+    /// Generate workflow integration files (Python, Snakemake, Nextflow)
+    Generate {
+        #[command(subcommand)]
+        command: GenerateCommand,
+    },
+
     /// Advanced SQL-like querying of data sources and metadata
     Query {
         /// Entity to query (protein, gene, genome, tools, orgs, etc.) or use --sql for raw SQL
@@ -296,6 +309,35 @@ pub enum ConfigCommand {
 
     /// Show all configuration
     Show,
+}
+
+/// Cache management subcommands
+#[derive(Subcommand, Debug)]
+pub enum CacheCommand {
+    /// Set cache directory path
+    Set {
+        /// Path to cache directory (relative to project root, or absolute)
+        path: String,
+    },
+
+    /// Show current cache directory
+    Show,
+
+    /// Reset cache path to default (.bdp/data)
+    Reset,
+}
+
+/// Generate subcommands for workflow integration
+#[derive(Subcommand, Debug)]
+pub enum GenerateCommand {
+    /// Generate Python data paths module (bdp_data.py)
+    Python,
+
+    /// Generate Snakemake config file (config/bdp_data.yaml)
+    Snakemake,
+
+    /// Generate Nextflow config file (conf/bdp_data.config)
+    Nextflow,
 }
 
 /// Audit trail subcommands

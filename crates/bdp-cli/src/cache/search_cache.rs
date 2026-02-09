@@ -5,7 +5,7 @@
 use crate::api::types::SearchResponse;
 use crate::error::{CliError, Result};
 use chrono::{DateTime, Duration, Utc};
-use rusqlite::{params, Connection};
+use rusqlite::{Connection, params};
 use sha2::{Digest, Sha256};
 use std::path::PathBuf;
 use tracing::{debug, info};

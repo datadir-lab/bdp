@@ -14,7 +14,9 @@ pub type Result<T> = std::result::Result<T, CliError>;
 #[derive(Error, Debug)]
 pub enum CliError {
     /// API server communication failed
-    #[error("Server error: {0}. Ensure the BDP server is running (check with 'bdp status') and accessible.")]
+    #[error(
+        "Server error: {0}. Ensure the BDP server is running (check with 'bdp status') and accessible."
+    )]
     Api(String),
 
     /// Required file is missing
@@ -26,7 +28,9 @@ pub enum CliError {
     InvalidManifest(String),
 
     /// Lockfile (bdl.lock) has invalid format or content
-    #[error("Invalid lockfile (bdl.lock): {0}. Delete the lockfile and run 'bdp pull' to regenerate it.")]
+    #[error(
+        "Invalid lockfile (bdl.lock): {0}. Delete the lockfile and run 'bdp pull' to regenerate it."
+    )]
     InvalidLockfile(String),
 
     /// Cache operation failed
@@ -34,7 +38,9 @@ pub enum CliError {
     Cache(String),
 
     /// Downloaded file checksum verification failed
-    #[error("Checksum verification failed for '{file}': expected '{expected}', got '{actual}'. The file may be corrupted. Run 'bdp pull --force' to re-download.")]
+    #[error(
+        "Checksum verification failed for '{file}': expected '{expected}', got '{actual}'. The file may be corrupted. Run 'bdp pull --force' to re-download."
+    )]
     ChecksumMismatch {
         file: String,
         expected: String,
@@ -74,7 +80,9 @@ pub enum CliError {
     JsonParse(#[from] serde_json::Error),
 
     /// Source specification doesn't follow expected format
-    #[error("Invalid source specification: {0}. Expected format: 'registry:identifier-format@version' (e.g., 'uniprot:P01308-fasta@1.0').")]
+    #[error(
+        "Invalid source specification: {0}. Expected format: 'registry:identifier-format@version' (e.g., 'uniprot:P01308-fasta@1.0')."
+    )]
     InvalidSourceSpec(String),
 
     /// Project directory already has a bdp.yml

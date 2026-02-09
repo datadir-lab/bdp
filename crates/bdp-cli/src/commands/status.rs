@@ -5,11 +5,13 @@
 use crate::cache::CacheManager;
 use crate::error::Result;
 use crate::progress::format_bytes;
+use crate::project;
 use colored::Colorize;
 
 /// Show status of cached sources
 pub async fn run() -> Result<()> {
-    let cache = CacheManager::new().await?;
+    let project_root = project::find_project_root()?;
+    let cache = CacheManager::for_project(&project_root).await?;
 
     let entries = cache.list_all().await?;
 

@@ -19,6 +19,18 @@ pub struct Manifest {
     /// Tool dependencies (e.g., "ncbi:blast@2.14.0")
     #[serde(default)]
     pub tools: Vec<String>,
+
+    /// Lifecycle hooks
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hooks: Option<Hooks>,
+}
+
+/// Lifecycle hooks configuration
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Hooks {
+    /// Commands to run after `bdp pull` completes
+    #[serde(default)]
+    pub post_pull: Vec<String>,
 }
 
 /// Project metadata section
@@ -46,6 +58,7 @@ impl Manifest {
             },
             sources: Vec::new(),
             tools: Vec::new(),
+            hooks: None,
         }
     }
 
@@ -59,6 +72,7 @@ impl Manifest {
             },
             sources: Vec::new(),
             tools: Vec::new(),
+            hooks: None,
         }
     }
 

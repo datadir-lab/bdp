@@ -1,7 +1,7 @@
 //! BDP CLI - Main entry point
 
-use bdp_cli::{Cli, Commands, ConfigCommand, SourceCommand};
-use bdp_common::logging::{init_logging, LogConfig, LogLevel, LogOutput};
+use bdp_cli::{CacheCommand, Cli, Commands, ConfigCommand, GenerateCommand, SourceCommand};
+use bdp_common::logging::{LogConfig, LogLevel, LogOutput, init_logging};
 use clap::Parser;
 use std::process;
 use tracing::error;
@@ -95,6 +95,18 @@ async fn execute_command(cli: &Cli) -> bdp_cli::Result<()> {
 
         Commands::Pull { force } => {
             bdp_cli::commands::pull::run(cli.server_url.clone(), *force).await
+        },
+
+        Commands::Cache { command } => match command {
+            CacheCommand::Set { path } => bdp_cli::commands::cache_cmd::set(path.clone()).await,
+            CacheCommand::Show => bdp_cli::commands::cache_cmd::show().await,
+            CacheCommand::Reset => bdp_cli::commands::cache_cmd::reset().await,
+        },
+
+        Commands::Generate { command } => match command {
+            GenerateCommand::Python => bdp_cli::commands::generate::python().await,
+            GenerateCommand::Snakemake => bdp_cli::commands::generate::snakemake().await,
+            GenerateCommand::Nextflow => bdp_cli::commands::generate::nextflow().await,
         },
 
         Commands::Status => bdp_cli::commands::status::run().await,

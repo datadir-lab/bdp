@@ -556,7 +556,7 @@ fn build_manifest_spec(result: &SearchResult) -> Result<String> {
 
 /// Display detailed information about a search result
 fn display_result_details(result: &SearchResult) -> Result<()> {
-    use comfy_table::{modifiers::UTF8_ROUND_CORNERS, presets::UTF8_FULL, Table};
+    use comfy_table::{Table, modifiers::UTF8_ROUND_CORNERS, presets::UTF8_FULL};
 
     println!();
     println!("{}", "═".repeat(60).blue());
@@ -638,7 +638,7 @@ fn display_compact(results: &SearchResponse) -> Result<()> {
 
 /// Display results in table format
 fn display_table(results: &SearchResponse) -> Result<()> {
-    use comfy_table::{modifiers::UTF8_ROUND_CORNERS, presets::UTF8_FULL, Table};
+    use comfy_table::{Table, modifiers::UTF8_ROUND_CORNERS, presets::UTF8_FULL};
 
     let mut table = Table::new();
     table

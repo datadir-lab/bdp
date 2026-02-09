@@ -4,7 +4,7 @@ use crate::audit::schema;
 use crate::audit::types::AuditEvent;
 use crate::error::{CliError, Result};
 use async_trait::async_trait;
-use rusqlite::{params, Connection, OptionalExtension};
+use rusqlite::{Connection, OptionalExtension, params};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 

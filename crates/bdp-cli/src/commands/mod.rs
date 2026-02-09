@@ -3,8 +3,10 @@
 //! Each subcommand has its own module with a `run` function.
 
 pub mod audit;
+pub mod cache_cmd;
 pub mod clean;
 pub mod config;
+pub mod generate;
 pub mod init;
 pub mod pull;
 pub mod query;

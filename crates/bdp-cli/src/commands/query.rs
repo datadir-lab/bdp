@@ -107,13 +107,19 @@ fn validate_sql(sql: &str) -> Result<()> {
                         return Err(CliError::config("DROP statements are not allowed"));
                     },
                     Statement::Delete { .. } => {
-                        return Err(CliError::config("DELETE statements are not allowed. Use the CLI commands for data management."));
+                        return Err(CliError::config(
+                            "DELETE statements are not allowed. Use the CLI commands for data management.",
+                        ));
                     },
                     Statement::Update { .. } => {
-                        return Err(CliError::config("UPDATE statements are not allowed. Use the CLI commands for data management."));
+                        return Err(CliError::config(
+                            "UPDATE statements are not allowed. Use the CLI commands for data management.",
+                        ));
                     },
                     Statement::Insert { .. } => {
-                        return Err(CliError::config("INSERT statements are not allowed. Use the CLI commands for data management."));
+                        return Err(CliError::config(
+                            "INSERT statements are not allowed. Use the CLI commands for data management.",
+                        ));
                     },
                     Statement::Truncate { .. } => {
                         return Err(CliError::config("TRUNCATE statements are not allowed"));
@@ -238,33 +244,21 @@ fn resolve_entity_alias(entity: &str) -> Result<(String, Vec<String>, Option<Str
         // Entity aliases with metadata auto-joins
         "protein" => Ok((
             "data_sources".to_string(),
-            vec![
-                "LEFT JOIN protein_metadata pm ON data_sources.metadata_id = pm.id".to_string(),
-            ],
+            vec!["LEFT JOIN protein_metadata pm ON data_sources.metadata_id = pm.id".to_string()],
             Some("data_sources.type = 'protein'".to_string()),
         )),
         "gene" => Ok((
             "data_sources".to_string(),
-            vec![
-                "LEFT JOIN gene_metadata gm ON data_sources.metadata_id = gm.id".to_string(),
-            ],
+            vec!["LEFT JOIN gene_metadata gm ON data_sources.metadata_id = gm.id".to_string()],
             Some("data_sources.type = 'gene'".to_string()),
         )),
-        "genome" => Ok((
-            "data_sources".to_string(),
-            vec![],
-            Some("type = 'genome'".to_string()),
-        )),
-        "transcriptome" => Ok((
-            "data_sources".to_string(),
-            vec![],
-            Some("type = 'transcriptome'".to_string()),
-        )),
-        "proteome" => Ok((
-            "data_sources".to_string(),
-            vec![],
-            Some("type = 'proteome'".to_string()),
-        )),
+        "genome" => Ok(("data_sources".to_string(), vec![], Some("type = 'genome'".to_string()))),
+        "transcriptome" => {
+            Ok(("data_sources".to_string(), vec![], Some("type = 'transcriptome'".to_string())))
+        },
+        "proteome" => {
+            Ok(("data_sources".to_string(), vec![], Some("type = 'proteome'".to_string())))
+        },
 
         // Direct table access
         "tools" => Ok(("tools".to_string(), vec![], None)),
@@ -318,7 +312,7 @@ fn parse_order_by(order_by: &str) -> Result<(String, String)> {
                 return Err(CliError::config(format!(
                     "Invalid order direction: '{}'. Use 'asc' or 'desc'",
                     dir
-                )))
+                )));
             },
         };
         Ok((field.to_string(), direction.to_string()))
@@ -372,7 +366,7 @@ fn output_results(
             return Err(CliError::config(format!(
                 "Unknown format: '{}'. Use table, json, csv, tsv, or compact",
                 format
-            )))
+            )));
         },
     };
 
@@ -389,7 +383,7 @@ fn output_results(
 
 /// Format results as table
 fn format_as_table(results: &QueryResults) -> String {
-    use comfy_table::{modifiers::UTF8_ROUND_CORNERS, presets::UTF8_FULL, Table};
+    use comfy_table::{Table, modifiers::UTF8_ROUND_CORNERS, presets::UTF8_FULL};
 
     let mut table = Table::new();
     table

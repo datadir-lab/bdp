@@ -3,7 +3,7 @@
 //! Manages data sources in the manifest.
 
 use crate::error::{CliError, Result};
-use crate::manifest::{validate_source_spec, Manifest};
+use crate::manifest::{Manifest, validate_source_spec};
 use colored::Colorize;
 
 /// Add a source to the manifest

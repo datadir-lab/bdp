@@ -5,9 +5,10 @@
 pub mod search_cache;
 
 use crate::error::{CliError, Result};
-use sqlx::{sqlite::SqlitePool, Row};
+use crate::project;
+use sqlx::{Row, sqlite::SqlitePool};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Cache manager with SQLite backend
 pub struct CacheManager {
@@ -16,12 +17,25 @@ pub struct CacheManager {
 }
 
 impl CacheManager {
-    /// Create a new cache manager
+    /// Create a new cache manager using system-wide cache directory.
+    /// Used for search cache and backward-compatible operations.
     pub async fn new() -> Result<Self> {
         let cache_dir = dirs::cache_dir()
             .ok_or_else(|| CliError::config("Cannot find cache directory"))?
             .join("bdp");
 
+        Self::new_with_dir(cache_dir).await
+    }
+
+    /// Create a cache manager for a specific project.
+    /// Reads `.bdp/.config` to determine cache directory, defaults to `.bdp/data/`.
+    pub async fn for_project(project_root: &Path) -> Result<Self> {
+        let cache_dir = project::resolve_cache_path(project_root)?;
+        Self::new_with_dir(cache_dir).await
+    }
+
+    /// Core constructor: create a cache manager with a specific directory.
+    pub async fn new_with_dir(cache_dir: PathBuf) -> Result<Self> {
         fs::create_dir_all(&cache_dir)?;
 
         let db_path = cache_dir.join("bdp.db");

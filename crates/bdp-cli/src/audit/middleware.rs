@@ -5,7 +5,7 @@
 use crate::audit::logger::AuditLogger;
 use crate::audit::types::{AuditEvent, EventType};
 use crate::error::Result;
-use serde_json::{json, Value as JsonValue};
+use serde_json::{Value as JsonValue, json};
 use std::sync::Arc;
 
 /// Execute a command with audit logging

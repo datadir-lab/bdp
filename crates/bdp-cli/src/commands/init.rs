@@ -3,10 +3,11 @@
 //! Initializes a new BDP project with audit logging.
 
 use crate::audit::types::EventType;
-use crate::audit::{execute_with_audit, get_machine_id, AuditLogger, LocalAuditLogger};
+use crate::audit::{AuditLogger, LocalAuditLogger, execute_with_audit, get_machine_id};
 use crate::error::{CliError, Result};
 use crate::gitignore;
 use crate::manifest::Manifest;
+use crate::project::ProjectConfig;
 use serde_json::json;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -93,12 +94,18 @@ async fn run_init_command(
     // Create .bdp directory structure
     create_bdp_directories(project_dir)?;
 
+    // Write default project config
+    let config = ProjectConfig::default();
+    config.save(project_dir)?;
+
     // Manage .gitignore
     gitignore::update_gitignore(project_dir)?;
 
     println!("✓ Initialized BDP project: {}", project_name);
     println!("  Created: bdp.yml");
     println!("  Created: .bdp/");
+    println!("  Created: .bdp/data/ (local cache)");
+    println!("  Created: .bdp/.config");
     println!("  Created: .bdp/bdp.db (audit trail)");
     println!("  Updated: .gitignore");
     println!();
@@ -111,7 +118,7 @@ async fn run_init_command(
 /// Create .bdp directory structure
 fn create_bdp_directories(project_dir: &Path) -> Result<()> {
     let bdp_dir = project_dir.join(".bdp");
-    fs::create_dir_all(bdp_dir.join("cache"))?;
+    fs::create_dir_all(bdp_dir.join("data"))?;
     Ok(())
 }
 

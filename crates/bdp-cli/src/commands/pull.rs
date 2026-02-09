@@ -7,14 +7,18 @@ use crate::cache::CacheManager;
 use crate::checksum;
 use crate::error::{CliError, Result};
 use crate::lockfile::{Lockfile, SourceEntry};
-use crate::manifest::{parse_source_spec, Manifest};
+use crate::manifest::{Manifest, parse_source_spec};
 use crate::progress;
+use crate::project;
 use colored::Colorize;
 
 /// Pull sources from manifest
 pub async fn run(server_url: String, force: bool) -> Result<()> {
+    // Find project root
+    let project_root = project::find_project_root()?;
+
     // Load manifest
-    let manifest = Manifest::load("bdp.yml").map_err(|_| {
+    let manifest = Manifest::load(project_root.join("bdp.yml")).map_err(|_| {
         CliError::NotInitialized(
             "No bdp.yml found in current directory. Initialize a project with 'bdp init' first."
                 .to_string(),
@@ -44,8 +48,8 @@ pub async fn run(server_url: String, force: bool) -> Result<()> {
 
     println!("{} Found {} source(s)", "✓".green(), resolved.sources.len());
 
-    // Initialize cache
-    let cache = CacheManager::new().await?;
+    // Initialize project-local cache
+    let cache = CacheManager::for_project(&project_root).await?;
 
     // Create/update lockfile
     let mut lockfile = Lockfile::new();
@@ -127,12 +131,54 @@ pub async fn run(server_url: String, force: bool) -> Result<()> {
     }
 
     // Save lockfile
-    lockfile.save("bdl.lock")?;
+    lockfile.save(project_root.join("bdl.lock"))?;
 
     println!("\n{} All sources downloaded and verified", "✓".green().bold());
     println!("Lockfile saved: bdl.lock");
 
+    // Execute post-pull hooks
+    if let Some(ref hooks) = manifest.hooks {
+        if !hooks.post_pull.is_empty() {
+            println!("\n{} Running post-pull hooks...", "→".cyan());
+            run_hooks(&hooks.post_pull, &project_root);
+        }
+    }
+
     Ok(())
+}
+
+/// Execute hook commands sequentially. Hooks are best-effort: warn on failure.
+fn run_hooks(commands: &[String], project_root: &std::path::Path) {
+    for cmd in commands {
+        tracing::info!("Running hook: {}", cmd);
+        println!("  {} {}", "→".cyan(), cmd);
+
+        let result = if cfg!(target_os = "windows") {
+            std::process::Command::new("cmd")
+                .args(["/C", cmd])
+                .current_dir(project_root)
+                .status()
+        } else {
+            std::process::Command::new("sh")
+                .args(["-c", cmd])
+                .current_dir(project_root)
+                .status()
+        };
+
+        match result {
+            Ok(status) if status.success() => {
+                println!("  {} {}", "✓".green(), cmd);
+            },
+            Ok(status) => {
+                tracing::warn!("Hook '{}' exited with status: {}", cmd, status);
+                println!("  {} Hook '{}' exited with {}", "⚠".yellow(), cmd, status);
+            },
+            Err(e) => {
+                tracing::warn!("Hook '{}' failed: {}", cmd, e);
+                println!("  {} Hook '{}' failed: {}", "⚠".yellow(), cmd, e);
+            },
+        }
+    }
 }
 
 #[cfg(test)]

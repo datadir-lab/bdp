@@ -3,7 +3,7 @@
 use crate::audit::export::formats::ExportFormat;
 use crate::audit::logger::AuditLogger;
 use crate::error::{CliError, Result};
-use rusqlite::{params, Connection};
+use rusqlite::{Connection, params};
 use std::path::Path;
 use std::sync::Arc;
 use uuid::Uuid;
