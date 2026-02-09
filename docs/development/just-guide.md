@@ -1,6 +1,10 @@
 # Just Command Runner Guide
 
-This guide explains how BDP uses Just as a command runner to streamline development workflows and replace traditional shell scripts.
+> **⚠️ DEPRECATED**: This guide is deprecated. BDP has migrated from `just` to the **xtask pattern**.
+> See [xtask-guide.md](./xtask-guide.md) for the current task runner documentation.
+> This file is kept for historical reference only.
+
+This guide explains how BDP **used** Just as a command runner to streamline development workflows and replace traditional shell scripts.
 
 ## Table of Contents
 

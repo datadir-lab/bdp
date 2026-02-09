@@ -10,34 +10,34 @@ CLI documentation is now automatically generated and validated throughout the de
 
 ### 1. Local Development
 
-#### Just Commands
+#### xtask Commands
 
 ```bash
 # Generate CLI docs manually
-just docs-cli
+cargo xtask docs cli
 
 # Verify docs are up-to-date
-just docs-cli-check
+cargo xtask docs cli-check
 
 # Run all CI checks (includes doc check)
-just ci
+cargo xtask ci all
 ```
 
 #### Web Builds
 
 ```bash
 # Development build (includes doc generation)
-just web-build
+cargo xtask dev web-build
 
 # Production build with Pagefind (includes doc generation)
-just web-prod
+cargo xtask build web-prod
 ```
 
 #### Production Builds
 
 ```bash
 # Full production build (includes doc generation)
-just prod-build
+cargo xtask build prod
 ```
 
 ### 2. GitHub Actions CI/CD
@@ -63,7 +63,7 @@ just prod-build
 **Error Message:**
 ```
 ❌ CLI documentation is out of date!
-Please run 'just docs-cli' and commit the changes.
+Please run 'cargo xtask docs cli' and commit the changes.
 ```
 
 #### Web CI Workflow (`.github/workflows/ci-web.yml`)
@@ -128,7 +128,7 @@ prod-build: docs-cli build-release web-build docker-build
 ✅ **No manual steps** - Docs regenerate automatically on build
 ✅ **Immediate feedback** - CI catches outdated docs before merge
 ✅ **Clear instructions** - Error messages tell you exactly what to do
-✅ **Local validation** - Run `just ci` to check before pushing
+✅ **Local validation** - Run `cargo xtask ci all` to check before pushing
 
 ### For Users
 
@@ -160,7 +160,7 @@ prod-build: docs-cli build-release web-build docker-build
 
 3. **Regenerate docs**
    ```bash
-   just docs-cli
+   cargo xtask docs cli
    ```
 
 4. **Verify changes**
@@ -170,7 +170,7 @@ prod-build: docs-cli build-release web-build docker-build
 
 5. **Run CI checks locally**
    ```bash
-   just ci
+   cargo xtask ci all
    ```
 
 6. **Commit everything**
@@ -189,7 +189,7 @@ prod-build: docs-cli build-release web-build docker-build
 
 ```bash
 # Regenerate docs
-just docs-cli
+cargo xtask docs cli
 
 # Commit the updated docs
 git add web/app/[locale]/docs/content/en/cli-reference.mdx
@@ -225,7 +225,7 @@ cargo run --package xtask -- generate-cli-docs [--output-dir DIR]
 ### Validation Command
 
 ```bash
-just docs-cli-check
+cargo xtask docs cli-check
 ```
 
 Or manually:
@@ -268,7 +268,7 @@ git diff --exit-code web/app/[locale]/docs/content/en/cli-reference.mdx
 
 ```
 ┌─────────────────────────────────────────────┐
-│  just web-build / just web-prod             │
+│  cargo xtask dev web-build / cargo xtask build web-prod             │
 └────────────────┬────────────────────────────┘
                  │
                  ▼
@@ -306,7 +306,7 @@ git diff --exit-code web/app/[locale]/docs/content/en/cli-reference.mdx
 
 **Solution**:
 ```bash
-just docs-cli
+cargo xtask docs cli
 git add web/app/[locale]/docs/content/en/cli-reference.mdx
 git commit --amend --no-edit
 git push --force-with-lease
@@ -323,7 +323,7 @@ cargo check --package bdp-cli
 cargo check --package xtask
 
 # Then try web build again
-just web-build
+cargo xtask dev web-build
 ```
 
 ### Docs generated but look wrong

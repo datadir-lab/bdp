@@ -401,7 +401,7 @@ git checkout main -- .github/workflows/ci.yml
 git checkout main -- CLAUDE.md README.md docs/INDEX.md
 
 # Restart development
-just dev
+cargo xtask dev server
 ```
 
 ### Full Reset

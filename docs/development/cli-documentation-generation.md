@@ -20,7 +20,7 @@ BDP uses `clap-markdown` to automatically generate CLI reference documentation f
 1. **clap-markdown** - Library that generates markdown from Clap command definitions
 2. **xtask** - Cargo task runner for documentation generation
 3. **Hidden flag** - `--markdown-help` flag in the CLI for direct generation
-4. **Just commands** - Convenient commands to generate docs
+4. **xtask commands** - Convenient commands to generate docs
 
 ### File Locations
 
@@ -34,11 +34,11 @@ BDP uses `clap-markdown` to automatically generate CLI reference documentation f
 
 There are three ways to generate CLI documentation:
 
-#### Method 1: Using Just (Recommended)
+#### Method 1: Using xtask (Recommended)
 
 ```bash
 # Generate CLI reference documentation
-just docs-cli
+cargo xtask docs cli
 ```
 
 This is the recommended method and runs the xtask to generate the full MDX documentation with frontmatter and examples.
@@ -65,7 +65,7 @@ cargo run --bin bdp -- --markdown-help > output.md
 For CI/CD pipelines, verify that the documentation is current:
 
 ```bash
-just docs-cli-check
+cargo xtask docs cli-check
 ```
 
 This command will:
@@ -80,7 +80,7 @@ This command will:
 When you modify CLI commands or arguments:
 
 1. **Make your changes** to `crates/bdp-cli/src/lib.rs`
-2. **Generate updated docs**: `just docs-cli`
+2. **Generate updated docs**: `cargo xtask docs cli`
 3. **Review the changes**: Check the diff in `cli-reference.mdx`
 4. **Commit both**: Include both code and documentation changes in your commit
 
@@ -91,7 +91,7 @@ When you modify CLI commands or arguments:
 code crates/bdp-cli/src/lib.rs
 
 # Regenerate documentation
-just docs-cli
+cargo xtask docs cli
 
 # Review changes
 git diff web/app/[locale]/docs/content/en/cli-reference.mdx
@@ -173,7 +173,7 @@ A dedicated `cli-docs-check` job:
   run: |
     if ! git diff --exit-code web/app/\[locale\]/docs/content/en/cli-reference.mdx; then
       echo "❌ CLI documentation is out of date!"
-      echo "Please run 'just docs-cli' and commit the changes."
+      echo "Please run 'cargo xtask docs cli' and commit the changes."
       exit 1
     fi
 ```
@@ -208,7 +208,7 @@ Create `.git/hooks/pre-commit`:
 
 if git diff --cached --name-only | grep -q "crates/bdp-cli/src"; then
     echo "🔄 CLI changes detected, regenerating documentation..."
-    just docs-cli
+    cargo xtask docs cli
     git add web/app/[locale]/docs/content/en/cli-reference.mdx
 fi
 ```
@@ -237,7 +237,7 @@ chmod +x .git/hooks/pre-commit
 ```bash
 # Clean build and regenerate
 cargo clean
-just docs-cli
+cargo xtask docs cli
 ```
 
 ### Build errors in xtask
@@ -260,7 +260,7 @@ cargo run --package xtask -- generate-cli-docs
 **Solution**:
 1. Ensure changes are saved in `crates/bdp-cli/src/lib.rs`
 2. Run `cargo clean` to clear cache
-3. Regenerate: `just docs-cli`
+3. Regenerate: `cargo xtask docs cli`
 
 ## Technical Details
 
