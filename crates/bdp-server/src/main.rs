@@ -155,19 +155,20 @@ fn create_router(
         "Rate limiting configured"
     );
 
-    // Build the main router with middleware stack
-    Router::new()
-        // Health check at root level (explicitly routed by Traefik)
-        .route("/health", get(health_check))
-        .with_state(state.clone())
-        // All API routes under /api prefix
+    // Build rate-limited API router with middleware stack
+    let api_router = Router::new()
         .nest("/api", api_routes)
-        // Apply layers from innermost to outermost
         .layer(CompressionLayer::new())
         .layer(middleware::tracing_layer())
         .layer(middleware::cors_layer(&config.cors))
         .layer(audit::AuditLayer::new(state.db.clone()))
-        .layer(middleware::rate_limit::rate_limit_layer(rate_limit_config))
+        .layer(middleware::rate_limit::rate_limit_layer(rate_limit_config));
+
+    // Health check is outside rate limiting / audit — always reachable
+    Router::new()
+        .route("/health", get(health_check))
+        .with_state(state.clone())
+        .merge(api_router)
 }
 
 /// Health check handler

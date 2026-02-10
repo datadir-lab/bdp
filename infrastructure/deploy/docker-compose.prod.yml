@@ -92,6 +92,7 @@ services:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
+      start_period: 60s
       retries: 3
 
   bdp-web:
