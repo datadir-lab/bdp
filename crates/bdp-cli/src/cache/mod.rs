@@ -9,7 +9,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use sqlx::{Row, sqlite::SqlitePool};
+use sqlx::{sqlite::SqlitePool, Row};
 
 use crate::{
     error::{CliError, Result},

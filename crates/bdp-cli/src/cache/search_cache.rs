@@ -5,7 +5,7 @@
 use std::path::PathBuf;
 
 use chrono::{DateTime, Duration, Utc};
-use rusqlite::{Connection, params};
+use rusqlite::{params, Connection};
 use sha2::{Digest, Sha256};
 use tracing::{debug, info};
 

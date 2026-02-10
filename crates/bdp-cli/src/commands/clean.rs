@@ -5,7 +5,7 @@
 use colored::Colorize;
 
 use crate::{
-    cache::{CacheManager, search_cache::SearchCache},
+    cache::{search_cache::SearchCache, CacheManager},
     error::{CliError, Result},
     progress::format_bytes,
     project,

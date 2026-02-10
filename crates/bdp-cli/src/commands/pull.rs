@@ -10,9 +10,8 @@ use crate::{
     checksum,
     error::{CliError, Result},
     lockfile::{Lockfile, SourceEntry},
-    manifest::{Manifest, parse_source_spec},
-    progress,
-    project,
+    manifest::{parse_source_spec, Manifest},
+    progress, project,
 };
 
 /// Pull sources from manifest

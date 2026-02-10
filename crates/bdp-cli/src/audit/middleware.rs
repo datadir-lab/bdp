@@ -4,7 +4,7 @@
 
 use std::sync::Arc;
 
-use serde_json::{Value as JsonValue, json};
+use serde_json::{json, Value as JsonValue};
 
 use crate::{
     audit::{

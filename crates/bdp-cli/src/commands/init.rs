@@ -11,7 +11,7 @@ use std::{
 use serde_json::json;
 
 use crate::{
-    audit::{AuditLogger, LocalAuditLogger, execute_with_audit, get_machine_id, types::EventType},
+    audit::{execute_with_audit, get_machine_id, types::EventType, AuditLogger, LocalAuditLogger},
     error::{CliError, Result},
     gitignore,
     manifest::Manifest,

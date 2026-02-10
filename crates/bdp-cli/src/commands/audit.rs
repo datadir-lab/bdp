@@ -9,16 +9,11 @@ use colored::Colorize;
 use rusqlite::Connection;
 
 use crate::{
-    AuditCommand,
     audit::{
-        AuditExporter,
-        AuditLogger,
-        ExportFormat,
-        ExportOptions,
-        LocalAuditLogger,
-        get_machine_id,
+        get_machine_id, AuditExporter, AuditLogger, ExportFormat, ExportOptions, LocalAuditLogger,
     },
     error::{CliError, Result},
+    AuditCommand,
 };
 
 /// Execute audit command

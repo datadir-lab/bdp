@@ -3,7 +3,7 @@
 use std::process;
 
 use bdp_cli::{CacheCommand, Cli, Commands, ConfigCommand, GenerateCommand, SourceCommand};
-use bdp_common::logging::{LogConfig, LogLevel, LogOutput, init_logging};
+use bdp_common::logging::{init_logging, LogConfig, LogLevel, LogOutput};
 use clap::Parser;
 use tracing::error;
 

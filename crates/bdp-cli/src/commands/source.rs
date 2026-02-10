@@ -6,7 +6,7 @@ use colored::Colorize;
 
 use crate::{
     error::{CliError, Result},
-    manifest::{Manifest, validate_source_spec},
+    manifest::{validate_source_spec, Manifest},
 };
 
 /// Add a source to the manifest

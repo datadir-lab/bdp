@@ -6,7 +6,7 @@ use std::{
 };
 
 use async_trait::async_trait;
-use rusqlite::{Connection, OptionalExtension, params};
+use rusqlite::{params, Connection, OptionalExtension};
 
 use crate::{
     audit::{schema, types::AuditEvent},

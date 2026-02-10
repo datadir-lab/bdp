@@ -9,9 +9,9 @@ use serde::{Deserialize, Serialize};
 // ============================================================================
 // CLI Configuration Constants
 // ============================================================================
+use crate::error::Result;
 /// Default BDP server URL - references the crate-level BASE_SERVER_URL constant
 pub use crate::BASE_SERVER_URL as DEFAULT_SERVER_URL;
-use crate::error::Result;
 
 /// CLI configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]

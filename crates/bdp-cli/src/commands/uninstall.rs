@@ -7,8 +7,7 @@ use std::path::Path;
 #[cfg(windows)]
 use std::path::PathBuf;
 use std::{
-    env,
-    fs,
+    env, fs,
     io::{self, Write},
 };
 

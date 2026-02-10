@@ -392,7 +392,7 @@ fn output_results(
 
 /// Format results as table
 fn format_as_table(results: &QueryResults) -> String {
-    use comfy_table::{Table, modifiers::UTF8_ROUND_CORNERS, presets::UTF8_FULL};
+    use comfy_table::{modifiers::UTF8_ROUND_CORNERS, presets::UTF8_FULL, Table};
 
     let mut table = Table::new();
     table

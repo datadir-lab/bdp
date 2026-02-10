@@ -2,7 +2,7 @@
 
 use std::{path::Path, sync::Arc};
 
-use rusqlite::{Connection, params};
+use rusqlite::{params, Connection};
 use uuid::Uuid;
 
 use crate::{
