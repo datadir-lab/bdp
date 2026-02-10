@@ -125,7 +125,7 @@ pub async fn nextflow() -> Result<()> {
 
 /// Collect source information from lockfile and project config
 fn collect_sources(project_root: &Path) -> Result<Vec<SourceInfo>> {
-    let lockfile_path = project_root.join("bdl.lock");
+    let lockfile_path = project_root.join("bdp.lock");
     if !lockfile_path.exists() {
         return Ok(Vec::new());
     }

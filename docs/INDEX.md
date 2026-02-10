@@ -40,7 +40,7 @@ Complete documentation index for developers and AI agents working on the Bioinfo
 ### Design Specifications
 - **[Database Schema](./agents/design/database-schema.md)** - PostgreSQL schema, tables, relationships
 - **[API Design](./agents/design/api-design.md)** - REST endpoints, response formats
-- **[File Formats](./agents/design/file-formats.md)** - bdp.yml, bdl.lock, dependency cache
+- **[File Formats](./agents/design/file-formats.md)** - bdp.yml, bdp.lock, dependency cache
 - **[Cache Strategy](./agents/design/cache-strategy.md)** - Local caching, team sharing
 - **[Dependency Resolution](./agents/design/dependency-resolution.md)** - How aggregate sources work
 - **[Version Mapping](./agents/design/version-mapping.md)** - External to internal version translation

@@ -134,10 +134,10 @@ pub async fn run(server_url: String, force: bool) -> Result<()> {
     }
 
     // Save lockfile
-    lockfile.save(project_root.join("bdl.lock"))?;
+    lockfile.save(project_root.join("bdp.lock"))?;
 
     println!("\n{} All sources downloaded and verified", "✓".green().bold());
-    println!("Lockfile saved: bdl.lock");
+    println!("Lockfile saved: bdp.lock");
 
     // Execute post-pull hooks
     if let Some(ref hooks) = manifest.hooks {

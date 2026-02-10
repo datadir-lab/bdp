@@ -384,7 +384,7 @@ bdp cache remove uniprot:P01308-fasta@1.0
 # Remove all sources for a version
 bdp cache remove uniprot:P01308@1.0
 
-# Remove unused sources (not in bdp.yml or bdl.lock)
+# Remove unused sources (not in bdp.yml or bdp.lock)
 bdp cache clean
 
 # Remove sources not accessed in 30 days
@@ -685,7 +685,7 @@ bdp config cache set "/mnt/shared/team-cache"
 # Pull sources (uses shared cache, no download needed if files exist)
 bdp pull
 
-# bdp.yml and bdl.lock already in repo from git
+# bdp.yml and bdp.lock already in repo from git
 # Shared cache already has files from team
 # Just updates local bdp.db tracking
 ```
@@ -710,7 +710,7 @@ fn validate_cache_path(path: &Path, base: &Path) -> Result<()> {
 
 ## Related Documents
 
-- [File Formats](./file-formats.md) - bdp.yml and bdl.lock structure
+- [File Formats](./file-formats.md) - bdp.yml and bdp.lock structure
 - [Database Schema](./database-schema.md) - Server-side storage
 - [API Design](./api-design.md) - Download endpoints
 - [Dependency Resolution](./dependency-resolution.md) - Resolving dependencies

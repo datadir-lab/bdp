@@ -11,7 +11,7 @@ BDP is designed to work seamlessly with Git for maximum reproducibility. While n
 ### Why Use Git with BDP?
 
 - **Track data dependencies** alongside code changes
-- **Share exact configurations** with collaborators via `bdp.yml` and `bdl.lock`
+- **Share exact configurations** with collaborators via `bdp.yml` and `bdp.lock`
 - **Time-travel** to any point in your project's history with matching data versions
 - **Document changes** with commit messages explaining why data sources changed
 
@@ -32,21 +32,21 @@ BDP is designed to work seamlessly with Git for maximum reproducibility. While n
 
 3. **Commit the lockfile:**
    ```bash
-   git add bdp.yml bdl.lock
+   git add bdp.yml bdp.lock
    git commit -m "Add UniProt insulin data source"
    ```
 
 4. **Collaborators get exact same data:**
    ```bash
    git clone <your-repo>
-   bdp pull  # Downloads exact versions from bdl.lock
+   bdp pull  # Downloads exact versions from bdp.lock
    ```
 
 ### What to Commit
 
 **Always commit:**
 - `bdp.yml` - Your data source specifications
-- `bdl.lock` - Exact versions and checksums
+- `bdp.lock` - Exact versions and checksums
 - Analysis scripts and code
 - Documentation
 
@@ -138,7 +138,7 @@ bdp cite --format bibtex > references.bib
 Before publishing or sharing research:
 
 - [ ] All data sources specified in `bdp.yml`
-- [ ] Lockfile (`bdl.lock`) committed to version control
+- [ ] Lockfile (`bdp.lock`) committed to version control
 - [ ] Audit trail verified: `bdp audit verify`
 - [ ] Documentation includes data source rationale
 - [ ] Analysis scripts reference BDP data paths

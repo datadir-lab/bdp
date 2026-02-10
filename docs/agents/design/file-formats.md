@@ -7,12 +7,12 @@ Detailed specification for BDP configuration and lockfile formats.
 BDP uses three primary files for project management:
 
 1. **`bdp.yml`**: Human-edited project manifest (committed to git)
-2. **`bdl.lock`**: Generated lockfile with resolved versions and checksums (committed to git)
+2. **`bdp.lock`**: Generated lockfile with resolved versions and checksums (committed to git)
 3. **`.bdp/resolved-dependencies.json`**: Machine-generated full dependency tree (gitignored)
 
 ## Design Principles
 
-1. **Separate Concerns**: User intent (`bdp.yml`) vs resolved state (`bdl.lock`)
+1. **Separate Concerns**: User intent (`bdp.yml`) vs resolved state (`bdp.lock`)
 2. **Git-Friendly**: Lockfile must be small and readable
 3. **Reproducible**: Lockfile ensures exact same sources across machines
 4. **Format Granularity**: Each format is a separate entry for independent checksums
@@ -106,7 +106,7 @@ tools:
 4. No duplicate entries
 5. Format must be alphanumeric lowercase
 
-## bdl.lock (Lockfile)
+## bdp.lock (Lockfile)
 
 Machine-generated file with resolved versions, checksums, and metadata. Small enough to commit to git.
 
@@ -412,7 +412,7 @@ fn compute_tree_checksum(deps: &[Dependency]) -> String {
 ```
 project/
 ├── bdp.yml                              # Project manifest (committed)
-├── bdl.lock                             # Lockfile (committed)
+├── bdp.lock                             # Lockfile (committed)
 └── .bdp/
     ├── cache/                           # Downloaded files (gitignored)
     ├── bdp.db                           # SQLite tracking (gitignored)
@@ -433,7 +433,7 @@ project/
 
 # Commit these:
 # bdp.yml
-# bdl.lock
+# bdp.lock
 ```
 
 ## CLI Workflow
@@ -475,7 +475,7 @@ $ bdp pull
    c. Fetch checksums and sizes
    d. If has dependencies, fetch dependency tree
    e. Save to `.bdp/resolved-dependencies.json`
-3. Generate/update `bdl.lock`
+3. Generate/update `bdp.lock`
 4. Download files to cache
 5. Verify checksums
 6. Update `.bdp/bdp.db` tracking
@@ -487,11 +487,11 @@ $ bdp audit
 ```
 
 **Actions**:
-1. Read `bdl.lock`
+1. Read `bdp.lock`
 2. For each source:
    a. Check if cached
    b. Compute checksum of cached file
-   c. Compare with `bdl.lock` checksum
+   c. Compare with `bdp.lock` checksum
    d. Log results to `.bdp/audit.log`
 3. Report any mismatches
 
@@ -538,7 +538,7 @@ match lockfile.version {
 | Feature | npm | cargo | conda | BDP |
 |---------|-----|-------|-------|-----|
 | Manifest | package.json | Cargo.toml | environment.yml | bdp.yml |
-| Lockfile | package-lock.json | Cargo.lock | conda-lock.yml | bdl.lock |
+| Lockfile | package-lock.json | Cargo.lock | conda-lock.yml | bdp.lock |
 | URLs in lock | No | No | Yes | No |
 | Paths in lock | No | No | No | No |
 | Dependency tree | Nested | Flat | Flat | Hybrid (flat + cached) |

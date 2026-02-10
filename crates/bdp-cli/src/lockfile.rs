@@ -1,4 +1,4 @@
-//! Lockfile handling (bdl.lock)
+//! Lockfile handling (bdp.lock)
 //!
 //! The lockfile stores resolved dependency information with exact versions and
 //! checksums.
@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::Result;
 
-/// BDP lockfile (bdl.lock)
+/// BDP lockfile (bdp.lock)
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Lockfile {
     /// Lockfile format version

@@ -824,6 +824,6 @@ ws.onmessage = (event) => {
 ## Related Documents
 
 - [Database Schema](./database-schema.md) - Backend data model
-- [File Formats](./file-formats.md) - bdp.yml and bdl.lock
+- [File Formats](./file-formats.md) - bdp.yml and bdp.lock
 - [Cache Strategy](./cache-strategy.md) - Client-side caching
 - [Dependency Resolution](./dependency-resolution.md) - Resolution logic

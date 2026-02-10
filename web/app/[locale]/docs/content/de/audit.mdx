@@ -132,7 +132,7 @@ Markdown-Bericht für NIH DMS-Compliance:
 
 ## Reproduzierbarkeit
 
-Alle Datenquellen werden über BDP-Lockfile (bdl.lock)
+Alle Datenquellen werden über BDP-Lockfile (bdp.lock)
 verwaltet, committed im Repository bei Commit abc123.
 ```
 
@@ -162,7 +162,7 @@ Publikationsfertiger Text für wissenschaftliche Arbeiten:
 
 Alle Proteinsequenzen wurden von UniProt (Release 2024_01,
 Version 1.1.0, Accession P01308) am 2024-01-15 bezogen. Daten-Prüfsummen
-und exakte Versionen sind im BDP-Lockfile (bdl.lock) aufgezeichnet,
+und exakte Versionen sind im BDP-Lockfile (bdp.lock) aufgezeichnet,
 verfügbar im Projekt-Repository unter https://github.com/lab/project/tree/v1.0.
 
 Der vollständige Audit-Trail mit Daten-Provenienz und Integritätsverifizierung
@@ -205,7 +205,7 @@ Zukünftige Versionen werden das Synchronisieren von Audit-Trails zum BDP-Backen
 1. **Regelmäßig exportieren** - Compliance-Berichte bei Projekt-Meilensteinen generieren
 2. **In Publikationen einbeziehen** - Datenverfügbarkeitserklärungen für Paper exportieren
 3. **Vor Export verifizieren** - Immer `bdp audit verify` vor Berichtsgenerierung ausführen
-4. **Lockfiles committen** - `bdl.lock` zusammen mit Audit-Exporten in Versionskontrolle speichern
+4. **Lockfiles committen** - `bdp.lock` zusammen mit Audit-Exporten in Versionskontrolle speichern
 5. **Post-Pull-Hooks dokumentieren** - Alle Datenverarbeitungsschritte im Audit-Trail aufzeichnen
 
 ## Beispiel-Workflow

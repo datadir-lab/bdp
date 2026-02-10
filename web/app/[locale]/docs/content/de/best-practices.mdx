@@ -11,7 +11,7 @@ BDP ist darauf ausgelegt, nahtlos mit Git für maximale Reproduzierbarkeit zu ar
 ### Warum Git mit BDP verwenden?
 
 - **Datenabhängigkeiten tracken** zusammen mit Code-Änderungen
-- **Exakte Konfigurationen teilen** mit Kollegen via `bdp.yml` und `bdl.lock`
+- **Exakte Konfigurationen teilen** mit Kollegen via `bdp.yml` und `bdp.lock`
 - **Zeitreisen** zu jedem Punkt in der Projekthistorie mit passenden Datenversionen
 - **Änderungen dokumentieren** mit Commit-Nachrichten die erklären warum Datenquellen geändert wurden
 
@@ -32,21 +32,21 @@ BDP ist darauf ausgelegt, nahtlos mit Git für maximale Reproduzierbarkeit zu ar
 
 3. **Lockfile committen:**
    ```bash
-   git add bdp.yml bdl.lock
+   git add bdp.yml bdp.lock
    git commit -m "UniProt Insulin-Datenquelle hinzufügen"
    ```
 
 4. **Kollegen erhalten exakt die gleichen Daten:**
    ```bash
    git clone <dein-repo>
-   bdp pull  # Lädt exakte Versionen aus bdl.lock herunter
+   bdp pull  # Lädt exakte Versionen aus bdp.lock herunter
    ```
 
 ### Was committen
 
 **Immer committen:**
 - `bdp.yml` - Ihre Datenquellen-Spezifikationen
-- `bdl.lock` - Exakte Versionen und Prüfsummen
+- `bdp.lock` - Exakte Versionen und Prüfsummen
 - Analyse-Skripte und Code
 - Dokumentation
 
@@ -138,7 +138,7 @@ bdp cite --format bibtex > literatur.bib
 Vor Veröffentlichung oder Teilen von Forschung:
 
 - [ ] Alle Datenquellen in `bdp.yml` spezifiziert
-- [ ] Lockfile (`bdl.lock`) in Versionskontrolle committed
+- [ ] Lockfile (`bdp.lock`) in Versionskontrolle committed
 - [ ] Audit-Trail verifiziert: `bdp audit verify`
 - [ ] Dokumentation beinhaltet Datenquellen-Begründung
 - [ ] Analyse-Skripte referenzieren BDP-Datenpfade

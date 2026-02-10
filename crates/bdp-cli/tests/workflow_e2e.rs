@@ -585,7 +585,7 @@ async fn test_pull_downloads_sources() {
         .stdout(predicate::str::contains("All sources downloaded"));
 
     // Verify lockfile exists
-    assert!(temp.path().join("bdl.lock").exists());
+    assert!(temp.path().join("bdp.lock").exists());
 }
 
 #[tokio::test]

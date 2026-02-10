@@ -75,7 +75,7 @@ impl NihExporter {
         );
         md.push_str("- **Version Control**: All data sources are version-pinned in `bdp.yml`\n");
         md.push_str(
-            "- **Reproducibility**: Lockfile (`bdl.lock`) ensures exact same data across \
+            "- **Reproducibility**: Lockfile (`bdp.lock`) ensures exact same data across \
              environments\n",
         );
         md.push_str("- **Integrity**: Cryptographic checksums verify data authenticity\n");
@@ -96,7 +96,7 @@ impl NihExporter {
 
         md.push_str("### Data Preservation\n\n");
         md.push_str("- **Manifest File**: `bdp.yml` (committed to version control)\n");
-        md.push_str("- **Lockfile**: `bdl.lock` (committed to version control)\n");
+        md.push_str("- **Lockfile**: `bdp.lock` (committed to version control)\n");
         md.push_str("- **Audit Trail**: `.bdp/bdp.db` (local audit log)\n\n");
 
         // Audit summary

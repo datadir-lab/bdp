@@ -350,13 +350,13 @@ pub fn find_hook(name: &str) -> Option<PathBuf> {
 ### bdp verify Command
 
 Verifies integrity of:
-1. **Source files** - checksums match `bdl.lock`
+1. **Source files** - checksums match `bdp.lock`
 2. **Generated files** - post-pull outputs exist and are valid
 
 ```rust
 pub async fn cmd_verify(ctx: &CommandContext) -> Result<()> {
     execute_with_audit(ctx, "verify_all", None, || {
-        let lockfile = Lockfile::load("bdl.lock")?;
+        let lockfile = Lockfile::load("bdp.lock")?;
         let mut all_ok = true;
 
         println!("Verifying source files...");
@@ -599,7 +599,7 @@ cd my-proteomics-project
 bdp pull
 ```
 
-All data sources, versions, and checksums are specified in the project manifest (`bdp.yml`) and lockfile (`bdl.lock`), both committed to version control.
+All data sources, versions, and checksums are specified in the project manifest (`bdp.yml`) and lockfile (`bdp.lock`), both committed to version control.
 
 ### Software
 
@@ -980,7 +980,7 @@ EXAMPLES:
 
 ## Related Documents
 
-- [File Formats](./file-formats.md) - bdp.yml, bdl.lock structure
+- [File Formats](./file-formats.md) - bdp.yml, bdp.lock structure
 - [Cache Strategy](./cache-strategy.md) - Local cache management
 - [CLI Development](../cli-development.md) - CLI command patterns
 - [Backend Architecture](../backend-architecture.md) - CQRS pattern (server-side reference)

@@ -46,7 +46,7 @@ impl CacheManager {
         fs::create_dir_all(&cache_dir)?;
 
         let db_path = cache_dir.join("bdp.db");
-        let db_url = format!("sqlite:{}", db_path.display());
+        let db_url = format!("sqlite:{}?mode=rwc", db_path.display());
 
         let pool = SqlitePool::connect(&db_url).await?;
 

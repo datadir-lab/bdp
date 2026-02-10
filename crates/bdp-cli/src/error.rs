@@ -29,9 +29,9 @@ pub enum CliError {
     #[error("Invalid manifest (bdp.yml): {0}. Run 'bdp init' to create a valid manifest.")]
     InvalidManifest(String),
 
-    /// Lockfile (bdl.lock) has invalid format or content
+    /// Lockfile (bdp.lock) has invalid format or content
     #[error(
-        "Invalid lockfile (bdl.lock): {0}. Delete the lockfile and run 'bdp pull' to regenerate \
+        "Invalid lockfile (bdp.lock): {0}. Delete the lockfile and run 'bdp pull' to regenerate \
          it."
     )]
     InvalidLockfile(String),

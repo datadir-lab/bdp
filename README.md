@@ -41,7 +41,7 @@ bdp pull
 
 **What you get:**
 - `bdp.yml` - Your data dependencies (like `package.json`)
-- `bdl.lock` - Exact versions for reproducibility (like `package-lock.json`)
+- `bdp.lock` - Exact versions for reproducibility (like `package-lock.json`)
 - `data/` - Downloaded datasets with verified checksums
 
 ## CLI Commands
