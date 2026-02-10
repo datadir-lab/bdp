@@ -2,7 +2,7 @@
 //!
 //! Creates individual data sources for each taxonomy with proper schema structure.
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use sqlx::{PgPool, Postgres, QueryBuilder};
 use std::collections::HashMap;
 use tracing::{debug, info};
@@ -421,13 +421,19 @@ impl NcbiTaxonomyStorage {
              (data_source_id, taxonomy_id, scientific_name, common_name, rank, lineage, ncbi_tax_version) "
         );
 
-        query_builder.push_values(chunk, |mut b, entry| {
-            // Entry ID is guaranteed to exist since we just inserted it in batch_upsert_registry_entries
-            let entry_id = entry_id_map.get(&entry.taxonomy_id)
-                .unwrap_or_else(|| panic!(
-                    "Entry ID must exist in map for taxonomy_id {} - was just inserted in batch_upsert_registry_entries",
+        // Pre-validate that all taxonomy_ids exist in entry_id_map before entering the closure
+        for entry in chunk {
+            if !entry_id_map.contains_key(&entry.taxonomy_id) {
+                bail!(
+                    "Entry ID missing in map for taxonomy_id {} - expected from batch_upsert_registry_entries",
                     entry.taxonomy_id
-                ));
+                );
+            }
+        }
+
+        query_builder.push_values(chunk, |mut b, entry| {
+            // Safety: validated above that all keys exist
+            let entry_id = &entry_id_map[&entry.taxonomy_id];
             b.push_bind(entry_id)
                 .push_bind(entry.taxonomy_id)
                 .push_bind(&entry.scientific_name)
@@ -505,12 +511,11 @@ impl NcbiTaxonomyStorage {
         let mut file_data = Vec::new();
 
         for entry in chunk {
-            // Version ID is guaranteed to exist since we just inserted it in batch_insert_versions
             let version_id = version_id_map.get(&entry.taxonomy_id)
-                .unwrap_or_else(|| panic!(
-                    "Version ID must exist in map for taxonomy_id {} - was just inserted in batch_insert_versions",
+                .with_context(|| format!(
+                    "Version ID missing in map for taxonomy_id {} - expected from batch_insert_versions",
                     entry.taxonomy_id
-                ));
+                ))?;
 
             // Generate JSON content
             let json_content = entry.to_json()?;

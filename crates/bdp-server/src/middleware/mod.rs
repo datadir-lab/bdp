@@ -54,9 +54,19 @@ pub fn cors_layer(config: &CorsConfig) -> CorsLayer {
                 .unwrap_or(DEFAULT_CORS_MAX_AGE_SECS),
         ));
 
-    // Configure origins
-    if config.allowed_origins.is_empty() || config.allowed_origins.contains(&"*".to_string()) {
+    // Configure origins and credentials
+    let is_wildcard =
+        config.allowed_origins.is_empty() || config.allowed_origins.contains(&"*".to_string());
+
+    if is_wildcard {
         cors = cors.allow_origin(Any);
+        // CORS spec forbids credentials with wildcard origin — browsers reject it
+        if config.allow_credentials {
+            tracing::warn!(
+                "CORS: ignoring allow_credentials=true because origin is wildcard (*). \
+                 Set explicit origins to enable credentials."
+            );
+        }
     } else {
         let origins: Vec<_> = config
             .allowed_origins
@@ -64,11 +74,9 @@ pub fn cors_layer(config: &CorsConfig) -> CorsLayer {
             .filter_map(|origin| origin.parse().ok())
             .collect();
         cors = cors.allow_origin(origins);
-    }
-
-    // Configure credentials
-    if config.allow_credentials {
-        cors = cors.allow_credentials(true);
+        if config.allow_credentials {
+            cors = cors.allow_credentials(true);
+        }
     }
 
     cors

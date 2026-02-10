@@ -1,4 +1,5 @@
 use crate::api::response::{ApiResponse, ErrorResponse};
+use crate::features::FeatureState;
 use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
@@ -7,7 +8,6 @@ use axum::{
     Json, Router,
 };
 use serde_json::json;
-use sqlx::PgPool;
 
 use super::{
     commands::{
@@ -18,7 +18,7 @@ use super::{
     queries::{GetDataSourceQuery, GetVersionQuery, ListDataSourcesQuery, ListDependenciesQuery},
 };
 
-pub fn data_sources_routes() -> Router<PgPool> {
+pub fn data_sources_routes() -> Router<FeatureState> {
     Router::new()
         .route("/", post(create_data_source))
         .route("/", get(list_data_sources))
@@ -35,12 +35,12 @@ pub fn data_sources_routes() -> Router<PgPool> {
         .route("/:org/:slug/:version/dependencies", get(list_dependencies))
 }
 
-#[tracing::instrument(skip(pool, command), fields(slug = %command.slug, name = %command.name))]
+#[tracing::instrument(skip(state, command), fields(slug = %command.slug, name = %command.name))]
 async fn create_data_source(
-    State(pool): State<PgPool>,
+    State(state): State<FeatureState>,
     Json(command): Json<CreateDataSourceCommand>,
 ) -> Result<Response, DataSourceApiError> {
-    let response = super::commands::create::handle(pool, command).await?;
+    let response = state.dispatch(command).await?;
 
     tracing::info!(
         data_source_id = %response.id,
@@ -51,15 +51,15 @@ async fn create_data_source(
     Ok((StatusCode::CREATED, Json(ApiResponse::success(response))).into_response())
 }
 
-#[tracing::instrument(skip(pool, command), fields(id = %id))]
+#[tracing::instrument(skip(state, command), fields(id = %id))]
 async fn update_data_source(
-    State(pool): State<PgPool>,
+    State(state): State<FeatureState>,
     Path((_org, id)): Path<(String, uuid::Uuid)>,
     Json(mut command): Json<UpdateDataSourceCommand>,
 ) -> Result<Response, DataSourceApiError> {
     command.id = id;
 
-    let response = super::commands::update::handle(pool, command).await?;
+    let response = state.dispatch(command).await?;
 
     tracing::info!(
         data_source_id = %response.id,
@@ -70,14 +70,14 @@ async fn update_data_source(
     Ok((StatusCode::OK, Json(ApiResponse::success(response))).into_response())
 }
 
-#[tracing::instrument(skip(pool), fields(id = %id))]
+#[tracing::instrument(skip(state), fields(id = %id))]
 async fn delete_data_source(
-    State(pool): State<PgPool>,
+    State(state): State<FeatureState>,
     Path((_org, id)): Path<(String, uuid::Uuid)>,
 ) -> Result<Response, DataSourceApiError> {
     let command = DeleteDataSourceCommand { id };
 
-    let response = super::commands::delete::handle(pool, command).await?;
+    let response = state.dispatch(command).await?;
 
     tracing::info!(
         data_source_id = %response.id,
@@ -87,13 +87,13 @@ async fn delete_data_source(
     Ok((StatusCode::OK, Json(ApiResponse::success(response))).into_response())
 }
 
-#[tracing::instrument(skip(pool, command), fields(data_source_id = %command.data_source_id, version = %command.version))]
+#[tracing::instrument(skip(state, command), fields(data_source_id = %command.data_source_id, version = %command.version))]
 async fn publish_version(
-    State(pool): State<PgPool>,
+    State(state): State<FeatureState>,
     Path((_org, _slug)): Path<(String, String)>,
     Json(command): Json<PublishVersionCommand>,
 ) -> Result<Response, DataSourceApiError> {
-    let response = super::commands::publish::handle(pool, command).await?;
+    let response = state.dispatch(command).await?;
 
     tracing::info!(
         version_id = %response.id,
@@ -104,9 +104,9 @@ async fn publish_version(
     Ok((StatusCode::CREATED, Json(ApiResponse::success(response))).into_response())
 }
 
-#[tracing::instrument(skip(pool), fields(org = %org, slug = %slug))]
+#[tracing::instrument(skip(state), fields(org = %org, slug = %slug))]
 async fn get_data_source(
-    State(pool): State<PgPool>,
+    State(state): State<FeatureState>,
     Path((org, slug)): Path<(String, String)>,
 ) -> Result<Response, DataSourceApiError> {
     let query = GetDataSourceQuery {
@@ -114,7 +114,7 @@ async fn get_data_source(
         slug,
     };
 
-    let response = super::queries::get::handle(pool, query).await?;
+    let response = state.dispatch(query).await?;
 
     tracing::debug!(
         data_source_id = %response.id,
@@ -125,32 +125,40 @@ async fn get_data_source(
     Ok((StatusCode::OK, Json(ApiResponse::success(response))).into_response())
 }
 
-#[tracing::instrument(skip(pool))]
-async fn get_source_types(State(pool): State<PgPool>) -> Result<Response, DataSourceApiError> {
-    let source_types = sqlx::query_scalar!(
-        r#"
-        SELECT DISTINCT source_type
-        FROM data_sources
-        ORDER BY source_type
-        "#
-    )
-    .fetch_all(&pool)
-    .await
-    .map_err(|e| {
-        DataSourceApiError::ListError(super::queries::ListDataSourcesError::Database(e))
-    })?;
+#[tracing::instrument(skip(state))]
+async fn get_source_types(
+    State(state): State<FeatureState>,
+) -> Result<Response, DataSourceApiError> {
+    // Fetch all data sources and extract unique source types.
+    // This is a simple read that piggybacks on the existing list query.
+    let query = ListDataSourcesQuery {
+        pagination: Default::default(),
+        organization_id: None,
+        source_type: None,
+        organism_id: None,
+    };
+    let response = state.dispatch(query).await?;
+
+    let mut source_types: Vec<String> = response
+        .items
+        .iter()
+        .map(|item| item.source_type.clone())
+        .collect::<std::collections::HashSet<_>>()
+        .into_iter()
+        .collect();
+    source_types.sort();
 
     tracing::debug!(count = source_types.len(), "Source types retrieved via API");
 
     Ok((StatusCode::OK, Json(ApiResponse::success(source_types))).into_response())
 }
 
-#[tracing::instrument(skip(pool, query), fields(page = ?query.pagination.page, per_page = ?query.pagination.per_page))]
+#[tracing::instrument(skip(state, query), fields(page = ?query.pagination.page, per_page = ?query.pagination.per_page))]
 async fn list_data_sources(
-    State(pool): State<PgPool>,
+    State(state): State<FeatureState>,
     Query(query): Query<ListDataSourcesQuery>,
 ) -> Result<Response, DataSourceApiError> {
-    let response = super::queries::list::handle(pool, query).await?;
+    let response = state.dispatch(query).await?;
 
     tracing::debug!(
         count = response.items.len(),
@@ -168,9 +176,9 @@ async fn list_data_sources(
     )
 }
 
-#[tracing::instrument(skip(pool), fields(org = %org, slug = %slug, version = %version))]
+#[tracing::instrument(skip(state), fields(org = %org, slug = %slug, version = %version))]
 async fn get_version(
-    State(pool): State<PgPool>,
+    State(state): State<FeatureState>,
     Path((org, slug, version)): Path<(String, String, String)>,
 ) -> Result<Response, DataSourceApiError> {
     let query = GetVersionQuery {
@@ -179,7 +187,7 @@ async fn get_version(
         version,
     };
 
-    let response = super::queries::get_version::handle(pool, query).await?;
+    let response = state.dispatch(query).await?;
 
     tracing::debug!(
         version_id = %response.id,
@@ -190,9 +198,9 @@ async fn get_version(
     Ok((StatusCode::OK, Json(ApiResponse::success(response))).into_response())
 }
 
-#[tracing::instrument(skip(pool, query), fields(org = %org, slug = %slug, version = %version))]
+#[tracing::instrument(skip(state, query), fields(org = %org, slug = %slug, version = %version))]
 async fn list_dependencies(
-    State(pool): State<PgPool>,
+    State(state): State<FeatureState>,
     Path((org, slug, version)): Path<(String, String, String)>,
     Query(mut query): Query<ListDependenciesQuery>,
 ) -> Result<Response, DataSourceApiError> {
@@ -200,7 +208,7 @@ async fn list_dependencies(
     query.data_source_slug = slug;
     query.version = version;
 
-    let response = super::queries::list_dependencies::handle(pool, query).await?;
+    let response = state.dispatch(query).await?;
 
     tracing::debug!(dependency_count = response.dependency_count, "Dependencies listed via API");
 

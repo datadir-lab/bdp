@@ -124,7 +124,7 @@ impl Protein2IprParser {
 
         let signature_database = fields[5]
             .parse::<SignatureDatabase>()
-            .map_err(|e| ParserError::InvalidSignatureDatabase(e))?;
+            .map_err(ParserError::InvalidSignatureDatabase)?;
 
         let signature_accession = fields[6].to_string();
 
@@ -148,7 +148,8 @@ impl Protein2IprParser {
                 message: format!("Failed to parse end position: {}", e),
             })?;
 
-        // E-value and score are optional
+        // E-value/score is optional (field 10)
+        // Fields 11 and 12 are Status (T/F) and Date — not numeric, skip them
         let e_value = if fields.len() > 10 && !fields[10].is_empty() {
             Some(
                 fields[10]
@@ -162,18 +163,7 @@ impl Protein2IprParser {
             None
         };
 
-        let score = if fields.len() > 11 && !fields[11].is_empty() {
-            Some(
-                fields[11]
-                    .parse::<f64>()
-                    .map_err(|e| ParserError::InvalidFloat {
-                        line: self.line_number,
-                        message: format!("Failed to parse score: {}", e),
-                    })?,
-            )
-        } else {
-            None
-        };
+        let score = None;
 
         Ok(ProteinMatch {
             uniprot_accession,
@@ -405,8 +395,10 @@ mod tests {
         ];
 
         for (db_str, expected) in databases {
-            let line =
-                format!("P12345\tabc\t100\tIPR000001\tTest\t{}\tSIG001\tTest sig\t10\t50", db_str);
+            let line = format!(
+                "P12345\tabc\t100\tIPR000001\tTest\t{}\tSIG001\tTest sig\t10\t50\t1.0E-5",
+                db_str
+            );
             let result = parser.parse_line(&line);
             assert!(result.is_ok());
             assert_eq!(result.unwrap().signature_database, expected);

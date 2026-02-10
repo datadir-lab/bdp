@@ -267,15 +267,15 @@ mod tests {
         // Old individual entries should be gone - check line by line
         let lines: Vec<&str> = content.lines().collect();
         assert!(
-            !lines.iter().any(|l| *l == ".bdp/cache/"),
+            !lines.contains(&".bdp/cache/"),
             "Should not have .bdp/cache/ as a separate line"
         );
         assert!(
-            !lines.iter().any(|l| *l == ".bdp/bdp.db"),
+            !lines.contains(&".bdp/bdp.db"),
             "Should not have .bdp/bdp.db as a separate line"
         );
         assert!(
-            !lines.iter().any(|l| *l == ".bdp/bdp.db-shm"),
+            !lines.contains(&".bdp/bdp.db-shm"),
             "Should not have .bdp/bdp.db-shm as a separate line"
         );
     }

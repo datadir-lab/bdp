@@ -759,50 +759,54 @@ impl UniProtPipeline {
 
         tracing::info!(job_id = %job_id, "Created ingestion job");
 
-        // Audit: Job started
-        if let Err(e) = create_audit_entry(
-            &self.pool,
-            CreateAuditEntry::builder()
-                .action(AuditAction::Ingest)
-                .resource_type(ResourceType::IngestionJob)
-                .resource_id(Some(job_id))
-                .user_id(None) // System-initiated
-                .metadata(serde_json::json!({
-                    "status": "started",
-                    "version": version.external_version,
-                    "organization_id": self.organization_id,
-                    "is_current": version.is_current,
-                }))
-                .build(),
-        )
-        .await
+        // Audit: Job started (best-effort)
+        match CreateAuditEntry::builder()
+            .action(AuditAction::Ingest)
+            .resource_type(ResourceType::IngestionJob)
+            .resource_id(Some(job_id))
+            .user_id(None) // System-initiated
+            .metadata(serde_json::json!({
+                "status": "started",
+                "version": version.external_version,
+                "organization_id": self.organization_id,
+                "is_current": version.is_current,
+            }))
+            .try_build()
         {
-            tracing::warn!(error = %e, "Failed to create audit log for job start");
+            Ok(entry) => {
+                if let Err(e) = create_audit_entry(&self.pool, entry).await {
+                    tracing::warn!(error = %e, "Failed to create audit log for job start");
+                }
+            },
+            Err(e) => tracing::warn!("Failed to build audit entry for job start: {}", e),
         }
 
         // Execute the full pipeline
-        match self.execute_pipeline(&coordinator, job_id, &version).await {
+        match self.execute_pipeline(&coordinator, job_id, version).await {
             Ok(_) => {
                 tracing::info!(job_id = %job_id, "Pipeline completed successfully");
 
-                // Audit: Job completed
-                if let Err(e) = create_audit_entry(
-                    &self.pool,
-                    CreateAuditEntry::builder()
-                        .action(AuditAction::Ingest)
-                        .resource_type(ResourceType::IngestionJob)
-                        .resource_id(Some(job_id))
-                        .user_id(None)
-                        .metadata(serde_json::json!({
-                            "status": "completed",
-                            "version": version.external_version,
-                            "organization_id": self.organization_id,
-                        }))
-                        .build(),
-                )
-                .await
+                // Audit: Job completed (best-effort)
+                match CreateAuditEntry::builder()
+                    .action(AuditAction::Ingest)
+                    .resource_type(ResourceType::IngestionJob)
+                    .resource_id(Some(job_id))
+                    .user_id(None)
+                    .metadata(serde_json::json!({
+                        "status": "completed",
+                        "version": version.external_version,
+                        "organization_id": self.organization_id,
+                    }))
+                    .try_build()
                 {
-                    tracing::warn!(error = %e, "Failed to create audit log for job completion");
+                    Ok(entry) => {
+                        if let Err(e) = create_audit_entry(&self.pool, entry).await {
+                            tracing::warn!(error = %e, "Failed to create audit log for job completion");
+                        }
+                    },
+                    Err(e) => {
+                        tracing::warn!("Failed to build audit entry for job completion: {}", e)
+                    },
                 }
 
                 Ok(job_id)
@@ -810,25 +814,28 @@ impl UniProtPipeline {
             Err(e) => {
                 tracing::error!(job_id = %job_id, error = %e, "Pipeline failed");
 
-                // Audit: Job failed
-                if let Err(audit_err) = create_audit_entry(
-                    &self.pool,
-                    CreateAuditEntry::builder()
-                        .action(AuditAction::Ingest)
-                        .resource_type(ResourceType::IngestionJob)
-                        .resource_id(Some(job_id))
-                        .user_id(None)
-                        .metadata(serde_json::json!({
-                            "status": "failed",
-                            "version": version.external_version,
-                            "organization_id": self.organization_id,
-                            "error": e.to_string(),
-                        }))
-                        .build(),
-                )
-                .await
+                // Audit: Job failed (best-effort)
+                match CreateAuditEntry::builder()
+                    .action(AuditAction::Ingest)
+                    .resource_type(ResourceType::IngestionJob)
+                    .resource_id(Some(job_id))
+                    .user_id(None)
+                    .metadata(serde_json::json!({
+                        "status": "failed",
+                        "version": version.external_version,
+                        "organization_id": self.organization_id,
+                        "error": e.to_string(),
+                    }))
+                    .try_build()
                 {
-                    tracing::warn!(error = %audit_err, "Failed to create audit log for job failure");
+                    Ok(entry) => {
+                        if let Err(audit_err) = create_audit_entry(&self.pool, entry).await {
+                            tracing::warn!(error = %audit_err, "Failed to create audit log for job failure");
+                        }
+                    },
+                    Err(build_err) => {
+                        tracing::warn!("Failed to build audit entry for job failure: {}", build_err)
+                    },
                 }
 
                 // Mark job as failed

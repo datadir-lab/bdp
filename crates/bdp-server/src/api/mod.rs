@@ -1,6 +1,7 @@
 pub mod response;
 
 use crate::config::Config;
+use crate::cqrs::build_mediator;
 use crate::db;
 use crate::features;
 use crate::storage::Storage;
@@ -28,8 +29,15 @@ pub async fn serve(config: Config) -> anyhow::Result<()> {
     let storage_config = crate::storage::config::StorageConfig::from_env()?;
     let storage = Storage::new(storage_config).await?;
 
-    let state = AppState { db, storage };
-    let app = create_router(state);
+    let state = AppState {
+        db: db.clone(),
+        storage: storage.clone(),
+    };
+
+    let mediator = build_mediator(db, storage);
+    let feature_state = features::FeatureState { mediator };
+
+    let app = create_router(state, feature_state);
 
     let addr: SocketAddr = format!("{}:{}", config.server.host, config.server.port).parse()?;
     tracing::info!("Listening on {}", addr);
@@ -40,12 +48,7 @@ pub async fn serve(config: Config) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn create_router(state: AppState) -> Router {
-    let feature_state = features::FeatureState {
-        db: state.db.clone(),
-        storage: state.storage.clone(),
-    };
-
+fn create_router(_state: AppState, feature_state: features::FeatureState) -> Router {
     let api_v1 = features::router(feature_state);
 
     Router::new()

@@ -595,29 +595,52 @@ mod tests {
         .execute(&pool)
         .await?;
 
-        let entry_id = sqlx::query_scalar!(
+        // Create first data source for protein 1
+        let entry_id1 = sqlx::query_scalar!(
             r#"
             INSERT INTO registry_entries (organization_id, slug, name, entry_type)
             VALUES ($1, $2, $3, 'data_source')
             RETURNING id
             "#,
             org_id,
-            "test-ds",
-            "Test DS"
+            "test-ds-1",
+            "Test DS 1"
         )
         .fetch_one(&pool)
         .await?;
 
         sqlx::query!(
             "INSERT INTO data_sources (id, source_type) VALUES ($1, $2)",
-            entry_id,
+            entry_id1,
+            "protein"
+        )
+        .execute(&pool)
+        .await?;
+
+        // Create second data source for protein 2
+        let entry_id2 = sqlx::query_scalar!(
+            r#"
+            INSERT INTO registry_entries (organization_id, slug, name, entry_type)
+            VALUES ($1, $2, $3, 'data_source')
+            RETURNING id
+            "#,
+            org_id,
+            "test-ds-2",
+            "Test DS 2"
+        )
+        .fetch_one(&pool)
+        .await?;
+
+        sqlx::query!(
+            "INSERT INTO data_sources (id, source_type) VALUES ($1, $2)",
+            entry_id2,
             "protein"
         )
         .execute(&pool)
         .await?;
 
         let cmd1 = InsertProteinMetadataCommand {
-            data_source_id: entry_id,
+            data_source_id: entry_id1,
             accession: "P01308".to_string(),
             entry_name: Some("INS_HUMAN".to_string()),
             protein_name: None,
@@ -629,7 +652,7 @@ mod tests {
         let result1 = handle(pool.clone(), cmd1).await.unwrap();
 
         let cmd2 = InsertProteinMetadataCommand {
-            data_source_id: entry_id,
+            data_source_id: entry_id2,
             accession: "Q12345".to_string(),
             entry_name: Some("TEST_HUMAN".to_string()),
             protein_name: None,

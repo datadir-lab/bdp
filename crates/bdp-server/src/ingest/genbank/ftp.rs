@@ -337,7 +337,7 @@ mod tests {
 
         // Verify the data matches
         assert_eq!(decompressed, test_data);
-        assert!(decompressed.len() > 0);
+        assert!(!decompressed.is_empty());
     }
 
     #[test]

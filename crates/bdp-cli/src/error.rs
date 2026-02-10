@@ -51,10 +51,6 @@ pub enum CliError {
         actual: String,
     },
 
-    /// Database operation failed (SQLx)
-    #[error("Database error: {0}. Check your database connection settings.")]
-    Database(#[from] sqlx::Error),
-
     /// Audit database operation failed (rusqlite)
     #[error("Audit database error: {0}")]
     AuditDb(#[from] rusqlite::Error),

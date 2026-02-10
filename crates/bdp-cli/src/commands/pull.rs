@@ -8,14 +8,50 @@ use crate::{
     api::ApiClient,
     cache::CacheManager,
     checksum,
+    commands::output::Render,
     error::{CliError, Result},
     lockfile::{Lockfile, SourceEntry},
     manifest::{parse_source_spec, Manifest},
     progress, project,
 };
 
+/// Result of a `bdp pull` operation.
+pub enum PullOutput {
+    /// Manifest has no sources to pull.
+    NoSources,
+    /// Pull completed successfully.
+    Complete {
+        total_sources: usize,
+        cached_count: usize,
+        downloaded_count: usize,
+        /// When true, hooks ran and the summary was already printed inline
+        /// (before hook output). Render skips the summary to avoid duplication.
+        hooks_ran: bool,
+    },
+}
+
+impl Render for PullOutput {
+    fn render(&self) {
+        use colored::Colorize;
+
+        match self {
+            PullOutput::NoSources => {
+                println!("No sources to pull. Add sources with 'bdp source add'");
+            },
+            PullOutput::Complete { hooks_ran, .. } => {
+                // When hooks ran, the summary was already printed inline before
+                // hook output so the ordering stays correct. Skip it here.
+                if !hooks_ran {
+                    println!("\n{} All sources downloaded and verified", "✓".green().bold());
+                    println!("Lockfile saved: bdp.lock");
+                }
+            },
+        }
+    }
+}
+
 /// Pull sources from manifest
-pub async fn run(server_url: String, force: bool) -> Result<()> {
+pub async fn run(server_url: String, force: bool) -> Result<PullOutput> {
     // Find project root
     let project_root = project::find_project_root()?;
 
@@ -28,8 +64,7 @@ pub async fn run(server_url: String, force: bool) -> Result<()> {
     })?;
 
     if manifest.sources.is_empty() {
-        println!("No sources to pull. Add sources with 'bdp source add'");
-        return Ok(());
+        return Ok(PullOutput::NoSources);
     }
 
     println!("{} Resolving dependencies...", "→".cyan());
@@ -52,16 +87,25 @@ pub async fn run(server_url: String, force: bool) -> Result<()> {
     println!("{} Found {} source(s)", "✓".green(), resolved.sources.len());
 
     // Initialize project-local cache
-    let cache = CacheManager::for_project(&project_root).await?;
+    let cache = CacheManager::for_project(&project_root)?;
 
     // Create/update lockfile
     let mut lockfile = Lockfile::new();
 
+    let total_sources = resolved.sources.len();
+    let mut cached_count: usize = 0;
+    let mut downloaded_count: usize = 0;
+
     // Download sources
     for (spec, resolved_source) in &resolved.sources {
+        // Parse spec to get components (needed for format and download)
+        let (org, name, version, format) = parse_source_spec(spec)?;
+        let format_str = format.as_deref().unwrap_or(&resolved_source.format);
+
         // Check if cached and not forcing
-        if !force && cache.is_cached(spec).await? {
+        if !force && cache.is_cached(spec, format_str) {
             println!("{} {} (cached)", "✓".green(), spec);
+            cached_count += 1;
 
             // Add to lockfile
             let entry = SourceEntry::new(
@@ -77,10 +121,6 @@ pub async fn run(server_url: String, force: bool) -> Result<()> {
         }
 
         println!("{} Downloading {}...", "↓".cyan(), spec);
-
-        // Parse spec to get components
-        let (org, name, version, format) = parse_source_spec(spec)?;
-        let format_str = format.as_deref().unwrap_or(&resolved_source.format);
 
         // Create progress bar
         let pb = progress::create_download_progress(resolved_source.size as u64, spec);
@@ -103,9 +143,7 @@ pub async fn run(server_url: String, force: bool) -> Result<()> {
         checksum::verify_checksum(&bytes, &resolved_source.checksum)?;
 
         // Store in cache
-        cache
-            .store(spec, &resolved_source.resolved, format_str, bytes, &resolved_source.checksum)
-            .await?;
+        cache.store(spec, format_str, &bytes)?;
 
         println!(
             "{} {} ({}) verified",
@@ -113,6 +151,7 @@ pub async fn run(server_url: String, force: bool) -> Result<()> {
             spec,
             progress::format_bytes(resolved_source.size as u64)
         );
+        downloaded_count += 1;
 
         // Record download metric (best-effort, don't block pull)
         if let Err(e) = api_client
@@ -136,18 +175,29 @@ pub async fn run(server_url: String, force: bool) -> Result<()> {
     // Save lockfile
     lockfile.save(project_root.join("bdp.lock"))?;
 
-    println!("\n{} All sources downloaded and verified", "✓".green().bold());
-    println!("Lockfile saved: bdp.lock");
-
-    // Execute post-pull hooks
-    if let Some(ref hooks) = manifest.hooks {
+    // Execute post-pull hooks (progressive output, stays inline).
+    // The summary must appear before hook output, so we print it here
+    // and set hooks_ran = true so render() skips it.
+    let hooks_ran = if let Some(ref hooks) = manifest.hooks {
         if !hooks.post_pull.is_empty() {
+            println!("\n{} All sources downloaded and verified", "✓".green().bold());
+            println!("Lockfile saved: bdp.lock");
             println!("\n{} Running post-pull hooks...", "→".cyan());
             run_hooks(&hooks.post_pull, &project_root);
+            true
+        } else {
+            false
         }
-    }
+    } else {
+        false
+    };
 
-    Ok(())
+    Ok(PullOutput::Complete {
+        total_sources,
+        cached_count,
+        downloaded_count,
+        hooks_ran,
+    })
 }
 
 /// Execute hook commands sequentially. Hooks are best-effort: warn on failure.

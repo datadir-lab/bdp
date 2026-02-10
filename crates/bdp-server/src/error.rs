@@ -89,13 +89,25 @@ impl AppError {
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
         let (status, error_code, error_message) = match self {
-            AppError::Database(ref e) => {
-                tracing::error!(error = ?e, "Database error occurred");
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    "DATABASE_ERROR",
-                    "A database error occurred. Please try again later.".to_string(),
-                )
+            AppError::Database(ref e) => match e {
+                sqlx::Error::RowNotFound => (
+                    StatusCode::NOT_FOUND,
+                    "NOT_FOUND",
+                    "The requested resource was not found.".to_string(),
+                ),
+                sqlx::Error::Database(db_err) if db_err.code().as_deref() == Some("23505") => (
+                    StatusCode::CONFLICT,
+                    "CONFLICT",
+                    "A resource with this identifier already exists.".to_string(),
+                ),
+                _ => {
+                    tracing::error!(error = ?e, "Database error occurred");
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        "DATABASE_ERROR",
+                        "A database error occurred. Please try again later.".to_string(),
+                    )
+                },
             },
             AppError::NotFound(ref message) => {
                 (StatusCode::NOT_FOUND, "NOT_FOUND", message.clone())

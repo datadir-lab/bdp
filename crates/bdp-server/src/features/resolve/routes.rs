@@ -22,7 +22,7 @@ async fn resolve_manifest(
     State(state): State<FeatureState>,
     Json(query): Json<ResolveManifestQuery>,
 ) -> Result<Response, ResolveApiError> {
-    let response = super::queries::resolve_manifest::handle(state.db, state.storage, query).await?;
+    let response = state.dispatch(query).await?;
 
     tracing::info!(
         sources_count = response.sources.len(),
@@ -38,7 +38,7 @@ async fn record_download(
     State(state): State<FeatureState>,
     Json(command): Json<RecordDownloadCommand>,
 ) -> Result<Response, RecordDownloadApiError> {
-    let response = super::commands::record_download::handle(state.db, command).await?;
+    let response = state.dispatch(command).await?;
 
     Ok((StatusCode::OK, Json(ApiResponse::success(response))).into_response())
 }

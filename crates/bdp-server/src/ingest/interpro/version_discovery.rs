@@ -111,14 +111,11 @@ impl DiscoveredVersion {
         let year = year.max(2001).min(2100);
         let month = (month as u32).max(1).min(12);
 
-        NaiveDate::from_ymd_opt(year, month, 1).unwrap_or_else(|| {
-            // SAFETY: 2024-01-01 is a valid date, so this will never panic
-            #[allow(clippy::expect_used)]
-            {
-                NaiveDate::from_ymd_opt(2024, 1, 1)
-                    .expect("Hardcoded fallback date 2024-01-01 is always valid")
-            }
-        })
+        // Year is clamped to 2001..2100, month to 1..12, day=1 — always valid.
+        // Chain with a known-valid fallback to satisfy the type system without panicking.
+        NaiveDate::from_ymd_opt(year, month, 1)
+            .or_else(|| NaiveDate::from_ymd_opt(2024, 1, 1))
+            .unwrap_or(NaiveDate::MIN)
     }
 }
 

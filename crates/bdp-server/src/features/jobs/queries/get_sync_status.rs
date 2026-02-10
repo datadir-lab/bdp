@@ -56,38 +56,34 @@ pub enum SyncStatusError {
     Database(#[from] sqlx::Error),
 }
 
+impl crate::cqrs::middleware::Query for ListSyncStatusQuery {}
+
 impl Request<Result<ListSyncStatusResponse, SyncStatusError>> for ListSyncStatusQuery {}
 
 pub async fn handle_list(
     pool: PgPool,
     query: ListSyncStatusQuery,
 ) -> Result<ListSyncStatusResponse, SyncStatusError> {
-    let mut sql_query = String::from(
+    let statuses = sqlx::query_as::<_, SyncStatusItem>(
         r#"
         SELECT id, organization_id, last_sync_at, last_version,
                last_external_version, status, total_entries,
                last_job_id, last_error, created_at, updated_at
         FROM organization_sync_status
-        WHERE 1=1
+        WHERE ($1::uuid IS NULL OR organization_id = $1)
+          AND ($2::text IS NULL OR status = $2)
+        ORDER BY updated_at DESC
         "#,
-    );
-
-    if let Some(org_id) = query.organization_id {
-        sql_query.push_str(&format!(" AND organization_id = '{}'", org_id));
-    }
-
-    if let Some(ref status) = query.status {
-        sql_query.push_str(&format!(" AND status = '{}'", status));
-    }
-
-    sql_query.push_str(" ORDER BY updated_at DESC");
-
-    let statuses = sqlx::query_as::<_, SyncStatusItem>(&sql_query)
-        .fetch_all(&pool)
-        .await?;
+    )
+    .bind(query.organization_id)
+    .bind(query.status)
+    .fetch_all(&pool)
+    .await?;
 
     Ok(ListSyncStatusResponse { statuses })
 }
+
+impl crate::cqrs::middleware::Query for GetSyncStatusQuery {}
 
 impl Request<Result<SyncStatusItem, SyncStatusError>> for GetSyncStatusQuery {}
 

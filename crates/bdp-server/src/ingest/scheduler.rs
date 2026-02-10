@@ -127,8 +127,8 @@ async fn process_uniprot_job(job: UniProtIngestJob) -> Result<()> {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_job_scheduler_new() {
+    #[tokio::test]
+    async fn test_job_scheduler_new() {
         let config = IngestConfig::default();
         let db = PgPool::connect_lazy("postgresql://localhost/test").unwrap();
         let scheduler = JobScheduler::new(config.clone(), db);

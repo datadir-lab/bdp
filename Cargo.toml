@@ -68,7 +68,7 @@ tower-http = { version = "0.6", features = ["fs", "trace", "cors", "compression-
 # ============================================================================
 # Database
 # ============================================================================
-sqlx = { version = "0.8", features = ["runtime-tokio", "postgres", "macros", "uuid", "chrono", "json", "migrate", "bigdecimal"] }
+sqlx = { version = "0.8", features = ["runtime-tokio", "postgres", "macros", "uuid", "chrono", "json", "migrate", "bigdecimal", "ipnetwork"] }
 
 # ============================================================================
 # HTTP Client
@@ -124,6 +124,12 @@ tar = "0.4"
 # ============================================================================
 quick-xml = { version = "0.39", features = ["serialize"] }
 scraper = "0.22"
+regex = "1.12"
+
+# ============================================================================
+# Compression / Archive
+# ============================================================================
+zip = "2.1"
 
 # ============================================================================
 # Workspace Member Dependencies

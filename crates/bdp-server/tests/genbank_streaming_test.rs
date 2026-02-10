@@ -1,7 +1,6 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 // GenBank streaming decompression integration tests
 
-use bdp_server::ingest::genbank::config::GenbankFtpConfig;
 use bdp_server::ingest::genbank::models::SourceDatabase;
 use bdp_server::ingest::genbank::parser::GenbankParser;
 use flate2::write::GzEncoder;
@@ -206,7 +205,7 @@ fn test_streaming_compression_ratios() {
     let data = fs::read_to_string(sample_path).expect("Failed to read sample file");
 
     // Test different compression levels
-    let levels = vec![Compression::fast(), Compression::default(), Compression::best()];
+    let levels = [Compression::fast(), Compression::default(), Compression::best()];
 
     for (idx, level) in levels.iter().enumerate() {
         let mut encoder = GzEncoder::new(Vec::new(), *level);

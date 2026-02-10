@@ -2,7 +2,7 @@
 
 use anyhow::Result;
 use axum::{
-    extract::{Query, State},
+    extract::State,
     http::StatusCode,
     response::{IntoResponse, Response},
     routing::get,
@@ -19,15 +19,15 @@ use tracing::info;
 use bdp_server::{
     audit,
     config::Config,
+    cqrs::build_mediator,
     features, ingest, middleware,
     storage::{config::StorageConfig, Storage},
 };
 
-/// Application state shared across handlers
+/// Application state shared across infrastructure handlers (health, stats)
 #[derive(Clone)]
 struct AppState {
     db: sqlx::PgPool,
-    storage: Storage,
 }
 
 #[tokio::main]
@@ -104,14 +104,17 @@ async fn main() -> Result<()> {
         None
     };
 
-    // Create application state
+    // Create application state for infrastructure routes
     let state = AppState {
-        db: db_pool,
-        storage,
+        db: db_pool.clone(),
     };
 
+    // Build CQRS mediator with all handlers
+    let mediator = build_mediator(db_pool.clone(), storage);
+    let feature_state = features::FeatureState { mediator };
+
     // Build the application router
-    let app = create_router(state, &config);
+    let app = create_router(state, feature_state, &config);
 
     // Create socket address
     let addr: SocketAddr = format!("{}:{}", config.server.host, config.server.port).parse()?;
@@ -131,24 +134,26 @@ async fn main() -> Result<()> {
 }
 
 /// Create the application router with all routes and middleware
-fn create_router(state: AppState, config: &Config) -> Router {
-    // Create feature state
-    let feature_state = features::FeatureState {
-        db: state.db.clone(),
-        storage: state.storage.clone(),
-    };
-
-    // Feature routes (CQRS architecture) - these have mixed states internally
+fn create_router(
+    state: AppState,
+    feature_state: features::FeatureState,
+    config: &Config,
+) -> Router {
+    // Feature routes (CQRS architecture) — all dispatch through mediator
     let feature_routes = features::router(feature_state);
 
     // API routes - all under /api prefix for Traefik routing
     let api_routes = Router::new()
         .route("/stats", get(get_stats))
-        .route("/audit", get(query_audit_logs))
-        .route("/organizations", get(list_organizations))
-        .route("/sources", get(list_sources))
         .with_state(state.clone())
         .nest("/v1", feature_routes);
+
+    // Rate limiting configuration
+    let rate_limit_config = middleware::rate_limit::RateLimitConfig::from_env();
+    info!(
+        requests_per_minute = rate_limit_config.requests_per_minute,
+        "Rate limiting configured"
+    );
 
     // Build the main router with middleware stack
     Router::new()
@@ -162,6 +167,7 @@ fn create_router(state: AppState, config: &Config) -> Router {
         .layer(middleware::tracing_layer())
         .layer(middleware::cors_layer(&config.cors))
         .layer(audit::AuditLayer::new(state.db.clone()))
+        .layer(middleware::rate_limit::rate_limit_layer(rate_limit_config))
 }
 
 /// Health check handler
@@ -181,46 +187,6 @@ async fn health_check(State(state): State<AppState>) -> Result<Response, StatusC
             Err(StatusCode::SERVICE_UNAVAILABLE)
         },
     }
-}
-
-/// List organizations handler (placeholder)
-async fn list_organizations(State(state): State<AppState>) -> impl IntoResponse {
-    match sqlx::query!("SELECT id, slug, name, website, is_system FROM organizations LIMIT 10")
-        .fetch_all(&state.db)
-        .await
-    {
-        Ok(orgs) => {
-            let org_list: Vec<_> = orgs
-                .iter()
-                .map(|org| {
-                    json!({
-                        "id": org.id,
-                        "slug": org.slug,
-                        "name": org.name,
-                        "website": org.website,
-                        "is_system": org.is_system
-                    })
-                })
-                .collect();
-
-            (StatusCode::OK, Json(json!({ "organizations": org_list }))).into_response()
-        },
-        Err(e) => {
-            tracing::error!("Failed to fetch organizations: {:?}", e);
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({ "error": "Failed to fetch organizations" })),
-            )
-                .into_response()
-        },
-    }
-}
-
-/// List sources handler (placeholder)
-async fn list_sources() -> impl IntoResponse {
-    Json(json!({
-        "sources": []
-    }))
 }
 
 /// Get platform statistics
@@ -256,20 +222,6 @@ async fn get_stats(State(state): State<AppState>) -> impl IntoResponse {
                 Json(json!({ "error": "Failed to fetch statistics" })),
             )
                 .into_response()
-        },
-    }
-}
-
-/// Query audit logs handler
-async fn query_audit_logs(
-    State(state): State<AppState>,
-    Query(query): Query<audit::AuditQuery>,
-) -> Result<Response, StatusCode> {
-    match audit::query_audit_logs(&state.db, query).await {
-        Ok(logs) => Ok((StatusCode::OK, Json(json!({ "data": logs }))).into_response()),
-        Err(e) => {
-            tracing::error!("Failed to query audit logs: {:?}", e);
-            Err(StatusCode::INTERNAL_SERVER_ERROR)
         },
     }
 }

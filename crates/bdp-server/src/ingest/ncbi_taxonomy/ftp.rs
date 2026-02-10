@@ -160,7 +160,7 @@ impl NcbiTaxonomyFtp {
             }
         }
 
-        unreachable!("Retry loop should always return")
+        Err(anyhow::anyhow!("FTP list retry loop exhausted without returning"))
     }
 
     /// Synchronous FTP directory listing
@@ -378,7 +378,7 @@ impl NcbiTaxonomyFtp {
             }
         }
 
-        unreachable!("Retry loop should always return")
+        Err(anyhow::anyhow!("FTP download retry loop exhausted without returning"))
     }
 
     /// Synchronous FTP download with timestamp retrieval

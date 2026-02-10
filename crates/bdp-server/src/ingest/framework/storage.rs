@@ -293,7 +293,7 @@ impl From<StagedRecordRow> for StagedRecord {
             sequence_md5: row.sequence_md5,
             source_file: row.source_file,
             source_offset: row.source_offset,
-            parsed_at: row.parsed_at.unwrap_or_else(|| chrono::Utc::now()),
+            parsed_at: row.parsed_at.unwrap_or_else(chrono::Utc::now),
             status: match row.status.as_str() {
                 "staged" => RecordStatus::Staged,
                 "uploading_files" => RecordStatus::UploadingFiles,

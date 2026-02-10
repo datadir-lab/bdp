@@ -136,7 +136,7 @@ pub async fn store_interpro_entry(
     // Parse version (e.g., "96.0" → major=96, minor=0)
     let version_parts: Vec<&str> = version.split('.').collect();
     let version_major: i32 = version_parts
-        .get(0)
+        .first()
         .and_then(|v| v.parse().ok())
         .unwrap_or(1);
     let version_minor: i32 = version_parts

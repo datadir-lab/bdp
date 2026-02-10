@@ -12,11 +12,40 @@ use serde_json::json;
 
 use crate::{
     audit::{execute_with_audit, get_machine_id, types::EventType, AuditLogger, LocalAuditLogger},
+    commands::output::Render,
     error::{CliError, Result},
     gitignore,
     manifest::Manifest,
     project::ProjectConfig,
 };
+
+/// Output from the `bdp init` command.
+pub struct InitOutput {
+    pub project_name: String,
+    pub created_dir: bool,
+    pub dir_name: String,
+}
+
+impl Render for InitOutput {
+    fn render(&self) {
+        println!("✓ Initialized BDP project: {}", self.project_name);
+        println!("  Created: bdp.yml");
+        println!("  Created: .bdp/");
+        println!("  Created: .bdp/data/ (local cache)");
+        println!("  Created: .bdp/.config");
+        println!("  Created: .bdp/bdp.db (audit trail)");
+        println!("  Updated: .gitignore");
+        println!();
+        println!("Note: The audit trail (.bdp/bdp.db) is editable and intended");
+        println!("      for research documentation, not legal evidence.");
+
+        if self.created_dir {
+            println!();
+            println!("Created directory: {}/", self.dir_name);
+            println!("  Next: cd {} && bdp source add <org:name-format@version>", self.dir_name);
+        }
+    }
+}
 
 /// Initialize a new BDP project
 pub async fn run(
@@ -25,13 +54,29 @@ pub async fn run(
     version: String,
     description: Option<String>,
     force: bool,
-) -> Result<()> {
+) -> Result<InitOutput> {
     let project_dir = PathBuf::from(&path);
+    let created_dir = !project_dir.exists() && path != ".";
 
     // Create directory if it doesn't exist
     if !project_dir.exists() {
         fs::create_dir_all(&project_dir)?;
     }
+
+    // Determine project name early so we can return it in output
+    let project_name = name.clone().unwrap_or_else(|| {
+        project_dir
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("my-project")
+            .to_string()
+    });
+
+    let dir_name = project_dir
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or(&path)
+        .to_string();
 
     // Initialize audit logger (create .bdp/bdp.db)
     let bdp_dir = project_dir.join(".bdp");
@@ -57,7 +102,13 @@ pub async fn run(
         }),
         || async { run_init_command(&project_dir, name, version, description, force).await },
     )
-    .await
+    .await?;
+
+    Ok(InitOutput {
+        project_name,
+        created_dir,
+        dir_name,
+    })
 }
 
 /// Internal implementation of init command
@@ -105,17 +156,6 @@ async fn run_init_command(
 
     // Manage .gitignore
     gitignore::update_gitignore(project_dir)?;
-
-    println!("✓ Initialized BDP project: {}", project_name);
-    println!("  Created: bdp.yml");
-    println!("  Created: .bdp/");
-    println!("  Created: .bdp/data/ (local cache)");
-    println!("  Created: .bdp/.config");
-    println!("  Created: .bdp/bdp.db (audit trail)");
-    println!("  Updated: .gitignore");
-    println!();
-    println!("Note: The audit trail (.bdp/bdp.db) is editable and intended");
-    println!("      for research documentation, not legal evidence.");
 
     Ok(())
 }

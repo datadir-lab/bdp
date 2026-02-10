@@ -54,6 +54,8 @@ pub enum ListJobsError {
     Database(#[from] sqlx::Error),
 }
 
+impl crate::cqrs::middleware::Query for ListJobsQuery {}
+
 impl Request<Result<ListJobsResponse, ListJobsError>> for ListJobsQuery {}
 
 pub async fn handle(pool: PgPool, query: ListJobsQuery) -> Result<ListJobsResponse, ListJobsError> {

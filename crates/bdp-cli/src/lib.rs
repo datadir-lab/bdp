@@ -79,7 +79,7 @@ pub struct Cli {
 pub enum Commands {
     /// Initialize a new BDP project
     Init {
-        /// Project directory (defaults to current directory)
+        /// Project directory or name (creates directory if it doesn't exist)
         #[arg(default_value = ".")]
         path: String,
 
@@ -131,6 +131,10 @@ pub enum Commands {
         /// Clean only search cache
         #[arg(long)]
         search_cache: bool,
+
+        /// Skip confirmation prompt
+        #[arg(short, long)]
+        yes: bool,
     },
 
     /// Manage configuration

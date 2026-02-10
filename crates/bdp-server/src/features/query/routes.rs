@@ -1,4 +1,5 @@
 use crate::api::response::{ApiResponse, ErrorResponse};
+use crate::features::FeatureState;
 use axum::{
     extract::State,
     http::StatusCode,
@@ -6,25 +7,24 @@ use axum::{
     routing::post,
     Json, Router,
 };
-use sqlx::PgPool;
 
 use super::queries::{ExecuteQueryError, ExecuteQueryRequest};
 
-pub fn query_routes() -> Router<PgPool> {
+pub fn query_routes() -> Router<FeatureState> {
     Router::new().route("/", post(execute_query_handler))
 }
 
 #[tracing::instrument(
-    skip(pool, request),
+    skip(state, request),
     fields(
         sql_preview = %request.sql.chars().take(100).collect::<String>()
     )
 )]
 async fn execute_query_handler(
-    State(pool): State<PgPool>,
+    State(state): State<FeatureState>,
     Json(request): Json<ExecuteQueryRequest>,
 ) -> Result<Response, QueryApiError> {
-    let response = super::queries::execute_query::handle(pool, request).await?;
+    let response = state.dispatch(request).await?;
 
     tracing::info!(
         columns = response.columns.len(),

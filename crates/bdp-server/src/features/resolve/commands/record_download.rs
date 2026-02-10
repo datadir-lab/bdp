@@ -33,6 +33,13 @@ pub struct RecordDownloadResponse {
     pub recorded: bool,
 }
 
+impl crate::cqrs::middleware::Command for RecordDownloadCommand {}
+
+impl mediator::Request<Result<RecordDownloadResponse, RecordDownloadError>>
+    for RecordDownloadCommand
+{
+}
+
 /// Errors from recording a download
 #[derive(Debug, thiserror::Error)]
 pub enum RecordDownloadError {
@@ -74,16 +81,20 @@ pub async fn handle(
         ))
     })?;
 
+    // Parse IP address string to IpNetwork for the INET column
+    let ip_addr: Option<ipnetwork::IpNetwork> =
+        command.ip_address.as_deref().and_then(|ip| ip.parse().ok());
+
     // Insert into downloads table
     sqlx::query!(
         r#"
         INSERT INTO downloads (version_id, file_id, user_agent, ip_address)
-        VALUES ($1, $2, $3, $4::inet)
+        VALUES ($1, $2, $3, $4)
         "#,
         record.version_id,
         record.file_id,
         command.user_agent,
-        command.ip_address,
+        ip_addr as Option<ipnetwork::IpNetwork>,
     )
     .execute(&pool)
     .await?;
@@ -109,10 +120,17 @@ pub async fn handle(
             "version": command.version,
             "format": command.format,
         }))
-        .build();
+        .try_build();
 
-    if let Err(e) = audit::create_audit_entry(&pool, audit_entry).await {
-        tracing::warn!("Failed to create audit log for download: {}", e);
+    match audit_entry {
+        Ok(entry) => {
+            if let Err(e) = audit::create_audit_entry(&pool, entry).await {
+                tracing::warn!("Failed to create audit log for download: {}", e);
+            }
+        },
+        Err(e) => {
+            tracing::warn!("Failed to build audit entry for download: {}", e);
+        },
     }
 
     tracing::info!(

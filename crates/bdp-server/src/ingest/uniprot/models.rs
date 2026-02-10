@@ -322,7 +322,7 @@ mod tests {
             taxonomy_id: 9606,
             taxonomy_lineage: vec!["Eukaryota".to_string(), "Metazoa".to_string()],
             sequence: "MKTIIALSYIFCLVFADYKDDDDK".to_string(),
-            sequence_length: 25,
+            sequence_length: 24,
             mass_da: 2897,
             release_date: NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
             alternative_names: vec![],

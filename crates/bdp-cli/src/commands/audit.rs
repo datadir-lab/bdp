@@ -12,15 +12,176 @@ use crate::{
     audit::{
         get_machine_id, AuditExporter, AuditLogger, ExportFormat, ExportOptions, LocalAuditLogger,
     },
+    commands::output::Render,
     error::{CliError, Result},
     AuditCommand,
 };
 
+// ---------------------------------------------------------------------------
+// Output types
+// ---------------------------------------------------------------------------
+
+/// Combined output for the `bdp audit` command tree.
+pub enum AuditOutput {
+    List(AuditListOutput),
+    Verify(AuditVerifyOutput),
+    Export(AuditExportOutput),
+}
+
+impl Render for AuditOutput {
+    fn render(&self) {
+        match self {
+            AuditOutput::List(o) => o.render(),
+            AuditOutput::Verify(o) => o.render(),
+            AuditOutput::Export(o) => o.render(),
+        }
+    }
+}
+
+/// Output of `bdp audit list`.
+pub struct AuditListOutput {
+    /// False when the `.bdp/bdp.db` file does not exist.
+    pub db_exists: bool,
+    pub events: Vec<AuditEventInfo>,
+}
+
+/// A single audit event for display purposes.
+pub struct AuditEventInfo {
+    pub id: i64,
+    pub timestamp: String,
+    pub event_type: String,
+    pub source_spec: Option<String>,
+    pub details: String,
+}
+
+impl Render for AuditListOutput {
+    fn render(&self) {
+        use colored::Colorize;
+
+        if !self.db_exists {
+            println!("{} No audit trail found. Run 'bdp init' first.", "→".cyan());
+            return;
+        }
+
+        if self.events.is_empty() {
+            println!("{} No audit events found", "→".cyan());
+            return;
+        }
+
+        println!("{} Showing {} most recent events:", "→".cyan(), self.events.len());
+        println!();
+
+        // Events are stored newest-first (ORDER BY id DESC); display oldest-first.
+        for event in self.events.iter().rev() {
+            render_event(event);
+        }
+    }
+}
+
+/// Render a single audit event line to the terminal.
+fn render_event(event: &AuditEventInfo) {
+    use colored::Colorize;
+
+    let ts = DateTime::parse_from_rfc3339(&event.timestamp)
+        .ok()
+        .map(|dt| {
+            dt.with_timezone(&Utc)
+                .format("%Y-%m-%d %H:%M:%S UTC")
+                .to_string()
+        })
+        .unwrap_or_else(|| event.timestamp.clone());
+
+    println!(
+        "{} {} {}",
+        format!("#{}", event.id).bright_black(),
+        event.event_type.bold(),
+        ts.dimmed()
+    );
+
+    if let Some(ref spec) = event.source_spec {
+        println!("  {} {}", "Source:".cyan(), spec);
+    }
+
+    render_event_details(&event.details);
+    println!();
+}
+
+/// Print the JSON details of an audit event, skipping internal fields
+/// and values that are too long.
+fn render_event_details(details: &str) {
+    use colored::Colorize;
+
+    let Ok(details_json) = serde_json::from_str::<serde_json::Value>(details) else {
+        return;
+    };
+    let Some(obj) = details_json.as_object() else {
+        return;
+    };
+
+    for (key, value) in obj {
+        // Skip internal fields
+        if key.starts_with('_') || key == "timestamp" {
+            continue;
+        }
+
+        let value_str = match value {
+            serde_json::Value::String(s) => s.clone(),
+            _ => value.to_string(),
+        };
+
+        if value_str.len() < 100 {
+            println!("  {} {}", format!("{}:", key).dimmed(), value_str);
+        }
+    }
+}
+
+/// Output of `bdp audit verify`.
+pub struct AuditVerifyOutput {
+    pub verified: bool,
+}
+
+impl Render for AuditVerifyOutput {
+    fn render(&self) {
+        use colored::Colorize;
+
+        if self.verified {
+            println!("{} Audit trail verified successfully", "✓".green().bold());
+            println!("  {} Hash chain is intact", "→".cyan());
+            println!("  {} No tampering detected", "→".cyan());
+        } else {
+            println!("{} Audit trail verification FAILED", "✗".red().bold());
+            println!("  {} Hash chain is broken", "→".yellow());
+            println!("  {} Possible tampering or data corruption", "→".yellow());
+        }
+    }
+}
+
+/// Output of `bdp audit export`.
+pub struct AuditExportOutput {
+    pub format: String,
+    pub output_path: PathBuf,
+}
+
+impl Render for AuditExportOutput {
+    fn render(&self) {
+        use colored::Colorize;
+
+        println!("{} Export completed successfully", "✓".green().bold());
+        println!("  {} {}", "File:".cyan(), self.output_path.display());
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Command implementations
+// ---------------------------------------------------------------------------
+
 /// Execute audit command
-pub async fn run(command: &AuditCommand) -> Result<()> {
+pub async fn run(command: &AuditCommand) -> Result<AuditOutput> {
     match command {
-        AuditCommand::List { limit, source } => list(*limit, source.as_deref()).await,
-        AuditCommand::Verify => verify().await,
+        AuditCommand::List { limit, source } => {
+            list(*limit, source.as_deref()).await.map(AuditOutput::List)
+        },
+        AuditCommand::Verify => verify().await.map(AuditOutput::Verify),
         AuditCommand::Export {
             format,
             output,
@@ -28,27 +189,28 @@ pub async fn run(command: &AuditCommand) -> Result<()> {
             to,
             project_name,
             project_version,
-        } => {
-            export(
-                format,
-                output.as_deref(),
-                from.as_deref(),
-                to.as_deref(),
-                project_name.as_deref(),
-                project_version.as_deref(),
-            )
-            .await
-        },
+        } => export(
+            format,
+            output.as_deref(),
+            from.as_deref(),
+            to.as_deref(),
+            project_name.as_deref(),
+            project_version.as_deref(),
+        )
+        .await
+        .map(AuditOutput::Export),
     }
 }
 
 /// List audit events
-async fn list(limit: usize, source_filter: Option<&str>) -> Result<()> {
+async fn list(limit: usize, source_filter: Option<&str>) -> Result<AuditListOutput> {
     let db_path = PathBuf::from(".bdp/bdp.db");
 
     if !db_path.exists() {
-        println!("{} No audit trail found. Run 'bdp init' first.", "→".cyan());
-        return Ok(());
+        return Ok(AuditListOutput {
+            db_exists: false,
+            events: Vec::new(),
+        });
     }
 
     let conn = Connection::open(&db_path).map_err(|e| {
@@ -89,68 +251,23 @@ async fn list(limit: usize, source_filter: Option<&str>) -> Result<()> {
         .next()
         .map_err(|e| CliError::audit(format!("Failed to fetch row: {}", e)))?
     {
-        events.push((
-            row.get::<_, i64>(0)?,
-            row.get::<_, String>(1)?,
-            row.get::<_, String>(2)?,
-            row.get::<_, Option<String>>(3)?,
-            row.get::<_, String>(4)?,
-        ));
+        events.push(AuditEventInfo {
+            id: row.get::<_, i64>(0)?,
+            timestamp: row.get::<_, String>(1)?,
+            event_type: row.get::<_, String>(2)?,
+            source_spec: row.get::<_, Option<String>>(3)?,
+            details: row.get::<_, String>(4)?,
+        });
     }
 
-    if events.is_empty() {
-        println!("{} No audit events found", "→".cyan());
-        return Ok(());
-    }
-
-    println!("{} Showing {} most recent events:", "→".cyan(), events.len());
-    println!();
-
-    for (id, timestamp, event_type, source_spec, details) in events.iter().rev() {
-        let ts = DateTime::parse_from_rfc3339(timestamp)
-            .ok()
-            .map(|dt| {
-                dt.with_timezone(&Utc)
-                    .format("%Y-%m-%d %H:%M:%S UTC")
-                    .to_string()
-            })
-            .unwrap_or_else(|| timestamp.clone());
-
-        println!("{} {} {}", format!("#{}", id).bright_black(), event_type.bold(), ts.dimmed());
-
-        if let Some(spec) = source_spec {
-            println!("  {} {}", "Source:".cyan(), spec);
-        }
-
-        // Parse and display relevant details
-        if let Ok(details_json) = serde_json::from_str::<serde_json::Value>(details) {
-            if let Some(obj) = details_json.as_object() {
-                for (key, value) in obj {
-                    // Skip internal fields
-                    if key.starts_with('_') || key == "timestamp" {
-                        continue;
-                    }
-
-                    let value_str = match value {
-                        serde_json::Value::String(s) => s.clone(),
-                        _ => value.to_string(),
-                    };
-
-                    if value_str.len() < 100 {
-                        println!("  {} {}", format!("{}:", key).dimmed(), value_str);
-                    }
-                }
-            }
-        }
-
-        println!();
-    }
-
-    Ok(())
+    Ok(AuditListOutput {
+        db_exists: true,
+        events,
+    })
 }
 
 /// Verify audit trail integrity
-async fn verify() -> Result<()> {
+async fn verify() -> Result<AuditVerifyOutput> {
     let db_path = PathBuf::from(".bdp/bdp.db");
 
     if !db_path.exists() {
@@ -168,17 +285,7 @@ async fn verify() -> Result<()> {
 
     let verified = audit.verify_integrity().await?;
 
-    if verified {
-        println!("{} Audit trail verified successfully", "✓".green().bold());
-        println!("  {} Hash chain is intact", "→".cyan());
-        println!("  {} No tampering detected", "→".cyan());
-    } else {
-        println!("{} Audit trail verification FAILED", "✗".red().bold());
-        println!("  {} Hash chain is broken", "→".yellow());
-        println!("  {} Possible tampering or data corruption", "→".yellow());
-    }
-
-    Ok(())
+    Ok(AuditVerifyOutput { verified })
 }
 
 /// Export audit trail to regulatory format
@@ -189,7 +296,7 @@ async fn export(
     to: Option<&str>,
     project_name: Option<&str>,
     project_version: Option<&str>,
-) -> Result<()> {
+) -> Result<AuditExportOutput> {
     let db_path = PathBuf::from(".bdp/bdp.db");
 
     if !db_path.exists() {
@@ -262,10 +369,10 @@ async fn export(
     // Export
     let result_path = exporter.export(export_format, options).await?;
 
-    println!("{} Export completed successfully", "✓".green().bold());
-    println!("  {} {}", "File:".cyan(), result_path.display());
-
-    Ok(())
+    Ok(AuditExportOutput {
+        format: format.to_uppercase(),
+        output_path: result_path,
+    })
 }
 
 #[cfg(test)]

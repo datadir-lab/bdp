@@ -1,6 +1,11 @@
 //! CLI command implementations
 //!
-//! Each subcommand has its own module with a `run` function.
+//! Each subcommand has its own module with a `run` function that returns
+//! a result struct implementing [`output::Render`]. The caller (main.rs)
+//! invokes `.render()` to display output, keeping business logic separate
+//! from presentation.
+
+pub mod output;
 
 pub mod audit;
 pub mod cache_cmd;

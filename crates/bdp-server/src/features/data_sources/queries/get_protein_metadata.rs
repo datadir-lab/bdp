@@ -1,6 +1,7 @@
 use crate::features::data_sources::types::{
     ProteinComment, ProteinCrossReference, ProteinFeature, ProteinPublication,
 };
+use crate::features::FeatureState;
 use axum::{
     extract::{Path, State},
     http::StatusCode,
@@ -19,21 +20,35 @@ pub struct ProteinMetadataResponse {
     pub publications: Vec<ProteinPublication>,
 }
 
-#[derive(Debug, Deserialize)]
-pub struct ProteinMetadataParams {
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GetProteinMetadataQuery {
     pub org: String,
     pub slug: String,
     pub version: String,
 }
 
-pub async fn get_protein_metadata(
-    State(pool): State<PgPool>,
-    Path(params): Path<ProteinMetadataParams>,
-) -> Result<impl IntoResponse, (StatusCode, String)> {
+#[derive(Debug, thiserror::Error)]
+pub enum GetProteinMetadataError {
+    #[error("Data source not found: {0}")]
+    NotFound(String),
+    #[error("Database error: {0}")]
+    Database(#[from] sqlx::Error),
+}
+
+impl mediator::Request<Result<ProteinMetadataResponse, GetProteinMetadataError>>
+    for GetProteinMetadataQuery
+{
+}
+
+/// Handle protein metadata query
+pub async fn handle(
+    pool: PgPool,
+    query: GetProteinMetadataQuery,
+) -> Result<ProteinMetadataResponse, GetProteinMetadataError> {
     // First, get the data source ID
-    let data_source_id = get_data_source_id(&pool, &params.org, &params.slug)
+    let data_source_id = get_data_source_id(&pool, &query.org, &query.slug)
         .await
-        .map_err(|e| (StatusCode::NOT_FOUND, format!("Data source not found: {}", e)))?;
+        .map_err(|e| GetProteinMetadataError::NotFound(format!("Data source not found: {}", e)))?;
 
     // Fetch protein comments
     let comments: Vec<_> = sqlx::query!(
@@ -46,13 +61,7 @@ pub async fn get_protein_metadata(
         data_source_id
     )
     .fetch_all(&pool)
-    .await
-    .map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Failed to fetch protein comments: {}", e),
-        )
-    })?
+    .await?
     .into_iter()
     .map(|r| ProteinComment {
         topic: r.topic,
@@ -71,13 +80,7 @@ pub async fn get_protein_metadata(
         data_source_id
     )
     .fetch_all(&pool)
-    .await
-    .map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Failed to fetch protein features: {}", e),
-        )
-    })?
+    .await?
     .into_iter()
     .map(|r| ProteinFeature {
         feature_type: r.feature_type,
@@ -98,13 +101,7 @@ pub async fn get_protein_metadata(
         data_source_id
     )
     .fetch_all(&pool)
-    .await
-    .map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Failed to fetch protein cross references: {}", e),
-        )
-    })?
+    .await?
     .into_iter()
     .map(|r| ProteinCrossReference {
         database: r.database,
@@ -129,13 +126,7 @@ pub async fn get_protein_metadata(
         data_source_id
     )
     .fetch_all(&pool)
-    .await
-    .map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Failed to fetch protein publications: {}", e),
-        )
-    })?
+    .await?
     .into_iter()
     .map(|r| ProteinPublication {
         reference_number: r.reference_number,
@@ -150,17 +141,42 @@ pub async fn get_protein_metadata(
     })
     .collect::<Vec<_>>();
 
-    let response = ProteinMetadataResponse {
+    Ok(ProteinMetadataResponse {
         comments,
         features,
         cross_references: cross_refs,
         publications,
+    })
+}
+
+/// Axum route handler that dispatches through the mediator
+pub async fn get_protein_metadata(
+    State(state): State<FeatureState>,
+    Path(params): Path<ProteinMetadataParams>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let query = GetProteinMetadataQuery {
+        org: params.org,
+        slug: params.slug,
+        version: params.version,
     };
 
-    Ok(Json(serde_json::json!({
-        "success": true,
-        "data": response
-    })))
+    match state.dispatch(query).await {
+        Ok(response) => Ok(Json(serde_json::json!({
+            "success": true,
+            "data": response
+        }))),
+        Err(GetProteinMetadataError::NotFound(msg)) => Err((StatusCode::NOT_FOUND, msg)),
+        Err(GetProteinMetadataError::Database(e)) => {
+            Err((StatusCode::INTERNAL_SERVER_ERROR, format!("Database error: {}", e)))
+        },
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ProteinMetadataParams {
+    pub org: String,
+    pub slug: String,
+    pub version: String,
 }
 
 async fn get_data_source_id(pool: &PgPool, org: &str, slug: &str) -> Result<Uuid, sqlx::Error> {

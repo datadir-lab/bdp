@@ -286,23 +286,12 @@ impl Default for ProteinMatch {
 }
 
 /// Complete InterPro metadata bundle for storage
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct InterProMetadata {
     pub entry: InterProEntry,
     pub member_signatures: Vec<MemberSignatureData>,
     pub go_mappings: Vec<GoMappingData>,
     pub external_references: Vec<ExternalReferenceData>,
-}
-
-impl Default for InterProMetadata {
-    fn default() -> Self {
-        Self {
-            entry: InterProEntry::default(),
-            member_signatures: Vec::new(),
-            go_mappings: Vec::new(),
-            external_references: Vec::new(),
-        }
-    }
 }
 
 /// Member signature data for insertion

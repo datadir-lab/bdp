@@ -1,6 +1,7 @@
 //! Cache management for downloaded datasets
 //!
-//! Uses SQLite for tracking cached files and the file system for storage.
+//! Uses the filesystem for storage. The lockfile (bdp.lock) tracks metadata;
+//! this module only manages the on-disk file layout under `sources/`.
 
 pub mod search_cache;
 
@@ -9,259 +10,100 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use sqlx::{sqlite::SqlitePool, Row};
+use crate::{error::Result, manifest::parse_source_spec, project};
 
-use crate::{
-    error::{CliError, Result},
-    manifest::parse_source_spec,
-    project,
-};
-
-/// Cache manager with SQLite backend
+/// Cache manager backed by the filesystem (no database)
 pub struct CacheManager {
-    pool: SqlitePool,
     cache_dir: PathBuf,
 }
 
 impl CacheManager {
-    /// Create a new cache manager using system-wide cache directory.
-    /// Used for search cache and backward-compatible operations.
-    pub async fn new() -> Result<Self> {
-        let cache_dir = dirs::cache_dir()
-            .ok_or_else(|| CliError::config("Cannot find cache directory"))?
-            .join("bdp");
-
-        Self::new_with_dir(cache_dir).await
-    }
-
     /// Create a cache manager for a specific project.
     /// Reads `.bdp/.config` to determine cache directory, defaults to
     /// `.bdp/data/`.
-    pub async fn for_project(project_root: &Path) -> Result<Self> {
+    pub fn for_project(project_root: &Path) -> Result<Self> {
         let cache_dir = project::resolve_cache_path(project_root)?;
-        Self::new_with_dir(cache_dir).await
+        Self::new_with_dir(cache_dir)
     }
 
     /// Core constructor: create a cache manager with a specific directory.
-    pub async fn new_with_dir(cache_dir: PathBuf) -> Result<Self> {
+    pub fn new_with_dir(cache_dir: PathBuf) -> Result<Self> {
         fs::create_dir_all(&cache_dir)?;
-
-        let db_path = cache_dir.join("cache.db");
-        let db_url = format!("sqlite:{}?mode=rwc", db_path.display());
-
-        let pool = SqlitePool::connect(&db_url).await?;
-
-        // Run migrations
-        sqlx::migrate!("./migrations")
-            .run(&pool)
-            .await
-            .map_err(|e| CliError::cache(format!("Migration failed: {}", e)))?;
-
-        Ok(Self { pool, cache_dir })
+        Ok(Self { cache_dir })
     }
 
-    /// Store a file in the cache
-    pub async fn store(
-        &self,
-        spec: &str,
-        resolved: &str,
-        format: &str,
-        data: Vec<u8>,
-        checksum: &str,
-    ) -> Result<()> {
-        let size = data.len() as i64;
+    /// Check if a source file exists on disk
+    pub fn is_cached(&self, spec: &str, format: &str) -> bool {
+        self.get_cache_path(spec, format).exists()
+    }
 
-        // Create directory structure: cache_dir/sources/{org}/{name}/{version}/
+    /// Write file to cache directory and return the path written
+    pub fn store(&self, spec: &str, format: &str, data: &[u8]) -> Result<PathBuf> {
         let cache_path = self.get_cache_path(spec, format);
         if let Some(parent) = cache_path.parent() {
             fs::create_dir_all(parent)?;
         }
-
-        // Write file
         fs::write(&cache_path, data)?;
-
-        // Insert or update database entry
-        sqlx::query(
-            r#"
-            INSERT INTO cache_entries (spec, resolved, format, checksum, size, cached_at, last_accessed, path)
-            VALUES (?1, ?2, ?3, ?4, ?5, datetime('now'), datetime('now'), ?6)
-            ON CONFLICT(spec) DO UPDATE SET
-                resolved = excluded.resolved,
-                format = excluded.format,
-                checksum = excluded.checksum,
-                size = excluded.size,
-                cached_at = datetime('now'),
-                last_accessed = datetime('now'),
-                path = excluded.path
-            "#,
-        )
-        .bind(spec)
-        .bind(resolved)
-        .bind(format)
-        .bind(checksum)
-        .bind(size)
-        .bind(cache_path.to_string_lossy().to_string())
-        .execute(&self.pool)
-        .await?;
-
-        Ok(())
+        Ok(cache_path)
     }
 
-    /// Check if a source is cached
-    pub async fn is_cached(&self, spec: &str) -> Result<bool> {
-        let result = sqlx::query(
-            r#"
-            SELECT COUNT(*) as count FROM cache_entries WHERE spec = ?1
-            "#,
-        )
-        .bind(spec)
-        .fetch_one(&self.pool)
-        .await?;
-
-        let count: i64 = result.get("count");
-        Ok(count > 0)
-    }
-
-    /// Get the file path for a cached source
-    pub async fn get_path(&self, spec: &str) -> Result<Option<PathBuf>> {
-        let result = sqlx::query(
-            r#"
-            SELECT path FROM cache_entries WHERE spec = ?1
-            "#,
-        )
-        .bind(spec)
-        .fetch_optional(&self.pool)
-        .await?;
-
-        match result {
-            Some(row) => {
-                let path: String = row.get("path");
-                // Update last_accessed
-                let _ = self.update_last_accessed(spec).await;
-                Ok(Some(PathBuf::from(path)))
-            },
-            None => Ok(None),
+    /// Walk `sources/` and sum file sizes
+    pub fn total_size(&self) -> Result<u64> {
+        let sources_dir = self.cache_dir.join("sources");
+        if !sources_dir.exists() {
+            return Ok(0);
         }
-    }
-
-    /// Get cached entry details
-    pub async fn get_entry(&self, spec: &str) -> Result<Option<CacheEntry>> {
-        let result = sqlx::query_as::<_, CacheEntry>(
-            r#"
-            SELECT id, spec, resolved, format, checksum, size, cached_at, last_accessed, path
-            FROM cache_entries WHERE spec = ?1
-            "#,
-        )
-        .bind(spec)
-        .fetch_optional(&self.pool)
-        .await?;
-
-        if result.is_some() {
-            let _ = self.update_last_accessed(spec).await;
-        }
-
-        Ok(result)
-    }
-
-    /// List all cached entries
-    pub async fn list_all(&self) -> Result<Vec<CacheEntry>> {
-        let entries = sqlx::query_as::<_, CacheEntry>(
-            r#"
-            SELECT id, spec, resolved, format, checksum, size, cached_at, last_accessed, path
-            FROM cache_entries
-            ORDER BY cached_at DESC
-            "#,
-        )
-        .fetch_all(&self.pool)
-        .await?;
-
-        Ok(entries)
-    }
-
-    /// Remove a cached entry
-    pub async fn remove(&self, spec: &str) -> Result<bool> {
-        // Get the path first
-        if let Some(path) = self.get_path(spec).await? {
-            // Delete file
-            if path.exists() {
-                fs::remove_file(&path)?;
-            }
-
-            // Clean up empty parent directories
-            if let Some(parent) = path.parent() {
-                let _ = fs::remove_dir(parent); // Ignore errors if not empty
+        let mut total: u64 = 0;
+        for entry in walkdir::WalkDir::new(&sources_dir)
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
+            if entry.file_type().is_file() {
+                total += entry.metadata().map(|m| m.len()).unwrap_or(0);
             }
         }
-
-        // Delete from database
-        let result = sqlx::query(
-            r#"
-            DELETE FROM cache_entries WHERE spec = ?1
-            "#,
-        )
-        .bind(spec)
-        .execute(&self.pool)
-        .await?;
-
-        Ok(result.rows_affected() > 0)
+        Ok(total)
     }
 
-    /// Clear all cache
-    pub async fn clear_all(&self) -> Result<usize> {
-        // Get all entries
-        let entries = self.list_all().await?;
-        let count = entries.len();
-
-        // Delete all files
-        for entry in entries {
-            let path = PathBuf::from(&entry.path);
-            if path.exists() {
-                let _ = fs::remove_file(&path);
-            }
+    /// Delete all files under `sources/` and return the number of files removed
+    pub fn clear_all(&self) -> Result<usize> {
+        let sources_dir = self.cache_dir.join("sources");
+        if !sources_dir.exists() {
+            return Ok(0);
         }
 
-        // Clear database
-        sqlx::query("DELETE FROM cache_entries")
-            .execute(&self.pool)
-            .await?;
+        // Count files first
+        let count = walkdir::WalkDir::new(&sources_dir)
+            .into_iter()
+            .filter_map(|e| e.ok())
+            .filter(|e| e.file_type().is_file())
+            .count();
 
-        // Optionally clean up cache directory structure
-        if self.cache_dir.exists() {
-            for entry in fs::read_dir(&self.cache_dir)? {
-                let entry = entry?;
-                if entry.path().is_dir() {
-                    let _ = fs::remove_dir_all(entry.path());
-                }
-            }
+        // Remove the entire sources directory tree
+        fs::remove_dir_all(&sources_dir)?;
+
+        // Also remove cache.db if it exists (leftover from previous versions)
+        let legacy_db = self.cache_dir.join("cache.db");
+        if legacy_db.exists() {
+            let _ = fs::remove_file(&legacy_db);
+        }
+        let legacy_shm = self.cache_dir.join("cache.db-shm");
+        if legacy_shm.exists() {
+            let _ = fs::remove_file(&legacy_shm);
+        }
+        let legacy_wal = self.cache_dir.join("cache.db-wal");
+        if legacy_wal.exists() {
+            let _ = fs::remove_file(&legacy_wal);
         }
 
         Ok(count)
     }
 
-    /// Get total cache size in bytes
-    pub async fn total_size(&self) -> Result<i64> {
-        let result = sqlx::query(
-            r#"
-            SELECT COALESCE(SUM(size), 0) as total FROM cache_entries
-            "#,
-        )
-        .fetch_one(&self.pool)
-        .await?;
-
-        let total: i64 = result.get("total");
-        Ok(total)
-    }
-
-    /// Get cache directory
-    pub fn cache_dir(&self) -> &PathBuf {
-        &self.cache_dir
-    }
-
     /// Get the cache path for a source specification
     ///
     /// Produces: `cache_dir/sources/{org}/{identifier}/{version}/{identifier}_{version}.{format}`
-    /// Example: `uniprot:P01308-fasta@1.0` → `.bdp/data/sources/uniprot/P01308/1.0/P01308_1.0.fasta`
-    fn get_cache_path(&self, spec: &str, format: &str) -> PathBuf {
+    /// Example: `uniprot:P01308-fasta@1.0` -> `.bdp/data/sources/uniprot/P01308/1.0/P01308_1.0.fasta`
+    pub fn get_cache_path(&self, spec: &str, format: &str) -> PathBuf {
         // Use parse_source_spec to correctly separate identifier from format
         if let Ok((org, identifier, version, _spec_format)) = parse_source_spec(spec) {
             let filename = format!("{}_{}.{}", identifier, version, format);
@@ -279,33 +121,10 @@ impl CacheManager {
         }
     }
 
-    /// Update last accessed time
-    async fn update_last_accessed(&self, spec: &str) -> Result<()> {
-        sqlx::query(
-            r#"
-            UPDATE cache_entries SET last_accessed = datetime('now') WHERE spec = ?1
-            "#,
-        )
-        .bind(spec)
-        .execute(&self.pool)
-        .await?;
-
-        Ok(())
+    /// Get cache directory
+    pub fn cache_dir(&self) -> &Path {
+        &self.cache_dir
     }
-}
-
-/// Cache entry record
-#[derive(Debug, Clone, sqlx::FromRow)]
-pub struct CacheEntry {
-    pub id: i64,
-    pub spec: String,
-    pub resolved: String,
-    pub format: String,
-    pub checksum: String,
-    pub size: i64,
-    pub cached_at: String,
-    pub last_accessed: String,
-    pub path: String,
 }
 
 #[cfg(test)]
@@ -314,36 +133,26 @@ mod tests {
 
     use super::*;
 
-    async fn create_test_cache() -> Result<(CacheManager, TempDir)> {
+    fn create_test_cache() -> Result<(CacheManager, TempDir)> {
         let temp_dir = TempDir::new()?;
         let cache_dir = temp_dir.path().join("bdp-test-cache");
         fs::create_dir_all(&cache_dir)?;
-
-        // Use in-memory SQLite to avoid Windows permission issues
-        let pool = SqlitePool::connect("sqlite::memory:").await?;
-
-        // Run migrations
-        sqlx::migrate!("./migrations")
-            .run(&pool)
-            .await
-            .map_err(|e| CliError::cache(format!("Migration failed: {}", e)))?;
-
-        Ok((CacheManager { pool, cache_dir }, temp_dir))
+        Ok((CacheManager { cache_dir }, temp_dir))
     }
 
-    #[tokio::test]
-    async fn test_cache_manager_creation() {
-        let result = create_test_cache().await;
+    #[test]
+    fn test_cache_manager_creation() {
+        let result = create_test_cache();
         assert!(result.is_ok());
         let (cache, _temp) = result.unwrap();
         assert!(cache.cache_dir().exists());
     }
 
-    #[tokio::test]
-    async fn test_cache_path_generation() {
-        let (cache, _temp) = create_test_cache().await.unwrap();
+    #[test]
+    fn test_cache_path_generation() {
+        let (cache, _temp) = create_test_cache().unwrap();
 
-        // uniprot:P01308-fasta@1.0 → sources/uniprot/P01308/1.0/P01308_1.0.fasta
+        // uniprot:P01308-fasta@1.0 -> sources/uniprot/P01308/1.0/P01308_1.0.fasta
         let path = cache.get_cache_path("uniprot:P01308-fasta@1.0", "fasta");
         let path_str = path.to_string_lossy().replace('\\', "/");
         assert!(
@@ -359,11 +168,11 @@ mod tests {
         );
     }
 
-    #[tokio::test]
-    async fn test_cache_path_without_format() {
-        let (cache, _temp) = create_test_cache().await.unwrap();
+    #[test]
+    fn test_cache_path_without_format() {
+        let (cache, _temp) = create_test_cache().unwrap();
 
-        // ncbi:blast@2.14.0 (no format suffix) → sources/ncbi/blast/2.14.0/blast_2.14.0.tar
+        // ncbi:blast@2.14.0 (no format suffix) -> sources/ncbi/blast/2.14.0/blast_2.14.0.tar
         let path = cache.get_cache_path("ncbi:blast@2.14.0", "tar");
         let path_str = path.to_string_lossy().replace('\\', "/");
         assert!(
@@ -373,13 +182,11 @@ mod tests {
         );
     }
 
-    #[tokio::test]
-    async fn test_cache_path_matches_generate() {
-        let (cache, _temp) = create_test_cache().await.unwrap();
+    #[test]
+    fn test_cache_path_matches_generate() {
+        let (cache, _temp) = create_test_cache().unwrap();
 
         // Verify cache path matches what generate.rs produces
-        // generate.rs: spec_to_file_path("uniprot:G4V4F9-fasta@1.0")
-        //   → ".bdp/data/sources/uniprot/G4V4F9/1.0/G4V4F9_1.0.fasta"
         let path = cache.get_cache_path("uniprot:G4V4F9-fasta@1.0", "fasta");
         let path_str = path.to_string_lossy().replace('\\', "/");
         assert!(
@@ -389,53 +196,42 @@ mod tests {
         );
     }
 
-    #[tokio::test]
-    async fn test_store_and_retrieve() {
-        let (cache, _temp) = create_test_cache().await.unwrap();
+    #[test]
+    fn test_store_and_retrieve() {
+        let (cache, _temp) = create_test_cache().unwrap();
         let spec = "test:data-txt@1.0";
-        let data = b"test data".to_vec();
-        let checksum = "abc123";
+        let data = b"test data";
 
-        cache
-            .store(spec, "test:data@1.0", "txt", data.clone(), checksum)
-            .await
-            .unwrap();
+        let path = cache.store(spec, "txt", data).unwrap();
+        assert!(path.exists());
 
-        assert!(cache.is_cached(spec).await.unwrap());
-
-        let path = cache.get_path(spec).await.unwrap();
-        assert!(path.is_some());
-
-        let entry = cache.get_entry(spec).await.unwrap();
-        assert!(entry.is_some());
-        let entry = entry.unwrap();
-        assert_eq!(entry.spec, spec);
-        assert_eq!(entry.checksum, checksum);
-
-        // Cleanup
-        cache.remove(spec).await.unwrap();
+        assert!(cache.is_cached(spec, "txt"));
+        assert!(!cache.is_cached(spec, "fasta"));
     }
 
-    #[tokio::test]
-    async fn test_list_all() {
-        let (cache, _temp) = create_test_cache().await.unwrap();
+    #[test]
+    fn test_total_size() {
+        let (cache, _temp) = create_test_cache().unwrap();
 
-        // Store multiple entries
-        for i in 1..=3 {
-            let spec = format!("test:data{}@1.0-txt", i);
-            cache
-                .store(&spec, &spec, "txt", vec![0u8; 100], "checksum")
-                .await
-                .unwrap();
-        }
+        // Empty cache
+        assert_eq!(cache.total_size().unwrap(), 0);
 
-        let entries = cache.list_all().await.unwrap();
-        assert_eq!(entries.len(), 3);
+        // Store some data
+        cache.store("test:a-txt@1.0", "txt", &[0u8; 100]).unwrap();
+        cache.store("test:b-txt@1.0", "txt", &[0u8; 200]).unwrap();
 
-        // Cleanup
-        for i in 1..=3 {
-            let spec = format!("test:data{}@1.0-txt", i);
-            cache.remove(&spec).await.unwrap();
-        }
+        assert_eq!(cache.total_size().unwrap(), 300);
+    }
+
+    #[test]
+    fn test_clear_all() {
+        let (cache, _temp) = create_test_cache().unwrap();
+
+        cache.store("test:a-txt@1.0", "txt", &[0u8; 100]).unwrap();
+        cache.store("test:b-txt@1.0", "txt", &[0u8; 200]).unwrap();
+
+        let count = cache.clear_all().unwrap();
+        assert_eq!(count, 2);
+        assert_eq!(cache.total_size().unwrap(), 0);
     }
 }

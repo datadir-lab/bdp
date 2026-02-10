@@ -30,7 +30,6 @@ tracing-appender = { workspace = true }
 # ============================================================================
 # Checksums and hashing
 sha2 = "0.10"
-blake3 = "1.5"
 hex = "0.4"
 
 # Compression
@@ -40,7 +39,7 @@ flate2 = "1.0"
 base64 = "0.22"
 
 # Regular expressions
-regex = "1.11"
+regex = { workspace = true }
 
 # URL parsing
 url = { version = "2.5", features = ["serde"] }

@@ -10,21 +10,9 @@
 //! - `GET /api/v1/organizations/:slug` - Get a single organization by slug
 //! - `PUT /api/v1/organizations/:slug` - Update an organization
 //! - `DELETE /api/v1/organizations/:slug` - Delete an organization
-//!
-//! # Examples
-//!
-//! ## Creating a Router
-//!
-//! ```rust,ignore
-//! use axum::Router;
-//! use bdp_server::features::organizations::routes::organizations_routes;
-//!
-//! let app = Router::new()
-//!     .nest("/api/v1/organizations", organizations_routes())
-//!     .with_state(pool);
-//! ```
 
 use crate::api::response::{ApiResponse, ErrorResponse};
+use crate::features::FeatureState;
 use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
@@ -33,7 +21,6 @@ use axum::{
     Json, Router,
 };
 use serde_json::json;
-use sqlx::PgPool;
 
 use super::{
     commands::{
@@ -47,19 +34,7 @@ use super::{
 // Router Configuration
 // ============================================================================
 
-/// Creates the organizations router with all routes configured
-///
-/// # Examples
-///
-/// ```rust,ignore
-/// use axum::Router;
-/// use bdp_server::features::organizations::routes::organizations_routes;
-///
-/// let app = Router::new()
-///     .nest("/api/v1/organizations", organizations_routes())
-///     .with_state(pool);
-/// ```
-pub fn organizations_routes() -> Router<PgPool> {
+pub fn organizations_routes() -> Router<FeatureState> {
     Router::new()
         .route("/", post(create_organization))
         .route("/", get(list_organizations))
@@ -72,40 +47,15 @@ pub fn organizations_routes() -> Router<PgPool> {
 // Command Handlers (Write Operations)
 // ============================================================================
 
-/// Create a new organization
-///
-/// # Endpoint
-///
-/// `POST /api/v1/organizations`
-///
-/// # Request Body
-///
-/// ```json
-/// {
-///   "slug": "acme-corp",
-///   "name": "ACME Corporation",
-///   "website": "https://acme.com",
-///   "description": "Leading provider of quality products",
-///   "logo_url": null,
-///   "is_system": false
-/// }
-/// ```
-///
-/// # Response
-///
-/// - `201 Created` - Organization created successfully
-/// - `400 Bad Request` - Validation error
-/// - `409 Conflict` - Organization with slug already exists
-/// - `500 Internal Server Error` - Database error
 #[tracing::instrument(
-    skip(pool, command),
+    skip(state, command),
     fields(slug = %command.slug, name = %command.name)
 )]
 async fn create_organization(
-    State(pool): State<PgPool>,
+    State(state): State<FeatureState>,
     Json(command): Json<CreateOrganizationCommand>,
 ) -> Result<Response, OrganizationApiError> {
-    let response = super::commands::create::handle(pool, command).await?;
+    let response = state.dispatch(command).await?;
 
     tracing::info!(
         org_id = %response.id,
@@ -116,41 +66,19 @@ async fn create_organization(
     Ok((StatusCode::CREATED, Json(ApiResponse::success(response))).into_response())
 }
 
-/// Update an existing organization
-///
-/// # Endpoint
-///
-/// `PUT /api/v1/organizations/:slug`
-///
-/// # Request Body
-///
-/// ```json
-/// {
-///   "name": "ACME Corp",
-///   "website": "https://acme.com",
-///   "description": "Updated description"
-/// }
-/// ```
-///
-/// # Response
-///
-/// - `200 OK` - Organization updated successfully
-/// - `400 Bad Request` - Validation error
-/// - `404 Not Found` - Organization not found
-/// - `500 Internal Server Error` - Database error
 #[tracing::instrument(
-    skip(pool, command),
+    skip(state, command),
     fields(slug = %slug)
 )]
 async fn update_organization(
-    State(pool): State<PgPool>,
+    State(state): State<FeatureState>,
     Path(slug): Path<String>,
     Json(mut command): Json<UpdateOrganizationCommand>,
 ) -> Result<Response, OrganizationApiError> {
     // Set slug from path parameter
     command.slug = slug;
 
-    let response = super::commands::update::handle(pool, command).await?;
+    let response = state.dispatch(command).await?;
 
     tracing::info!(
         org_id = %response.id,
@@ -161,29 +89,17 @@ async fn update_organization(
     Ok((StatusCode::OK, Json(ApiResponse::success(response))).into_response())
 }
 
-/// Delete an organization
-///
-/// # Endpoint
-///
-/// `DELETE /api/v1/organizations/:slug`
-///
-/// # Response
-///
-/// - `200 OK` - Organization deleted successfully
-/// - `404 Not Found` - Organization not found
-/// - `409 Conflict` - Cannot delete (has dependencies)
-/// - `500 Internal Server Error` - Database error
 #[tracing::instrument(
-    skip(pool),
+    skip(state),
     fields(slug = %slug)
 )]
 async fn delete_organization(
-    State(pool): State<PgPool>,
+    State(state): State<FeatureState>,
     Path(slug): Path<String>,
 ) -> Result<Response, OrganizationApiError> {
     let command = DeleteOrganizationCommand { slug };
 
-    let response = super::commands::delete::handle(pool, command).await?;
+    let response = state.dispatch(command).await?;
 
     tracing::info!(
         org_slug = %response.slug,
@@ -197,23 +113,12 @@ async fn delete_organization(
 // Query Handlers (Read Operations)
 // ============================================================================
 
-/// Get a single organization by slug
-///
-/// # Endpoint
-///
-/// `GET /api/v1/organizations/:slug`
-///
-/// # Response
-///
-/// - `200 OK` - Organization found
-/// - `404 Not Found` - Organization not found
-/// - `500 Internal Server Error` - Database error
 #[tracing::instrument(
-    skip(pool),
+    skip(state),
     fields(slug = %slug)
 )]
 async fn get_organization(
-    State(pool): State<PgPool>,
+    State(state): State<FeatureState>,
     Path(slug): Path<String>,
 ) -> Result<Response, OrganizationApiError> {
     let query = GetOrganizationQuery {
@@ -221,7 +126,7 @@ async fn get_organization(
         id: None,
     };
 
-    let response = super::queries::get::handle(pool, query).await?;
+    let response = state.dispatch(query).await?;
 
     tracing::debug!(
         org_id = %response.id,
@@ -232,26 +137,8 @@ async fn get_organization(
     Ok((StatusCode::OK, Json(ApiResponse::success(response))).into_response())
 }
 
-/// List organizations with pagination and filters
-///
-/// # Endpoint
-///
-/// `GET /api/v1/organizations?page=1&per_page=20&is_system=true&name_contains=protein`
-///
-/// # Query Parameters
-///
-/// - `page` - Page number (default: 1)
-/// - `per_page` - Items per page (default: 20, max: 100)
-/// - `is_system` - Filter by system flag
-/// - `name_contains` - Filter by name (case-insensitive partial match)
-///
-/// # Response
-///
-/// - `200 OK` - List of organizations with pagination metadata
-/// - `400 Bad Request` - Invalid query parameters
-/// - `500 Internal Server Error` - Database error
 #[tracing::instrument(
-    skip(pool, query),
+    skip(state, query),
     fields(
         page = ?query.pagination.page,
         per_page = ?query.pagination.per_page,
@@ -259,10 +146,10 @@ async fn get_organization(
     )
 )]
 async fn list_organizations(
-    State(pool): State<PgPool>,
+    State(state): State<FeatureState>,
     Query(query): Query<ListOrganizationsQuery>,
 ) -> Result<Response, OrganizationApiError> {
-    let response = super::queries::list::handle(pool, query).await?;
+    let response = state.dispatch(query).await?;
 
     tracing::debug!(
         count = response.items.len(),

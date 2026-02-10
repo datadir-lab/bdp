@@ -1,3 +1,7 @@
+// This test requires bdp-server as a dev-dependency, which was removed
+// to avoid apalis-postgres sqlx macro compilation issues.
+// Enable the "e2e" feature to compile these tests.
+#![cfg(feature = "e2e")]
 //! Real end-to-end tests for `bdp search`
 //!
 //! Uses a **real PostgreSQL** (via testcontainers) and an **in-process axum server**.
@@ -77,10 +81,8 @@ async fn get_test_server() -> &'static TestServer {
                 .expect("Failed to create dummy storage");
 
             // 6. Build the axum router
-            let feature_state = bdp_server::features::FeatureState {
-                db: pool.clone(),
-                storage,
-            };
+            let mediator = bdp_server::cqrs::build_mediator(pool.clone(), storage);
+            let feature_state = bdp_server::features::FeatureState { mediator };
             let api_v1 = bdp_server::features::router(feature_state);
             let app: axum::Router = axum::Router::new()
                 .route("/health", get(|| async { "OK" }))

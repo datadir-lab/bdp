@@ -421,6 +421,7 @@ pub async fn setup_test_db() -> PgPool {
 /// Setup a test application with routes
 pub async fn setup_test_app(pool: PgPool) -> axum::Router {
     use axum::Router;
+    use bdp_server::cqrs::build_mediator;
     use bdp_server::features::{self, FeatureState};
     use bdp_server::storage::{config::StorageConfig, Storage};
 
@@ -441,7 +442,8 @@ pub async fn setup_test_app(pool: PgPool) -> axum::Router {
         .await
         .expect("Failed to create test storage");
 
-    let state = FeatureState { db: pool, storage };
+    let mediator = build_mediator(pool, storage);
+    let state = FeatureState { mediator };
 
     let api_v1 = features::router(state);
 
@@ -458,6 +460,7 @@ impl TestApp {
     /// Create a new test application with CQRS features
     pub async fn new(pool: PgPool) -> Self {
         use axum::{routing::get, Router};
+        use bdp_server::cqrs::build_mediator;
         use bdp_server::storage::{config::StorageConfig, Storage};
         use bdp_server::{audit, features};
         use tower::ServiceBuilder;
@@ -479,11 +482,9 @@ impl TestApp {
             .await
             .expect("Failed to create test storage");
 
-        // Create feature state
-        let feature_state = features::FeatureState {
-            db: pool.clone(),
-            storage,
-        };
+        // Create feature state with CQRS mediator
+        let mediator = build_mediator(pool.clone(), storage);
+        let feature_state = features::FeatureState { mediator };
 
         // Feature routes (CQRS architecture)
         let feature_routes = features::router(feature_state);

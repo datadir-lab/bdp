@@ -16,13 +16,11 @@ pub const DEFAULT_S3_REGION: &str = "us-east-1";
 /// Default S3 bucket name when not specified via environment variable.
 pub const DEFAULT_S3_BUCKET: &str = "bdp-data";
 
-/// Default MinIO access key for local development.
-/// In production, this should always be set via environment variable.
-pub const DEFAULT_MINIO_ACCESS_KEY: &str = "minioadmin";
+/// Default MinIO access key for local development with `for_minio()`.
+const DEFAULT_MINIO_ACCESS_KEY: &str = "minioadmin";
 
-/// Default MinIO secret key for local development.
-/// In production, this should always be set via environment variable.
-pub const DEFAULT_MINIO_SECRET_KEY: &str = "minioadmin";
+/// Default MinIO secret key for local development with `for_minio()`.
+const DEFAULT_MINIO_SECRET_KEY: &str = "minioadmin";
 
 /// Configuration for S3-compatible storage backends
 ///
@@ -67,14 +65,31 @@ pub struct StorageConfig {
 impl StorageConfig {
     /// Creates a StorageConfig from environment variables
     ///
-    /// Reads configuration from environment variables with fallback defaults
-    /// suitable for local development with MinIO.
+    /// Reads configuration from environment variables. Access key and secret key
+    /// are required — set via `STORAGE_S3_ACCESS_KEY`/`S3_ACCESS_KEY`/`AWS_ACCESS_KEY_ID`
+    /// and `STORAGE_S3_SECRET_KEY`/`S3_SECRET_KEY`/`AWS_SECRET_ACCESS_KEY`.
     ///
     /// # Errors
     ///
-    /// This function currently does not return errors as all values have defaults.
-    /// The Result type is retained for API compatibility and future error handling.
+    /// Returns an error if storage credentials are not set.
     pub fn from_env() -> anyhow::Result<Self> {
+        let access_key = env::var("STORAGE_S3_ACCESS_KEY")
+            .or_else(|_| env::var("S3_ACCESS_KEY"))
+            .or_else(|_| env::var("AWS_ACCESS_KEY_ID"))
+            .map_err(|_| {
+                anyhow::anyhow!(
+                    "Storage access key not set. Set STORAGE_S3_ACCESS_KEY, S3_ACCESS_KEY, or AWS_ACCESS_KEY_ID"
+                )
+            })?;
+        let secret_key = env::var("STORAGE_S3_SECRET_KEY")
+            .or_else(|_| env::var("S3_SECRET_KEY"))
+            .or_else(|_| env::var("AWS_SECRET_ACCESS_KEY"))
+            .map_err(|_| {
+                anyhow::anyhow!(
+                    "Storage secret key not set. Set STORAGE_S3_SECRET_KEY, S3_SECRET_KEY, or AWS_SECRET_ACCESS_KEY"
+                )
+            })?;
+
         Ok(Self {
             endpoint: env::var("STORAGE_S3_ENDPOINT")
                 .or_else(|_| env::var("S3_ENDPOINT"))
@@ -85,14 +100,8 @@ impl StorageConfig {
             bucket: env::var("STORAGE_S3_BUCKET")
                 .or_else(|_| env::var("S3_BUCKET"))
                 .unwrap_or_else(|_| DEFAULT_S3_BUCKET.to_string()),
-            access_key: env::var("STORAGE_S3_ACCESS_KEY")
-                .or_else(|_| env::var("S3_ACCESS_KEY"))
-                .or_else(|_| env::var("AWS_ACCESS_KEY_ID"))
-                .unwrap_or_else(|_| DEFAULT_MINIO_ACCESS_KEY.to_string()),
-            secret_key: env::var("STORAGE_S3_SECRET_KEY")
-                .or_else(|_| env::var("S3_SECRET_KEY"))
-                .or_else(|_| env::var("AWS_SECRET_ACCESS_KEY"))
-                .unwrap_or_else(|_| DEFAULT_MINIO_SECRET_KEY.to_string()),
+            access_key,
+            secret_key,
             path_style: env::var("STORAGE_S3_PATH_STYLE")
                 .or_else(|_| env::var("S3_PATH_STYLE"))
                 .ok()

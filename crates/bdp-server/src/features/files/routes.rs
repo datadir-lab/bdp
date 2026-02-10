@@ -1,5 +1,5 @@
 use crate::api::response::{ApiResponse, ErrorResponse};
-use crate::storage::Storage;
+use crate::features::FeatureState;
 use axum::{
     extract::{Multipart, Path, State},
     http::StatusCode,
@@ -13,13 +13,13 @@ use super::{
     queries::{DownloadFileError, DownloadFileQuery},
 };
 
-pub fn files_routes() -> Router<Storage> {
+pub fn files_routes() -> Router<FeatureState> {
     Router::new().route("/:org/:name/:version/:filename", post(upload_file).get(download_file))
 }
 
-#[tracing::instrument(skip(storage, multipart), fields(org = %org, name = %name, version = %version, filename = %filename))]
+#[tracing::instrument(skip(state, multipart), fields(org = %org, name = %name, version = %version, filename = %filename))]
 async fn upload_file(
-    State(storage): State<Storage>,
+    State(state): State<FeatureState>,
     Path((org, name, version, filename)): Path<(String, String, String, String)>,
     mut multipart: Multipart,
 ) -> Result<Response, FileApiError> {
@@ -61,7 +61,7 @@ async fn upload_file(
         content_type,
     };
 
-    let response = super::commands::upload::handle(storage, command).await?;
+    let response = state.dispatch(command).await?;
 
     tracing::info!(
         key = %response.key,
@@ -73,9 +73,9 @@ async fn upload_file(
     Ok((StatusCode::CREATED, Json(ApiResponse::success(response))).into_response())
 }
 
-#[tracing::instrument(skip(storage), fields(org = %org, name = %name, version = %version, filename = %filename))]
+#[tracing::instrument(skip(state), fields(org = %org, name = %name, version = %version, filename = %filename))]
 async fn download_file(
-    State(storage): State<Storage>,
+    State(state): State<FeatureState>,
     Path((org, name, version, filename)): Path<(String, String, String, String)>,
 ) -> Result<Response, FileApiError> {
     let query = DownloadFileQuery {
@@ -85,7 +85,7 @@ async fn download_file(
         filename,
     };
 
-    let response = super::queries::download::handle(storage, query).await?;
+    let response = state.dispatch(query).await?;
 
     tracing::debug!(
         presigned_url = %response.presigned_url,

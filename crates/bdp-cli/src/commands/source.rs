@@ -2,15 +2,55 @@
 //!
 //! Manages data sources in the manifest.
 
-use colored::Colorize;
-
 use crate::{
+    commands::output::Render,
     error::{CliError, Result},
     manifest::{validate_source_spec, Manifest},
 };
 
+/// Output from `bdp source` subcommands.
+pub enum SourceOutput {
+    Added { source: String },
+    AlreadyExists { source: String },
+    Removed { source: String },
+    NotFound { source: String },
+    List { sources: Vec<String> },
+    Empty,
+}
+
+impl Render for SourceOutput {
+    fn render(&self) {
+        use colored::Colorize;
+
+        match self {
+            SourceOutput::Added { source } => {
+                println!("{} Added source: {}", "✓".green(), source);
+            },
+            SourceOutput::AlreadyExists { source } => {
+                println!("{} Source already exists: {}", "✓".green(), source);
+            },
+            SourceOutput::Removed { source } => {
+                println!("{} Removed source: {}", "✓".green(), source);
+            },
+            SourceOutput::NotFound { source } => {
+                println!("{} Source not found: {}", "✗".red(), source);
+            },
+            SourceOutput::List { sources } => {
+                println!("Sources in {}:", "bdp.yml".cyan());
+                for source in sources {
+                    println!("  • {}", source);
+                }
+                println!("\nTotal: {} source(s)", sources.len());
+            },
+            SourceOutput::Empty => {
+                println!("No sources defined in bdp.yml");
+            },
+        }
+    }
+}
+
 /// Add a source to the manifest
-pub async fn add(source: String) -> Result<()> {
+pub async fn add(source: String) -> Result<SourceOutput> {
     // Validate source specification
     validate_source_spec(&source)?;
 
@@ -23,8 +63,7 @@ pub async fn add(source: String) -> Result<()> {
 
     // Check if already exists
     if manifest.has_source(&source) {
-        println!("{} Source already exists: {}", "✓".green(), source);
-        return Ok(());
+        return Ok(SourceOutput::AlreadyExists { source });
     }
 
     // Add source
@@ -33,13 +72,11 @@ pub async fn add(source: String) -> Result<()> {
     // Save manifest
     manifest.save("bdp.yml")?;
 
-    println!("{} Added source: {}", "✓".green(), source);
-
-    Ok(())
+    Ok(SourceOutput::Added { source })
 }
 
 /// Remove a source from the manifest
-pub async fn remove(source: String) -> Result<()> {
+pub async fn remove(source: String) -> Result<SourceOutput> {
     // Load manifest
     let mut manifest = Manifest::load("bdp.yml").map_err(|_| {
         CliError::NotInitialized(
@@ -50,16 +87,14 @@ pub async fn remove(source: String) -> Result<()> {
     // Remove source
     if manifest.remove_source(&source) {
         manifest.save("bdp.yml")?;
-        println!("{} Removed source: {}", "✓".green(), source);
+        Ok(SourceOutput::Removed { source })
     } else {
-        println!("{} Source not found: {}", "✗".red(), source);
+        Ok(SourceOutput::NotFound { source })
     }
-
-    Ok(())
 }
 
 /// List all sources in the manifest
-pub async fn list() -> Result<()> {
+pub async fn list() -> Result<SourceOutput> {
     // Load manifest
     let manifest = Manifest::load("bdp.yml").map_err(|_| {
         CliError::NotInitialized(
@@ -68,18 +103,12 @@ pub async fn list() -> Result<()> {
     })?;
 
     if manifest.sources.is_empty() {
-        println!("No sources defined in bdp.yml");
-        return Ok(());
+        return Ok(SourceOutput::Empty);
     }
 
-    println!("Sources in {}:", "bdp.yml".cyan());
-    for source in &manifest.sources {
-        println!("  • {}", source);
-    }
-
-    println!("\nTotal: {} source(s)", manifest.sources.len());
-
-    Ok(())
+    Ok(SourceOutput::List {
+        sources: manifest.sources.clone(),
+    })
 }
 
 #[cfg(test)]

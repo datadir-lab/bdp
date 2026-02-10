@@ -142,7 +142,7 @@ impl OboParser {
                     "namespace" => {
                         namespace = Some(
                             Namespace::from_str(value)
-                                .map_err(|e| crate::ingest::gene_ontology::GoError::Parse(e))?,
+                                .map_err(crate::ingest::gene_ontology::GoError::Parse)?,
                         );
                     },
                     "def" => {
@@ -221,7 +221,7 @@ impl OboParser {
 
         // Create term
         let mut term = GoTerm::new(go_id, name, namespace, go_release_version.to_string())
-            .map_err(|e| crate::ingest::gene_ontology::GoError::Parse(e))?;
+            .map_err(crate::ingest::gene_ontology::GoError::Parse)?;
 
         term.definition = definition;
         term.is_obsolete = is_obsolete;

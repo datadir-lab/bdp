@@ -138,7 +138,10 @@ impl FtpClient {
             }
         }
 
-        unreachable!("Retry loop should always return")
+        Err(anyhow::anyhow!(
+            "FTP download retry loop for {} exhausted without returning",
+            path
+        ))
     }
 
     /// List directory contents on the FTP server
@@ -186,7 +189,7 @@ impl FtpClient {
             }
         }
 
-        unreachable!("Retry loop should always return")
+        Err(anyhow::anyhow!("FTP list retry loop for {} exhausted without returning", path))
     }
 
     /// List only directories in a path

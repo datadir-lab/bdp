@@ -228,7 +228,7 @@ pub async fn handle(
 
     let type_filter = query.type_filter.as_ref();
     let has_org_filter =
-        type_filter.is_some_and(|types| types.contains(&"organization".to_string()));
+        type_filter.is_none_or(|types| types.contains(&"organization".to_string()));
     let has_entry_filter = type_filter.is_none_or(|types| {
         types.contains(&"data_source".to_string()) || types.contains(&"tool".to_string())
     });
@@ -452,7 +452,7 @@ async fn count_search_results(
 ) -> Result<i64, sqlx::Error> {
     let type_filter = query.type_filter.as_ref();
     let has_org_filter =
-        type_filter.is_some_and(|types| types.contains(&"organization".to_string()));
+        type_filter.is_none_or(|types| types.contains(&"organization".to_string()));
     let has_entry_filter = type_filter.is_none_or(|types| {
         types.contains(&"data_source".to_string()) || types.contains(&"tool".to_string())
     });
@@ -640,6 +640,14 @@ mod tests {
         assert!(query.validate().is_ok());
     }
 
+    /// Refresh the search materialized view so test data becomes searchable
+    async fn refresh_search_mv(pool: &PgPool) {
+        sqlx::query("REFRESH MATERIALIZED VIEW search_registry_entries_mv")
+            .execute(pool)
+            .await
+            .expect("Failed to refresh search MV");
+    }
+
     #[sqlx::test]
     async fn test_handle_searches_organizations(pool: PgPool) -> sqlx::Result<()> {
         sqlx::query!(
@@ -651,6 +659,8 @@ mod tests {
         )
         .execute(&pool)
         .await?;
+
+        refresh_search_mv(&pool).await;
 
         let query = UnifiedSearchQuery {
             query: "protein".to_string(),
@@ -691,6 +701,8 @@ mod tests {
         )
         .execute(&pool)
         .await?;
+
+        refresh_search_mv(&pool).await;
 
         let query = UnifiedSearchQuery {
             query: "insulin".to_string(),
@@ -734,6 +746,8 @@ mod tests {
         .execute(&pool)
         .await?;
 
+        refresh_search_mv(&pool).await;
+
         let query = UnifiedSearchQuery {
             query: "test".to_string(),
             type_filter: None,
@@ -776,6 +790,8 @@ mod tests {
             .execute(&pool)
             .await?;
         }
+
+        refresh_search_mv(&pool).await;
 
         let query = UnifiedSearchQuery {
             query: "test".to_string(),

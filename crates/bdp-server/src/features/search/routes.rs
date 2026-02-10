@@ -1,4 +1,5 @@
 use crate::api::response::{ApiResponse, ErrorResponse};
+use crate::features::FeatureState;
 use axum::{
     extract::{Query, State},
     http::StatusCode,
@@ -7,20 +8,19 @@ use axum::{
     Json, Router,
 };
 use serde_json::json;
-use sqlx::PgPool;
 
 use super::queries::{
     SearchSuggestionsError, SearchSuggestionsQuery, UnifiedSearchError, UnifiedSearchQuery,
 };
 
-pub fn search_routes() -> Router<PgPool> {
+pub fn search_routes() -> Router<FeatureState> {
     Router::new()
         .route("/", get(unified_search))
         .route("/suggestions", get(get_suggestions))
 }
 
 #[tracing::instrument(
-    skip(pool, query),
+    skip(state, query),
     fields(
         q = %query.query,
         type_filter = ?query.type_filter,
@@ -29,10 +29,10 @@ pub fn search_routes() -> Router<PgPool> {
     )
 )]
 async fn unified_search(
-    State(pool): State<PgPool>,
+    State(state): State<FeatureState>,
     Query(query): Query<UnifiedSearchQuery>,
 ) -> Result<Response, SearchApiError> {
-    let response = super::queries::unified_search::handle(pool, query).await?;
+    let response = state.dispatch(query).await?;
 
     tracing::debug!(
         count = response.items.len(),
@@ -51,7 +51,7 @@ async fn unified_search(
 }
 
 #[tracing::instrument(
-    skip(pool, query),
+    skip(state, query),
     fields(
         q = %query.q,
         limit = ?query.limit,
@@ -59,10 +59,10 @@ async fn unified_search(
     )
 )]
 async fn get_suggestions(
-    State(pool): State<PgPool>,
+    State(state): State<FeatureState>,
     Query(query): Query<SearchSuggestionsQuery>,
 ) -> Result<Response, SearchApiError> {
-    let response = super::queries::suggestions::handle(pool, query).await?;
+    let response = state.dispatch(query).await?;
 
     tracing::debug!(count = response.suggestions.len(), "Suggestions completed");
 

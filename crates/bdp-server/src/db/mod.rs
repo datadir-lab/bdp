@@ -139,6 +139,7 @@ pub async fn health_check(pool: &PgPool) -> DbResult<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serial_test::serial;
 
     #[test]
     fn test_default_config() {
@@ -149,7 +150,12 @@ mod tests {
     }
 
     #[test]
+    #[serial(env)]
     fn test_config_from_env() {
+        // Save original values
+        let orig_url = std::env::var("DATABASE_URL").ok();
+        let orig_max = std::env::var("DB_MAX_CONNECTIONS").ok();
+
         std::env::set_var("DATABASE_URL", "postgresql://localhost/test");
         std::env::set_var("DB_MAX_CONNECTIONS", "15");
 
@@ -157,14 +163,30 @@ mod tests {
         assert_eq!(config.max_connections, 15);
         assert!(config.url.contains("localhost/test"));
 
-        std::env::remove_var("DATABASE_URL");
-        std::env::remove_var("DB_MAX_CONNECTIONS");
+        // Restore original values
+        match orig_url {
+            Some(v) => std::env::set_var("DATABASE_URL", v),
+            None => std::env::remove_var("DATABASE_URL"),
+        }
+        match orig_max {
+            Some(v) => std::env::set_var("DB_MAX_CONNECTIONS", v),
+            None => std::env::remove_var("DB_MAX_CONNECTIONS"),
+        }
     }
 
     #[test]
+    #[serial(env)]
     fn test_config_from_env_missing_url() {
+        // Save original value
+        let orig_url = std::env::var("DATABASE_URL").ok();
+
         std::env::remove_var("DATABASE_URL");
         let result = DbConfig::from_env();
         assert!(result.is_err());
+
+        // Restore original value
+        if let Some(v) = orig_url {
+            std::env::set_var("DATABASE_URL", v);
+        }
     }
 }

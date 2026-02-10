@@ -17,6 +17,7 @@ struct Metalink {
 /// Individual file entry in metalink
 #[derive(Debug, Deserialize, Serialize)]
 struct MetalinkFile {
+    #[serde(rename = "@name")]
     name: String,
     #[serde(rename = "verification", default)]
     verification: Option<Verification>,
@@ -32,9 +33,9 @@ struct Verification {
 /// Hash entry (MD5, SHA1, SHA256, etc.)
 #[derive(Debug, Deserialize, Serialize)]
 struct Hash {
-    #[serde(rename = "type")]
+    #[serde(rename = "@type")]
     hash_type: String,
-    #[serde(rename = "$value")]
+    #[serde(rename = "$text")]
     value: String,
 }
 

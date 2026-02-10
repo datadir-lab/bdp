@@ -2,6 +2,7 @@
 
 use std::process;
 
+use bdp_cli::commands::output::Render;
 use bdp_cli::{CacheCommand, Cli, Commands, ConfigCommand, GenerateCommand, SourceCommand};
 use bdp_common::logging::{init_logging, LogConfig, LogLevel, LogOutput};
 use clap::Parser;
@@ -75,56 +76,85 @@ async fn execute_command(cli: &Cli) -> bdp_cli::Result<()> {
             version,
             description,
             force,
-        } => {
-            bdp_cli::commands::init::run(
-                path.clone(),
-                name.clone(),
-                version.clone(),
-                description.clone(),
-                *force,
-            )
-            .await
-        },
+        } => bdp_cli::commands::init::run(
+            path.clone(),
+            name.clone(),
+            version.clone(),
+            description.clone(),
+            *force,
+        )
+        .await
+        .map(|output| output.render()),
 
         Commands::Source { command } => match command {
-            SourceCommand::Add { source } => bdp_cli::commands::source::add(source.clone()).await,
-            SourceCommand::Remove { source } => {
-                bdp_cli::commands::source::remove(source.clone()).await
-            },
-            SourceCommand::List => bdp_cli::commands::source::list().await,
+            SourceCommand::Add { source } => bdp_cli::commands::source::add(source.clone())
+                .await
+                .map(|output| output.render()),
+            SourceCommand::Remove { source } => bdp_cli::commands::source::remove(source.clone())
+                .await
+                .map(|output| output.render()),
+            SourceCommand::List => bdp_cli::commands::source::list()
+                .await
+                .map(|output| output.render()),
         },
 
-        Commands::Pull { force } => {
-            bdp_cli::commands::pull::run(cli.server_url.clone(), *force).await
-        },
+        Commands::Pull { force } => bdp_cli::commands::pull::run(cli.server_url.clone(), *force)
+            .await
+            .map(|output| output.render()),
 
         Commands::Cache { command } => match command {
-            CacheCommand::Set { path } => bdp_cli::commands::cache_cmd::set(path.clone()).await,
-            CacheCommand::Show => bdp_cli::commands::cache_cmd::show().await,
-            CacheCommand::Reset => bdp_cli::commands::cache_cmd::reset().await,
+            CacheCommand::Set { path } => bdp_cli::commands::cache_cmd::set(path.clone())
+                .await
+                .map(|output| output.render()),
+            CacheCommand::Show => bdp_cli::commands::cache_cmd::show()
+                .await
+                .map(|output| output.render()),
+            CacheCommand::Reset => bdp_cli::commands::cache_cmd::reset()
+                .await
+                .map(|output| output.render()),
         },
 
         Commands::Generate { command } => match command {
-            GenerateCommand::Python => bdp_cli::commands::generate::python().await,
-            GenerateCommand::Snakemake => bdp_cli::commands::generate::snakemake().await,
-            GenerateCommand::Nextflow => bdp_cli::commands::generate::nextflow().await,
+            GenerateCommand::Python => bdp_cli::commands::generate::python()
+                .await
+                .map(|output| output.render()),
+            GenerateCommand::Snakemake => bdp_cli::commands::generate::snakemake()
+                .await
+                .map(|output| output.render()),
+            GenerateCommand::Nextflow => bdp_cli::commands::generate::nextflow()
+                .await
+                .map(|output| output.render()),
         },
 
-        Commands::Status => bdp_cli::commands::status::run().await,
+        Commands::Status => bdp_cli::commands::status::run()
+            .await
+            .map(|output| output.render()),
 
-        Commands::Audit { command } => bdp_cli::commands::audit::run(command).await,
+        Commands::Audit { command } => bdp_cli::commands::audit::run(command)
+            .await
+            .map(|output| output.render()),
 
-        Commands::Clean { all, search_cache } => {
-            bdp_cli::commands::clean::run(*all, *search_cache).await
-        },
+        Commands::Clean {
+            all,
+            search_cache,
+            yes,
+        } => bdp_cli::commands::clean::run(*all, *search_cache, *yes)
+            .await
+            .map(|output| output.render()),
 
         Commands::Config { command } => match command {
             // NOTE: Clone is necessary because we're matching on &command (borrowed)
-            ConfigCommand::Get { key } => bdp_cli::commands::config::get(key.clone()).await,
+            ConfigCommand::Get { key } => bdp_cli::commands::config::get(key.clone())
+                .await
+                .map(|output| output.render()),
             ConfigCommand::Set { key, value } => {
-                bdp_cli::commands::config::set(key.clone(), value.clone()).await
+                bdp_cli::commands::config::set(key.clone(), value.clone())
+                    .await
+                    .map(|output| output.render())
             },
-            ConfigCommand::Show => bdp_cli::commands::config::show().await,
+            ConfigCommand::Show => bdp_cli::commands::config::show()
+                .await
+                .map(|output| output.render()),
         },
 
         Commands::Uninstall { yes, purge } => bdp_cli::commands::uninstall::run(*yes, *purge).await,

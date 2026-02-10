@@ -105,9 +105,11 @@ impl SearchSuggestionsQuery {
             return Err(SearchSuggestionsError::QueryTooShort);
         }
 
-        let limit = self.limit();
-        if !(1..=20).contains(&limit) {
-            return Err(SearchSuggestionsError::InvalidLimit);
+        // Validate raw limit value before clamping
+        if let Some(lim) = self.limit {
+            if !(1..=20).contains(&lim) {
+                return Err(SearchSuggestionsError::InvalidLimit);
+            }
         }
 
         if let Some(ref types) = self.type_filter {
@@ -390,6 +392,14 @@ mod tests {
         assert!(matches!(query.validate(), Err(SearchSuggestionsError::InvalidTypeFilter(_))));
     }
 
+    /// Refresh the search materialized view so test data becomes searchable
+    async fn refresh_search_mv(pool: &PgPool) {
+        sqlx::query("REFRESH MATERIALIZED VIEW search_registry_entries_mv")
+            .execute(pool)
+            .await
+            .expect("Failed to refresh search MV");
+    }
+
     #[sqlx::test]
     async fn test_handle_searches_organizations(pool: PgPool) -> sqlx::Result<()> {
         sqlx::query!(
@@ -401,6 +411,8 @@ mod tests {
         )
         .execute(&pool)
         .await?;
+
+        refresh_search_mv(&pool).await;
 
         let query = SearchSuggestionsQuery {
             q: "uni".to_string(),
@@ -439,6 +451,8 @@ mod tests {
         )
         .execute(&pool)
         .await?;
+
+        refresh_search_mv(&pool).await;
 
         let query = SearchSuggestionsQuery {
             q: "insu".to_string(),
@@ -579,6 +593,8 @@ mod tests {
         .execute(&pool)
         .await?;
 
+        refresh_search_mv(&pool).await;
+
         // Test filter for protein only
         let query = SearchSuggestionsQuery {
             q: "data".to_string(),
@@ -657,6 +673,8 @@ mod tests {
         )
         .execute(&pool)
         .await?;
+
+        refresh_search_mv(&pool).await;
 
         // Test filter for organism only
         let query = SearchSuggestionsQuery {
@@ -756,6 +774,8 @@ mod tests {
         )
         .execute(&pool)
         .await?;
+
+        refresh_search_mv(&pool).await;
 
         // Test filter for protein and organism only (should exclude genome)
         let query = SearchSuggestionsQuery {

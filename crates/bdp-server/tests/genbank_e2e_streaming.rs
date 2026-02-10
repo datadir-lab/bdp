@@ -6,10 +6,8 @@
 // - MinIO S3 (via testcontainers)
 // - Full data flow from compressed file to database and S3
 
-use bdp_server::config::AppConfig;
-use bdp_server::ingest::genbank::config::GenbankFtpConfig;
 use bdp_server::ingest::genbank::models::SourceDatabase;
-use bdp_server::ingest::genbank::pipeline::GenbankPipeline;
+use bdp_server::storage::config::StorageConfig;
 use bdp_server::storage::Storage;
 use flate2::write::GzEncoder;
 use flate2::Compression;
@@ -17,8 +15,7 @@ use serial_test::serial;
 use sqlx::PgPool;
 use std::fs;
 use std::io::Write;
-use std::sync::Arc;
-use testcontainers::clients::Cli;
+use testcontainers::runners::AsyncRunner;
 use testcontainers_modules::minio::MinIO;
 use testcontainers_modules::postgres::Postgres;
 use uuid::Uuid;
@@ -28,16 +25,31 @@ struct TestEnv {
     pool: PgPool,
     storage: Storage,
     org_id: Uuid,
+    // Keep container handles alive for the duration of the test
+    _pg_container: testcontainers::ContainerAsync<Postgres>,
+    _minio_container: testcontainers::ContainerAsync<MinIO>,
 }
 
-async fn setup_test_env(docker: &Cli) -> TestEnv {
+async fn setup_test_env() -> TestEnv {
     // Start PostgreSQL container
-    let postgres = docker.run(Postgres::default());
-    let postgres_port = postgres.get_host_port_ipv4(5432);
+    let postgres = Postgres::default()
+        .start()
+        .await
+        .expect("Failed to start PostgreSQL container");
+    let postgres_port = postgres
+        .get_host_port_ipv4(5432)
+        .await
+        .expect("Failed to get PostgreSQL port");
 
     // Start MinIO container
-    let minio = docker.run(MinIO::default());
-    let minio_port = minio.get_host_port_ipv4(9000);
+    let minio = MinIO::default()
+        .start()
+        .await
+        .expect("Failed to start MinIO container");
+    let minio_port = minio
+        .get_host_port_ipv4(9000)
+        .await
+        .expect("Failed to get MinIO port");
 
     // Connect to PostgreSQL
     let database_url = format!("postgres://postgres:postgres@localhost:{}/postgres", postgres_port);
@@ -53,28 +65,21 @@ async fn setup_test_env(docker: &Cli) -> TestEnv {
         .expect("Failed to run migrations");
 
     // Set up MinIO storage
-    let config = AppConfig {
-        s3_endpoint: Some(format!("http://localhost:{}", minio_port)),
-        s3_region: "us-east-1".to_string(),
-        s3_bucket: "test-bucket".to_string(),
-        s3_access_key: Some("minioadmin".to_string()),
-        s3_secret_key: Some("minioadmin".to_string()),
-        s3_force_path_style: true,
-        ..Default::default()
-    };
+    let storage_config =
+        StorageConfig::for_minio(format!("http://localhost:{}", minio_port), "test-bucket");
 
-    let storage = Storage::from_config(&config)
+    let storage = Storage::new(storage_config)
         .await
         .expect("Failed to create storage");
 
     // Create test organization
     let org_id = Uuid::new_v4();
     sqlx::query!(
-        "INSERT INTO organizations (id, slug, name, email) VALUES ($1, $2, $3, $4)",
+        "INSERT INTO organizations (id, slug, name, is_system) VALUES ($1, $2, $3, $4)",
         org_id,
         "test-org",
         "Test Organization",
-        "test@example.com"
+        false
     )
     .execute(&pool)
     .await
@@ -84,14 +89,15 @@ async fn setup_test_env(docker: &Cli) -> TestEnv {
         pool,
         storage,
         org_id,
+        _pg_container: postgres,
+        _minio_container: minio,
     }
 }
 
 #[tokio::test]
 #[serial]
 async fn test_e2e_streaming_pipeline_single_file() {
-    let docker = Cli::default();
-    let env = setup_test_env(&docker).await;
+    let env = setup_test_env().await;
 
     // Read sample GenBank file
     let sample_path = "../../tests/fixtures/genbank/sample.gbk";
@@ -163,8 +169,7 @@ async fn test_e2e_streaming_pipeline_single_file() {
 #[tokio::test]
 #[serial]
 async fn test_e2e_streaming_memory_efficiency() {
-    let docker = Cli::default();
-    let env = setup_test_env(&docker).await;
+    let env = setup_test_env().await;
 
     // Create larger test data by repeating sample
     let sample_path = "../../tests/fixtures/genbank/sample.gbk";
@@ -230,8 +235,7 @@ async fn test_e2e_streaming_memory_efficiency() {
 #[tokio::test]
 #[serial]
 async fn test_e2e_streaming_data_integrity() {
-    let docker = Cli::default();
-    let env = setup_test_env(&docker).await;
+    let env = setup_test_env().await;
 
     // Read sample
     let sample_path = "../../tests/fixtures/genbank/sample.gbk";
@@ -293,8 +297,7 @@ async fn test_e2e_streaming_data_integrity() {
 #[tokio::test]
 #[serial]
 async fn test_e2e_streaming_vs_nonstreaming_equivalence() {
-    let docker = Cli::default();
-    let env = setup_test_env(&docker).await;
+    let env = setup_test_env().await;
 
     let sample_path = "../../tests/fixtures/genbank/sample.gbk";
     let data = fs::read_to_string(sample_path).expect("Failed to read sample file");
@@ -350,8 +353,7 @@ async fn test_e2e_streaming_vs_nonstreaming_equivalence() {
 #[tokio::test]
 #[serial]
 async fn test_e2e_streaming_concurrent_processing() {
-    let docker = Cli::default();
-    let env = setup_test_env(&docker).await;
+    let env = setup_test_env().await;
 
     // Simulate processing multiple files concurrently
     let sample_path = "../../tests/fixtures/genbank/sample.gbk";

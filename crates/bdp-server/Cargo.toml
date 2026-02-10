@@ -15,29 +15,26 @@ path = "src/lib.rs"
 name = "bdp-server"
 path = "src/main.rs"
 
-[[bin]]
+[[example]]
 name = "ncbi_taxonomy_test_small"
-path = "src/bin/ncbi_taxonomy_test_small.rs"
 
-[[bin]]
+[[example]]
 name = "genbank_test_phage"
-path = "src/bin/genbank_test_phage.rs"
 
-[[bin]]
+[[example]]
 name = "go_test_sample"
-path = "src/bin/go_test_sample.rs"
 
-[[bin]]
+[[example]]
 name = "go_test_ftp"
-path = "src/bin/go_test_ftp.rs"
 
-[[bin]]
+[[example]]
 name = "go_test_human"
-path = "src/bin/go_test_human.rs"
 
-[[bin]]
+[[example]]
 name = "go_test_local_ontology"
-path = "src/bin/go_test_local_ontology.rs"
+
+[[example]]
+name = "ncbi_taxonomy_full_catchup"
 
 [[bench]]
 name = "genbank_streaming_bench"
@@ -68,6 +65,7 @@ tower-http = { workspace = true }
 # Database
 # ============================================================================
 sqlx = { workspace = true }
+ipnetwork = "0.20"
 
 # ============================================================================
 # Configuration
@@ -102,7 +100,7 @@ apalis-cron = { workspace = true }
 suppaftp = { workspace = true }
 flate2 = { workspace = true }
 tar = { workspace = true }
-zip = "2.1"
+zip = { workspace = true }
 
 # ============================================================================
 # AWS SDK / S3 Storage
@@ -126,13 +124,14 @@ tokio-util = { version = "0.7", features = ["io"] }
 figment = { version = "0.10", features = ["toml", "env"] }
 
 # Rate limiting
+governor = "0.6"
 tower_governor = "0.4"
 hostname = "0.4.2"
 quick-xml = { workspace = true }
 md5 = { version = "0.7", features = ["std"] }
 async-trait = "0.1.89"
 digest = "0.10.7"
-regex = "1.12.2"
+regex = { workspace = true }
 scraper = { workspace = true }
 
 [dev-dependencies]
@@ -159,13 +158,3 @@ tokio = { workspace = true, features = ["test-util"] }
 default = []
 # Enable when you want to fail compilation if SQL queries are not prepared offline
 sqlx-offline = []
-
-# Legacy test/example features (disabled due to architecture changes)
-legacy_tests = []
-legacy_examples = []
-legacy_benchmarks = []
-search_legacy_tests = []
-pipeline_legacy_tests = []
-resolve_legacy_tests = []
-e2e_legacy_tests = []
-middleware_legacy_tests = []

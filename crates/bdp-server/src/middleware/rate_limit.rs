@@ -1,7 +1,10 @@
 //! Rate limiting middleware using tower-governor
 
+use governor::middleware::NoOpMiddleware;
 use std::sync::Arc;
-use tower_governor::{governor::GovernorConfigBuilder, GovernorLayer};
+use tower_governor::{
+    governor::GovernorConfigBuilder, key_extractor::PeerIpKeyExtractor, GovernorLayer,
+};
 
 // ============================================================================
 // Rate Limiting Constants
@@ -39,7 +42,9 @@ impl RateLimitConfig {
 }
 
 /// Create rate limiting layer from configuration
-pub fn rate_limit_layer(config: RateLimitConfig) -> impl Clone {
+pub fn rate_limit_layer(
+    config: RateLimitConfig,
+) -> GovernorLayer<PeerIpKeyExtractor, NoOpMiddleware> {
     // For 100 requests per minute:
     // - Replenishment period = 60,000ms / 100 = 600ms per request
     // - Burst size = 100 (allow up to 100 requests before rate limiting kicks in)

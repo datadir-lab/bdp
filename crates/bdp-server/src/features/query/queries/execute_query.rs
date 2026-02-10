@@ -24,6 +24,8 @@ pub struct ExecuteQueryResponse {
     pub rows: Vec<Vec<serde_json::Value>>,
 }
 
+impl mediator::Request<Result<ExecuteQueryResponse, ExecuteQueryError>> for ExecuteQueryRequest {}
+
 /// Errors that can occur during query execution
 #[derive(Debug, Error)]
 pub enum ExecuteQueryError {
@@ -100,10 +102,21 @@ fn validate_sql(sql: &str) -> Result<(), ExecuteQueryError> {
     Ok(())
 }
 
+/// Maximum number of rows returned from a query to prevent memory exhaustion.
+const MAX_RESULT_ROWS: usize = 10_000;
+
 /// Execute SQL query and convert results to JSON
 async fn execute_sql(pool: &PgPool, sql: &str) -> Result<ExecuteQueryResponse, ExecuteQueryError> {
     // Execute query
     let rows = sqlx::query(sql).fetch_all(pool).await?;
+
+    if rows.len() > MAX_RESULT_ROWS {
+        return Err(ExecuteQueryError::Forbidden(format!(
+            "Query returned {} rows, exceeding the {} row limit. Add a LIMIT clause to your query.",
+            rows.len(),
+            MAX_RESULT_ROWS
+        )));
+    }
 
     if rows.is_empty() {
         return Ok(ExecuteQueryResponse {
@@ -200,7 +213,7 @@ fn postgres_value_to_json(
             // Fallback: try to get as string
             let v: String = row
                 .try_get(idx)
-                .unwrap_or_else(|_| format!("<{}>", type_name));
+                .unwrap_or_else(|_| format!("<{type_name}>"));
             serde_json::Value::String(v)
         },
     };
@@ -227,7 +240,10 @@ mod tests {
     fn test_validate_sql_blocks_drop() {
         let result = validate_sql("DROP TABLE data_sources");
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("DROP"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Only SELECT and EXPLAIN"));
     }
 
     #[test]
@@ -264,5 +280,11 @@ mod tests {
     fn test_validate_sql_blocks_create() {
         let result = validate_sql("CREATE TABLE test (id UUID)");
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_max_result_rows_constant() {
+        // Ensure the constant is set to a reasonable limit
+        assert_eq!(MAX_RESULT_ROWS, 10_000);
     }
 }

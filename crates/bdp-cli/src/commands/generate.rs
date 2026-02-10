@@ -5,9 +5,37 @@
 
 use std::path::{Path, PathBuf};
 
-use colored::Colorize;
+use crate::{
+    commands::output::Render, error::Result, lockfile::Lockfile, manifest::parse_source_spec,
+    project,
+};
 
-use crate::{error::Result, lockfile::Lockfile, manifest::parse_source_spec, project};
+/// Output from `bdp generate` subcommands.
+pub enum GenerateOutput {
+    Generated {
+        file_path: String,
+        source_count: usize,
+    },
+    NoSources,
+}
+
+impl Render for GenerateOutput {
+    fn render(&self) {
+        use colored::Colorize;
+
+        match self {
+            GenerateOutput::Generated {
+                file_path,
+                source_count,
+            } => {
+                println!("{} Generated: {} ({} source(s))", "✓".green(), file_path, source_count);
+            },
+            GenerateOutput::NoSources => {
+                println!("No sources found in lockfile. Run 'bdp pull' first.");
+            },
+        }
+    }
+}
 
 /// Resolved source info for code generation
 struct SourceInfo {
@@ -20,13 +48,12 @@ struct SourceInfo {
 }
 
 /// Generate Python data paths module (bdp_data.py)
-pub async fn python() -> Result<()> {
+pub async fn python() -> Result<GenerateOutput> {
     let project_root = project::find_project_root()?;
     let sources = collect_sources(&project_root)?;
 
     if sources.is_empty() {
-        println!("No sources found in lockfile. Run 'bdp pull' first.");
-        return Ok(());
+        return Ok(GenerateOutput::NoSources);
     }
 
     let mut output = String::new();
@@ -45,22 +72,23 @@ pub async fn python() -> Result<()> {
         output.push_str(&format!("{} = _BASE / {}\n", src.var_name, segments));
     }
 
+    let source_count = sources.len();
     let output_path = project_root.join("bdp_data.py");
     std::fs::write(&output_path, &output)?;
 
-    println!("{} Generated: bdp_data.py ({} source(s))", "✓".green(), sources.len());
-
-    Ok(())
+    Ok(GenerateOutput::Generated {
+        file_path: "bdp_data.py".to_string(),
+        source_count,
+    })
 }
 
 /// Generate Snakemake config file (config/bdp_data.yaml)
-pub async fn snakemake() -> Result<()> {
+pub async fn snakemake() -> Result<GenerateOutput> {
     let project_root = project::find_project_root()?;
     let sources = collect_sources(&project_root)?;
 
     if sources.is_empty() {
-        println!("No sources found in lockfile. Run 'bdp pull' first.");
-        return Ok(());
+        return Ok(GenerateOutput::NoSources);
     }
 
     let mut output = String::new();
@@ -76,24 +104,25 @@ pub async fn snakemake() -> Result<()> {
         output.push_str(&format!("  {}: \"{}\"\n", key, path));
     }
 
+    let source_count = sources.len();
     let config_dir = project_root.join("config");
     std::fs::create_dir_all(&config_dir)?;
     let output_path = config_dir.join("bdp_data.yaml");
     std::fs::write(&output_path, &output)?;
 
-    println!("{} Generated: config/bdp_data.yaml ({} source(s))", "✓".green(), sources.len());
-
-    Ok(())
+    Ok(GenerateOutput::Generated {
+        file_path: "config/bdp_data.yaml".to_string(),
+        source_count,
+    })
 }
 
 /// Generate Nextflow config file (conf/bdp_data.config)
-pub async fn nextflow() -> Result<()> {
+pub async fn nextflow() -> Result<GenerateOutput> {
     let project_root = project::find_project_root()?;
     let sources = collect_sources(&project_root)?;
 
     if sources.is_empty() {
-        println!("No sources found in lockfile. Run 'bdp pull' first.");
-        return Ok(());
+        return Ok(GenerateOutput::NoSources);
     }
 
     let mut output = String::new();
@@ -113,14 +142,16 @@ pub async fn nextflow() -> Result<()> {
     output.push_str("    }\n");
     output.push_str("}\n");
 
+    let source_count = sources.len();
     let conf_dir = project_root.join("conf");
     std::fs::create_dir_all(&conf_dir)?;
     let output_path = conf_dir.join("bdp_data.config");
     std::fs::write(&output_path, &output)?;
 
-    println!("{} Generated: conf/bdp_data.config ({} source(s))", "✓".green(), sources.len());
-
-    Ok(())
+    Ok(GenerateOutput::Generated {
+        file_path: "conf/bdp_data.config".to_string(),
+        source_count,
+    })
 }
 
 /// Collect source information from lockfile and project config

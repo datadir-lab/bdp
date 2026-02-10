@@ -476,8 +476,8 @@ mod tests {
     // Note: These tests require a database connection and are integration tests
     // Run with: cargo test --test go_integration_test
 
-    #[test]
-    fn test_storage_creation() {
+    #[tokio::test]
+    async fn test_storage_creation() {
         let db = PgPool::connect_lazy("postgresql://localhost/test").unwrap();
         let org_id = Uuid::new_v4();
         let storage = GoStorage::new(db, org_id);
@@ -487,8 +487,8 @@ mod tests {
         assert_eq!(storage.annotation_chunk_size, DEFAULT_ANNOTATION_CHUNK_SIZE);
     }
 
-    #[test]
-    fn test_storage_with_custom_chunk_sizes() {
+    #[tokio::test]
+    async fn test_storage_with_custom_chunk_sizes() {
         let db = PgPool::connect_lazy("postgresql://localhost/test").unwrap();
         let org_id = Uuid::new_v4();
         let storage = GoStorage::with_chunk_sizes(db, org_id, 100, 200, 300);

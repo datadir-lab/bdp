@@ -62,7 +62,7 @@ impl UniProtFtp {
         for line in content.lines() {
             // Parse release version and date
             // Example: "Swiss-Prot Release 2024_01 of 15-Jan-2024"
-            if line.contains("Swiss-Prot Release") && line.contains(" of ") {
+            if line.contains("Swiss-Prot Release") && line.contains(" of ") && !line.contains("consists") {
                 let parts: Vec<&str> = line.split_whitespace().collect();
                 for i in 0..parts.len() {
                     if parts[i] == "Release" && i + 1 < parts.len() {
@@ -249,7 +249,7 @@ impl UniProtFtp {
             }
         }
 
-        unreachable!("Retry loop should always return")
+        Err(anyhow::anyhow!("FTP download retry loop exhausted without returning"))
     }
 
     /// Check if an error is transient (worth retrying) or permanent
@@ -430,7 +430,7 @@ impl UniProtFtp {
             }
         }
 
-        unreachable!("Retry loop should always return")
+        Err(anyhow::anyhow!("FTP list retry loop exhausted without returning"))
     }
 
     /// Synchronous FTP directory listing implementation

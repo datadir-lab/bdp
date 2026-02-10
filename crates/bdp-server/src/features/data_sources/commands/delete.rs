@@ -33,6 +33,18 @@ pub async fn handle(
     pool: PgPool,
     command: DeleteDataSourceCommand,
 ) -> Result<DeleteDataSourceResponse, DeleteDataSourceError> {
+    // Check for associated versions before deleting (CASCADE would silently remove them)
+    let version_count: (i64,) =
+        sqlx::query_as("SELECT COUNT(*) FROM versions WHERE entry_id = $1")
+            .bind(command.id)
+            .fetch_one(&pool)
+            .await
+            .map_err(DeleteDataSourceError::Database)?;
+
+    if version_count.0 > 0 {
+        return Err(DeleteDataSourceError::HasVersions(command.id));
+    }
+
     let result: Option<_> = sqlx::query!(
         r#"
         DELETE FROM registry_entries
@@ -42,15 +54,7 @@ pub async fn handle(
         command.id
     )
     .fetch_optional(&pool)
-    .await
-    .map_err(|e| {
-        if let sqlx::Error::Database(ref db_err) = e {
-            if db_err.is_foreign_key_violation() {
-                return DeleteDataSourceError::HasVersions(command.id);
-            }
-        }
-        DeleteDataSourceError::Database(e)
-    })?;
+    .await?;
 
     match result {
         Some(_) => Ok(DeleteDataSourceResponse {

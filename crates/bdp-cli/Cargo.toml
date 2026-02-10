@@ -39,10 +39,9 @@ reqwest = { workspace = true }
 urlencoding = "2.1"  # URL encoding for query parameters
 
 # ============================================================================
-# Database
+# Database (audit trail only)
 # ============================================================================
-sqlx = { workspace = true, features = ["runtime-tokio", "sqlite", "macros"] }
-rusqlite = "0.32"  # For audit trail (lightweight SQLite)
+rusqlite = { version = "0.32", features = ["bundled"] }  # For audit trail (lightweight SQLite)
 async-trait = "0.1"  # For audit logger trait
 
 # ============================================================================
@@ -85,7 +84,6 @@ hostname = "0.4"
 inquire = "0.7"  # Interactive prompts and selection
 comfy-table = "=7.1.4"  # Table formatting (pinned to avoid unstable features in 7.2.x)
 strsim = "0.11"  # Fuzzy string matching
-open = "5.3"  # Open URLs in browser
 arboard = "3.4"  # Clipboard access
 
 [dev-dependencies]
@@ -109,3 +107,5 @@ tokio = { workspace = true, features = ["test-util"] }
 
 [features]
 default = []
+# Enable E2E tests that require bdp-server as a dependency
+e2e = []

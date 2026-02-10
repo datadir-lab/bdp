@@ -19,7 +19,7 @@ impl GoDownloader {
     pub fn new(config: GoHttpConfig) -> Result<Self> {
         config
             .validate()
-            .map_err(|e| crate::ingest::gene_ontology::GoError::Validation(e))?;
+            .map_err(crate::ingest::gene_ontology::GoError::Validation)?;
 
         let client = Client::builder()
             .timeout(Duration::from_secs(config.timeout_secs))
@@ -230,7 +230,7 @@ impl GoDownloader {
         })
         .await
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?
-        .map_err(|e| crate::ingest::gene_ontology::GoError::Io(e))
+        .map_err(crate::ingest::gene_ontology::GoError::Io)
     }
 
     /// Decompress gzip data

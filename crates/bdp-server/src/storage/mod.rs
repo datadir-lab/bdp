@@ -436,15 +436,31 @@ impl Storage {
     /// Builds an S3 key for a data source file
     ///
     /// Returns: `data-sources/{org}/{name}/{version}/{filename}`
+    ///
+    /// All path segments are sanitized to prevent path traversal attacks.
     pub fn build_key(&self, org: &str, name: &str, version: &str, filename: &str) -> String {
-        format!("data-sources/{}/{}/{}/{}", org, name, version, filename)
+        format!(
+            "data-sources/{}/{}/{}/{}",
+            sanitize_key_segment(org),
+            sanitize_key_segment(name),
+            sanitize_key_segment(version),
+            sanitize_key_segment(filename),
+        )
     }
 
     /// Builds an S3 key for a tool file
     ///
     /// Returns: `tools/{org}/{name}/{version}/{filename}`
+    ///
+    /// All path segments are sanitized to prevent path traversal attacks.
     pub fn build_tool_key(&self, org: &str, name: &str, version: &str, filename: &str) -> String {
-        format!("tools/{}/{}/{}/{}", org, name, version, filename)
+        format!(
+            "tools/{}/{}/{}/{}",
+            sanitize_key_segment(org),
+            sanitize_key_segment(name),
+            sanitize_key_segment(version),
+            sanitize_key_segment(filename),
+        )
     }
 }
 
@@ -470,6 +486,19 @@ pub struct ObjectMetadata {
     pub content_type: Option<String>,
     /// Last modification timestamp
     pub last_modified: Option<chrono::DateTime<chrono::Utc>>,
+}
+
+/// Sanitize a single segment of an S3 key to prevent path traversal.
+///
+/// Strips `..`, `.`, leading `/`, null bytes, and backslashes.
+fn sanitize_key_segment(segment: &str) -> String {
+    segment
+        .replace('\0', "")
+        .replace('\\', "/")
+        .split('/')
+        .filter(|part| !part.is_empty() && *part != "." && *part != "..")
+        .collect::<Vec<_>>()
+        .join("/")
 }
 
 /// Calculates SHA-256 checksum for data verification
@@ -511,5 +540,43 @@ mod tests {
         let data = b"Hello, World!";
         let checksum = calculate_sha256(data);
         assert_eq!(checksum, "dffd6021bb2bd5b0af676290809ec3a53191dd81c7f70a4b28688a362182986f");
+    }
+
+    #[test]
+    fn test_sanitize_key_segment_strips_traversal() {
+        assert_eq!(sanitize_key_segment("../../../etc/passwd"), "etc/passwd");
+        assert_eq!(sanitize_key_segment(".."), "");
+        assert_eq!(sanitize_key_segment("."), "");
+        assert_eq!(sanitize_key_segment("./foo"), "foo");
+        assert_eq!(sanitize_key_segment("foo/../bar"), "foo/bar");
+    }
+
+    #[test]
+    fn test_sanitize_key_segment_strips_null_bytes() {
+        assert_eq!(sanitize_key_segment("foo\0bar"), "foobar");
+    }
+
+    #[test]
+    fn test_sanitize_key_segment_normalizes_backslash() {
+        assert_eq!(sanitize_key_segment("foo\\bar"), "foo/bar");
+        assert_eq!(sanitize_key_segment("..\\..\\secret"), "secret");
+    }
+
+    #[test]
+    fn test_sanitize_key_segment_preserves_normal_input() {
+        assert_eq!(sanitize_key_segment("uniprot"), "uniprot");
+        assert_eq!(sanitize_key_segment("1.0.0"), "1.0.0");
+        assert_eq!(sanitize_key_segment("data.fasta.gz"), "data.fasta.gz");
+    }
+
+    #[test]
+    fn test_build_key_sanitizes_traversal() {
+        let storage = Storage {
+            client: Client::from_conf(aws_sdk_s3::Config::builder().build()),
+            bucket: "test-bucket".to_string(),
+        };
+
+        let key = storage.build_key("../admin", "../../etc", "../passwd", "../../root");
+        assert_eq!(key, "data-sources/admin/etc/passwd/root");
     }
 }

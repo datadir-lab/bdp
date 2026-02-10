@@ -2,22 +2,72 @@
 //!
 //! Manages the project-local cache directory configuration.
 
-use std::path::Path;
-
-use colored::Colorize;
+use std::path::{Path, PathBuf};
 
 use crate::{
+    commands::output::Render,
     error::Result,
     project::{self, ProjectConfig},
 };
 
+/// Output from `bdp cache` subcommands.
+pub enum CacheOutput {
+    Set {
+        requested_path: String,
+        resolved_path: PathBuf,
+    },
+    Show {
+        configured_path: String,
+        resolved_path: PathBuf,
+        project_root: PathBuf,
+        size: Option<u64>,
+    },
+    Reset {
+        default_path: String,
+    },
+}
+
+impl Render for CacheOutput {
+    fn render(&self) {
+        use colored::Colorize;
+
+        match self {
+            CacheOutput::Set {
+                requested_path,
+                resolved_path,
+            } => {
+                println!("{} Cache directory set to: {}", "✓".green(), requested_path);
+                println!("  Resolved path: {}", resolved_path.display());
+            },
+            CacheOutput::Show {
+                configured_path,
+                resolved_path,
+                project_root,
+                size,
+            } => {
+                println!("{}", "Cache Configuration:".cyan().bold());
+                println!("  Configured path: {}", configured_path);
+                println!("  Resolved path:   {}", resolved_path.display());
+                println!("  Project root:    {}", project_root.display());
+
+                if let Some(size) = size {
+                    println!("  Cache size:      {}", crate::progress::format_bytes(*size));
+                }
+            },
+            CacheOutput::Reset { default_path } => {
+                println!("{} Cache directory reset to default: {}", "✓".green(), default_path);
+            },
+        }
+    }
+}
+
 /// Set the cache directory path
-pub async fn set(path: String) -> Result<()> {
+pub async fn set(path: String) -> Result<CacheOutput> {
     let project_root = project::find_project_root()?;
 
     // Validate the path makes sense
     let resolved = if Path::new(&path).is_absolute() {
-        std::path::PathBuf::from(&path)
+        PathBuf::from(&path)
     } else {
         project_root.join(&path)
     };
@@ -30,34 +80,35 @@ pub async fn set(path: String) -> Result<()> {
     config.cache.path = path.clone();
     config.save(&project_root)?;
 
-    println!("{} Cache directory set to: {}", "✓".green(), path);
-    println!("  Resolved path: {}", resolved.display());
-
-    Ok(())
+    Ok(CacheOutput::Set {
+        requested_path: path,
+        resolved_path: resolved,
+    })
 }
 
 /// Show the current cache directory
-pub async fn show() -> Result<()> {
+pub async fn show() -> Result<CacheOutput> {
     let project_root = project::find_project_root()?;
     let config = ProjectConfig::load(&project_root)?;
     let resolved = project::resolve_cache_path(&project_root)?;
 
-    println!("{}", "Cache Configuration:".cyan().bold());
-    println!("  Configured path: {}", config.cache.path);
-    println!("  Resolved path:   {}", resolved.display());
-    println!("  Project root:    {}", project_root.display());
-
     // Show size if directory exists
-    if resolved.exists() {
-        let size = dir_size(&resolved);
-        println!("  Cache size:      {}", crate::progress::format_bytes(size));
-    }
+    let size = if resolved.exists() {
+        Some(dir_size(&resolved))
+    } else {
+        None
+    };
 
-    Ok(())
+    Ok(CacheOutput::Show {
+        configured_path: config.cache.path,
+        resolved_path: resolved,
+        project_root,
+        size,
+    })
 }
 
 /// Reset the cache directory to default (.bdp/data)
-pub async fn reset() -> Result<()> {
+pub async fn reset() -> Result<CacheOutput> {
     let project_root = project::find_project_root()?;
 
     let config = ProjectConfig::default();
@@ -66,9 +117,9 @@ pub async fn reset() -> Result<()> {
     let resolved = project_root.join(&config.cache.path);
     std::fs::create_dir_all(&resolved)?;
 
-    println!("{} Cache directory reset to default: {}", "✓".green(), config.cache.path);
-
-    Ok(())
+    Ok(CacheOutput::Reset {
+        default_path: config.cache.path,
+    })
 }
 
 /// Calculate the total size of a directory (non-recursive for speed)

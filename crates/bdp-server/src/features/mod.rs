@@ -39,19 +39,33 @@ pub mod search;
 pub mod shared;
 pub mod version_files;
 
-use crate::storage::Storage;
 use axum::Router;
+use mediator::{AsyncMediator, DefaultAsyncMediator, Request};
 
-/// Shared state for all feature routes
+/// Shared state for all feature routes.
 ///
-/// Contains the database connection pool and storage backend that are
-/// passed to route handlers.
+/// Contains the CQRS mediator that dispatches commands and queries
+/// to their registered handlers. Routes cannot access the database
+/// or storage directly — all operations go through the mediator.
 #[derive(Clone)]
 pub struct FeatureState {
-    /// PostgreSQL connection pool for database operations
-    pub db: sqlx::PgPool,
-    /// S3-compatible storage backend for file operations
-    pub storage: Storage,
+    pub mediator: DefaultAsyncMediator,
+}
+
+impl FeatureState {
+    /// Dispatch a CQRS command/query through the mediator.
+    ///
+    /// Panics if no handler is registered (programming bug, not runtime error).
+    pub async fn dispatch<Req, Res>(&self, req: Req) -> Res
+    where
+        Req: Request<Res> + Send + 'static,
+        Res: Send + 'static,
+    {
+        let mut mediator = self.mediator.clone();
+        mediator.send(req).await.unwrap_or_else(|e| {
+            panic!("BUG: No CQRS handler registered for {}: {}", std::any::type_name::<Req>(), e)
+        })
+    }
 }
 
 /// Creates the main API router with all feature routes mounted
@@ -65,28 +79,17 @@ pub struct FeatureState {
 /// - `/sync-status` - Organization sync status
 /// - `/files` - File upload/download
 /// - `/query` - SQL query execution
-///
-/// # Arguments
-///
-/// * `state` - Shared state containing database pool and storage backend
-///
-/// # Returns
-///
-/// An Axum router with all feature routes configured
 pub fn router(state: FeatureState) -> Router<()> {
     Router::new()
         .nest(
             "/organizations",
-            organizations::organizations_routes().with_state(state.db.clone()),
+            organizations::organizations_routes().with_state(state.clone()),
         )
-        .nest(
-            "/data-sources",
-            data_sources::data_sources_routes().with_state(state.db.clone()),
-        )
-        .nest("/search", search::search_routes().with_state(state.db.clone()))
+        .nest("/data-sources", data_sources::data_sources_routes().with_state(state.clone()))
+        .nest("/search", search::search_routes().with_state(state.clone()))
         .nest("/resolve", resolve::resolve_routes().with_state(state.clone()))
-        .nest("/jobs", jobs::jobs_routes().with_state(state.db.clone()))
-        .nest("/sync-status", jobs::sync_status_routes().with_state(state.db.clone()))
-        .nest("/files", files::files_routes().with_state(state.storage.clone()))
-        .nest("/query", query::query_routes().with_state(state.db.clone()))
+        .nest("/jobs", jobs::jobs_routes().with_state(state.clone()))
+        .nest("/sync-status", jobs::sync_status_routes().with_state(state.clone()))
+        .nest("/files", files::files_routes().with_state(state.clone()))
+        .nest("/query", query::query_routes().with_state(state.clone()))
 }
