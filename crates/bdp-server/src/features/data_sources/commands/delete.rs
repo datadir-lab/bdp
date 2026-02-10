@@ -34,12 +34,11 @@ pub async fn handle(
     command: DeleteDataSourceCommand,
 ) -> Result<DeleteDataSourceResponse, DeleteDataSourceError> {
     // Check for associated versions before deleting (CASCADE would silently remove them)
-    let version_count: (i64,) =
-        sqlx::query_as("SELECT COUNT(*) FROM versions WHERE entry_id = $1")
-            .bind(command.id)
-            .fetch_one(&pool)
-            .await
-            .map_err(DeleteDataSourceError::Database)?;
+    let version_count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM versions WHERE entry_id = $1")
+        .bind(command.id)
+        .fetch_one(&pool)
+        .await
+        .map_err(DeleteDataSourceError::Database)?;
 
     if version_count.0 > 0 {
         return Err(DeleteDataSourceError::HasVersions(command.id));

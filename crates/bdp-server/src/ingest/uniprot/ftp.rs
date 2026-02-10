@@ -62,7 +62,10 @@ impl UniProtFtp {
         for line in content.lines() {
             // Parse release version and date
             // Example: "Swiss-Prot Release 2024_01 of 15-Jan-2024"
-            if line.contains("Swiss-Prot Release") && line.contains(" of ") && !line.contains("consists") {
+            if line.contains("Swiss-Prot Release")
+                && line.contains(" of ")
+                && !line.contains("consists")
+            {
                 let parts: Vec<&str> = line.split_whitespace().collect();
                 for i in 0..parts.len() {
                     if parts[i] == "Release" && i + 1 < parts.len() {
