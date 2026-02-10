@@ -1006,7 +1006,7 @@ checksum = "2af50177e190e07a26ab74f8b1efbfe2ef87da2116221318cb1c2e82baf7de06"
 
 [[package]]
 name = "bdp-cli"
-version = "0.1.42"
+version = "0.1.43"
 dependencies = [
  "anyhow",
  "arboard",
@@ -1054,7 +1054,7 @@ dependencies = [
 
 [[package]]
 name = "bdp-common"
-version = "0.1.42"
+version = "0.1.43"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -1080,7 +1080,7 @@ dependencies = [
 
 [[package]]
 name = "bdp-ingest"
-version = "0.1.42"
+version = "0.1.43"
 dependencies = [
  "anyhow",
  "bdp-common",
@@ -1113,7 +1113,7 @@ dependencies = [
 
 [[package]]
 name = "bdp-server"
-version = "0.1.42"
+version = "0.1.43"
 dependencies = [
  "anyhow",
  "apalis",
@@ -7598,7 +7598,7 @@ checksum = "66fee0b777b0f5ac1c69bb06d361268faafa61cd4682ae064a171c16c433e9e4"
 
 [[package]]
 name = "xtask"
-version = "0.1.42"
+version = "0.1.43"
 dependencies = [
  "anyhow",
  "bdp-cli",
