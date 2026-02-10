@@ -13,6 +13,7 @@ use sqlx::{sqlite::SqlitePool, Row};
 
 use crate::{
     error::{CliError, Result},
+    manifest::parse_source_spec,
     project,
 };
 
@@ -45,7 +46,7 @@ impl CacheManager {
     pub async fn new_with_dir(cache_dir: PathBuf) -> Result<Self> {
         fs::create_dir_all(&cache_dir)?;
 
-        let db_path = cache_dir.join("bdp.db");
+        let db_path = cache_dir.join("cache.db");
         let db_url = format!("sqlite:{}?mode=rwc", db_path.display());
 
         let pool = SqlitePool::connect(&db_url).await?;
@@ -257,37 +258,25 @@ impl CacheManager {
     }
 
     /// Get the cache path for a source specification
+    ///
+    /// Produces: `cache_dir/sources/{org}/{identifier}/{version}/{identifier}_{version}.{format}`
+    /// Example: `uniprot:P01308-fasta@1.0` → `.bdp/data/sources/uniprot/P01308/1.0/P01308_1.0.fasta`
     fn get_cache_path(&self, spec: &str, format: &str) -> PathBuf {
-        // spec: "uniprot:P01308-fasta@1.0"
-        // Extract components
-        let parts: Vec<&str> = spec.split(':').collect();
-        if parts.len() != 2 {
-            // Fallback for invalid specs
-            return self.cache_dir.join("sources").join(spec.replace(':', "_"));
+        // Use parse_source_spec to correctly separate identifier from format
+        if let Ok((org, identifier, version, _spec_format)) = parse_source_spec(spec) {
+            let filename = format!("{}_{}.{}", identifier, version, format);
+            self.cache_dir
+                .join("sources")
+                .join(org)
+                .join(&identifier)
+                .join(&version)
+                .join(filename)
+        } else {
+            // Fallback for unparseable specs
+            self.cache_dir
+                .join("sources")
+                .join(spec.replace(':', "_").replace('@', "_"))
         }
-
-        let org = parts[0];
-        let name_version = parts[1];
-
-        let version_parts: Vec<&str> = name_version.split('@').collect();
-        if version_parts.len() != 2 {
-            return self.cache_dir.join("sources").join(org).join(name_version);
-        }
-
-        let name = version_parts[0];
-        let version = version_parts[1];
-
-        // Remove format suffix if present in version
-        let version_clean = version.split('-').next().unwrap_or(version);
-
-        // Path: cache_dir/sources/org/name/version/name_version.format
-        let filename = format!("{}_{}.{}", name, version_clean, format);
-        self.cache_dir
-            .join("sources")
-            .join(org)
-            .join(name)
-            .join(version_clean)
-            .join(filename)
     }
 
     /// Update last accessed time
@@ -353,10 +342,51 @@ mod tests {
     #[tokio::test]
     async fn test_cache_path_generation() {
         let (cache, _temp) = create_test_cache().await.unwrap();
+
+        // uniprot:P01308-fasta@1.0 → sources/uniprot/P01308/1.0/P01308_1.0.fasta
         let path = cache.get_cache_path("uniprot:P01308-fasta@1.0", "fasta");
-        assert!(path.to_string_lossy().contains("uniprot"));
-        assert!(path.to_string_lossy().contains("P01308"));
-        assert!(path.to_string_lossy().contains("1.0"));
+        let path_str = path.to_string_lossy().replace('\\', "/");
+        assert!(
+            path_str.ends_with("sources/uniprot/P01308/1.0/P01308_1.0.fasta"),
+            "Expected .../sources/uniprot/P01308/1.0/P01308_1.0.fasta, got: {}",
+            path_str
+        );
+        // Must NOT contain the format suffix in the directory name
+        assert!(
+            !path_str.contains("P01308-fasta"),
+            "Directory should be P01308, not P01308-fasta: {}",
+            path_str
+        );
+    }
+
+    #[tokio::test]
+    async fn test_cache_path_without_format() {
+        let (cache, _temp) = create_test_cache().await.unwrap();
+
+        // ncbi:blast@2.14.0 (no format suffix) → sources/ncbi/blast/2.14.0/blast_2.14.0.tar
+        let path = cache.get_cache_path("ncbi:blast@2.14.0", "tar");
+        let path_str = path.to_string_lossy().replace('\\', "/");
+        assert!(
+            path_str.ends_with("sources/ncbi/blast/2.14.0/blast_2.14.0.tar"),
+            "Expected .../sources/ncbi/blast/2.14.0/blast_2.14.0.tar, got: {}",
+            path_str
+        );
+    }
+
+    #[tokio::test]
+    async fn test_cache_path_matches_generate() {
+        let (cache, _temp) = create_test_cache().await.unwrap();
+
+        // Verify cache path matches what generate.rs produces
+        // generate.rs: spec_to_file_path("uniprot:G4V4F9-fasta@1.0")
+        //   → ".bdp/data/sources/uniprot/G4V4F9/1.0/G4V4F9_1.0.fasta"
+        let path = cache.get_cache_path("uniprot:G4V4F9-fasta@1.0", "fasta");
+        let path_str = path.to_string_lossy().replace('\\', "/");
+        assert!(
+            path_str.ends_with("sources/uniprot/G4V4F9/1.0/G4V4F9_1.0.fasta"),
+            "Cache path must match generate output: {}",
+            path_str
+        );
     }
 
     #[tokio::test]
