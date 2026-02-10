@@ -275,7 +275,7 @@ impl CacheManager {
             // Fallback for unparseable specs
             self.cache_dir
                 .join("sources")
-                .join(spec.replace(':', "_").replace('@', "_"))
+                .join(spec.replace([':', '@'], "_"))
         }
     }
 
