@@ -5,7 +5,7 @@ description: Complete command reference for the BDP CLI
 
 # BDP CLI Reference
 
-This documentation is auto-generated from the CLI source code. Last updated: 2026-02-09.
+This documentation is auto-generated from the CLI source code. Last updated: 2026-02-10.
 
 ## Overview
 
@@ -73,6 +73,14 @@ This document contains the help content for the `bdp` command-line program.
 * [`bdp config show`↴](#bdp-config-show)
 * [`bdp uninstall`↴](#bdp-uninstall)
 * [`bdp search`↴](#bdp-search)
+* [`bdp cache`↴](#bdp-cache)
+* [`bdp cache set`↴](#bdp-cache-set)
+* [`bdp cache show`↴](#bdp-cache-show)
+* [`bdp cache reset`↴](#bdp-cache-reset)
+* [`bdp generate`↴](#bdp-generate)
+* [`bdp generate python`↴](#bdp-generate-python)
+* [`bdp generate snakemake`↴](#bdp-generate-snakemake)
+* [`bdp generate nextflow`↴](#bdp-generate-nextflow)
 * [`bdp query`↴](#bdp-query)
 
 ## `bdp`
@@ -92,6 +100,8 @@ BDP - Biological Dataset Package Manager
 * `config` — Manage configuration
 * `uninstall` — Uninstall BDP from your system
 * `search` — Search for data sources and tools in the registry
+* `cache` — Manage local data cache directory
+* `generate` — Generate workflow integration files (Python, Snakemake, Nextflow)
 * `query` — Advanced SQL-like querying of data sources and metadata
 
 ###### **Options:**
@@ -346,6 +356,86 @@ Search for data sources and tools in the registry
 * `-p`, `--page <PAGE>` — Page number (for non-interactive pagination)
 
   Default value: `1`
+
+
+
+## `bdp cache`
+
+Manage local data cache directory
+
+**Usage:** `bdp cache <COMMAND>`
+
+###### **Subcommands:**
+
+* `set` — Set cache directory path
+* `show` — Show current cache directory
+* `reset` — Reset cache path to default (.bdp/data)
+
+
+
+## `bdp cache set`
+
+Set cache directory path
+
+**Usage:** `bdp cache set <PATH>`
+
+###### **Arguments:**
+
+* `<PATH>` — Path to cache directory (relative to project root, or absolute)
+
+
+
+## `bdp cache show`
+
+Show current cache directory
+
+**Usage:** `bdp cache show`
+
+
+
+## `bdp cache reset`
+
+Reset cache path to default (.bdp/data)
+
+**Usage:** `bdp cache reset`
+
+
+
+## `bdp generate`
+
+Generate workflow integration files (Python, Snakemake, Nextflow)
+
+**Usage:** `bdp generate <COMMAND>`
+
+###### **Subcommands:**
+
+* `python` — Generate Python data paths module (bdp_data.py)
+* `snakemake` — Generate Snakemake config file (config/bdp_data.yaml)
+* `nextflow` — Generate Nextflow config file (conf/bdp_data.config)
+
+
+
+## `bdp generate python`
+
+Generate Python data paths module (bdp_data.py)
+
+**Usage:** `bdp generate python`
+
+
+
+## `bdp generate snakemake`
+
+Generate Snakemake config file (config/bdp_data.yaml)
+
+**Usage:** `bdp generate snakemake`
+
+
+
+## `bdp generate nextflow`
+
+Generate Nextflow config file (conf/bdp_data.config)
+
+**Usage:** `bdp generate nextflow`
 
 
 
