@@ -200,7 +200,7 @@ resource "hcloud_server" "main" {
 
   lifecycle {
     replace_triggered_by = [terraform_data.deploy_trigger]
-    ignore_changes        = [user_data, image]
+    ignore_changes       = [user_data, image]
   }
 }
 
