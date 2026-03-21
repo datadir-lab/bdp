@@ -4,21 +4,21 @@
 # Or use: cargo xtask infra bootstrap
 set -euo pipefail
 
-SECRETS="infrastructure/hetzner/environments/prod/.secrets"
+ENV_FILE="infrastructure/hetzner/environments/prod/.env"
 TF_DIR="infrastructure/hetzner/terraform"
 
 echo "=== BDP Infrastructure Bootstrap ==="
 echo ""
 
-if [ ! -f "$SECRETS" ]; then
-  echo "Creating secrets file from example..."
-  cp "${SECRETS}.example" "$SECRETS"
+if [ ! -f "$ENV_FILE" ]; then
+  echo "Creating .env from example..."
+  cp "${ENV_FILE}.example" "$ENV_FILE"
   echo ""
-  echo "Edit $SECRETS and fill in all required values, then run again."
+  echo "Edit $ENV_FILE and fill in all required values, then run again."
   exit 0
 fi
 
-source "$SECRETS"
+set -a; source "$ENV_FILE"; set +a
 
 # Generate SSH key
 SSH_KEY="${SSH_KEY_PATH:-$HOME/.ssh/bdp_prod_ed25519}"
@@ -27,8 +27,7 @@ if [ ! -f "$SSH_KEY" ]; then
   echo "Generating SSH key: $SSH_KEY"
   ssh-keygen -t ed25519 -C "bdp-prod" -f "$SSH_KEY" -N ""
   echo ""
-  echo "Add this to your .secrets as TF_VAR_ssh_public_key:"
-  echo "TF_VAR_ssh_public_key=$(cat ${SSH_KEY}.pub)"
+  echo "Add to .env as: SSH_PUBLIC_KEY=$(cat ${SSH_KEY}.pub)"
   echo ""
 fi
 

@@ -1,7 +1,7 @@
 //! Infrastructure operations — Hetzner VPS via Terraform + Dokploy
 //!
-//! All commands load environment from infrastructure/hetzner/environments/prod/.secrets
-//! The .secrets file uses plain `key=value` format (no TF_VAR_ prefix).
+//! All commands load environment from infrastructure/hetzner/environments/prod/.env
+//! The .env file uses plain `KEY=value` format (no TF_VAR_ prefix).
 //! xtask exports each key both as `key=val` and `TF_VAR_key=val` for Terraform.
 //! For GitHub CI, store each key as a secret named TF_VAR_<key>.
 use anyhow::{bail, Result};
@@ -10,7 +10,7 @@ use std::path::PathBuf;
 
 use crate::utils::*;
 
-const SECRETS_PATH: &str = "infrastructure/hetzner/environments/prod/.secrets";
+const SECRETS_PATH: &str = "infrastructure/hetzner/environments/prod/.env";
 const TF_DIR: &str = "infrastructure/hetzner/terraform";
 
 #[derive(Debug, Parser)]
@@ -51,7 +51,7 @@ pub enum InfraCommand {
     Update,
     /// Validate Terraform configuration
     Validate,
-    /// Generate random secrets for .secrets file
+    /// Generate random secrets for .env file
     GenSecrets,
 }
 
@@ -81,7 +81,7 @@ pub fn handle(cmd: InfraCommand) -> Result<()> {
 // Helpers
 // ---------------------------------------------------------------------------
 
-/// Returns the path to .secrets, erroring with a helpful message if missing.
+/// Returns the path to .env, erroring with a helpful message if missing.
 fn secrets_path() -> Result<PathBuf> {
     let path = PathBuf::from(SECRETS_PATH);
     if !path.exists() {
@@ -97,13 +97,13 @@ fn secrets_path() -> Result<PathBuf> {
     Ok(path)
 }
 
-/// Build the shell preamble that loads .secrets and exports both `KEY=val`
+/// Build the shell preamble that loads .env and exports both `KEY=val`
 /// (direct access) and `TF_VAR_key=val` (Terraform, lowercase) for each entry.
 fn load_env_preamble() -> String {
     format!(
         r#"
 set -euo pipefail
-# Load .secrets: KEY=val -> export KEY=val directly + TF_VAR_key=val for Terraform
+# Load .env: KEY=val -> export KEY=val directly + TF_VAR_key=val for Terraform
 _bdp_load_secrets() {{
   local _file="$1" _line _key _val _tfkey
   while IFS= read -r _line || [ -n "$_line" ]; do
@@ -189,7 +189,7 @@ if [ ! -f "$SSH_KEY" ]; then
   echo "Generating SSH key: $SSH_KEY"
   ssh-keygen -t ed25519 -C "bdp-prod" -f "$SSH_KEY" -N ""
   echo ""
-  echo "SSH public key — add to .secrets as: SSH_PUBLIC_KEY=<value below>"
+  echo "SSH public key — add to .env as: SSH_PUBLIC_KEY=<value below>"
   cat "${{SSH_KEY}}.pub"
   echo ""
 else
@@ -584,7 +584,7 @@ echo "Services updated."
 fn gen_secrets() -> Result<()> {
     let script = r#"
 echo "=== BDP Production Secrets ==="
-echo "Generated secrets ready to paste into .secrets"
+echo "Generated secrets ready to paste into .env"
 echo ""
 echo "# Run: cargo xtask infra bootstrap  (to generate SSH key separately)"
 echo ""

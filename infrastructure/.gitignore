@@ -24,7 +24,7 @@ override.tf.json
 terraform.rc
 
 # Hetzner environment secrets
-hetzner/environments/**/.secrets
+hetzner/environments/**/.env
 # Terraform generated files
 hetzner/terraform/.terraform/
 hetzner/terraform/*.tfstate

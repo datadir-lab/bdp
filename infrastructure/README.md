@@ -18,9 +18,9 @@ Hetzner VPS + Dokploy + Terraform. All operations via `cargo xtask infra`.
 
 ```bash
 # 1. Copy and fill secrets
-cp infrastructure/hetzner/environments/prod/.secrets.example \
-   infrastructure/hetzner/environments/prod/.secrets
-# Edit .secrets with real values
+cp infrastructure/hetzner/environments/prod/.env.example \
+   infrastructure/hetzner/environments/prod/.env
+# Edit .env with real values
 
 # 2. One-time bootstrap
 cargo xtask infra bootstrap
@@ -53,7 +53,7 @@ cargo xtask infra info         # Terraform outputs (IPs, URLs)
 
 Traefik's `acme.json` lives at `/mnt/data/dokploy/traefik/acme.json`.
 The data volume persists across server rebuilds (`auto_delete = false`).
-To trigger a server rebuild: bump `deploy_version` in `.secrets`.
+To trigger a server rebuild: bump `deploy_version` in `.env`.
 
 ## Backups
 
@@ -62,8 +62,8 @@ Restore interactively: `cargo xtask infra restore`
 
 ## Secrets
 
-All secrets in `infrastructure/hetzner/environments/prod/.secrets` (gitignored).
-Template: `.secrets.example`.
+All secrets in `infrastructure/hetzner/environments/prod/.env` (gitignored).
+Template: `.env.example`. Generate random values: `cargo xtask infra gen-secrets`.
 
 ## Windows
 
