@@ -1,0 +1,250 @@
+# =============================================================================
+# Infrastructure CI/CD - Terraform on Hetzner Cloud
+# =============================================================================
+#
+# Security Model:
+# - Secrets stored in GitHub Environment "production" (not repo secrets)
+# - Secrets named TF_VAR_<key> — passed directly as env vars to Terraform
+# - No .tfvars files — all variables via environment
+# - PRs can only run `plan` (no apply)
+# - Apply requires manual approval from maintainers
+# - Fork PRs cannot access secrets or run workflows
+#
+# Required GitHub Setup:
+# 1. Create Environment "production" in repo settings (Settings → Environments)
+# 2. Add required reviewers for the production environment
+# 3. Add secrets matching the keys in .secrets.example:
+#    TF_VAR_hcloud_token
+#    TF_VAR_ssh_public_key
+#    TF_VAR_ssh_allowed_ips
+#    TF_VAR_cloudflare_api_token
+#    TF_VAR_acme_email
+#    TF_VAR_dokploy_admin_password
+#    TF_VAR_minio_root_user
+#    TF_VAR_minio_root_password
+#    TF_VAR_restic_password
+
+name: Infrastructure
+
+run-name: "Infrastructure [${{ github.event.inputs.action || 'plan' }}] - production"
+
+on:
+  pull_request:
+    paths:
+      - 'infrastructure/hetzner/**'
+      - '.github/workflows/infrastructure.yml'
+
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Terraform action to perform'
+        required: true
+        type: choice
+        options:
+          - plan
+          - apply
+          - destroy
+        default: plan
+
+      confirm_destroy:
+        description: 'Type "destroy" to confirm destruction'
+        required: false
+        type: string
+
+concurrency:
+  group: terraform-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TF_VERSION: '1.7.0'
+  TF_DIR: 'infrastructure/hetzner/terraform'
+
+jobs:
+  security-check:
+    runs-on: ubuntu-latest
+    outputs:
+      is_fork: ${{ steps.check.outputs.is_fork }}
+    steps:
+      - name: Check if fork
+        id: check
+        run: |
+          if [ "${{ github.event.pull_request.head.repo.fork }}" == "true" ]; then
+            echo "is_fork=true" >> $GITHUB_OUTPUT
+            echo "::warning::Fork PR detected - infrastructure workflows disabled for security"
+          else
+            echo "is_fork=false" >> $GITHUB_OUTPUT
+          fi
+
+  # ---------------------------------------------------------------------------
+  # Plan — runs on PRs and manual trigger
+  # ---------------------------------------------------------------------------
+  plan:
+    name: Terraform Plan
+    runs-on: ubuntu-latest
+    needs: security-check
+    if: |
+      needs.security-check.outputs.is_fork == 'false' &&
+      (github.event_name == 'pull_request' ||
+       (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'plan'))
+    environment: production
+    env:
+      # Secrets are stored in GitHub as TF_VAR_<key> and passed directly
+      TF_VAR_hcloud_token: ${{ secrets.TF_VAR_hcloud_token }}
+      TF_VAR_ssh_public_key: ${{ secrets.TF_VAR_ssh_public_key }}
+      TF_VAR_ssh_allowed_ips: ${{ secrets.TF_VAR_ssh_allowed_ips }}
+      TF_VAR_cloudflare_api_token: ${{ secrets.TF_VAR_cloudflare_api_token }}
+      TF_VAR_acme_email: ${{ secrets.TF_VAR_acme_email }}
+      TF_VAR_dokploy_admin_password: ${{ secrets.TF_VAR_dokploy_admin_password }}
+      TF_VAR_minio_root_user: ${{ secrets.TF_VAR_minio_root_user }}
+      TF_VAR_minio_root_password: ${{ secrets.TF_VAR_minio_root_password }}
+      TF_VAR_restic_password: ${{ secrets.TF_VAR_restic_password }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Init
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform init
+
+      - name: Terraform Validate
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform validate
+
+      - name: Terraform Plan
+        id: plan
+        working-directory: ${{ env.TF_DIR }}
+        run: |
+          terraform plan -no-color -out=tfplan 2>&1 | tee plan.txt
+          echo "plan_output<<EOF" >> $GITHUB_OUTPUT
+          head -200 plan.txt >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+        continue-on-error: true
+
+      - name: Comment PR with Plan
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const output = `#### Terraform Plan 📖
+            <details><summary>Show Plan</summary>
+
+            \`\`\`terraform
+            ${{ steps.plan.outputs.plan_output }}
+            \`\`\`
+            </details>
+
+            *Triggered by: @${{ github.actor }}*`;
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            })
+
+      - name: Plan Status
+        if: steps.plan.outcome == 'failure'
+        run: exit 1
+
+      - name: Upload Plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan
+          path: ${{ env.TF_DIR }}/tfplan
+          retention-days: 5
+
+  # ---------------------------------------------------------------------------
+  # Apply — requires manual approval
+  # ---------------------------------------------------------------------------
+  apply:
+    name: Terraform Apply
+    runs-on: ubuntu-latest
+    needs: security-check
+    if: |
+      needs.security-check.outputs.is_fork == 'false' &&
+      github.event_name == 'workflow_dispatch' &&
+      github.event.inputs.action == 'apply'
+    environment:
+      name: production
+      url: https://bdp.dev
+    env:
+      TF_VAR_hcloud_token: ${{ secrets.TF_VAR_hcloud_token }}
+      TF_VAR_ssh_public_key: ${{ secrets.TF_VAR_ssh_public_key }}
+      TF_VAR_ssh_allowed_ips: ${{ secrets.TF_VAR_ssh_allowed_ips }}
+      TF_VAR_cloudflare_api_token: ${{ secrets.TF_VAR_cloudflare_api_token }}
+      TF_VAR_acme_email: ${{ secrets.TF_VAR_acme_email }}
+      TF_VAR_dokploy_admin_password: ${{ secrets.TF_VAR_dokploy_admin_password }}
+      TF_VAR_minio_root_user: ${{ secrets.TF_VAR_minio_root_user }}
+      TF_VAR_minio_root_password: ${{ secrets.TF_VAR_minio_root_password }}
+      TF_VAR_restic_password: ${{ secrets.TF_VAR_restic_password }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Init
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform init
+
+      - name: Terraform Apply
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform apply -auto-approve
+
+      - name: Show Outputs
+        working-directory: ${{ env.TF_DIR }}
+        run: |
+          echo "## Infrastructure Applied" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          terraform output >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+  # ---------------------------------------------------------------------------
+  # Destroy — requires manual approval + typed confirmation
+  # ---------------------------------------------------------------------------
+  destroy:
+    name: Terraform Destroy
+    runs-on: ubuntu-latest
+    needs: security-check
+    if: |
+      needs.security-check.outputs.is_fork == 'false' &&
+      github.event_name == 'workflow_dispatch' &&
+      github.event.inputs.action == 'destroy' &&
+      github.event.inputs.confirm_destroy == 'destroy'
+    environment: production
+    env:
+      TF_VAR_hcloud_token: ${{ secrets.TF_VAR_hcloud_token }}
+      TF_VAR_ssh_public_key: ${{ secrets.TF_VAR_ssh_public_key }}
+      TF_VAR_ssh_allowed_ips: ${{ secrets.TF_VAR_ssh_allowed_ips }}
+      TF_VAR_cloudflare_api_token: ${{ secrets.TF_VAR_cloudflare_api_token }}
+      TF_VAR_acme_email: ${{ secrets.TF_VAR_acme_email }}
+      TF_VAR_dokploy_admin_password: ${{ secrets.TF_VAR_dokploy_admin_password }}
+      TF_VAR_minio_root_user: ${{ secrets.TF_VAR_minio_root_user }}
+      TF_VAR_minio_root_password: ${{ secrets.TF_VAR_minio_root_password }}
+      TF_VAR_restic_password: ${{ secrets.TF_VAR_restic_password }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Init
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform init
+
+      - name: Terraform Destroy
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform destroy -auto-approve
+
+      - name: Summary
+        run: |
+          echo "## Infrastructure Destroyed" >> $GITHUB_STEP_SUMMARY
+          echo "All Hetzner resources have been destroyed (volume persists)." >> $GITHUB_STEP_SUMMARY

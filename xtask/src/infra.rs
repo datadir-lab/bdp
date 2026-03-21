@@ -1,7 +1,9 @@
 //! Infrastructure operations — Hetzner VPS via Terraform + Dokploy
 //!
 //! All commands load environment from infrastructure/hetzner/environments/prod/.secrets
-//! before running. Set SSH_KEY_PATH in .secrets to control which key is used for SSH ops.
+//! The .secrets file uses plain `key=value` format (no TF_VAR_ prefix).
+//! xtask exports each key both as `key=val` and `TF_VAR_key=val` for Terraform.
+//! For GitHub CI, store each key as a secret named TF_VAR_<key>.
 use anyhow::{bail, Result};
 use clap::Parser;
 use std::path::PathBuf;
@@ -92,18 +94,25 @@ fn secrets_path() -> Result<PathBuf> {
     Ok(path)
 }
 
-/// Build the shell preamble that sources .secrets and exports TF_VAR_* vars.
+/// Build the shell preamble that loads .secrets and exports both `key=val`
+/// and `TF_VAR_key=val` for each entry. Matches the temnir tf.ps1 pattern.
 fn load_env_preamble() -> String {
     format!(
         r#"
 set -euo pipefail
-# Load secrets
-if [ -f "{secrets}" ]; then
-  set -a
-  source "{secrets}"
-  set +a
-fi
-# Ensure Terraform uses our directory
+# Load .secrets: each key=val line is exported directly AND as TF_VAR_key=val
+_bdp_load_secrets() {{
+  local _file="$1" _line _key _val
+  while IFS= read -r _line || [ -n "$_line" ]; do
+    case "$_line" in ''|'#'*) continue ;; esac
+    _key="${{_line%%=*}}"
+    _val="${{_line#*=}}"
+    [ -z "$_key" ] && continue
+    export "$_key=$_val" 2>/dev/null || true
+    export "TF_VAR_$_key=$_val" 2>/dev/null || true
+  done < "$_file"
+}}
+[ -f "{secrets}" ] && _bdp_load_secrets "{secrets}"
 TF_DIR="{tf_dir}"
 "#,
         secrets = SECRETS_PATH,
@@ -143,10 +152,13 @@ terraform output -raw server_ipv4 2>/dev/null
 }
 
 fn ssh_key_path() -> String {
-    // Read SSH_KEY_PATH from .secrets, fallback to default
+    // Read ssh_key_path from .secrets (plain key=val format)
     if let Ok(content) = std::fs::read_to_string(SECRETS_PATH) {
         for line in content.lines() {
-            if let Some(val) = line.strip_prefix("SSH_KEY_PATH=") {
+            let val = line
+                .strip_prefix("ssh_key_path=")
+                .or_else(|| line.strip_prefix("SSH_KEY_PATH=")); // legacy
+            if let Some(val) = val {
                 return val
                     .trim()
                     .replace('~', &std::env::var("HOME").unwrap_or_default());
@@ -171,13 +183,13 @@ echo "=== BDP Infrastructure Bootstrap ==="
 echo ""
 
 # 1. Generate SSH key if it doesn't exist
-SSH_KEY="${{SSH_KEY_PATH:-$HOME/.ssh/bdp_prod_ed25519}}"
+SSH_KEY="${{ssh_key_path:-$HOME/.ssh/bdp_prod_ed25519}}"
 SSH_KEY=$(echo "$SSH_KEY" | sed "s|~|$HOME|")
 if [ ! -f "$SSH_KEY" ]; then
   echo "Generating SSH key: $SSH_KEY"
   ssh-keygen -t ed25519 -C "bdp-prod" -f "$SSH_KEY" -N ""
   echo ""
-  echo "SSH public key (add to .secrets as TF_VAR_ssh_public_key):"
+  echo "SSH public key (add to .secrets as: ssh_public_key=<value>):"
   cat "${{SSH_KEY}}.pub"
   echo ""
 else
