@@ -51,6 +51,8 @@ pub enum InfraCommand {
     Update,
     /// Validate Terraform configuration
     Validate,
+    /// Generate random secrets for .secrets file
+    GenSecrets,
 }
 
 pub fn handle(cmd: InfraCommand) -> Result<()> {
@@ -71,6 +73,7 @@ pub fn handle(cmd: InfraCommand) -> Result<()> {
         InfraCommand::Logs { service } => logs(&service),
         InfraCommand::Update => update_services(),
         InfraCommand::Validate => tf_validate(),
+        InfraCommand::GenSecrets => gen_secrets(),
     }
 }
 
@@ -94,22 +97,23 @@ fn secrets_path() -> Result<PathBuf> {
     Ok(path)
 }
 
-/// Build the shell preamble that loads .secrets and exports both `key=val`
-/// and `TF_VAR_key=val` for each entry. Matches the temnir tf.ps1 pattern.
+/// Build the shell preamble that loads .secrets and exports both `KEY=val`
+/// (direct access) and `TF_VAR_key=val` (Terraform, lowercase) for each entry.
 fn load_env_preamble() -> String {
     format!(
         r#"
 set -euo pipefail
-# Load .secrets: each key=val line is exported directly AND as TF_VAR_key=val
+# Load .secrets: KEY=val -> export KEY=val directly + TF_VAR_key=val for Terraform
 _bdp_load_secrets() {{
-  local _file="$1" _line _key _val
+  local _file="$1" _line _key _val _tfkey
   while IFS= read -r _line || [ -n "$_line" ]; do
     case "$_line" in ''|'#'*) continue ;; esac
     _key="${{_line%%=*}}"
     _val="${{_line#*=}}"
     [ -z "$_key" ] && continue
     export "$_key=$_val" 2>/dev/null || true
-    export "TF_VAR_$_key=$_val" 2>/dev/null || true
+    _tfkey=$(printf '%s' "$_key" | tr '[:upper:]' '[:lower:]')
+    export "TF_VAR_$_tfkey=$_val" 2>/dev/null || true
   done < "$_file"
 }}
 [ -f "{secrets}" ] && _bdp_load_secrets "{secrets}"
@@ -152,13 +156,9 @@ terraform output -raw server_ipv4 2>/dev/null
 }
 
 fn ssh_key_path() -> String {
-    // Read ssh_key_path from .secrets (plain key=val format)
     if let Ok(content) = std::fs::read_to_string(SECRETS_PATH) {
         for line in content.lines() {
-            let val = line
-                .strip_prefix("ssh_key_path=")
-                .or_else(|| line.strip_prefix("SSH_KEY_PATH=")); // legacy
-            if let Some(val) = val {
+            if let Some(val) = line.strip_prefix("SSH_KEY_PATH=") {
                 return val
                     .trim()
                     .replace('~', &std::env::var("HOME").unwrap_or_default());
@@ -183,17 +183,19 @@ echo "=== BDP Infrastructure Bootstrap ==="
 echo ""
 
 # 1. Generate SSH key if it doesn't exist
-SSH_KEY="${{ssh_key_path:-$HOME/.ssh/bdp_prod_ed25519}}"
+SSH_KEY="${{SSH_KEY_PATH:-$HOME/.ssh/bdp_prod_ed25519}}"
 SSH_KEY=$(echo "$SSH_KEY" | sed "s|~|$HOME|")
 if [ ! -f "$SSH_KEY" ]; then
   echo "Generating SSH key: $SSH_KEY"
   ssh-keygen -t ed25519 -C "bdp-prod" -f "$SSH_KEY" -N ""
   echo ""
-  echo "SSH public key (add to .secrets as: ssh_public_key=<value>):"
+  echo "SSH public key — add to .secrets as: SSH_PUBLIC_KEY=<value below>"
   cat "${{SSH_KEY}}.pub"
   echo ""
 else
   echo "SSH key already exists: $SSH_KEY"
+  echo ""
+  echo "SSH_PUBLIC_KEY=$(cat ${{SSH_KEY}}.pub)"
 fi
 
 # 2. Initialize Terraform
@@ -576,5 +578,32 @@ echo "Services updated."
             key = key
         ),
         "Update services",
+    );
+}
+
+fn gen_secrets() -> Result<()> {
+    let script = r#"
+echo "=== BDP Production Secrets ==="
+echo "Generated secrets ready to paste into .secrets"
+echo ""
+echo "# Run: cargo xtask infra bootstrap  (to generate SSH key separately)"
+echo ""
+printf 'DOKPLOY_ADMIN_PASSWORD=%s\n' "$(openssl rand -base64 24)"
+printf 'MINIO_ROOT_PASSWORD=%s\n'    "$(openssl rand -base64 24)"
+printf 'POSTGRES_PASSWORD=%s\n'      "$(openssl rand -base64 24)"
+printf 'RESTIC_PASSWORD=%s\n'        "$(openssl rand -hex 32)"
+echo ""
+echo "Also set manually:"
+echo "  HCLOUD_TOKEN=          (console.hetzner.cloud)"
+echo "  CLOUDFLARE_API_TOKEN=  (dash.cloudflare.com → API Tokens)"
+echo "  SSH_ALLOWED_IPS=       (curl ifconfig.me  →  [\"x.x.x.x/32\"])"
+echo "  SSH_PUBLIC_KEY=        (cargo xtask infra bootstrap)"
+"#;
+    #[cfg(not(target_os = "windows"))]
+    return run_bash(script, "Generate secrets");
+    #[cfg(target_os = "windows")]
+    return run_powershell(
+        &format!("wsl bash -c '{}'", script.replace('\'', "'\\''")),
+        "Generate secrets",
     );
 }
