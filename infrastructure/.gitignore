@@ -22,3 +22,11 @@ override.tf.json
 # CLI configuration
 .terraformrc
 terraform.rc
+
+# Hetzner environment secrets
+hetzner/environments/**/.secrets
+# Terraform generated files
+hetzner/terraform/.terraform/
+hetzner/terraform/*.tfstate
+hetzner/terraform/*.tfstate.backup
+hetzner/terraform/*.tfplan
