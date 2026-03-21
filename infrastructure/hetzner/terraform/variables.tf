@@ -40,9 +40,8 @@ variable "ssh_public_key" {
 }
 
 variable "ssh_allowed_ips" {
-  description = "IPs allowed to SSH and access Dokploy UI (port 3000)"
+  description = "IPs allowed to SSH and access Dokploy UI (port 3000). Example: [\"1.2.3.4/32\"]"
   type        = list(string)
-  default     = ["0.0.0.0/0", "::/0"]
 }
 
 variable "domain" {
