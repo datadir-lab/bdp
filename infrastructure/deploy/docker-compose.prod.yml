@@ -1,6 +1,6 @@
-# BDP Production - Docker Compose
-# Deployed via GitHub Actions
-# Secrets/config from GitHub environment, app config below
+# BDP Production — deployed as a Docker Compose project via Dokploy
+# Dokploy provides Traefik (with Let's Encrypt) — do NOT add a traefik service here.
+# All persistent data is on /mnt/data (Hetzner attached volume).
 
 services:
   postgres:
@@ -12,70 +12,77 @@ services:
       POSTGRES_USER: bdp
       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./backups:/backups
+      - /mnt/data/postgres:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U bdp -d bdp"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
+
+  minio:
+    image: minio/minio:latest
+    container_name: bdp-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: "${MINIO_ROOT_USER}"
+      MINIO_ROOT_PASSWORD: "${MINIO_ROOT_PASSWORD}"
+    volumes:
+      - /mnt/data/minio:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.minio-console.rule=Host(`minio.${DOMAIN}`)"
+      - "traefik.http.routers.minio-console.entrypoints=websecure"
+      - "traefik.http.routers.minio-console.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.minio-console.service=minio-console"
+      - "traefik.http.services.minio-console.loadbalancer.server.port=9001"
+      - "traefik.http.routers.minio-api.rule=Host(`s3.${DOMAIN}`)"
+      - "traefik.http.routers.minio-api.entrypoints=websecure"
+      - "traefik.http.routers.minio-api.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.minio-api.service=minio-api"
+      - "traefik.http.services.minio-api.loadbalancer.server.port=9000"
 
   bdp-server:
     image: ghcr.io/datadir-lab/bdp-server:latest
     container_name: bdp-server
     restart: unless-stopped
-    mem_limit: 7g
-    memswap_limit: 8g
     environment:
-      # Server
       SERVER_HOST: "0.0.0.0"
       SERVER_PORT: "8000"
       RUST_LOG: "${RUST_LOG:-info,bdp_server=info,sqlx=warn}"
-      # Database
       DATABASE_URL: "postgresql://bdp:${POSTGRES_PASSWORD}@postgres:5432/bdp"
-      # Storage
       STORAGE_TYPE: "s3"
-      STORAGE_S3_ENDPOINT: "${STORAGE_S3_ENDPOINT}"
-      STORAGE_S3_REGION: "${STORAGE_S3_REGION}"
-      STORAGE_S3_BUCKET: "${STORAGE_S3_BUCKET}"
-      STORAGE_S3_ACCESS_KEY: "${STORAGE_S3_ACCESS_KEY}"
-      STORAGE_S3_SECRET_KEY: "${STORAGE_S3_SECRET_KEY}"
-      # Ingestion - Global Settings
+      STORAGE_S3_ENDPOINT: "http://minio:9000"
+      STORAGE_S3_REGION: "us-east-1"
+      STORAGE_S3_BUCKET: "bdp-production"
+      STORAGE_S3_ACCESS_KEY: "${MINIO_ROOT_USER}"
+      STORAGE_S3_SECRET_KEY: "${MINIO_ROOT_PASSWORD}"
       INGEST_ENABLED: "${INGEST_ENABLED:-true}"
       INGEST_WORKER_THREADS: "2"
       INGEST_MAX_RETRIES: "3"
       INGEST_JOB_TIMEOUT_SECS: "7200"
-      # Ingestion - UniProt (Protein sequences)
-      # Source: ftp.uniprot.org
       INGEST_START_FROM_VERSION: "2025_01"
       INGEST_UNIPROT_FTP_HOST: "ftp.uniprot.org"
       INGEST_UNIPROT_FTP_TIMEOUT_SECS: "300"
       INGEST_UNIPROT_BATCH_SIZE: "5000"
       INGEST_UNIPROT_MODE: "latest"
       INGEST_UNIPROT_AUTO_INGEST: "true"
-      # Ingestion - NCBI Taxonomy
-      # Source: ftp.ncbi.nlm.nih.gov/pub/taxonomy
       INGEST_NCBI_ENABLED: "${INGEST_NCBI_ENABLED:-true}"
       INGEST_NCBI_START_DATE: "${INGEST_NCBI_START_DATE:-2025-01-01}"
-      # Ingestion - GenBank/RefSeq (Genomic sequences)
-      # Source: ftp.ncbi.nlm.nih.gov/genbank or /refseq
       INGEST_GENBANK_ENABLED: "${INGEST_GENBANK_ENABLED:-true}"
       INGEST_GENBANK_SOURCE_DATABASE: "genbank"
       INGEST_GENBANK_BATCH_SIZE: "500"
       INGEST_GENBANK_CONCURRENCY: "1"
-      # Ingestion - Gene Ontology (GO terms and annotations)
-      # Source: ftp.ebi.ac.uk/pub/databases/GO
       INGEST_GO_ENABLED: "${INGEST_GO_ENABLED:-true}"
-      INGEST_GO_START_DATE: "${INGEST_GO_START_DATE:-}"
-      GO_TIMEOUT_SECS: "600"
-      GO_MAX_RETRIES: "3"
-      # Ingestion - InterPro (Domain/signature annotations)
-      # Source: ftp.ebi.ac.uk/pub/databases/interpro
       INGEST_INTERPRO_ENABLED: "${INGEST_INTERPRO_ENABLED:-true}"
-      INGEST_INTERPRO_START_VERSION: "${INGEST_INTERPRO_START_VERSION:-}"
-      INGEST_INTERPRO_FTP_TIMEOUT_SECS: "300"
       INGEST_INTERPRO_BATCH_SIZE: "500"
-      # API Configuration
       API_RATE_LIMIT: "100"
       API_TIMEOUT_SECS: "30"
       CORS_ALLOWED_ORIGINS: "https://${DOMAIN}"
@@ -87,6 +94,8 @@ services:
       - "traefik.http.services.api.loadbalancer.server.port=8000"
     depends_on:
       postgres:
+        condition: service_healthy
+      minio:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
@@ -100,13 +109,10 @@ services:
     container_name: bdp-web
     restart: unless-stopped
     environment:
-      # Internal URL for server-side rendering (Docker network)
       INTERNAL_API_URL: "http://bdp-server:8000"
-      # Public URL (browser-side uses window.location.origin instead)
       NEXT_PUBLIC_API_URL: "${PUBLIC_URL}"
       NODE_ENV: "production"
     healthcheck:
-      # Override image healthcheck - accept redirects (i18n redirects / to /en)
       test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/', (r) => {process.exit(r.statusCode < 400 ? 0 : 1)})"]
       interval: 30s
       timeout: 3s
@@ -122,30 +128,3 @@ services:
     depends_on:
       bdp-server:
         condition: service_healthy
-
-  traefik:
-    image: traefik:v3.6
-    container_name: bdp-traefik
-    restart: unless-stopped
-    command:
-      - "--log.level=INFO"
-      - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false"
-      - "--entrypoints.web.address=:80"
-      - "--entrypoints.websecure.address=:443"
-      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
-      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
-      - "--certificatesresolvers.letsencrypt.acme.httpchallenge=true"
-      - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
-      - "--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL}"
-      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - traefik_letsencrypt:/letsencrypt
-
-volumes:
-  postgres_data:
-  traefik_letsencrypt:

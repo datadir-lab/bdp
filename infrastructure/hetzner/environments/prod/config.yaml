@@ -1,0 +1,11 @@
+# Non-secret configuration for BDP production environment.
+# Committed to version control.
+project_name: bdp-prod
+server_type: cx22        # 2 vCPU, 4GB RAM, ~4.35€/mo. Upgrade to cx32 if needed.
+location: nbg1           # Nuremberg, Germany
+volume_size: 80          # GB — stores Dokploy data, PostgreSQL, MinIO, backups
+storage_box_type: bx11   # 100GB Storage Box for restic backups, ~3.81€/mo
+storage_box_location: nbg1
+domain: bdp.dev
+deploy_version: "1"      # Bump to trigger server rebuild (volume persists)
+create_dns_record: true
