@@ -1,0 +1,147 @@
+#cloud-config
+# BDP Production — Dokploy on Hetzner
+# Stack: Docker + Dokploy (Traefik + PostgreSQL + Redis bundled) + MinIO + restic backups
+# All persistent state on /mnt/data (attached Hetzner volume)
+
+package_update: true
+package_upgrade: true
+
+packages:
+  - curl
+  - jq
+  - openssl
+  - htop
+  - ufw
+  - fail2ban
+  - restic
+
+write_files:
+
+  # =========================================================================
+  # Shared bootstrap scripts
+  # =========================================================================
+  - path: /opt/bdp/scripts/volume-mount.sh
+    encoding: b64
+    permissions: '0755'
+    content: ${volume_mount_sh_b64}
+
+  - path: /opt/bdp/scripts/ufw-setup.sh
+    encoding: b64
+    permissions: '0755'
+    content: ${ufw_base_sh_b64}
+
+  - path: /opt/bdp/scripts/backup-restic.sh
+    encoding: b64
+    permissions: '0755'
+    content: ${backup_restic_sh_b64}
+
+  - path: /opt/bdp/scripts/dokploy-setup.sh
+    encoding: b64
+    permissions: '0755'
+    content: ${dokploy_setup_sh_b64}
+
+  # =========================================================================
+  # Show credentials helper
+  # =========================================================================
+  - path: /opt/bdp/scripts/show-secrets.sh
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+      SECRETS="/mnt/data/.secrets/env"
+      [ ! -f "$SECRETS" ] && echo "Secrets not found at $SECRETS" && exit 1
+      source "$SECRETS"
+      echo "============================================"
+      echo "  BDP PRODUCTION CREDENTIALS"
+      echo "============================================"
+      echo ""
+      echo "  Dokploy UI:  https://dokploy.${domain}"
+      echo "  Email:       $DOKPLOY_ADMIN_EMAIL"
+      echo "  Password:    $DOKPLOY_ADMIN_PASSWORD"
+      echo ""
+      echo "  App URL:     https://${domain}"
+      echo "  MinIO:       https://minio.${domain}"
+      echo "  MinIO user:  $MINIO_ROOT_USER"
+      echo "  MinIO pass:  $MINIO_ROOT_PASSWORD"
+      echo "============================================"
+
+runcmd:
+  # ---------------------------------------------------------------------------
+  # 1. Mount data volume
+  # ---------------------------------------------------------------------------
+  - VOLUME_DEVICE="${volume_device}" /opt/bdp/scripts/volume-mount.sh
+
+  # ---------------------------------------------------------------------------
+  # 2. Write secrets to volume (persisted, survives rebuilds)
+  # IMPORTANT: use tee + printf, NOT a heredoc with YAML indentation.
+  # YAML literal blocks preserve indentation — a heredoc written with 4-space
+  # indent produces lines like "    DOMAIN=..." which break `source` in strict mode.
+  # ---------------------------------------------------------------------------
+  - mkdir -p /mnt/data/.secrets
+  - chmod 700 /mnt/data/.secrets
+  - |
+    printf '%s\n' \
+      'DOMAIN=${domain}' \
+      'ACME_EMAIL=${acme_email}' \
+      'DOKPLOY_ADMIN_EMAIL=admin@${domain}' \
+      'DOKPLOY_ADMIN_PASSWORD=${dokploy_admin_password}' \
+      'MINIO_ROOT_USER=${minio_root_user}' \
+      'MINIO_ROOT_PASSWORD=${minio_root_password}' \
+      'STORAGE_BOX_USER=${storage_box_user}' \
+      'STORAGE_BOX_HOST=${storage_box_host}' \
+      'RESTIC_REPOSITORY=sftp:${storage_box_user}@${storage_box_host}:/bdp-backup' \
+      'RESTIC_PASSWORD=${restic_password}' \
+      > /mnt/data/.secrets/env
+  - chmod 600 /mnt/data/.secrets/env
+
+  # ---------------------------------------------------------------------------
+  # 3. Write restic SSH key to volume
+  # ---------------------------------------------------------------------------
+  - mkdir -p /mnt/data/.secrets
+  - echo "${backup_ssh_key_b64}" | base64 -d > /mnt/data/.secrets/backup_ssh_key
+  - chmod 600 /mnt/data/.secrets/backup_ssh_key
+
+  # ---------------------------------------------------------------------------
+  # 4. UFW firewall
+  # ---------------------------------------------------------------------------
+  - /opt/bdp/scripts/ufw-setup.sh
+
+  # ---------------------------------------------------------------------------
+  # 5. Install Docker
+  # ---------------------------------------------------------------------------
+  - curl -fsSL https://get.docker.com | sh
+  - systemctl enable docker
+  - systemctl start docker
+
+  # ---------------------------------------------------------------------------
+  # 6. Pre-create Dokploy directory on volume BEFORE installing Dokploy
+  #    This ensures /etc/dokploy symlinks to the volume so certs persist.
+  # ---------------------------------------------------------------------------
+  - mkdir -p /mnt/data/dokploy
+  - ln -sfn /mnt/data/dokploy /etc/dokploy
+
+  # ---------------------------------------------------------------------------
+  # 7. Install Dokploy
+  # ---------------------------------------------------------------------------
+  - curl -sSL https://dokploy.com/install.sh | sh
+
+  # ---------------------------------------------------------------------------
+  # 8. Create Dokploy admin user
+  # ---------------------------------------------------------------------------
+  - /opt/bdp/scripts/dokploy-setup.sh
+
+  # ---------------------------------------------------------------------------
+  # 9. Restic backup cron — daily at 3am, prune old backups automatically
+  # ---------------------------------------------------------------------------
+  - echo "0 3 * * * root MOUNT_POINT=/mnt/data /opt/bdp/scripts/backup-restic.sh >> /var/log/restic-backup.log 2>&1" > /etc/cron.d/restic-backup
+  - chmod 644 /etc/cron.d/restic-backup
+
+  # ---------------------------------------------------------------------------
+  # 10. Run initial backup
+  # ---------------------------------------------------------------------------
+  - MOUNT_POINT=/mnt/data /opt/bdp/scripts/backup-restic.sh || true
+
+  # ---------------------------------------------------------------------------
+  # 11. Sentinel — marks cloud-init as complete
+  # ---------------------------------------------------------------------------
+  - touch /mnt/data/.initialized
+  - echo "BDP cloud-init complete: $(date)" >> /mnt/data/.initialized
