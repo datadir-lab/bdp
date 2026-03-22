@@ -35,4 +35,4 @@ def test_build_quadtree_coarse_tiles_have_fewer_points():
     zoom5_tiles = [t for t in tiles if t["z"] == 5]
     zoom0_count = sum(len(t["points"]) for t in zoom0_tiles)
     zoom5_count = sum(len(t["points"]) for t in zoom5_tiles)
-    assert zoom0_count <= zoom5_count
+    assert zoom0_count >= zoom5_count

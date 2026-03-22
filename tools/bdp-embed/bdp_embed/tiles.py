@@ -69,7 +69,7 @@ def build_quadtree(
         ty_indices = np.clip(((all_ys - y_min) / cell_h).astype(int), 0, n_cells - 1)
 
         # Downsample factor: show 1 per cluster at low zoom, all at high zoom
-        max_per_cell = max(1, len(points) // (4 ** (zoom_max - z))) if z < zoom_max else len(points)
+        max_per_cell = max(1, len(points) // (4 ** z)) if z < 8 else len(points)
 
         # Group point indices by (tx, ty) cell
         cell_map: dict[tuple[int, int], list[int]] = defaultdict(list)
