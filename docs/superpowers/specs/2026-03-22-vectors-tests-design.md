@@ -131,10 +131,10 @@ async fn test_name() -> Result<()> {
 - Call `build_embed_text({"name": "X"}, "protein")` (most fields absent)
 - Assert `"  "` not in result (no consecutive spaces from missing joins)
 
-**`test_pathway_gene_list_truncated_at_20`**
-- Entry with `gene_list` of 50 items
-- Assert `"gene19" in result` and `"gene20" not in result`
-- (Already tested, keep or extend to check exact boundary `gene19`/`gene20`)
+**`test_pathway_gene_list_truncated_at_boundary`** *(new test — the existing test only checks gene19/gene20 coarsely)*
+- Entry with `gene_list = [f"gene{i}" for i in range(50)]`
+- Assert: `"gene19"` is present in the result (last included gene, index 19)
+- Assert: `"gene20"` is NOT present (first excluded gene, index 20)
 
 ### `tools/bdp-embed/tests/test_tiles.py` — add 2 tests
 
@@ -145,12 +145,13 @@ async fn test_name() -> Result<()> {
 - Verify: total points across all z=8 tiles == total input points
 
 **`test_empty_cells_not_in_output`**
-- Create exactly 4 points with coordinates `(-0.5, 0.5)`, `(-0.4, 0.6)`, `(-0.3, 0.5)`, `(-0.45, 0.55)` — all tightly clustered in one region
-- Build quadtree with `zoom_min=1, zoom_max=1` (only z=1 tiles produced)
-- Because `build_quadtree` derives bounds from data, all 4 points fall in one cell after subdivision → exactly 1 tile produced at z=1
-- Assert: exactly 1 tile in output at z=1
-- Assert: that tile's `points` list has 4 entries (no downsampling at z=1 with 4 points, since `max(1, 4 // 4^1) = max(1, 1) = 1` — actually 1 per cell; the spec should say the tile is non-empty)
+- Create exactly 4 points tightly clustered: `(-0.50, 0.50)`, `(-0.48, 0.52)`, `(-0.49, 0.51)`, `(-0.47, 0.51)`
+- Add 1 sentinel point far away: `(10.0, 10.0)` to ensure the derived x/y bounds are wide
+- Build quadtree with `zoom_min=1, zoom_max=1`
+- With wide bounds, the 4 clustered points all fall in the same quadrant cell at z=1; the sentinel falls in a different cell
+- Assert: exactly 2 tiles in output at z=1 (one with the cluster, one with the sentinel)
 - Assert: no tile has an empty `points` list in output (empty tiles are never emitted)
+- Assert: the tile containing the cluster has exactly 1 point (max_per_cell = max(1, 5 // 4) = 1 at z=1)
 
 ### `tools/bdp-embed/tests/test_project.py` — new file
 
@@ -286,6 +287,8 @@ dev = ["pytest>=8"]
 ```
 
 This is required before `pip install -e ".[dev]"` works.
+
+**`crates/bdp-server/Cargo.toml` `[dev-dependencies]`** must include `serial_test` (already present per existing E2E tests — verify before adding). The E2E `vectors_tests.rs` uses `#[serial]` to prevent container port collisions.
 
 ---
 
