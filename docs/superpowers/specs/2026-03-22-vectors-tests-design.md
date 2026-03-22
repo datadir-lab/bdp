@@ -33,17 +33,20 @@ All tests use `sqlx::query` (non-macro) for test data insertion to avoid requiri
 **`test_stats_with_complete_run`**
 - Insert 1 org + 3 entries + 2 rows in `entry_embeddings` (any vector values) + 1 `vector_projection_runs` row with `status='complete'`, `entry_count=3`, `embedded_count=2`, `projected_count=1`, `tile_prefix='vectors/tiles/run123'`
 - Call `handle(pool, GetVectorStatsQuery)`
-- Assert all 7 `VectorStatsResponse` fields are non-null and match inserted values
+- Assert: `current_run_id.is_some()`, `status == Some("complete".to_string())`, `tile_prefix == Some("vectors/tiles/run123".to_string())`, `projected_count == Some(1)`
+- Assert: `entry_count == Some(3)` (comes from live `COUNT(*) FROM registry_entries`, not from the run row)
+- Assert: `embedded_count == Some(2)` (comes from live `COUNT(*) FROM entry_embeddings`)
 
 ### `semantic_search.rs` — add 1 `#[sqlx::test]`
 
 The existing 3 tests cover `validate()`. This test covers the handler's OpenAI path:
 
 **`test_semantic_search_embedding_unavailable_without_api_key`**
-- `std::env::remove_var("OPENAI_API_KEY")` before calling
+- `std::env::remove_var("OPENAI_API_KEY")` before calling (the handler uses `unwrap_or_default()` so it proceeds with an empty key, which OpenAI rejects)
 - Call `handle(pool, SemanticSearchQuery { q: "ribosome".into(), k: 10 })`
 - Assert: `Err(SemanticSearchError::EmbeddingUnavailable(_))`
 - Restore env var after test (use `temp_env` crate or `defer` pattern)
+- **Note**: this test makes a real network call to OpenAI with an empty key. It will pass as long as the process can reach the network (OpenAI returns 401) OR the network is blocked (connection error). Both map to `EmbeddingUnavailable`. Do NOT skip the test in CI — the empty-key rejection is reliable.
 
 ### `get_neighbors.rs` — add 2 `#[sqlx::test]`
 
@@ -142,10 +145,12 @@ async fn test_name() -> Result<()> {
 - Verify: total points across all z=8 tiles == total input points
 
 **`test_empty_cells_not_in_output`**
-- Create 4 points all in the top-left quadrant `(x<0, y>0)` of a `[-1,1]×[-1,1]` grid
-- Build quadtree at zoom_max=1 (4 cells)
-- Assert only 1 tile returned at z=1 (the cell containing the points)
-- Assert no tiles with `points == []` in output
+- Create exactly 4 points with coordinates `(-0.5, 0.5)`, `(-0.4, 0.6)`, `(-0.3, 0.5)`, `(-0.45, 0.55)` — all tightly clustered in one region
+- Build quadtree with `zoom_min=1, zoom_max=1` (only z=1 tiles produced)
+- Because `build_quadtree` derives bounds from data, all 4 points fall in one cell after subdivision → exactly 1 tile produced at z=1
+- Assert: exactly 1 tile in output at z=1
+- Assert: that tile's `points` list has 4 entries (no downsampling at z=1 with 4 points, since `max(1, 4 // 4^1) = max(1, 1) = 1` — actually 1 per cell; the spec should say the tile is non-empty)
+- Assert: no tile has an empty `points` list in output (empty tiles are never emitted)
 
 ### `tools/bdp-embed/tests/test_project.py` — new file
 
@@ -161,7 +166,11 @@ async fn test_name() -> Result<()> {
 - Call `get_model_key(run_id="abc-123")`
 - Assert result == `"vectors/models/abc-123/umap.joblib"`
 
-> **Note**: `test_project.py` tests only pure functions extracted from `project.py`. If the k-landmarks and model-key logic is inline in the `project` command, extract them as module-level helpers before testing.
+> **Required refactor before testing**: The k-landmarks and model-key logic are currently inline in `project.py`'s async command function. Before writing `test_project.py`, extract them as module-level helpers:
+> - `def compute_k_landmarks(n_entries: int, max_landmarks: int = 50_000) -> int: return min(max_landmarks, n_entries)`
+> - `def get_model_key(run_id: str) -> str: return f"vectors/models/{run_id}/umap.joblib"`
+>
+> Update `project.py` to call these helpers internally. Then `test_project.py` imports and tests them directly.
 
 ---
 
@@ -268,6 +277,18 @@ describe('fetchSemanticSearch', () => {
 
 ---
 
+## Prerequisites
+
+**`tools/bdp-embed/pyproject.toml`** must have a `dev` extras group added (currently absent):
+```toml
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+```
+
+This is required before `pip install -e ".[dev]"` works.
+
+---
+
 ## Running the Tests
 
 ```bash
@@ -277,7 +298,7 @@ cargo test --package bdp-server --lib
 # Rust E2E tests (requires Docker for testcontainers)
 cargo test --package bdp-server --test e2e -- vectors
 
-# Python tests
+# Python tests (add dev extras to pyproject.toml first)
 cd tools/bdp-embed && pip install -e ".[dev]" && pytest tests/ -v
 
 # Frontend
