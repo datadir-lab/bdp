@@ -5,7 +5,8 @@
     "data": "Data",
     "features": "Features",
     "search": "Search",
-    "github": "GitHub"
+    "github": "GitHub",
+    "vectors": "Vectors"
   },
   "hero": {
     "title": "Bioinformatics Dependencies Platform",
