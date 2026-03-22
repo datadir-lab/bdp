@@ -87,7 +87,7 @@ pub async fn handle(
     .await?;
 
     Ok(VectorStatsResponse {
-        current_run_id: run.as_ref().map(|r| r.run_id.clone().unwrap_or_default()),
+        current_run_id: run.as_ref().and_then(|r| r.run_id.clone()),
         status: run.as_ref().map(|r| r.status.clone()),
         entry_count: total_entries,
         embedded_count,
