@@ -254,6 +254,37 @@ pub fn build_mediator(pool: PgPool, storage: Storage) -> AppMediator {
                 async move { crate::features::protein_metadata::commands::insert::handle(pool, cmd).await }
             }
         })
+        // ================================================================
+        // Vectors
+        // ================================================================
+        .add_handler({
+            let pool = pool.clone();
+            move |query| {
+                let pool = pool.clone();
+                async move { crate::features::vectors::queries::get_stats::handle(pool, query).await }
+            }
+        })
+        .add_handler({
+            let pool = pool.clone();
+            move |query| {
+                let pool = pool.clone();
+                async move { crate::features::vectors::queries::semantic_search::handle(pool, query).await }
+            }
+        })
+        .add_handler({
+            let pool = pool.clone();
+            move |query| {
+                let pool = pool.clone();
+                async move { crate::features::vectors::queries::get_neighbors::handle(pool, query).await }
+            }
+        })
+        .add_handler({
+            let storage = storage.clone();
+            move |query| {
+                let storage = storage.clone();
+                async move { crate::features::vectors::queries::get_tile::handle(storage, query).await }
+            }
+        })
         .build()
 }
 

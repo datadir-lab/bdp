@@ -1,2 +1,4 @@
 pub mod queries;
-// routes module added in Task 10
+pub mod routes;
+
+pub use routes::vectors_routes;

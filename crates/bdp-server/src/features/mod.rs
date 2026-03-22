@@ -37,6 +37,7 @@ pub mod query;
 pub mod resolve;
 pub mod search;
 pub mod shared;
+pub mod vectors;
 pub mod version_files;
 
 use axum::Router;
@@ -92,4 +93,5 @@ pub fn router(state: FeatureState) -> Router<()> {
         .nest("/sync-status", jobs::sync_status_routes().with_state(state.clone()))
         .nest("/files", files::files_routes().with_state(state.clone()))
         .nest("/query", query::query_routes().with_state(state.clone()))
+        .nest("/vectors", vectors::vectors_routes().with_state(state.clone()))
 }
