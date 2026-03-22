@@ -25,9 +25,7 @@
 | `crates/bdp-server/src/features/vectors/queries/get_stats.rs` | Modify | Add 2 `#[sqlx::test]` tests |
 | `crates/bdp-server/src/features/vectors/queries/semantic_search.rs` | Modify | Add 1 `#[sqlx::test]` test |
 | `crates/bdp-server/src/features/vectors/queries/get_neighbors.rs` | Modify | Add 2 `#[sqlx::test]` tests |
-| `crates/bdp-server/tests/e2e/vectors_tests.rs` | Create | 4 E2E HTTP tests |
-| `crates/bdp-server/tests/e2e/mod.rs` | Modify | Register `vectors_tests` module |
-| `crates/bdp-server/tests/e2e/harness.rs` | Modify | Add `get_request()` public helper |
+| `crates/bdp-server/tests/vectors_e2e_tests.rs` | Create | 4 E2E HTTP tests (standalone, in-process axum) |
 
 ---
 
@@ -730,141 +728,192 @@ git commit -m "test(vectors): add sqlx::test for get_neighbors NotFound and KNN 
 
 ---
 
-## Task 8: Rust E2E — vectors_tests.rs
+## Task 8: Rust E2E — vectors_e2e_tests.rs (standalone, in-process)
 
 **Files:**
-- Create: `crates/bdp-server/tests/e2e/vectors_tests.rs`
-- Modify: `crates/bdp-server/tests/e2e/mod.rs`
-- Modify: `crates/bdp-server/tests/e2e/harness.rs`
+- Create: `crates/bdp-server/tests/vectors_e2e_tests.rs`
 
-**Note**: The E2E tests reuse `E2EEnvironment::new()` from the existing harness (Postgres + MinIO + BDP server via Docker). First, add a `get_request` helper method so vectors tests can call arbitrary GET endpoints.
+**Note**: The old `tests/e2e/` harness is gated behind a disabled feature (`e2e_legacy_tests`) and requires a pre-built Docker image of the server. We use a standalone approach instead: testcontainers for Postgres + MinIO, and the axum app started **in-process** using the public `build_mediator` + `features::router` + `features::FeatureState` from `lib.rs`. No modifications to existing files needed.
 
-- [ ] **Step 1: Read the existing harness to find how to add a method**
+**Important**: `StorageConfig` must be constructable from env vars. Set `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `S3_ENDPOINT_URL`, and `S3_BUCKET` pointing to the testcontainers MinIO instance. The `Storage::new()` function reads these.
 
-Read `crates/bdp-server/tests/e2e/harness.rs` to find the `impl E2EEnvironment` block and the `server_url` field. Add the following public method inside `impl E2EEnvironment`:
+- [ ] **Step 1: Understand the public API needed**
 
-```rust
-/// Make a GET request to the BDP server at the given path.
-/// Path should start with `/`, e.g. `/api/v1/vectors/stats`.
-pub async fn get_request(&self, path: &str) -> Result<reqwest::Response> {
-    let url = format!("{}{}", self.server_url, path);
-    self.http_client
-        .get(&url)
-        .send()
-        .await
-        .context(format!("GET {path} failed"))
-}
-```
+Confirm these are public in `bdp_server`:
+- `bdp_server::cqrs::build_mediator(pool: PgPool, storage: Storage) -> DefaultAsyncMediator`
+- `bdp_server::features::FeatureState { pub mediator: DefaultAsyncMediator }`
+- `bdp_server::features::router(state: FeatureState) -> Router<()>`
+- `bdp_server::storage::{Storage, config::StorageConfig}`
 
-- [ ] **Step 2: Register the new test module in mod.rs**
+Run: `grep -n "pub fn build_mediator\|pub struct FeatureState\|pub fn router" crates/bdp-server/src/cqrs/mod.rs crates/bdp-server/src/features/mod.rs`
 
-Find `crates/bdp-server/tests/e2e/mod.rs` and add:
-```rust
-mod vectors_tests;
-```
-alongside the existing `mod ingestion_tests;` line.
+Expected: all three are `pub`.
 
-- [ ] **Step 3: Write the failing tests**
+- [ ] **Step 2: Write the test file**
 
-Create `crates/bdp-server/tests/e2e/vectors_tests.rs`:
+Create `crates/bdp-server/tests/vectors_e2e_tests.rs`:
 
 ```rust
 #![allow(clippy::unwrap_used, clippy::expect_used)]
-//! E2E tests for the /api/v1/vectors endpoints.
+//! In-process E2E tests for /api/v1/vectors endpoints.
+//!
+//! Starts a real axum server against testcontainers Postgres + MinIO.
+//! No Docker image of bdp-server required.
 
-use super::*;
-use anyhow::Result;
+use axum::Router;
+use bdp_server::{
+    cqrs::build_mediator,
+    features::{self, FeatureState},
+    storage::{config::StorageConfig, Storage},
+};
+use reqwest::Client;
 use serial_test::serial;
+use sqlx::postgres::PgPoolOptions;
+use testcontainers::runners::AsyncRunner;
+use testcontainers_modules::{minio::MinIO, postgres::Postgres};
 
-/// GET /api/v1/vectors/stats on a fresh DB returns 200 with zero counts.
+/// Start a minimal axum server in-process and return (base_url, port).
+async fn start_test_server() -> (String, u16) {
+    // --- Postgres ---
+    let pg = Postgres::default()
+        .with_tag("16-alpine")
+        .start()
+        .await
+        .expect("Failed to start Postgres");
+    let pg_host = pg.get_host().await.unwrap();
+    let pg_port = pg.get_host_port_ipv4(5432).await.unwrap();
+    let db_url = format!("postgres://postgres:postgres@{pg_host}:{pg_port}/postgres");
+
+    let pool = PgPoolOptions::new()
+        .max_connections(3)
+        .connect(&db_url)
+        .await
+        .expect("DB connect failed");
+
+    sqlx::migrate!("../../migrations")
+        .run(&pool)
+        .await
+        .expect("Migrations failed");
+
+    // --- MinIO ---
+    let minio = MinIO::default().start().await.expect("MinIO failed");
+    let minio_host = minio.get_host().await.unwrap();
+    let minio_port = minio.get_host_port_ipv4(9000).await.unwrap();
+    let minio_endpoint = format!("http://{minio_host}:{minio_port}");
+
+    // Set env vars for StorageConfig::from_env()
+    std::env::set_var("AWS_ACCESS_KEY_ID", "minioadmin");
+    std::env::set_var("AWS_SECRET_ACCESS_KEY", "minioadmin");
+    std::env::set_var("S3_ENDPOINT_URL", &minio_endpoint);
+    std::env::set_var("S3_BUCKET", "bdp-test");
+
+    let storage_config = StorageConfig::from_env().expect("StorageConfig failed");
+    let storage = Storage::new(storage_config).await.expect("Storage init failed");
+
+    // --- App ---
+    let mediator = build_mediator(pool, storage);
+    let feature_state = FeatureState { mediator };
+    let app = Router::new().nest("/api/v1", features::router(feature_state));
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind failed");
+    let port = listener.local_addr().unwrap().port();
+
+    tokio::spawn(axum::serve(listener, app).into_future());
+
+    (format!("http://127.0.0.1:{port}"), port)
+}
+
 #[tokio::test]
 #[serial]
-async fn test_vectors_stats_empty() -> Result<()> {
-    let env = E2EEnvironment::new().await?;
+async fn test_vectors_stats_empty() {
+    let (base, _) = start_test_server().await;
+    let client = Client::new();
 
-    let res = env.get_request("/api/v1/vectors/stats").await?;
+    let res = client
+        .get(format!("{base}/api/v1/vectors/stats"))
+        .send()
+        .await
+        .unwrap();
     assert_eq!(res.status().as_u16(), 200);
 
-    let body: serde_json::Value = res.json().await?;
+    let body: serde_json::Value = res.json().await.unwrap();
     assert!(
         body["data"]["current_run_id"].is_null(),
-        "current_run_id should be null on fresh DB"
+        "current_run_id should be null on fresh DB, got: {}",
+        body
     );
-    assert_eq!(
-        body["data"]["entry_count"], 0,
-        "entry_count should be 0 on fresh DB"
-    );
-    Ok(())
+    assert_eq!(body["data"]["entry_count"], 0);
 }
 
-/// GET a tile key that doesn't exist in MinIO returns 404.
 #[tokio::test]
 #[serial]
-async fn test_vectors_tile_not_found() -> Result<()> {
-    let env = E2EEnvironment::new().await?;
+async fn test_vectors_tile_not_found() {
+    let (base, _) = start_test_server().await;
+    let client = Client::new();
 
-    let res = env
-        .get_request("/api/v1/vectors/tiles/nonexistent-run-id/0/0/0")
-        .await?;
-    assert_eq!(
-        res.status().as_u16(),
-        404,
-        "Missing tile should return 404"
-    );
-    Ok(())
+    let res = client
+        .get(format!("{base}/api/v1/vectors/tiles/no-such-run/0/0/0"))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(res.status().as_u16(), 404, "Missing tile should be 404");
 }
 
-/// GET /search without OPENAI_API_KEY returns 503.
 #[tokio::test]
 #[serial]
-async fn test_vectors_search_returns_503_without_api_key() -> Result<()> {
-    // The E2E test process should not have OPENAI_API_KEY set.
-    // If it is, this test may fail — remove the var for this test.
+async fn test_vectors_search_returns_503_without_api_key() {
     let prev = std::env::var("OPENAI_API_KEY").ok();
     std::env::remove_var("OPENAI_API_KEY");
 
-    let env = E2EEnvironment::new().await?;
-    let res = env.get_request("/api/v1/vectors/search?q=ribosome").await?;
+    let (base, _) = start_test_server().await;
+    let client = Client::new();
+
+    let res = client
+        .get(format!("{base}/api/v1/vectors/search?q=ribosome"))
+        .send()
+        .await
+        .unwrap();
 
     if let Some(key) = prev {
         std::env::set_var("OPENAI_API_KEY", key);
     }
-
-    assert_eq!(
-        res.status().as_u16(),
-        503,
-        "Search without API key should return 503"
-    );
-    Ok(())
+    assert_eq!(res.status().as_u16(), 503, "No API key should give 503");
 }
 
-/// GET neighbors for a UUID with no embedding returns 404.
 #[tokio::test]
 #[serial]
-async fn test_vectors_neighbors_returns_404_for_missing_entry() -> Result<()> {
-    let env = E2EEnvironment::new().await?;
+async fn test_vectors_neighbors_returns_404_for_missing_entry() {
+    let (base, _) = start_test_server().await;
+    let client = Client::new();
 
-    let res = env
-        .get_request("/api/v1/vectors/00000000-0000-0000-0000-000000000000/neighbors")
-        .await?;
+    let res = client
+        .get(format!(
+            "{base}/api/v1/vectors/00000000-0000-0000-0000-000000000000/neighbors"
+        ))
+        .send()
+        .await
+        .unwrap();
     assert_eq!(
         res.status().as_u16(),
         404,
-        "Entry with no embedding should return 404"
+        "Entry with no embedding should be 404"
     );
-    Ok(())
 }
 ```
 
-- [ ] **Step 4: Run the E2E tests (requires Docker)**
+- [ ] **Step 3: Run the E2E tests (requires Docker)**
 
 ```bash
-cargo test --package bdp-server --test e2e -- vectors 2>&1 | tail -40
+cd /c/personal/dev/bdp/.worktrees/feature-vectors
+export PATH="$PATH:/c/Users/sebas/.rustup/toolchains/stable-x86_64-pc-windows-msvc/bin"
+cargo test --package bdp-server --test vectors_e2e_tests 2>&1 | tail -40
 ```
 
-Expected: All 4 tests PASS. If `E2EEnvironment::new()` fails because the BDP Docker image isn't built, build it first: `docker build -t bdp-server:latest .` from the repo root.
+Expected: All 4 tests PASS. If `StorageConfig::from_env()` panics, read `crates/bdp-server/src/storage/config.rs` to verify exact env var names and adjust.
 
-- [ ] **Step 5: Run full Rust library tests to ensure nothing broke**
+- [ ] **Step 4: Run full Rust library tests to ensure nothing broke**
 
 ```bash
 cargo test --package bdp-server --lib 2>&1 | tail -20
@@ -872,13 +921,11 @@ cargo test --package bdp-server --lib 2>&1 | tail -20
 
 Expected: All pass.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add crates/bdp-server/tests/e2e/vectors_tests.rs \
-        crates/bdp-server/tests/e2e/mod.rs \
-        crates/bdp-server/tests/e2e/harness.rs
-git commit -m "test(vectors): add E2E tests for stats, tile 404, search 503, and neighbors 404"
+git add crates/bdp-server/tests/vectors_e2e_tests.rs
+git commit -m "test(vectors): add in-process E2E tests for stats, tile 404, search 503, and neighbors 404"
 ```
 
 ---
@@ -898,10 +945,11 @@ npx vitest run lib/
 
 # Rust library (sqlx::test)
 cd /c/personal/dev/bdp/.worktrees/feature-vectors
+export PATH="$PATH:/c/Users/sebas/.rustup/toolchains/stable-x86_64-pc-windows-msvc/bin"
 cargo test --package bdp-server --lib
 
 # Rust E2E (requires Docker)
-cargo test --package bdp-server --test e2e -- vectors
+cargo test --package bdp-server --test vectors_e2e_tests
 ```
 
 Push updated branch:
