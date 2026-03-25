@@ -1,12 +1,12 @@
 // crates/bdp-ingest/src/pipelines/string_db/runner.rs
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use flate2::read::GzDecoder;
 use reqwest::Client;
 use sqlx::PgPool;
 use std::collections::HashMap;
 use std::io::Read;
-use tracing::info;
+use tracing::{info, warn};
 
 use crate::framework::{PipelineRunner, PipelineStats};
 use crate::pipelines::string_db::{
@@ -62,6 +62,10 @@ impl PipelineRunner for StringPipelineRunner {
                     continue;
                 }
             };
+            if row.combined_score < 0 {
+                warn!(score = row.combined_score, "STRING row has negative combined_score, skipping");
+                continue;
+            }
             if (row.combined_score as u16) < min_score {
                 continue;
             }
@@ -99,6 +103,7 @@ async fn download_gz(client: &Client, url: &str, max_retries: u32) -> Result<Str
     for attempt in 0..=max_retries {
         match client.get(url).send().await {
             Ok(resp) => {
+                let resp = resp.error_for_status().context("STRING download error")?;
                 let bytes = resp.bytes().await?;
                 let mut gz = GzDecoder::new(bytes.as_ref());
                 let mut s = String::new();

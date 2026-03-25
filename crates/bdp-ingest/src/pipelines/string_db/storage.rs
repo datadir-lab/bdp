@@ -3,7 +3,6 @@
 use anyhow::Result;
 use sqlx::{PgPool, Row};
 use std::collections::HashMap;
-use tracing::warn;
 use uuid::Uuid;
 
 pub struct StringStorage {
@@ -55,26 +54,45 @@ impl StringStorage {
         for chunk in rows.chunks(1000) {
             let a_ids: Vec<Uuid> = chunk.iter().map(|r| r.0).collect();
             let b_ids: Vec<Uuid> = chunk.iter().map(|r| r.1).collect();
-            let combined: Vec<i16> = chunk.iter().map(|r| r.9).collect();
+            let neighborhood: Vec<i16> = chunk.iter().map(|r| r.2).collect();
+            let fusion: Vec<i16> = chunk.iter().map(|r| r.3).collect();
+            let cooccurrence: Vec<i16> = chunk.iter().map(|r| r.4).collect();
+            let coexpression: Vec<i16> = chunk.iter().map(|r| r.5).collect();
             let experimental: Vec<i16> = chunk.iter().map(|r| r.6).collect();
+            let database: Vec<i16> = chunk.iter().map(|r| r.7).collect();
+            let textmining: Vec<i16> = chunk.iter().map(|r| r.8).collect();
+            let combined: Vec<i16> = chunk.iter().map(|r| r.9).collect();
 
             let result = sqlx::query(
                 r#"INSERT INTO protein_interactions
-                   (protein_a_id, protein_b_id, score_experimental, combined_score)
-                   SELECT * FROM UNNEST($1::uuid[], $2::uuid[], $3::smallint[], $4::smallint[])
-                   AS t(protein_a_id, protein_b_id, score_experimental, combined_score)
+                   (protein_a_id, protein_b_id, score_neighborhood, score_fusion,
+                    score_cooccurrence, score_coexpression, score_experimental,
+                    score_database, score_textmining, combined_score)
+                   SELECT * FROM UNNEST(
+                       $1::uuid[], $2::uuid[],
+                       $3::smallint[], $4::smallint[], $5::smallint[], $6::smallint[],
+                       $7::smallint[], $8::smallint[], $9::smallint[], $10::smallint[]
+                   ) AS t(protein_a_id, protein_b_id, score_neighborhood, score_fusion,
+                          score_cooccurrence, score_coexpression, score_experimental,
+                          score_database, score_textmining, combined_score)
                    ON CONFLICT (protein_a_id, protein_b_id) DO NOTHING"#,
             )
             .bind(&a_ids)
             .bind(&b_ids)
+            .bind(&neighborhood)
+            .bind(&fusion)
+            .bind(&cooccurrence)
+            .bind(&coexpression)
             .bind(&experimental)
+            .bind(&database)
+            .bind(&textmining)
             .bind(&combined)
             .execute(&self.pool)
             .await;
 
             match result {
                 Ok(r) => inserted += r.rows_affected() as usize,
-                Err(e) => warn!("string insert error: {}", e),
+                Err(e) => return Err(anyhow::anyhow!("string_db insert failed: {}", e)),
             }
         }
         Ok(inserted)
