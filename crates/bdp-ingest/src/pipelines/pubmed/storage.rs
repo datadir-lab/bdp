@@ -2,7 +2,6 @@
 
 use anyhow::Result;
 use sqlx::PgPool;
-use tracing::warn;
 use uuid::Uuid;
 
 use crate::pipelines::pubmed::parser::PubmedArticle;
@@ -111,7 +110,7 @@ impl PubmedStorage {
         }
 
         if !author_pub_ids.is_empty() {
-            if let Err(e) = sqlx::query(
+            sqlx::query(
                 r#"
                 INSERT INTO publication_authors
                     (publication_id, position, last_name, fore_name, collective, affiliation)
@@ -132,10 +131,7 @@ impl PubmedStorage {
             .bind(&author_collectives)
             .bind(&author_affiliations)
             .execute(&self.pool)
-            .await
-            {
-                warn!("failed to insert authors batch: {}", e);
-            }
+            .await?;
         }
 
         // --- Bulk insert mesh headings for newly inserted publications ---
@@ -156,7 +152,7 @@ impl PubmedStorage {
         }
 
         if !mesh_pub_ids.is_empty() {
-            if let Err(e) = sqlx::query(
+            sqlx::query(
                 r#"
                 INSERT INTO publication_mesh
                     (publication_id, mesh_ui, descriptor, is_major_topic)
@@ -173,10 +169,7 @@ impl PubmedStorage {
             .bind(&mesh_descriptors)
             .bind(&mesh_major_topics)
             .execute(&self.pool)
-            .await
-            {
-                warn!("failed to insert mesh headings batch: {}", e);
-            }
+            .await?;
         }
 
         Ok(inserted_count)
