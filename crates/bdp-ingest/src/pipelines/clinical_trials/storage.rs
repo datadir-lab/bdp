@@ -43,28 +43,46 @@ impl ClinicalTrialsStorage {
                 Err(e) => warn!("clinical_trials upsert error: {}", e),
             }
 
-            // Insert disease links
+            // Batch insert disease links via UNNEST
+            let mut trial_ids_disease: Vec<String> = Vec::new();
+            let mut conditions_disease: Vec<String> = Vec::new();
             for study in chunk {
                 for condition in &study.conditions {
-                    let _ = sqlx::query(
-                        "INSERT INTO trial_disease_links (trial_id, raw_condition) \
-                         VALUES ($1, $2) ON CONFLICT (trial_id, raw_condition) DO NOTHING",
-                    )
-                    .bind(&study.nct_id)
-                    .bind(condition)
-                    .execute(&self.pool)
-                    .await;
+                    trial_ids_disease.push(study.nct_id.clone());
+                    conditions_disease.push(condition.clone());
                 }
+            }
+            if !trial_ids_disease.is_empty() {
+                sqlx::query(
+                    "INSERT INTO trial_disease_links (trial_id, raw_condition)
+                     SELECT * FROM UNNEST($1::text[], $2::text[])
+                     ON CONFLICT (trial_id, raw_condition) DO NOTHING",
+                )
+                .bind(&trial_ids_disease)
+                .bind(&conditions_disease)
+                .execute(&self.pool)
+                .await?;
+            }
+
+            // Batch insert intervention links via UNNEST
+            let mut trial_ids_intervention: Vec<String> = Vec::new();
+            let mut intervention_names: Vec<String> = Vec::new();
+            for study in chunk {
                 for intervention in &study.interventions {
-                    let _ = sqlx::query(
-                        "INSERT INTO trial_intervention_links (trial_id, intervention_name) \
-                         VALUES ($1, $2)",
-                    )
-                    .bind(&study.nct_id)
-                    .bind(intervention)
-                    .execute(&self.pool)
-                    .await;
+                    trial_ids_intervention.push(study.nct_id.clone());
+                    intervention_names.push(intervention.clone());
                 }
+            }
+            if !trial_ids_intervention.is_empty() {
+                sqlx::query(
+                    "INSERT INTO trial_intervention_links (trial_id, intervention_name)
+                     SELECT * FROM UNNEST($1::text[], $2::text[])
+                     ON CONFLICT (trial_id, intervention_name) DO NOTHING",
+                )
+                .bind(&trial_ids_intervention)
+                .bind(&intervention_names)
+                .execute(&self.pool)
+                .await?;
             }
         }
         Ok(count)

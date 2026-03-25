@@ -42,6 +42,7 @@ pub async fn download_parquet(client: &Client, url: &str, max_retries: u32) -> R
     for attempt in 0..=max_retries {
         match client.get(url).send().await {
             Ok(resp) => {
+                let resp = resp.error_for_status()?;
                 let bytes = resp.bytes().await.context("reading parquet bytes")?;
                 debug!(url, bytes = bytes.len(), "downloaded parquet");
                 return Ok(bytes);

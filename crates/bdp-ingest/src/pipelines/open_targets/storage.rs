@@ -1,7 +1,6 @@
 use anyhow::Result;
 use sqlx::{PgPool, Row};
 use std::collections::HashMap;
-use tracing::warn;
 use uuid::Uuid;
 
 pub struct OpenTargetsStorage {
@@ -104,7 +103,7 @@ impl OpenTargetsStorage {
 
             match result {
                 Ok(r) => inserted += r.rows_affected() as usize,
-                Err(e) => warn!("open_targets insert chunk error: {}", e),
+                Err(e) => return Err(anyhow::anyhow!("open_targets insert chunk failed: {}", e)),
             }
         }
         Ok(inserted)

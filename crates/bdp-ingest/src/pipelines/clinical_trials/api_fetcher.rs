@@ -38,6 +38,7 @@ pub async fn fetch_updated_studies(
             for attempt in 0..=max_retries {
                 match client.get(&url).send().await {
                     Ok(r) => {
+                        let r = r.error_for_status().context("CT.gov API error")?;
                         let text = r.text().await.context("reading CT API response")?;
                         match serde_json::from_str(&text) {
                             Ok(p) => break 'retry p,
