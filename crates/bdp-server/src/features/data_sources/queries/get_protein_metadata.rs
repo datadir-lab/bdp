@@ -90,23 +90,23 @@ pub async fn handle(
     })
     .collect::<Vec<_>>();
 
-    // Fetch protein cross references
-    let cross_refs: Vec<_> = sqlx::query!(
+    // Fetch protein cross references (uses runtime query since metadata column was replaced)
+    let cross_refs: Vec<_> = sqlx::query_as::<_, (String, String, Option<String>)>(
         r#"
-        SELECT database, database_id, metadata
+        SELECT database, database_id, additional
         FROM protein_cross_references
         WHERE protein_id = $1
         ORDER BY database, database_id
         "#,
-        data_source_id
     )
+    .bind(data_source_id)
     .fetch_all(&pool)
     .await?
     .into_iter()
-    .map(|r| ProteinCrossReference {
-        database: r.database,
-        database_id: r.database_id,
-        metadata: r.metadata,
+    .map(|(database, database_id, additional)| ProteinCrossReference {
+        database,
+        database_id,
+        additional,
     })
     .collect::<Vec<_>>();
 

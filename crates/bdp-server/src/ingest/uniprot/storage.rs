@@ -629,16 +629,20 @@ impl UniProtStorage {
         // Batch insert cross-references (max 100 at a time)
         for chunk in entry.cross_references.chunks(MAX_INSERT_BATCH_SIZE) {
             let mut query_builder = sqlx::QueryBuilder::new(
-                "INSERT INTO protein_cross_references (protein_id, database, database_id, metadata) "
+                "INSERT INTO protein_cross_references (protein_id, database, database_id, additional) "
             );
 
             query_builder.push_values(chunk, |mut b, xref| {
-                let metadata_json =
-                    serde_json::to_value(&xref.metadata).unwrap_or(serde_json::json!([]));
+                // Join the metadata Vec<String> fields into a single text value
+                let additional = if xref.metadata.is_empty() {
+                    None
+                } else {
+                    Some(xref.metadata.join("; "))
+                };
                 b.push_bind(protein_id)
                     .push_bind(&xref.database)
                     .push_bind(&xref.database_id)
-                    .push_bind(metadata_json);
+                    .push_bind(additional);
             });
 
             query_builder.build().execute(&mut **tx).await?;

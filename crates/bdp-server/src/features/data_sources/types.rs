@@ -18,7 +18,7 @@ pub struct ProteinFeature {
 pub struct ProteinCrossReference {
     pub database: String,
     pub database_id: String,
-    pub metadata: Option<serde_json::Value>,
+    pub additional: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
