@@ -25,5 +25,6 @@ pub mod common;
 pub mod ensembl;
 pub mod framework;
 pub mod ncbi;
+pub mod pipelines;
 pub mod uniprot;
 pub mod version_mapping;
