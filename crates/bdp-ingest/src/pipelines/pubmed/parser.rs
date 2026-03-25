@@ -1,6 +1,7 @@
 use anyhow::Result;
 use quick_xml::events::Event;
 use quick_xml::Reader;
+use tracing::{debug, warn};
 
 #[derive(Debug, Default)]
 pub struct PubmedArticle {
@@ -151,10 +152,21 @@ pub fn parse_pubmed_xml(data: &[u8]) -> Result<Vec<PubmedArticle>> {
                 }
             }
             Ok(Event::Text(e)) => {
-                let text = e.decode().unwrap_or_default().into_owned();
+                let text = match e.decode() {
+                    Ok(t) => t.into_owned(),
+                    Err(e) => {
+                        warn!("XML decode error, skipping text: {}", e);
+                        continue;
+                    }
+                };
                 if in_pmid {
                     if let Some(art) = current.as_mut() {
-                        art.pmid = text.parse().unwrap_or(0);
+                        match text.parse::<i32>() {
+                            Ok(id) => art.pmid = id,
+                            Err(_) => {
+                                debug!(text = %text, "non-numeric PMID, will be discarded");
+                            }
+                        }
                     }
                     in_pmid = false;
                 }

@@ -32,7 +32,7 @@ pub async fn list_pubmed_files(client: &Client, base_url: &str) -> Result<Vec<St
 pub async fn register_pending_files(
     pool: &PgPool,
     filenames: &[String],
-    _org_id: Uuid,
+    _org_id: Uuid, // pubmed_ingest_files is not org-scoped; org_id reserved for future use
 ) -> Result<usize> {
     let mut registered = 0usize;
     for filename in filenames {
