@@ -135,6 +135,7 @@ zip = "2.1"
 # Workspace Member Dependencies
 # ============================================================================
 bdp-common = { path = "crates/bdp-common" }
+bdp-ingest = { path = "crates/bdp-ingest" }
 
 # ============================================================================
 # Build Profiles
