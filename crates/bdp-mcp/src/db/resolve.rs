@@ -35,9 +35,19 @@ pub fn detect_id_type(input: &str) -> Option<CanonicalId<'_>> {
     if input.starts_with("CHEBI:") && input[6..].chars().all(|c| c.is_ascii_digit()) {
         return Some(CanonicalId::Chebi(input));
     }
-    // R-HSA-000000 or R-MMU-000000 etc.
-    if input.starts_with("R-") && input.contains('-') {
-        return Some(CanonicalId::Reactome(input));
+    // R-HSA-000000 format: R-{species}-{digits}
+    if let Some(rest) = input.strip_prefix("R-") {
+        if let Some(dash_pos) = rest.find('-') {
+            let species = &rest[..dash_pos];
+            let digits = &rest[dash_pos + 1..];
+            if species.len() >= 2
+                && species.chars().all(|c| c.is_ascii_uppercase())
+                && !digits.is_empty()
+                && digits.chars().all(|c| c.is_ascii_digit())
+            {
+                return Some(CanonicalId::Reactome(input));
+            }
+        }
     }
     // UniProt accession: [A-Z][0-9][A-Z0-9]{3}[0-9] (6 chars) or 10 chars
     let bytes = input.as_bytes();
