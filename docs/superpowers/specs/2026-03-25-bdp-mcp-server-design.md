@@ -152,14 +152,14 @@ input:  { id: str }   // UniProt accession, gene symbol, NCBI Gene ID, or name
 output: {
   uniprot_acc: str, entry_name: str, gene_name: str,
   organism: str,            // from taxonomy_metadata.scientific_name
-  ncbi_taxon_id: int,       // from taxonomy_metadata.taxon_id (NOT protein_metadata directly)
+  ncbi_taxon_id: int,       // from taxonomy_metadata.taxonomy_id (NOT protein_metadata directly)
   sequence_length?: int,
   _meta: Meta
 }
 ```
 Tables: `registry_entries`, `protein_metadata`, `entity_aliases`, `data_sources`, `taxonomy_metadata`
 
-> **Join note**: `protein_metadata.taxonomy_id` is a UUID FK that points **directly** to `taxonomy_metadata.data_source_id` — `data_sources` is not in this join path. Join: `protein_metadata pm JOIN taxonomy_metadata tm ON tm.data_source_id = pm.taxonomy_id`. Fetch `tm.scientific_name` for `organism` and `tm.taxon_id` for `ncbi_taxon_id`.
+> **Join note**: `protein_metadata.taxonomy_id` is a UUID FK that points **directly** to `taxonomy_metadata.data_source_id` — `data_sources` is not in this join path. Join: `protein_metadata pm JOIN taxonomy_metadata tm ON tm.data_source_id = pm.taxonomy_id`. Fetch `tm.scientific_name` for `organism` and `tm.taxonomy_id` for `ncbi_taxon_id`.
 
 #### `get_gene_pathways`
 ```
