@@ -10,8 +10,12 @@
 //   uniprot, ncbi_taxonomy, genbank, interpro
 
 pub mod chebi;
+pub mod chembl;
+pub mod clinical_trials;
 pub mod gene_ontology;
 pub mod hpo;
 pub mod mondo;
 pub mod open_targets;
+pub mod pubmed;
 pub mod reactome;
+pub mod string_db;
