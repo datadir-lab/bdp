@@ -425,6 +425,225 @@ pub async fn get_pathway_proteins(
         .collect())
 }
 
+// ─── Gene–Disease Associations ────────────────────────────────────────────────
+
+pub async fn get_gene_diseases(
+    pool: &PgPool,
+    gene_id: Uuid,
+    limit: i64,
+    offset: i64,
+) -> Result<Vec<serde_json::Value>, sqlx::Error> {
+    let rows = sqlx::query(
+        r#"SELECT dt.mondo_id, dt.name, gda.score, gda.source_version
+           FROM gene_disease_associations gda
+           JOIN disease_terms dt ON dt.id = gda.disease_term_id
+           WHERE gda.gene_id = $1
+           ORDER BY gda.score DESC NULLS LAST
+           LIMIT $2 OFFSET $3"#,
+    )
+    .bind(gene_id)
+    .bind(limit)
+    .bind(offset)
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows
+        .iter()
+        .map(|r| {
+            serde_json::json!({
+                "mondo_id": r.try_get::<String, _>("mondo_id").unwrap_or_default(),
+                "name": r.try_get::<String, _>("name").unwrap_or_default(),
+                "score": r.try_get::<Option<f32>, _>("score").unwrap_or(None),
+                "source_version": r.try_get::<Option<String>, _>("source_version").unwrap_or(None),
+            })
+        })
+        .collect())
+}
+
+pub async fn get_disease_trials(
+    pool: &PgPool,
+    disease_term_id: Uuid,
+    limit: i64,
+    offset: i64,
+) -> Result<Vec<serde_json::Value>, sqlx::Error> {
+    let rows = sqlx::query(
+        r#"SELECT ct.nct_id, ct.title, ct.status, ct.phase
+           FROM trial_disease_links tdl
+           JOIN clinical_trials ct ON ct.nct_id = tdl.trial_id
+           WHERE tdl.disease_term_id = $1
+           LIMIT $2 OFFSET $3"#,
+    )
+    .bind(disease_term_id)
+    .bind(limit)
+    .bind(offset)
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows
+        .iter()
+        .map(|r| {
+            serde_json::json!({
+                "nct_id": r.try_get::<String, _>("nct_id").unwrap_or_default(),
+                "title": r.try_get::<Option<String>, _>("title").unwrap_or(None),
+                "status": r.try_get::<Option<String>, _>("status").unwrap_or(None),
+                "phase": r.try_get::<Option<String>, _>("phase").unwrap_or(None),
+            })
+        })
+        .collect())
+}
+
+/// Resolve a ChEBI ID string to the compound_terms internal UUID.
+pub async fn compound_uuid_by_chebi_id(
+    pool: &PgPool,
+    chebi_id: &str,
+) -> sqlx::Result<Option<Uuid>> {
+    let row = sqlx::query(
+        "SELECT id FROM compound_terms WHERE chebi_id = $1 AND is_obsolete = FALSE",
+    )
+    .bind(chebi_id)
+    .fetch_optional(pool)
+    .await?;
+    Ok(row.map(|r| r.get("id")))
+}
+
+pub async fn get_compound_targets(
+    pool: &PgPool,
+    compound_id: Uuid,
+    limit: i64,
+    offset: i64,
+) -> Result<Vec<serde_json::Value>, sqlx::Error> {
+    let rows = sqlx::query(
+        r#"SELECT ds.external_id AS uniprot_acc, dta.activity_type, dta.activity_value, dta.activity_unit
+           FROM drug_target_activities dta
+           JOIN data_sources ds ON ds.id = dta.target_gene_id
+           WHERE dta.compound_id = $1
+           LIMIT $2 OFFSET $3"#,
+    )
+    .bind(compound_id)
+    .bind(limit)
+    .bind(offset)
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows
+        .iter()
+        .map(|r| {
+            serde_json::json!({
+                "uniprot_acc": r.try_get::<Option<String>, _>("uniprot_acc").unwrap_or(None),
+                "activity_type": r.try_get::<Option<String>, _>("activity_type").unwrap_or(None),
+                "activity_value": r.try_get::<Option<f64>, _>("activity_value").unwrap_or(None),
+                "activity_unit": r.try_get::<Option<String>, _>("activity_unit").unwrap_or(None),
+            })
+        })
+        .collect())
+}
+
+pub async fn search_literature(
+    pool: &PgPool,
+    query: &str,
+    limit: i64,
+    offset: i64,
+) -> Result<Vec<serde_json::Value>, sqlx::Error> {
+    let rows = sqlx::query(
+        r#"SELECT pmid, title, journal, pub_year
+           FROM publications
+           WHERE to_tsvector('english', COALESCE(title,'') || ' ' || COALESCE(abstract_text,'')) @@ plainto_tsquery('english', $1)
+           ORDER BY pub_year DESC NULLS LAST
+           LIMIT $2 OFFSET $3"#,
+    )
+    .bind(query)
+    .bind(limit)
+    .bind(offset)
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows
+        .iter()
+        .map(|r| {
+            serde_json::json!({
+                "pmid": r.try_get::<i32, _>("pmid").unwrap_or(0),
+                "title": r.try_get::<String, _>("title").unwrap_or_default(),
+                "journal": r.try_get::<Option<String>, _>("journal").unwrap_or(None),
+                "pub_year": r.try_get::<Option<i32>, _>("pub_year").unwrap_or(None),
+            })
+        })
+        .collect())
+}
+
+pub async fn get_publication(
+    pool: &PgPool,
+    pmid: i32,
+) -> Result<Option<serde_json::Value>, sqlx::Error> {
+    let row = sqlx::query(
+        "SELECT pmid, title, abstract_text, journal, pub_year FROM publications WHERE pmid = $1",
+    )
+    .bind(pmid)
+    .fetch_optional(pool)
+    .await?;
+
+    Ok(row.map(|r| {
+        serde_json::json!({
+            "pmid": r.try_get::<i32, _>("pmid").unwrap_or(0),
+            "title": r.try_get::<String, _>("title").unwrap_or_default(),
+            "abstract": r.try_get::<Option<String>, _>("abstract_text").unwrap_or(None),
+            "journal": r.try_get::<Option<String>, _>("journal").unwrap_or(None),
+            "pub_year": r.try_get::<Option<i32>, _>("pub_year").unwrap_or(None),
+        })
+    }))
+}
+
+pub async fn get_gene_interactions(
+    pool: &PgPool,
+    gene_uuid: Uuid,
+    min_score: i16,
+    limit: i64,
+    offset: i64,
+) -> Result<Vec<serde_json::Value>, sqlx::Error> {
+    let rows = sqlx::query(
+        r#"SELECT
+              CASE WHEN pi.protein_a_id = $1 THEN ds_b.external_id ELSE ds_a.external_id END AS partner,
+              pi.combined_score, pi.score_experimental
+           FROM protein_interactions pi
+           JOIN data_sources ds_a ON ds_a.id = pi.protein_a_id
+           JOIN data_sources ds_b ON ds_b.id = pi.protein_b_id
+           WHERE (pi.protein_a_id = $1 OR pi.protein_b_id = $1)
+             AND pi.combined_score >= $2
+           ORDER BY pi.combined_score DESC
+           LIMIT $3 OFFSET $4"#,
+    )
+    .bind(gene_uuid)
+    .bind(min_score)
+    .bind(limit)
+    .bind(offset)
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows
+        .iter()
+        .map(|r| {
+            serde_json::json!({
+                "partner_uniprot": r.try_get::<Option<String>, _>("partner").unwrap_or(None),
+                "combined_score": r.try_get::<i16, _>("combined_score").unwrap_or(0),
+                "experimental_score": r.try_get::<Option<i16>, _>("score_experimental").unwrap_or(None),
+            })
+        })
+        .collect())
+}
+
+/// Resolve a UniProt accession to the data_sources UUID.
+pub async fn resolve_gene_uuid(
+    pool: &PgPool,
+    uniprot_acc: &str,
+) -> Result<Option<Uuid>, sqlx::Error> {
+    let row = sqlx::query(
+        "SELECT id FROM data_sources WHERE external_id = $1 AND source_type = 'uniprot'",
+    )
+    .bind(uniprot_acc)
+    .fetch_optional(pool)
+    .await?;
+    Ok(row.map(|r| r.get("id")))
+}
+
 // ─── Compound ─────────────────────────────────────────────────────────────────
 
 #[derive(Debug)]

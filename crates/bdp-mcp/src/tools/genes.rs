@@ -219,9 +219,149 @@ pub async fn get_gene_pathways(
     Ok(result)
 }
 
-/// Stub: gene-disease associations (requires DisGeNET pipeline).
-pub fn get_gene_diseases_stub() -> CallToolResult {
-    common::stub_result("get_gene_diseases", "Requires DisGeNET pipeline (BDP-81).", "BDP-81")
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct GetGeneInteractionsParams {
+    /// UniProt accession (e.g. "P04637")
+    pub gene: String,
+    /// Minimum combined STRING score (0-1000, default 400)
+    pub min_score: Option<i16>,
+    pub limit: Option<i64>,
+    pub cursor: Option<String>,
+}
+
+pub async fn get_gene_diseases(
+    pool: &sqlx::PgPool,
+    params: GetGeneDiseasesParams,
+) -> Result<CallToolResult, McpError> {
+    let start = Instant::now();
+    let input = resolve::cap_input(&params.id);
+    let uniprot_acc = resolve_to_uniprot_acc(pool, input).await?;
+
+    let gene_uuid = queries::resolve_gene_uuid(pool, &uniprot_acc)
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .ok_or_else(|| {
+            McpError::invalid_params(format!("Gene '{uniprot_acc}' not found in data_sources"), None)
+        })?;
+
+    let offset = 0i64;
+    let limit = 50i64;
+    let rows = queries::get_gene_diseases(pool, gene_uuid, limit, offset)
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+    let duration_ms = start.elapsed().as_millis() as i32;
+
+    audit::log_tool_call(
+        pool,
+        audit::AuditEntry {
+            agent_id: None,
+            tool_name: "get_gene_diseases",
+            query_params: json!({"id": params.id}),
+            dataset_versions: json!({"disgenet": "latest"}),
+            result_count: Some(rows.len() as i32),
+            duration_ms: Some(duration_ms),
+        },
+    )
+    .await;
+
+    let count = rows.len();
+    let text = if rows.is_empty() {
+        format!("No disease associations found for {uniprot_acc}")
+    } else {
+        format!("Disease associations for {} ({} found)", uniprot_acc, count)
+    };
+
+    let structured = json!({
+        "uniprot_acc": uniprot_acc,
+        "diseases": rows,
+        "pagination": {
+            "offset": offset,
+            "limit": limit,
+            "count": count,
+        },
+        "_meta": {"duration_ms": duration_ms}
+    });
+
+    let mut result = CallToolResult::success(vec![Content::text(text)]);
+    result.structured_content = Some(structured);
+    Ok(result)
+}
+
+pub async fn get_gene_interactions(
+    pool: &sqlx::PgPool,
+    params: GetGeneInteractionsParams,
+) -> Result<CallToolResult, McpError> {
+    let start = Instant::now();
+    let input = resolve::cap_input(&params.gene);
+    let uniprot_acc = resolve_to_uniprot_acc(pool, input).await?;
+
+    let gene_uuid = queries::resolve_gene_uuid(pool, &uniprot_acc)
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .ok_or_else(|| {
+            McpError::invalid_params(
+                format!("Gene '{uniprot_acc}' not found in data_sources"),
+                None,
+            )
+        })?;
+
+    let offset = common::decode_cursor(params.cursor.as_deref());
+    let limit = common::clamp_limit(params.limit);
+    let min_score = params.min_score.unwrap_or(400);
+
+    let rows = queries::get_gene_interactions(pool, gene_uuid, min_score, limit, offset)
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+    let duration_ms = start.elapsed().as_millis() as i32;
+
+    audit::log_tool_call(
+        pool,
+        audit::AuditEntry {
+            agent_id: None,
+            tool_name: "get_gene_interactions",
+            query_params: json!({"gene": params.gene, "min_score": min_score, "offset": offset, "limit": limit}),
+            dataset_versions: json!({"string": "latest"}),
+            result_count: Some(rows.len() as i32),
+            duration_ms: Some(duration_ms),
+        },
+    )
+    .await;
+
+    let next_cursor = if rows.len() == limit as usize {
+        Some(common::encode_cursor(offset + limit))
+    } else {
+        None
+    };
+
+    let count = rows.len();
+    let text = if rows.is_empty() {
+        format!(
+            "No protein interactions found for {uniprot_acc} with min_score >= {min_score}"
+        )
+    } else {
+        format!(
+            "Protein interactions for {} ({} found, min_score >= {}):",
+            uniprot_acc, count, min_score
+        )
+    };
+
+    let structured = json!({
+        "uniprot_acc": uniprot_acc,
+        "interactions": rows,
+        "pagination": {
+            "offset": offset,
+            "limit": limit,
+            "count": count,
+            "next_cursor": next_cursor,
+        },
+        "_meta": {"duration_ms": duration_ms}
+    });
+
+    let mut result = CallToolResult::success(vec![Content::text(text)]);
+    result.structured_content = Some(structured);
+    Ok(result)
 }
 
 /// Stub: gene literature (requires PubMed pipeline).

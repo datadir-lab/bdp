@@ -205,13 +205,63 @@ pub async fn get_compound_roles(
     Ok(result)
 }
 
-/// Stubs for not-yet-available tools
-pub fn get_compound_targets_stub() -> CallToolResult {
-    common::stub_result(
-        "get_compound_targets",
-        "Requires ChEMBL pipeline (BDP-80). Will return drug-target bioactivity data.",
-        "BDP-80",
+pub async fn get_compound_targets(
+    pool: &sqlx::PgPool,
+    params: GetCompoundTargetsParams,
+) -> Result<CallToolResult, McpError> {
+    let start = Instant::now();
+    let input = resolve::cap_input(&params.id);
+    let chebi_id = resolve_to_chebi_id(pool, input).await?;
+
+    let compound_uuid = queries::compound_uuid_by_chebi_id(pool, &chebi_id)
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .ok_or_else(|| {
+            McpError::invalid_params(format!("Compound '{chebi_id}' not found"), None)
+        })?;
+
+    let offset = 0i64;
+    let limit = 50i64;
+    let rows = queries::get_compound_targets(pool, compound_uuid, limit, offset)
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+    let duration_ms = start.elapsed().as_millis() as i32;
+
+    audit::log_tool_call(
+        pool,
+        audit::AuditEntry {
+            agent_id: None,
+            tool_name: "get_compound_targets",
+            query_params: json!({"id": params.id}),
+            dataset_versions: json!({"chembl": "latest"}),
+            result_count: Some(rows.len() as i32),
+            duration_ms: Some(duration_ms),
+        },
     )
+    .await;
+
+    let count = rows.len();
+    let text = if rows.is_empty() {
+        format!("No drug targets found for {chebi_id}")
+    } else {
+        format!("Drug targets for {} ({} found)", chebi_id, count)
+    };
+
+    let structured = json!({
+        "chebi_id": chebi_id,
+        "targets": rows,
+        "pagination": {
+            "offset": offset,
+            "limit": limit,
+            "count": count,
+        },
+        "_meta": {"duration_ms": duration_ms}
+    });
+
+    let mut result = CallToolResult::success(vec![Content::text(text)]);
+    result.structured_content = Some(structured);
+    Ok(result)
 }
 
 pub fn get_compound_trials_stub() -> CallToolResult {
