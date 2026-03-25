@@ -11,8 +11,6 @@
 
 pub mod chebi;
 pub mod gene_ontology;
+pub mod hpo;
+pub mod mondo;
 pub mod reactome;
-
-// Uncomment as pipelines are migrated from bdp-server:
-// pub mod mondo;
-// pub mod hpo;
