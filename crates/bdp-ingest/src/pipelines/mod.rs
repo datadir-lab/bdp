@@ -13,4 +13,5 @@ pub mod chebi;
 pub mod gene_ontology;
 pub mod hpo;
 pub mod mondo;
+pub mod open_targets;
 pub mod reactome;
