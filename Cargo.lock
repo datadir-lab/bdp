@@ -1119,6 +1119,7 @@ name = "bdp-mcp"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "axum 0.7.9",
  "base64 0.22.1",
  "chrono",
  "clap",
@@ -1130,6 +1131,7 @@ dependencies = [
  "testcontainers-modules",
  "thiserror 2.0.18",
  "tokio",
+ "tokio-util",
  "tracing",
  "tracing-subscriber",
  "uuid",

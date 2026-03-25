@@ -29,10 +29,43 @@ async fn main() -> anyhow::Result<()> {
                 .waiting()
                 .await
                 .map_err(|e| anyhow::anyhow!("stdio transport join error: {e}"))?;
-        }
+        },
         bdp_mcp::config::Transport::Http => {
-            anyhow::bail!("HTTP transport not yet implemented — use --transport stdio");
-        }
+            use rmcp::transport::streamable_http_server::{
+                session::local::LocalSessionManager, StreamableHttpServerConfig,
+                StreamableHttpService,
+            };
+            use std::sync::Arc;
+
+            let session_manager = Arc::new(LocalSessionManager::default());
+            let config = StreamableHttpServerConfig::default();
+            let cancellation_token = config.cancellation_token.clone();
+
+            let service: StreamableHttpService<bdp_mcp::server::BdpMcpServer, LocalSessionManager> =
+                StreamableHttpService::new(
+                    {
+                        let pool = pool.clone();
+                        move || Ok(bdp_mcp::server::BdpMcpServer::new(pool.clone()))
+                    },
+                    session_manager,
+                    config,
+                );
+
+            let app = axum::Router::new()
+                .nest_service("/mcp", service)
+                .route("/health", axum::routing::get(|| async { axum::http::StatusCode::OK }));
+
+            let bind_addr = format!("0.0.0.0:{}", cfg.port);
+            let listener = tokio::net::TcpListener::bind(&bind_addr).await?;
+            tracing::info!(addr = %bind_addr, "bdp-mcp HTTP listening");
+
+            axum::serve(listener, app)
+                .with_graceful_shutdown(async move {
+                    cancellation_token.cancelled().await;
+                })
+                .await
+                .map_err(|e| anyhow::anyhow!("HTTP server error: {e}"))?;
+        },
     }
 
     Ok(())
