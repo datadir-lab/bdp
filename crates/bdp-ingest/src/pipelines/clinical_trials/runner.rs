@@ -76,6 +76,8 @@ impl PipelineRunner for ClinicalTrialsPipelineRunner {
                             start_date: None,
                             completion_date: None,
                             source: None,
+                            conditions: Vec::new(),
+                            interventions: Vec::new(),
                         },
                     )
                 })

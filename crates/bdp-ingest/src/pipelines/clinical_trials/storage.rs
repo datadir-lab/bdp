@@ -42,6 +42,30 @@ impl ClinicalTrialsStorage {
                 Ok(r) => count += r.rows_affected() as usize,
                 Err(e) => warn!("clinical_trials upsert error: {}", e),
             }
+
+            // Insert disease links
+            for study in chunk {
+                for condition in &study.conditions {
+                    let _ = sqlx::query(
+                        "INSERT INTO trial_disease_links (trial_id, raw_condition) \
+                         VALUES ($1, $2) ON CONFLICT (trial_id, raw_condition) DO NOTHING",
+                    )
+                    .bind(&study.nct_id)
+                    .bind(condition)
+                    .execute(&self.pool)
+                    .await;
+                }
+                for intervention in &study.interventions {
+                    let _ = sqlx::query(
+                        "INSERT INTO trial_intervention_links (trial_id, intervention_name) \
+                         VALUES ($1, $2)",
+                    )
+                    .bind(&study.nct_id)
+                    .bind(intervention)
+                    .execute(&self.pool)
+                    .await;
+                }
+            }
         }
         Ok(count)
     }

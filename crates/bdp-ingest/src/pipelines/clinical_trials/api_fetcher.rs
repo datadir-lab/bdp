@@ -17,7 +17,7 @@ pub async fn fetch_updated_studies(
     client: &Client,
     base_url: &str,
     from_date: NaiveDate,
-    page_size: u32,
+    page_size: usize,
     max_retries: u32,
 ) -> Result<Vec<serde_json::Value>> {
     let date_str = from_date.format("%Y-%m-%d").to_string();
