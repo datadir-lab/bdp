@@ -13,6 +13,7 @@ pub struct PubmedArticle {
     pub journal: Option<String>,
     pub mesh_headings: Vec<MeshHeading>,
     pub authors: Vec<Author>,
+    pub keywords: Vec<String>,
 }
 
 #[derive(Debug, Default)]
@@ -54,6 +55,8 @@ pub fn parse_pubmed_xml(data: &[u8]) -> Result<Vec<PubmedArticle>> {
     let mut in_fore_name = false;
     let mut in_collective = false;
     let mut in_affiliation = false;
+    let mut in_keyword_list = false;
+    let mut in_keyword = false;
 
     loop {
         match reader.read_event_into(&mut buf) {
@@ -101,6 +104,8 @@ pub fn parse_pubmed_xml(data: &[u8]) -> Result<Vec<PubmedArticle>> {
                     b"ForeName" if current_author.is_some() => in_fore_name = true,
                     b"CollectiveName" if current_author.is_some() => in_collective = true,
                     b"Affiliation" if current_author.is_some() => in_affiliation = true,
+                    b"KeywordList" => in_keyword_list = true,
+                    b"Keyword" if in_keyword_list => in_keyword = true,
                     _ => {}
                 }
             }
@@ -123,6 +128,8 @@ pub fn parse_pubmed_xml(data: &[u8]) -> Result<Vec<PubmedArticle>> {
                     b"AbstractText" => in_abstract = false,
                     b"Title" => in_journal_title = false,
                     b"ArticleId" => in_article_id = false,
+                    b"KeywordList" => in_keyword_list = false,
+                    b"Keyword" => in_keyword = false,
                     b"DescriptorName" => {
                         if let Some(art) = current.as_mut() {
                             art.mesh_headings.push(std::mem::take(&mut current_mesh));
@@ -179,6 +186,12 @@ pub fn parse_pubmed_xml(data: &[u8]) -> Result<Vec<PubmedArticle>> {
                 }
                 if in_mesh_descriptor {
                     current_mesh.descriptor = text.clone();
+                }
+                if in_keyword {
+                    if let Some(art) = current.as_mut() {
+                        art.keywords.push(text.clone());
+                    }
+                    in_keyword = false;
                 }
                 if let Some(auth) = current_author.as_mut() {
                     if in_last_name {

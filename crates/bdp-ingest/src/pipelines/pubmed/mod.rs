@@ -7,4 +7,4 @@ pub mod runner;
 pub mod storage;
 
 pub use config::PubmedConfig;
-// pub use runner::PubmedPipelineRunner;  // uncomment after Task 10
+pub use runner::PubmedPipelineRunner;

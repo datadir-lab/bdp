@@ -4,6 +4,7 @@ use scraper::{Html, Selector};
 use sqlx::PgPool;
 use sqlx::Row;
 use tracing::info;
+use uuid::Uuid;
 
 /// List all .xml.gz filenames from the PubMed FTP directory HTML.
 pub async fn list_pubmed_files(client: &Client, base_url: &str) -> Result<Vec<String>> {
@@ -28,7 +29,11 @@ pub async fn list_pubmed_files(client: &Client, base_url: &str) -> Result<Vec<St
 }
 
 /// Register pending files in pubmed_ingest_files table (skips already-registered files).
-pub async fn register_pending_files(pool: &PgPool, filenames: &[String]) -> Result<usize> {
+pub async fn register_pending_files(
+    pool: &PgPool,
+    filenames: &[String],
+    _org_id: Uuid,
+) -> Result<usize> {
     let mut registered = 0usize;
     for filename in filenames {
         let result = sqlx::query(
@@ -45,16 +50,18 @@ pub async fn register_pending_files(pool: &PgPool, filenames: &[String]) -> Resu
     Ok(registered)
 }
 
-/// Fetch filenames with status='pending' for processing.
-pub async fn get_pending_files(pool: &PgPool, limit: i64) -> Result<Vec<String>> {
+/// Fetch (id, filename) tuples with status='pending' for processing.
+pub async fn get_pending_files(pool: &PgPool) -> Result<Vec<(i64, String)>> {
     let rows = sqlx::query(
-        "SELECT filename FROM pubmed_ingest_files WHERE status = 'pending' ORDER BY id LIMIT $1",
+        "SELECT id, filename FROM pubmed_ingest_files WHERE status = 'pending' ORDER BY id",
     )
-    .bind(limit)
     .fetch_all(pool)
     .await?;
-    Ok(rows
-        .iter()
-        .filter_map(|r| r.try_get::<String, _>("filename").ok())
-        .collect())
+    let mut results = Vec::with_capacity(rows.len());
+    for row in &rows {
+        let id: i64 = row.try_get("id")?;
+        let filename: String = row.try_get("filename")?;
+        results.push((id, filename));
+    }
+    Ok(results)
 }
