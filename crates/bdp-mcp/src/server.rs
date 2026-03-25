@@ -17,8 +17,10 @@ use crate::tools::diseases::{
 use crate::tools::genes::{
     GetGeneDiseasesParams, GetGeneLiteratureParams, GetGeneParams, GetGenePathwaysParams,
 };
+use crate::tools::literature::{GetPublicationParams, SearchLiteratureParams};
 use crate::tools::pathways::{GetPathwayParams, GetPathwayProteinsParams};
 use crate::tools::phenotypes::{GetPhenotypeDiseasesParams, GetPhenotypeParams};
+use crate::tools::traversal::{FindConnectionParams, TraverseParams};
 
 /// The BDP MCP server. Holds a database connection pool and implements the MCP
 /// `ServerHandler` trait via the rmcp macros.
@@ -229,6 +231,50 @@ impl BdpMcpServer {
         Parameters(params): Parameters<GetPathwayProteinsParams>,
     ) -> Result<CallToolResult, McpError> {
         crate::tools::pathways::get_pathway_proteins(&self.pool, params).await
+    }
+
+    /// [PLANNED] Search literature by query string or entity name.
+    #[tool(
+        description = "Search literature by query string or entity (e.g. 'BRCA1 breast cancer'). NOTE: Not yet available — requires PubMed pipeline (tracked: BDP-84)."
+    )]
+    async fn search_literature(
+        &self,
+        Parameters(_params): Parameters<SearchLiteratureParams>,
+    ) -> Result<CallToolResult, McpError> {
+        Ok(crate::tools::literature::search_literature_stub())
+    }
+
+    /// [PLANNED] Fetch a publication record by PubMed ID or DOI.
+    #[tool(
+        description = "Fetch a publication record by PubMed ID (e.g. 'PMID:12345678') or DOI. NOTE: Not yet available — requires PubMed pipeline (tracked: BDP-84)."
+    )]
+    async fn get_publication(
+        &self,
+        Parameters(_params): Parameters<GetPublicationParams>,
+    ) -> Result<CallToolResult, McpError> {
+        Ok(crate::tools::literature::get_publication_stub())
+    }
+
+    /// Traverse from one entity type to another via a named path.
+    #[tool(
+        description = "Traverse from one entity type to another. Supported paths: 'disease->phenotype', 'phenotype->disease', 'gene->pathway', 'compound->role'. Other paths return a stub with a planned tracking ID."
+    )]
+    async fn traverse(
+        &self,
+        Parameters(params): Parameters<TraverseParams>,
+    ) -> Result<CallToolResult, McpError> {
+        crate::tools::traversal::traverse(&self.pool, params).await
+    }
+
+    /// [PLANNED] Find a multi-hop connection between two entities.
+    #[tool(
+        description = "Find a multi-hop connection between any two entities. NOTE: Not yet available — graph path-finding not implemented (tracked: BDP-90)."
+    )]
+    async fn find_connection(
+        &self,
+        Parameters(_params): Parameters<FindConnectionParams>,
+    ) -> Result<CallToolResult, McpError> {
+        Ok(crate::tools::traversal::find_connection_stub())
     }
 }
 
