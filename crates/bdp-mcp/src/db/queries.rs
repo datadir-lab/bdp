@@ -3,6 +3,7 @@
 // Runtime DB queries for MCP tools — disease, phenotype, gene, pathway, compound.
 // Uses sqlx::query() (NOT sqlx::query!() macros) to avoid offline-cache dependency.
 
+use chrono::Datelike;
 use sqlx::{PgPool, Row};
 use uuid::Uuid;
 
@@ -469,7 +470,7 @@ pub async fn get_disease_trials(
     let rows = sqlx::query(
         r#"SELECT ct.nct_id, ct.title, ct.status, ct.phase
            FROM trial_disease_links tdl
-           JOIN clinical_trials ct ON ct.nct_id = tdl.trial_id
+           JOIN clinical_trials ct ON ct.id = tdl.trial_id
            WHERE tdl.disease_term_id = $1
            LIMIT $2 OFFSET $3"#,
     )
@@ -545,10 +546,10 @@ pub async fn search_literature(
     offset: i64,
 ) -> Result<Vec<serde_json::Value>, sqlx::Error> {
     let rows = sqlx::query(
-        r#"SELECT pmid, title, journal, pub_year
+        r#"SELECT pmid, title, journal, pub_date
            FROM publications
-           WHERE to_tsvector('english', COALESCE(title,'') || ' ' || COALESCE(abstract_text,'')) @@ plainto_tsquery('english', $1)
-           ORDER BY pub_year DESC NULLS LAST
+           WHERE to_tsvector('english', COALESCE(title,'') || ' ' || COALESCE("abstract",'')) @@ plainto_tsquery('english', $1)
+           ORDER BY pub_date DESC NULLS LAST
            LIMIT $2 OFFSET $3"#,
     )
     .bind(query)
@@ -564,7 +565,7 @@ pub async fn search_literature(
                 "pmid": r.try_get::<i32, _>("pmid").unwrap_or(0),
                 "title": r.try_get::<String, _>("title").unwrap_or_default(),
                 "journal": r.try_get::<Option<String>, _>("journal").unwrap_or(None),
-                "pub_year": r.try_get::<Option<i32>, _>("pub_year").unwrap_or(None),
+                "pub_year": r.try_get::<Option<chrono::NaiveDate>, _>("pub_date").ok().flatten().map(|d| d.year()),
             })
         })
         .collect())
@@ -575,7 +576,7 @@ pub async fn get_publication(
     pmid: i32,
 ) -> Result<Option<serde_json::Value>, sqlx::Error> {
     let row = sqlx::query(
-        "SELECT pmid, title, abstract_text, journal, pub_year FROM publications WHERE pmid = $1",
+        r#"SELECT pmid, title, "abstract", journal, pub_date FROM publications WHERE pmid = $1"#,
     )
     .bind(pmid)
     .fetch_optional(pool)
@@ -585,9 +586,9 @@ pub async fn get_publication(
         serde_json::json!({
             "pmid": r.try_get::<i32, _>("pmid").unwrap_or(0),
             "title": r.try_get::<String, _>("title").unwrap_or_default(),
-            "abstract": r.try_get::<Option<String>, _>("abstract_text").unwrap_or(None),
+            "abstract": r.try_get::<Option<String>, _>("abstract").unwrap_or(None),
             "journal": r.try_get::<Option<String>, _>("journal").unwrap_or(None),
-            "pub_year": r.try_get::<Option<i32>, _>("pub_year").unwrap_or(None),
+            "pub_year": r.try_get::<Option<chrono::NaiveDate>, _>("pub_date").ok().flatten().map(|d| d.year()),
         })
     }))
 }
