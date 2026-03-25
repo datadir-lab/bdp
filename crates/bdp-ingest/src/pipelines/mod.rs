@@ -4,12 +4,14 @@
 // Each submodule implements PipelineRunner.
 //
 // Current pipelines:
-//   (to be added as they are implemented)
+//   gene_ontology — downloads and parses go-basic.obo
 //
 // Existing pipelines (in bdp-server, pending migration):
-//   uniprot, ncbi_taxonomy, genbank, gene_ontology, interpro
+//   uniprot, ncbi_taxonomy, genbank, interpro
 
-// Uncomment as pipelines are added:
+pub mod gene_ontology;
+
+// Uncomment as pipelines are migrated from bdp-server:
 // pub mod reactome;
 // pub mod mondo;
 // pub mod hpo;

@@ -116,10 +116,7 @@ impl OboParser {
         Ok(terms)
     }
 
-    fn parse_stanza(
-        lines: &[&str],
-        start: usize,
-    ) -> Result<(RawOboTerm, usize), OboParseError> {
+    fn parse_stanza(lines: &[&str], start: usize) -> Result<(RawOboTerm, usize), OboParseError> {
         let mut term = RawOboTerm::default();
         let mut i = start;
 
@@ -158,7 +155,12 @@ impl OboParser {
                 }
             } else if let Some(rest) = line.strip_prefix("xref: ") {
                 // Take only the xref ID part, ignore trailing description
-                let xref = rest.trim().split_whitespace().next().unwrap_or("").to_string();
+                let xref = rest
+                    .trim()
+                    .split_whitespace()
+                    .next()
+                    .unwrap_or("")
+                    .to_string();
                 if !xref.is_empty() {
                     term.xrefs.push(xref);
                 }
@@ -166,7 +168,12 @@ impl OboParser {
                 term.alt_ids.push(rest.trim().to_string());
             } else if let Some(rest) = line.strip_prefix("is_a: ") {
                 // is_a: GO:0006950 ! response to stress
-                let parent_id = rest.trim().split_whitespace().next().unwrap_or("").to_string();
+                let parent_id = rest
+                    .trim()
+                    .split_whitespace()
+                    .next()
+                    .unwrap_or("")
+                    .to_string();
                 if !parent_id.is_empty() {
                     term.is_a.push(parent_id);
                 }
@@ -176,7 +183,12 @@ impl OboParser {
                 if let (Some(rel_type), Some(target)) = (parts.next(), parts.next()) {
                     term.relationships.push(RawOboRelationship {
                         rel_type: rel_type.to_string(),
-                        target: target.split('!').next().unwrap_or(target).trim().to_string(),
+                        target: target
+                            .split('!')
+                            .next()
+                            .unwrap_or(target)
+                            .trim()
+                            .to_string(),
                     });
                 }
             } else if let Some(rest) = line.strip_prefix("property_value: ") {

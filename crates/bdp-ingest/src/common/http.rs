@@ -32,10 +32,10 @@ pub async fn download_text(url: &str, max_retries: u32) -> Result<String> {
                     return Ok(text);
                 }
                 last_error = Some(anyhow::anyhow!("HTTP {}: {}", status, url));
-            }
+            },
             Err(e) => {
                 last_error = Some(anyhow::anyhow!("request failed: {}: {}", url, e));
-            }
+            },
         }
     }
 
@@ -60,13 +60,13 @@ pub async fn download_bytes(url: &str, max_retries: u32) -> Result<bytes::Bytes>
         match client.get(url).send().await {
             Ok(resp) if resp.status().is_success() => {
                 return resp.bytes().await.context("failed to read response body");
-            }
+            },
             Ok(resp) => {
                 last_error = Some(anyhow::anyhow!("HTTP {}: {}", resp.status(), url));
-            }
+            },
             Err(e) => {
                 last_error = Some(anyhow::anyhow!("{}", e));
-            }
+            },
         }
     }
 
