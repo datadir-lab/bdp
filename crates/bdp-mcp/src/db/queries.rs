@@ -31,6 +31,27 @@ pub struct DiseaseXrefRow {
     pub source_id: String,
 }
 
+/// Fetch disease by internal UUID (for FTS resolve path).
+pub async fn get_disease_by_id(pool: &PgPool, id: Uuid) -> sqlx::Result<Option<DiseaseRow>> {
+    let row = sqlx::query(
+        "SELECT id, mondo_id, name, definition, omim_id, orphanet_id, mondo_release
+         FROM disease_terms WHERE id = $1 AND is_obsolete = FALSE",
+    )
+    .bind(id)
+    .fetch_optional(pool)
+    .await?;
+
+    Ok(row.map(|r| DiseaseRow {
+        id: r.get("id"),
+        mondo_id: r.get("mondo_id"),
+        name: r.get("name"),
+        definition: r.get("definition"),
+        omim_id: r.get("omim_id"),
+        orphanet_id: r.get("orphanet_id"),
+        mondo_release: r.get("mondo_release"),
+    }))
+}
+
 /// Fetch a disease term by MONDO ID string (e.g. "MONDO:0004975").
 pub async fn get_disease(pool: &PgPool, mondo_id: &str) -> sqlx::Result<Option<DiseaseRow>> {
     let row = sqlx::query(
