@@ -8,6 +8,9 @@ name = "bdp-mcp"
 path = "src/main.rs"
 
 [dependencies]
+# CLI argument parsing
+clap = { version = "4", features = ["derive", "env"] }
+
 # MCP
 rmcp = { version = "1.2.0", features = ["server", "transport-io", "transport-streamable-http-server", "macros"] }
 
