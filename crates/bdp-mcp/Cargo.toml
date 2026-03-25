@@ -7,6 +7,10 @@ edition = "2021"
 name = "bdp-mcp"
 path = "src/main.rs"
 
+[lib]
+name = "bdp_mcp"
+path = "src/lib.rs"
+
 [dependencies]
 # CLI argument parsing
 clap = { version = "4", features = ["derive", "env"] }
@@ -39,3 +43,6 @@ uuid = { version = "1.11", features = ["v4", "serde"] }
 
 [dev-dependencies]
 tokio = { version = "1.42", features = ["full", "test-util"] }
+anyhow = "1.0"
+testcontainers = "0.26"
+testcontainers-modules = { version = "0.14", features = ["postgres"] }
