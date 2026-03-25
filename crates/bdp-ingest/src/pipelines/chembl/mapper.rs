@@ -8,7 +8,7 @@ pub async fn build_compound_map(pool: &PgPool, inchikeys: &[String]) -> Result<H
         return Ok(HashMap::new());
     }
     let rows = sqlx::query(
-        "SELECT ct.inchikey, ct.data_source_id FROM compound_terms ct WHERE ct.inchikey = ANY($1)",
+        "SELECT ct.inchikey, ct.id FROM compound_terms ct WHERE ct.inchikey = ANY($1)",
     )
     .bind(inchikeys)
     .fetch_all(pool)
@@ -17,7 +17,7 @@ pub async fn build_compound_map(pool: &PgPool, inchikeys: &[String]) -> Result<H
         .iter()
         .filter_map(|r| {
             let k: String = r.try_get("inchikey").ok()?;
-            let id: Uuid = r.try_get("data_source_id").ok()?;
+            let id: Uuid = r.try_get("id").ok()?;
             Some((k, id))
         })
         .collect())

@@ -8,7 +8,7 @@ use crate::pipelines::chembl::{
     config::ChemblConfig,
     extractor::{extract_activities, parse_uniprot_mapping},
     mapper::{build_compound_map, build_target_map},
-    storage::ChemblStorage,
+    storage::{ActivityInsertRow, ChemblStorage},
 };
 
 pub struct ChemblPipelineRunner {
@@ -51,18 +51,24 @@ impl PipelineRunner for ChemblPipelineRunner {
         let compound_map = build_compound_map(&self.pool, &inchikeys).await?;
         let target_map = build_target_map(&self.pool, &chembl_to_uniprot).await?;
 
-        let insert_rows: Vec<_> = activities
+        let insert_rows: Vec<ActivityInsertRow> = activities
             .iter()
             .filter_map(|a| {
                 let compound_id = *compound_map.get(&a.inchikey)?;
-                let target_id = *target_map.get(&a.target_chembl_id)?;
-                Some((
+                let target_gene_id = *target_map.get(&a.target_chembl_id)?;
+                Some(ActivityInsertRow {
                     compound_id,
-                    target_id,
-                    a.activity_type.clone(),
-                    a.activity_value.map(|v| v as f32),
-                    self.config.source_version.clone(),
-                ))
+                    target_gene_id,
+                    activity_type: a.activity_type.clone(),
+                    activity_value: a.activity_value.map(|v| v as f32),
+                    activity_unit: a.activity_unit.clone(),
+                    relation: a.relation.clone(),
+                    assay_type: a.assay_type.clone(),
+                    chembl_assay_id: a.assay_chembl_id.clone(),
+                    chembl_doc_id: a.doc_id.clone(),
+                    confidence: a.confidence.map(|c| c as i16),
+                    source_version: self.config.source_version.clone(),
+                })
             })
             .collect();
 

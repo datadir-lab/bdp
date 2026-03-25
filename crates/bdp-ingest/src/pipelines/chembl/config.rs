@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 use uuid::Uuid;
 
+// Reserved for future auto-download support
 pub const CHEMBL_FTP_BASE: &str =
     "https://ftp.ebi.ac.uk/pub/databases/chembl/ChEMBLdb/releases/chembl_36";
 
