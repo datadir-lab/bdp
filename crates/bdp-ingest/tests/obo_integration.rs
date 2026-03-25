@@ -56,3 +56,47 @@ async fn test_parse_real_mondo_obo() {
     println!("Parsed {} MONDO OBO terms (first 1000)", terms.len());
     println!("Sample IDs: {:?}", terms.iter().take(5).map(|t| &t.id).collect::<Vec<_>>());
 }
+
+#[tokio::test]
+#[ignore = "downloads from reactome.org"]
+async fn test_parse_reactome_pathways() {
+    use bdp_ingest::pipelines::reactome::parser;
+
+    let url = "https://reactome.org/download/current/ReactomePathways.txt";
+    let content = bdp_ingest::common::http::download_text(url, 3)
+        .await
+        .expect("failed to download ReactomePathways.txt");
+    let pathways = parser::parse_pathways(&content, "114").expect("failed to parse pathways");
+
+    assert!(pathways.len() > 20_000, "expected >20K pathways, got {}", pathways.len());
+
+    let human = pathways.iter().filter(|p| p.species_name == "Homo sapiens").count();
+    assert!(human > 2_000, "expected >2K human pathways, got {}", human);
+
+    println!("Reactome: {} total pathways, {} human", pathways.len(), human);
+}
+
+#[tokio::test]
+#[ignore = "downloads ~100MB from reactome.org"]
+async fn test_parse_reactome_uniprot_human() {
+    use bdp_ingest::pipelines::reactome::parser;
+
+    let url = "https://reactome.org/download/current/UniProt2Reactome.txt";
+    let content = bdp_ingest::common::http::download_text(url, 3)
+        .await
+        .expect("failed to download UniProt2Reactome.txt");
+    let links =
+        parser::parse_uniprot_reactome(&content, "114", Some("Homo sapiens")).expect("failed to parse links");
+
+    assert!(links.len() > 100_000, "expected >100K human links, got {}", links.len());
+
+    // TP53 (P04637) should map to many pathways
+    let tp53_links: Vec<_> = links.iter().filter(|l| l.uniprot_acc == "P04637").collect();
+    assert!(!tp53_links.is_empty(), "P04637 (TP53) should map to pathways");
+
+    println!(
+        "Reactome: {} human protein->pathway links, {} TP53 pathways",
+        links.len(),
+        tp53_links.len()
+    );
+}
