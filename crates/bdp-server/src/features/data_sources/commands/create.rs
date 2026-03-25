@@ -11,7 +11,7 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::features::shared::validation::{
-    validate_name, validate_slug, validate_source_type, NameValidationError, SlugValidationError,
+    validate_name, validate_slug, NameValidationError, SlugValidationError,
 };
 
 /// Command to create a new data source
@@ -110,9 +110,7 @@ impl CreateDataSourceCommand {
         // Validate name using shared utility
         validate_name(&self.name, 255)?;
 
-        // Validate source type using shared utility
-        validate_source_type(&self.source_type)
-            .map_err(CreateDataSourceError::SourceTypeValidation)?;
+        // Source type validity is now enforced by FK to source_types table in the database
 
         Ok(())
     }
@@ -274,18 +272,6 @@ mod tests {
         assert!(matches!(cmd.validate(), Err(CreateDataSourceError::SlugValidation(_))));
     }
 
-    #[test]
-    fn test_validation_invalid_source_type() {
-        let cmd = CreateDataSourceCommand {
-            organization_id: Uuid::new_v4(),
-            slug: "test".to_string(),
-            name: "Name".to_string(),
-            description: None,
-            source_type: "invalid".to_string(),
-            external_id: None,
-        };
-        assert!(matches!(cmd.validate(), Err(CreateDataSourceError::SourceTypeValidation(_))));
-    }
 
     #[sqlx::test]
     async fn test_handle_creates_data_source(pool: PgPool) -> sqlx::Result<()> {

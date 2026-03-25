@@ -9,7 +9,6 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::features::shared::pagination::{PaginationMetadata, PaginationParams};
-use crate::features::shared::validation::VALID_SOURCE_TYPES;
 
 /// Query for unified full-text search
 ///
@@ -166,14 +165,8 @@ impl UnifiedSearchQuery {
             }
         }
 
-        // Use shared VALID_SOURCE_TYPES constant
-        if let Some(ref source_types) = self.source_type_filter {
-            for st in source_types {
-                if !VALID_SOURCE_TYPES.contains(&st.as_str()) {
-                    return Err(UnifiedSearchError::InvalidSourceTypeFilter(st.clone()));
-                }
-            }
-        }
+        // Source type validity is enforced by the source_types FK table in the database.
+        // No application-level validation needed here.
 
         Ok(())
     }
@@ -614,18 +607,6 @@ mod tests {
         assert!(matches!(query.validate(), Err(UnifiedSearchError::InvalidTypeFilter(_))));
     }
 
-    #[test]
-    fn test_validation_invalid_source_type_filter() {
-        let query = UnifiedSearchQuery {
-            query: "test".to_string(),
-            type_filter: Some(vec!["data_source".to_string()]),
-            source_type_filter: Some(vec!["invalid_type".to_string()]),
-            organism: None,
-            format: None,
-            pagination: PaginationParams::default(),
-        };
-        assert!(matches!(query.validate(), Err(UnifiedSearchError::InvalidSourceTypeFilter(_))));
-    }
 
     #[test]
     fn test_validation_valid_source_type_filter() {

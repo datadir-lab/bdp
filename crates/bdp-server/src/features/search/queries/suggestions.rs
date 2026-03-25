@@ -120,25 +120,8 @@ impl SearchSuggestionsQuery {
             }
         }
 
-        if let Some(ref source_types) = self.source_type_filter {
-            for st in source_types {
-                if !matches!(
-                    st.as_str(),
-                    "protein"
-                        | "genome"
-                        | "organism"
-                        | "taxonomy"
-                        | "bundle"
-                        | "transcript"
-                        | "annotation"
-                        | "structure"
-                        | "pathway"
-                        | "other"
-                ) {
-                    return Err(SearchSuggestionsError::InvalidSourceTypeFilter(st.clone()));
-                }
-            }
-        }
+        // Source type validity is enforced by the source_types FK table in the database.
+        // No application-level validation needed here.
 
         Ok(())
     }
@@ -512,19 +495,6 @@ mod tests {
         Ok(())
     }
 
-    #[test]
-    fn test_validation_invalid_source_type_filter() {
-        let query = SearchSuggestionsQuery {
-            q: "test".to_string(),
-            limit: None,
-            type_filter: Some(vec!["data_source".to_string()]),
-            source_type_filter: Some(vec!["invalid_type".to_string()]),
-        };
-        assert!(matches!(
-            query.validate(),
-            Err(SearchSuggestionsError::InvalidSourceTypeFilter(_))
-        ));
-    }
 
     #[test]
     fn test_validation_valid_source_type_filter() {

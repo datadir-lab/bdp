@@ -172,42 +172,6 @@ pub fn validate_optional_url(
     Ok(())
 }
 
-/// Common source type values and validation
-pub const VALID_SOURCE_TYPES: &[&str] = &[
-    "protein",
-    "genome",
-    "organism",
-    "taxonomy",
-    "bundle",
-    "transcript",
-    "annotation",
-    "structure",
-    "pathway",
-    "other",
-];
-
-/// Validate a source type value
-///
-/// # Arguments
-/// * `source_type` - The source type to validate
-///
-/// # Returns
-/// Ok(()) if valid, or an error message
-pub fn validate_source_type(source_type: &str) -> Result<(), String> {
-    if source_type.is_empty() {
-        return Err("Source type is required".to_string());
-    }
-
-    if !VALID_SOURCE_TYPES.contains(&source_type) {
-        return Err(format!(
-            "Invalid source type: {}. Must be one of: {}",
-            source_type,
-            VALID_SOURCE_TYPES.join(", ")
-        ));
-    }
-
-    Ok(())
-}
 
 #[cfg(test)]
 mod tests {
@@ -309,17 +273,5 @@ mod tests {
         assert!(!is_valid_url("example.com"));
     }
 
-    // Source type validation tests
-    #[test]
-    fn test_validate_source_type_valid() {
-        assert!(validate_source_type("protein").is_ok());
-        assert!(validate_source_type("genome").is_ok());
-        assert!(validate_source_type("organism").is_ok());
-    }
 
-    #[test]
-    fn test_validate_source_type_invalid() {
-        assert!(validate_source_type("").is_err());
-        assert!(validate_source_type("invalid").is_err());
-    }
 }
