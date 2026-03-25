@@ -81,10 +81,11 @@ async fn test_parse_reactome_pathways() {
 async fn test_parse_reactome_uniprot_human() {
     use bdp_ingest::pipelines::reactome::parser;
 
-    let url = "https://reactome.org/download/current/UniProt2Reactome.txt";
+    // UniProt2Reactome_All_Levels.txt includes all hierarchy levels — larger dataset
+    let url = "https://reactome.org/download/current/UniProt2Reactome_All_Levels.txt";
     let content = bdp_ingest::common::http::download_text(url, 3)
         .await
-        .expect("failed to download UniProt2Reactome.txt");
+        .expect("failed to download UniProt2Reactome_All_Levels.txt");
     let links =
         parser::parse_uniprot_reactome(&content, "114", Some("Homo sapiens")).expect("failed to parse links");
 
