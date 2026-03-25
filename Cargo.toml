@@ -4,6 +4,7 @@ members = [
     "crates/bdp-cli",
     "crates/bdp-ingest",
     "crates/bdp-common",
+    "crates/bdp-mcp",
     "xtask",
 ]
 resolver = "2"
