@@ -35,7 +35,7 @@ pub fn parse_obo(content: &str, limit: Option<usize>) -> anyhow::Result<ParsedGo
 
     for raw in raw_terms {
         // Skip terms with no valid GO namespace
-        let Some(namespace) = raw.namespace.as_deref().and_then(Namespace::from_str) else {
+        let Some(namespace) = raw.namespace.as_deref().and_then(Namespace::parse) else {
             debug!(id = %raw.id, "skipping GO term with unknown namespace");
             continue;
         };
@@ -83,7 +83,7 @@ fn extract_relationships(raw: &RawOboTerm) -> Vec<GoRelationship> {
         rels.push(GoRelationship {
             subject_go_id: raw.id.clone(),
             object_go_id: rel.target.clone(),
-            relationship_type: RelationshipType::from_str(&rel.rel_type),
+            relationship_type: RelationshipType::parse(&rel.rel_type),
         });
     }
 

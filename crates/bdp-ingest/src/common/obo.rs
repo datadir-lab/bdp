@@ -155,12 +155,7 @@ impl OboParser {
                 }
             } else if let Some(rest) = line.strip_prefix("xref: ") {
                 // Take only the xref ID part, ignore trailing description
-                let xref = rest
-                    .trim()
-                    .split_whitespace()
-                    .next()
-                    .unwrap_or("")
-                    .to_string();
+                let xref = rest.split_whitespace().next().unwrap_or("").to_string();
                 if !xref.is_empty() {
                     term.xrefs.push(xref);
                 }
@@ -168,12 +163,7 @@ impl OboParser {
                 term.alt_ids.push(rest.trim().to_string());
             } else if let Some(rest) = line.strip_prefix("is_a: ") {
                 // is_a: GO:0006950 ! response to stress
-                let parent_id = rest
-                    .trim()
-                    .split_whitespace()
-                    .next()
-                    .unwrap_or("")
-                    .to_string();
+                let parent_id = rest.split_whitespace().next().unwrap_or("").to_string();
                 if !parent_id.is_empty() {
                     term.is_a.push(parent_id);
                 }

@@ -20,7 +20,7 @@ pub enum Namespace {
 }
 
 impl Namespace {
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn parse(s: &str) -> Option<Self> {
         match s {
             "biological_process" => Some(Namespace::BiologicalProcess),
             "molecular_function" => Some(Namespace::MolecularFunction),
@@ -63,7 +63,7 @@ pub enum RelationshipType {
 }
 
 impl RelationshipType {
-    pub fn from_str(s: &str) -> Self {
+    pub fn parse(s: &str) -> Self {
         match s {
             "is_a" => RelationshipType::IsA,
             "part_of" => RelationshipType::PartOf,
@@ -127,19 +127,19 @@ mod tests {
             ("molecular_function", Namespace::MolecularFunction),
             ("cellular_component", Namespace::CellularComponent),
         ] {
-            assert_eq!(Namespace::from_str(s), Some(ns));
+            assert_eq!(Namespace::parse(s), Some(ns));
             assert_eq!(ns.as_str(), s);
         }
-        assert_eq!(Namespace::from_str("unknown"), None);
+        assert_eq!(Namespace::parse("unknown"), None);
     }
 
     #[test]
-    fn test_relationship_type_from_str() {
-        assert_eq!(RelationshipType::from_str("is_a"), RelationshipType::IsA);
-        assert_eq!(RelationshipType::from_str("part_of"), RelationshipType::PartOf);
-        assert_eq!(RelationshipType::from_str("regulates"), RelationshipType::Regulates);
+    fn test_relationship_type_parse() {
+        assert_eq!(RelationshipType::parse("is_a"), RelationshipType::IsA);
+        assert_eq!(RelationshipType::parse("part_of"), RelationshipType::PartOf);
+        assert_eq!(RelationshipType::parse("regulates"), RelationshipType::Regulates);
         assert!(matches!(
-            RelationshipType::from_str("novel_rel"),
+            RelationshipType::parse("novel_rel"),
             RelationshipType::Other(_)
         ));
     }
