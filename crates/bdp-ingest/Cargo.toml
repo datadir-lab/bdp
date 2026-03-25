@@ -71,6 +71,9 @@ tokio-stream = "0.1"
 flate2 = "1.0"
 tar = "0.4"
 
+# Bytes buffer
+bytes = "1"
+
 # CSV parsing
 csv = "1.3"
 csv-async = "1.3"
@@ -87,6 +90,6 @@ wiremock = "0.6"
 tokio = { workspace = true, features = ["test-util"] }
 
 [features]
-default = []
+default = ["database"]
 # Enable database support for direct ingestion
 database = ["sqlx"]

@@ -45,6 +45,7 @@ harness = false
 # Workspace Dependencies
 # ============================================================================
 bdp-common = { workspace = true }
+bdp-ingest = { workspace = true }
 tokio = { workspace = true }
 futures = { workspace = true }
 serde = { workspace = true }

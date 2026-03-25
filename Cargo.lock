@@ -1084,6 +1084,7 @@ version = "0.1.43"
 dependencies = [
  "anyhow",
  "bdp-common",
+ "bytes",
  "chrono",
  "clap",
  "csv",
@@ -1125,6 +1126,7 @@ dependencies = [
  "aws-sdk-s3",
  "axum 0.7.9",
  "bdp-common",
+ "bdp-ingest",
  "chrono",
  "config",
  "criterion",
