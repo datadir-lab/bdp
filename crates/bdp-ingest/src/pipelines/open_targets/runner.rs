@@ -60,6 +60,11 @@ impl PipelineRunner for OpenTargetsPipelineRunner {
         info!("listing Open Targets association files");
         let assoc_url = self.config.associations_url();
         let files = list_parquet_files(&client, &assoc_url).await?;
+        let files = if let Some(limit) = self.config.parse_limit {
+            files.into_iter().take(limit).collect::<Vec<_>>()
+        } else {
+            files
+        };
         info!(files = files.len(), "found association parquet files");
 
         // Single-pass: download each file once, collect all AssociationRows
