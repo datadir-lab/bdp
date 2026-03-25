@@ -109,18 +109,22 @@ See [Logging Best Practices](./docs/agents/logging.md) for details.
 - [ ] Run tests
 - [ ] Verify commit message format
 
-## Project Status (2026-01-28)
+## Project Status (2026-03-25)
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| Backend | ✅ 100% | Production-ready, 67 migrations, 750+ tests |
-| Ingestion | ✅ 95% | All pipelines coded, needs production data |
+| Backend | ✅ 100% | Production-ready, 68 migrations, 750+ tests |
+| Ingestion (ontology layer) | ✅ 100% | 9 pipelines: UniProt, NCBI Tax, GenBank, GO, InterPro, MONDO, HPO, ChEBI, Reactome |
+| Ingestion (literature layer) | 🔴 0% | PubMed, Europe PMC — needed for autoresearch |
+| Ingestion (drug/interaction layer) | 🔴 0% | DrugBank, STRING, DisGeNET — needed for autoresearch |
 | CLI | ✅ 100% | 10 commands, installers, CI/CD complete |
 | Frontend | ✅ 80% | All pages built, needs E2E testing |
+| MCP Server | 🔴 0% | Core product for AI agent autoresearch |
 | Infrastructure | ✅ Ready | Terraform IaC ready for deployment |
 
-**Current Version**: 0.1.0  
-**Target Launch**: March 15, 2026
+**Current Version**: 0.1.0
+**Target Launch**: August 1, 2026
+**Goal**: Full autoresearch — AI agents traverse gene→disease→phenotype→pathway→drug→literature via MCP
 
 ## Technology Stack
 
