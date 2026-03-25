@@ -10,7 +10,7 @@ pub const STRING_ALIASES_URL: &str =
 #[derive(Debug, Clone)]
 pub struct StringConfig {
     pub species_id: u32,
-    pub min_combined_score: i16,
+    pub min_combined_score: u16,
     pub links_url: String,
     pub aliases_url: String,
     pub max_retries: u32,
@@ -18,7 +18,18 @@ pub struct StringConfig {
 }
 
 impl StringConfig {
-    pub fn new(species_id: u32, min_combined_score: i16, org_id: Uuid) -> Self {
+    pub fn new(org_id: Uuid) -> Self {
+        Self {
+            species_id: 9606,
+            min_combined_score: 400,
+            links_url: STRING_LINKS_URL.to_string(),
+            aliases_url: STRING_ALIASES_URL.to_string(),
+            max_retries: 3,
+            org_id,
+        }
+    }
+
+    pub fn with_params(species_id: u32, min_combined_score: u16, org_id: Uuid) -> Self {
         Self {
             species_id,
             min_combined_score,

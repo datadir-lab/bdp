@@ -62,7 +62,7 @@ impl PipelineRunner for StringPipelineRunner {
                     continue;
                 }
             };
-            if row.combined_score < min_score {
+            if (row.combined_score as u16) < min_score {
                 continue;
             }
             if !should_keep(&row.protein1, &row.protein2) {
