@@ -57,6 +57,52 @@ async fn test_parse_real_mondo_obo() {
     println!("Sample IDs: {:?}", terms.iter().take(5).map(|t| &t.id).collect::<Vec<_>>());
 }
 
+/// Parse real MONDO OBO (full, no limit) and verify counts.
+/// Run: cargo test -p bdp-ingest --test obo_integration test_parse_full_mondo -- --ignored --nocapture
+#[tokio::test]
+#[ignore = "downloads ~50MB from internet"]
+async fn test_parse_full_mondo() {
+    let url = bdp_ingest::pipelines::mondo::MONDO_OBO_URL;
+    let content = bdp_ingest::common::http::download_text(url, 3)
+        .await
+        .expect("download MONDO");
+
+    let parsed = bdp_ingest::pipelines::mondo::parser::parse_obo(&content, "test", None)
+        .expect("parse MONDO");
+
+    // MONDO has ~27K MONDO-prefixed terms
+    assert!(
+        parsed.term_count() > 20_000,
+        "expected >20K MONDO terms, got {}",
+        parsed.term_count()
+    );
+
+    // Should have many relationships
+    assert!(
+        parsed.relationship_count() > 15_000,
+        "expected >15K relationships, got {}",
+        parsed.relationship_count()
+    );
+
+    // Spot check: cancer term (MONDO:0004992)
+    let cancer = parsed.terms.iter().find(|t| t.mondo_id == "MONDO:0004992");
+    assert!(cancer.is_some(), "MONDO:0004992 (cancer) not found");
+    let cancer = cancer.unwrap();
+    assert_eq!(cancer.name, "cancer");
+    // Verify the term has xrefs (OMIM or others — MONDO releases may vary)
+    assert!(
+        !cancer.xrefs.is_empty() || cancer.omim_id.is_some(),
+        "cancer should have at least some xrefs"
+    );
+
+    println!(
+        "MONDO: {} terms, {} relationships, {} obsolete",
+        parsed.term_count(),
+        parsed.relationship_count(),
+        parsed.terms.iter().filter(|t| t.is_obsolete).count()
+    );
+}
+
 /// Parse the first 1000 ChEBI terms from the live OBO file.
 /// Run with: cargo test -p bdp-ingest --test obo_integration test_parse_chebi_sample -- --ignored --nocapture
 #[tokio::test]
