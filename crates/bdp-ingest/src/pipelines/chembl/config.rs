@@ -14,11 +14,11 @@ pub struct ChemblConfig {
 }
 
 impl ChemblConfig {
-    pub fn new(sqlite_path: PathBuf, org_id: Uuid) -> Self {
+    pub fn new(sqlite_path: PathBuf, source_version: impl Into<String>, org_id: Uuid) -> Self {
         Self {
             sqlite_path,
             uniprot_mapping_path: None,
-            source_version: "chembl_36".to_string(),
+            source_version: source_version.into(),
             batch_size: 500,
             org_id,
         }
