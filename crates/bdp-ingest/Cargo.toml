@@ -89,6 +89,11 @@ wiremock = "0.6"
 # Test utilities from workspace
 tokio = { workspace = true, features = ["test-util"] }
 
+# E2E storage tests (testcontainers)
+testcontainers = "0.26"
+testcontainers-modules = { version = "0.14", features = ["postgres"] }
+sqlx = { workspace = true }
+
 [features]
 default = ["database"]
 # Enable database support for direct ingestion

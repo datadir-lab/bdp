@@ -1,8 +1,8 @@
 -- Human Phenotype Ontology (HPO) Tables
 
 -- Add 'phenotype' source type (FK pattern — NO CHECK constraint modification)
-INSERT INTO source_types (name, description) VALUES
-    ('phenotype', 'Phenotype ontology terms (HPO)')
+INSERT INTO source_types (name, label, description) VALUES
+    ('phenotype', 'Phenotype', 'Phenotype ontology terms (HPO)')
 ON CONFLICT (name) DO NOTHING;
 
 CREATE TABLE hpo_term_metadata (

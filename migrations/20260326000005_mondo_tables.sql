@@ -1,8 +1,8 @@
 -- MONDO Disease Ontology domain tables
 
 -- Add 'disease' source type (FK pattern — NO CHECK constraint modification)
-INSERT INTO source_types (name, description) VALUES
-    ('disease', 'Disease ontology terms (MONDO, MeSH, DO)')
+INSERT INTO source_types (name, label, description) VALUES
+    ('disease', 'Disease', 'Disease ontology terms (MONDO, MeSH, DO)')
 ON CONFLICT (name) DO NOTHING;
 
 -- Primary disease term table
