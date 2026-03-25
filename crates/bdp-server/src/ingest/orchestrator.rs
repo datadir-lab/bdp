@@ -1,7 +1,7 @@
 //! Ingestion orchestrator - runs all pipelines in parallel
 //!
-//! Launches UniProt, NCBI Taxonomy, GenBank, Gene Ontology, and InterPro
-//! pipelines concurrently on server startup.
+//! Launches UniProt, NCBI Taxonomy, GenBank, Gene Ontology, InterPro,
+//! MONDO, HPO, ChEBI, and Reactome pipelines concurrently on server startup.
 
 use anyhow::{Context, Result};
 use sqlx::PgPool;
@@ -9,6 +9,16 @@ use std::sync::Arc;
 use tokio::time::{sleep, timeout, Duration};
 use tracing::{error, info, warn};
 use uuid::Uuid;
+
+use bdp_ingest::{
+    framework::PipelineRunner,
+    pipelines::{
+        chebi::runner::{ChebiConfig, ChebiPipelineRunner},
+        hpo::runner::{HpoConfig, HpoPipelineRunner},
+        mondo::runner::{MondoConfig, MondoPipelineRunner},
+        reactome::runner::{ReactomeConfig, ReactomePipelineRunner},
+    },
+};
 
 use super::{
     config::IngestConfig,
@@ -111,6 +121,46 @@ impl IngestOrchestrator {
                 });
             } else {
                 info!("InterPro pipeline disabled (INGEST_INTERPRO_ENABLED=false)");
+            }
+
+            // 6. MONDO
+            if self.config.mondo_enabled {
+                let db = self.db.clone();
+                let org_id = self.org_id;
+                let release = self.config.mondo_release.clone();
+                set.spawn(async move { Self::run_mondo(db, org_id, release).await });
+            } else {
+                info!("MONDO pipeline disabled (INGEST_MONDO_ENABLED=false)");
+            }
+
+            // 7. HPO
+            if self.config.hpo_enabled {
+                let db = self.db.clone();
+                let org_id = self.org_id;
+                let release = self.config.hpo_release.clone();
+                set.spawn(async move { Self::run_hpo(db, org_id, release).await });
+            } else {
+                info!("HPO pipeline disabled (INGEST_HPO_ENABLED=false)");
+            }
+
+            // 8. ChEBI
+            if self.config.chebi_enabled {
+                let db = self.db.clone();
+                let org_id = self.org_id;
+                let release = self.config.chebi_release.clone();
+                set.spawn(async move { Self::run_chebi(db, org_id, release).await });
+            } else {
+                info!("ChEBI pipeline disabled (INGEST_CHEBI_ENABLED=false)");
+            }
+
+            // 9. Reactome
+            if self.config.reactome_enabled {
+                let db = self.db.clone();
+                let org_id = self.org_id;
+                let release = self.config.reactome_release.clone();
+                set.spawn(async move { Self::run_reactome(db, org_id, release).await });
+            } else {
+                info!("Reactome pipeline disabled (INGEST_REACTOME_ENABLED=false)");
             }
 
             // Wait for all pipelines, log results
@@ -371,6 +421,54 @@ impl IngestOrchestrator {
         }
 
         Ok("interpro")
+    }
+
+    /// Run MONDO disease ontology pipeline
+    async fn run_mondo(db: Arc<PgPool>, org_id: Uuid, release: String) -> Result<&'static str> {
+        info!("Starting MONDO pipeline");
+        let release = if release.is_empty() { "current".to_string() } else { release };
+        let config = MondoConfig::new(release, org_id);
+        let runner = MondoPipelineRunner::new(config, (*db).clone());
+        let stats = runner.run().await?;
+        info!(records = stats.records_ingested, "MONDO pipeline completed");
+        Ok("mondo")
+    }
+
+    /// Run HPO phenotype ontology pipeline
+    async fn run_hpo(db: Arc<PgPool>, org_id: Uuid, release: String) -> Result<&'static str> {
+        info!("Starting HPO pipeline");
+        let release = if release.is_empty() { "current".to_string() } else { release };
+        let config = HpoConfig::new(release, org_id);
+        let runner = HpoPipelineRunner::new(config, (*db).clone());
+        let stats = runner.run().await?;
+        info!(records = stats.records_ingested, "HPO pipeline completed");
+        Ok("hpo")
+    }
+
+    /// Run ChEBI chemical entities pipeline
+    async fn run_chebi(db: Arc<PgPool>, org_id: Uuid, release: String) -> Result<&'static str> {
+        info!("Starting ChEBI pipeline");
+        let release = if release.is_empty() { "current".to_string() } else { release };
+        let config = ChebiConfig::new(release, org_id);
+        let runner = ChebiPipelineRunner::new(config, (*db).clone());
+        let stats = runner.run().await?;
+        info!(records = stats.records_ingested, "ChEBI pipeline completed");
+        Ok("chebi")
+    }
+
+    /// Run Reactome pathway database pipeline
+    async fn run_reactome(
+        db: Arc<PgPool>,
+        org_id: Uuid,
+        release: String,
+    ) -> Result<&'static str> {
+        info!("Starting Reactome pipeline");
+        let release = if release.is_empty() { "current".to_string() } else { release };
+        let config = ReactomeConfig::human_only(release, org_id);
+        let runner = ReactomePipelineRunner::new(config, (*db).clone());
+        let stats = runner.run().await?;
+        info!(records = stats.records_ingested, "Reactome pipeline completed");
+        Ok("reactome")
     }
 
     // ========================================================================
