@@ -228,7 +228,7 @@ pub async fn get_disease_phenotypes(
     Ok(result)
 }
 
-/// Stubs for not-yet-available tools
+/// Stub: gene-disease associations (requires DisGeNET pipeline).
 pub fn get_disease_genes_stub() -> CallToolResult {
     common::stub_result(
         "get_disease_genes",
@@ -237,10 +237,59 @@ pub fn get_disease_genes_stub() -> CallToolResult {
     )
 }
 
-pub fn get_disease_trials_stub() -> CallToolResult {
-    common::stub_result(
-        "get_disease_trials",
-        "Requires ClinicalTrials.gov pipeline. Will return active trials for this disease.",
-        "BDP-83",
+pub async fn get_disease_trials(
+    pool: &sqlx::PgPool,
+    params: GetDiseaseTrialsParams,
+) -> Result<CallToolResult, McpError> {
+    let start = Instant::now();
+    let input = resolve::cap_input(&params.id);
+    let mondo_id = resolve_to_mondo_id(pool, input).await?;
+
+    let disease = queries::get_disease(pool, &mondo_id)
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .ok_or_else(|| McpError::invalid_params(format!("Disease '{mondo_id}' not found"), None))?;
+
+    let offset = 0i64;
+    let limit = 50i64;
+    let rows = queries::get_disease_trials(pool, disease.id, limit, offset)
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+    let duration_ms = start.elapsed().as_millis() as i32;
+
+    audit::log_tool_call(
+        pool,
+        audit::AuditEntry {
+            agent_id: None,
+            tool_name: "get_disease_trials",
+            query_params: json!({"id": params.id}),
+            dataset_versions: json!({"clinicaltrials": "latest"}),
+            result_count: Some(rows.len() as i32),
+            duration_ms: Some(duration_ms),
+        },
     )
+    .await;
+
+    let count = rows.len();
+    let text = if rows.is_empty() {
+        format!("No clinical trials found for {mondo_id}")
+    } else {
+        format!("Clinical trials for {} ({} found)", mondo_id, count)
+    };
+
+    let structured = json!({
+        "mondo_id": mondo_id,
+        "trials": rows,
+        "pagination": {
+            "offset": offset,
+            "limit": limit,
+            "count": count,
+        },
+        "_meta": {"duration_ms": duration_ms}
+    });
+
+    let mut result = CallToolResult::success(vec![Content::text(text)]);
+    result.structured_content = Some(structured);
+    Ok(result)
 }

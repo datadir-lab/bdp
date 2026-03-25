@@ -15,7 +15,8 @@ use crate::tools::diseases::{
     GetDiseaseGenesParams, GetDiseaseParams, GetDiseasePhenotypesParams, GetDiseaseTrialsParams,
 };
 use crate::tools::genes::{
-    GetGeneDiseasesParams, GetGeneLiteratureParams, GetGeneParams, GetGenePathwaysParams,
+    GetGeneDiseasesParams, GetGeneInteractionsParams, GetGeneLiteratureParams, GetGeneParams,
+    GetGenePathwaysParams,
 };
 use crate::tools::literature::{GetPublicationParams, SearchLiteratureParams};
 use crate::tools::pathways::{GetPathwayParams, GetPathwayProteinsParams};
@@ -90,15 +91,15 @@ impl BdpMcpServer {
         Ok(crate::tools::diseases::get_disease_genes_stub())
     }
 
-    /// [PLANNED] Fetch active clinical trials for a disease.
+    /// Fetch active clinical trials for a disease.
     #[tool(
-        description = "Fetch active clinical trials for a disease. NOTE: Not yet available — requires ClinicalTrials.gov pipeline (tracked: BDP-83)."
+        description = "Fetch active clinical trials for a disease by MONDO ID or name. Returns trial IDs, titles, status, and phase."
     )]
     async fn get_disease_trials(
         &self,
-        Parameters(_params): Parameters<GetDiseaseTrialsParams>,
+        Parameters(params): Parameters<GetDiseaseTrialsParams>,
     ) -> Result<CallToolResult, McpError> {
-        Ok(crate::tools::diseases::get_disease_trials_stub())
+        crate::tools::diseases::get_disease_trials(&self.pool, params).await
     }
 
     /// Fetch an HPO phenotype record by HPO ID or name.
@@ -145,15 +146,15 @@ impl BdpMcpServer {
         crate::tools::compounds::get_compound_roles(&self.pool, params).await
     }
 
-    /// [PLANNED] Fetch drug-target bioactivity data for a compound.
+    /// Fetch drug-target bioactivity data for a compound.
     #[tool(
-        description = "Fetch drug-target bioactivity data for a compound. NOTE: Not yet available — requires ChEMBL pipeline (tracked: BDP-80)."
+        description = "Fetch drug-target bioactivity data for a compound by CHEBI ID or name. Returns target UniProt accessions and activity values."
     )]
     async fn get_compound_targets(
         &self,
-        Parameters(_params): Parameters<GetCompoundTargetsParams>,
+        Parameters(params): Parameters<GetCompoundTargetsParams>,
     ) -> Result<CallToolResult, McpError> {
-        Ok(crate::tools::compounds::get_compound_targets_stub())
+        crate::tools::compounds::get_compound_targets(&self.pool, params).await
     }
 
     /// [PLANNED] Fetch clinical trials for a compound.
@@ -189,15 +190,26 @@ impl BdpMcpServer {
         crate::tools::genes::get_gene_pathways(&self.pool, params).await
     }
 
-    /// [PLANNED] Fetch gene-disease associations.
+    /// Fetch gene-disease associations.
     #[tool(
-        description = "Fetch gene-disease associations for a gene/protein. NOTE: Not yet available — requires DisGeNET ingestion pipeline (tracked: BDP-81)."
+        description = "Fetch gene-disease associations for a gene/protein by UniProt accession or gene symbol. Returns MONDO IDs, names, and scores."
     )]
     async fn get_gene_diseases(
         &self,
-        Parameters(_params): Parameters<GetGeneDiseasesParams>,
+        Parameters(params): Parameters<GetGeneDiseasesParams>,
     ) -> Result<CallToolResult, McpError> {
-        Ok(crate::tools::genes::get_gene_diseases_stub())
+        crate::tools::genes::get_gene_diseases(&self.pool, params).await
+    }
+
+    /// Fetch protein-protein interactions for a gene.
+    #[tool(
+        description = "Fetch protein-protein interactions (STRING database) for a gene/protein by UniProt accession. Returns interaction partners with combined and experimental scores."
+    )]
+    async fn get_gene_interactions(
+        &self,
+        Parameters(params): Parameters<GetGeneInteractionsParams>,
+    ) -> Result<CallToolResult, McpError> {
+        crate::tools::genes::get_gene_interactions(&self.pool, params).await
     }
 
     /// [PLANNED] Fetch literature for a gene/protein.
@@ -233,26 +245,26 @@ impl BdpMcpServer {
         crate::tools::pathways::get_pathway_proteins(&self.pool, params).await
     }
 
-    /// [PLANNED] Search literature by query string or entity name.
+    /// Search literature by query string or entity name.
     #[tool(
-        description = "Search literature by query string or entity (e.g. 'BRCA1 breast cancer'). NOTE: Not yet available — requires PubMed pipeline (tracked: BDP-84)."
+        description = "Search literature by query string or entity (e.g. 'BRCA1 breast cancer'). Full-text search over PubMed publications. Returns PMID, title, journal, year."
     )]
     async fn search_literature(
         &self,
-        Parameters(_params): Parameters<SearchLiteratureParams>,
+        Parameters(params): Parameters<SearchLiteratureParams>,
     ) -> Result<CallToolResult, McpError> {
-        Ok(crate::tools::literature::search_literature_stub())
+        crate::tools::literature::search_literature(&self.pool, params).await
     }
 
-    /// [PLANNED] Fetch a publication record by PubMed ID or DOI.
+    /// Fetch a publication record by PubMed ID.
     #[tool(
-        description = "Fetch a publication record by PubMed ID (e.g. 'PMID:12345678') or DOI. NOTE: Not yet available — requires PubMed pipeline (tracked: BDP-84)."
+        description = "Fetch a publication record by PubMed ID (e.g. '12345678' or 'PMID:12345678'). Returns title, abstract, journal, and year."
     )]
     async fn get_publication(
         &self,
-        Parameters(_params): Parameters<GetPublicationParams>,
+        Parameters(params): Parameters<GetPublicationParams>,
     ) -> Result<CallToolResult, McpError> {
-        Ok(crate::tools::literature::get_publication_stub())
+        crate::tools::literature::get_publication(&self.pool, params).await
     }
 
     /// Traverse from one entity type to another via a named path.

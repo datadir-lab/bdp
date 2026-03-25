@@ -14,9 +14,14 @@ use bdp_ingest::{
     framework::PipelineRunner,
     pipelines::{
         chebi::runner::{ChebiConfig, ChebiPipelineRunner},
+        chembl::{ChemblConfig, ChemblPipelineRunner},
+        clinical_trials::{ClinicalTrialsConfig, ClinicalTrialsPipelineRunner},
         hpo::runner::{HpoConfig, HpoPipelineRunner},
         mondo::runner::{MondoConfig, MondoPipelineRunner},
+        open_targets::{config::OpenTargetsConfig, runner::OpenTargetsPipelineRunner},
+        pubmed::{PubmedConfig, PubmedPipelineRunner},
         reactome::runner::{ReactomeConfig, ReactomePipelineRunner},
+        string_db::{StringConfig, StringPipelineRunner},
     },
 };
 
@@ -161,6 +166,72 @@ impl IngestOrchestrator {
                 set.spawn(async move { Self::run_reactome(db, org_id, release).await });
             } else {
                 info!("Reactome pipeline disabled (INGEST_REACTOME_ENABLED=false)");
+            }
+
+            // 10. Open Targets — gene-disease associations
+            if std::env::var("INGEST_OPEN_TARGETS_ENABLED").as_deref() == Ok("true") {
+                let db = self.db.clone();
+                let org_id = self.org_id;
+                let release = std::env::var("INGEST_OPEN_TARGETS_RELEASE")
+                    .unwrap_or_else(|_| "25.03".to_string());
+                set.spawn(async move { Self::run_open_targets(db, org_id, release).await });
+            } else {
+                info!("Open Targets pipeline disabled (INGEST_OPEN_TARGETS_ENABLED=true to enable)");
+            }
+
+            // 11. ClinicalTrials.gov
+            if std::env::var("INGEST_CLINICAL_TRIALS_ENABLED").as_deref() == Ok("true") {
+                let db = self.db.clone();
+                let org_id = self.org_id;
+                let aact_dump_path = std::env::var("INGEST_CLINICAL_TRIALS_AACT_PATH").ok();
+                let from_date_str = std::env::var("INGEST_CLINICAL_TRIALS_FROM_DATE").ok();
+                set.spawn(async move {
+                    Self::run_clinical_trials(db, org_id, aact_dump_path, from_date_str).await
+                });
+            } else {
+                info!(
+                    "ClinicalTrials pipeline disabled (INGEST_CLINICAL_TRIALS_ENABLED=true to enable)"
+                );
+            }
+
+            // 12. ChEMBL — drug-target activities
+            if std::env::var("INGEST_CHEMBL_ENABLED").as_deref() == Ok("true") {
+                let sqlite_path_str = std::env::var("INGEST_CHEMBL_SQLITE_PATH").ok();
+                match sqlite_path_str {
+                    Some(p) if !p.is_empty() => {
+                        let db = self.db.clone();
+                        let org_id = self.org_id;
+                        let source_version = std::env::var("INGEST_CHEMBL_VERSION")
+                            .unwrap_or_else(|_| "chembl_36".to_string());
+                        set.spawn(async move {
+                            Self::run_chembl(db, org_id, std::path::PathBuf::from(p), source_version)
+                                .await
+                        });
+                    }
+                    _ => {
+                        warn!("INGEST_CHEMBL_SQLITE_PATH not set — skipping ChEMBL pipeline");
+                    }
+                }
+            } else {
+                info!("ChEMBL pipeline disabled (INGEST_CHEMBL_ENABLED=true to enable)");
+            }
+
+            // 13. STRING — protein-protein interactions
+            if std::env::var("INGEST_STRING_ENABLED").as_deref() == Ok("true") {
+                let db = self.db.clone();
+                let org_id = self.org_id;
+                set.spawn(async move { Self::run_string(db, org_id).await });
+            } else {
+                info!("STRING pipeline disabled (INGEST_STRING_ENABLED=true to enable)");
+            }
+
+            // 14. PubMed baseline + updates
+            if std::env::var("INGEST_PUBMED_ENABLED").as_deref() == Ok("true") {
+                let db = self.db.clone();
+                let org_id = self.org_id;
+                set.spawn(async move { Self::run_pubmed(db, org_id).await });
+            } else {
+                info!("PubMed pipeline disabled (INGEST_PUBMED_ENABLED=true to enable)");
             }
 
             // Wait for all pipelines, log results
@@ -481,6 +552,78 @@ impl IngestOrchestrator {
         let stats = runner.run().await?;
         info!(records = stats.records_ingested, "Reactome pipeline completed");
         Ok("reactome")
+    }
+
+    /// Run Open Targets gene-disease association pipeline
+    async fn run_open_targets(db: Arc<PgPool>, org_id: Uuid, release: String) -> Result<&'static str> {
+        info!("Starting Open Targets pipeline");
+        let config = OpenTargetsConfig::new(release, org_id);
+        let runner = OpenTargetsPipelineRunner::new(config, (*db).clone());
+        let stats = runner.run().await?;
+        info!(records = stats.records_ingested, "Open Targets pipeline completed");
+        Ok("open_targets")
+    }
+
+    /// Run ClinicalTrials.gov pipeline
+    async fn run_clinical_trials(
+        db: Arc<PgPool>,
+        org_id: Uuid,
+        aact_dump_path: Option<String>,
+        from_date_str: Option<String>,
+    ) -> Result<&'static str> {
+        info!("Starting ClinicalTrials pipeline");
+        let mut config = ClinicalTrialsConfig::new(org_id);
+        if let Some(path) = aact_dump_path {
+            config = config.with_dump(std::path::PathBuf::from(path));
+        } else if let Some(date_str) = from_date_str {
+            let date = date_str.parse::<chrono::NaiveDate>().map_err(|e| {
+                anyhow::anyhow!("invalid INGEST_CLINICAL_TRIALS_FROM_DATE '{}': {}", date_str, e)
+            })?;
+            config = config.with_from_date(date);
+        } else {
+            anyhow::bail!(
+                "ClinicalTrials: set INGEST_CLINICAL_TRIALS_AACT_PATH or INGEST_CLINICAL_TRIALS_FROM_DATE"
+            );
+        }
+        let runner = ClinicalTrialsPipelineRunner::new(config, (*db).clone());
+        let stats = runner.run().await?;
+        info!(records = stats.records_ingested, "ClinicalTrials pipeline completed");
+        Ok("clinical_trials")
+    }
+
+    /// Run ChEMBL drug-target activity pipeline
+    async fn run_chembl(
+        db: Arc<PgPool>,
+        org_id: Uuid,
+        sqlite_path: std::path::PathBuf,
+        source_version: String,
+    ) -> Result<&'static str> {
+        info!("Starting ChEMBL pipeline");
+        let config = ChemblConfig::new(sqlite_path, source_version, org_id);
+        let runner = ChemblPipelineRunner::new(config, (*db).clone());
+        let stats = runner.run().await?;
+        info!(records = stats.records_ingested, "ChEMBL pipeline completed");
+        Ok("chembl")
+    }
+
+    /// Run STRING protein-protein interaction pipeline
+    async fn run_string(db: Arc<PgPool>, org_id: Uuid) -> Result<&'static str> {
+        info!("Starting STRING pipeline");
+        let config = StringConfig::new(org_id);
+        let runner = StringPipelineRunner::new(config, (*db).clone());
+        let stats = runner.run().await?;
+        info!(records = stats.records_ingested, "STRING pipeline completed");
+        Ok("string_db")
+    }
+
+    /// Run PubMed literature baseline + update pipeline
+    async fn run_pubmed(db: Arc<PgPool>, org_id: Uuid) -> Result<&'static str> {
+        info!("Starting PubMed pipeline");
+        let config = PubmedConfig::new(org_id);
+        let runner = PubmedPipelineRunner::new(config, (*db).clone());
+        let stats = runner.run().await?;
+        info!(records = stats.records_ingested, "PubMed pipeline completed");
+        Ok("pubmed")
     }
 
     // ========================================================================

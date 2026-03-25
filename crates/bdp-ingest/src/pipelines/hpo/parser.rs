@@ -102,6 +102,7 @@ impl OboParser {
     }
 
     /// Parse a single [Term] stanza from lines[i..]
+    #[allow(clippy::excessive_nesting)]
     fn parse_term_stanza(
         lines: &[&str],
         i: &mut usize,
