@@ -211,13 +211,15 @@ impl GoStorage {
         Ok(stored)
     }
 
-    /// Batch insert GO terms
+    /// Batch insert GO terms and their associated synonyms, xrefs, and alt_ids
     async fn batch_insert_terms(
         &self,
         tx: &mut Transaction<'_, Postgres>,
         terms: &[GoTerm],
         data_source_id: Uuid,
     ) -> Result<()> {
+        // Step 1: Upsert go_term_metadata rows and get back their UUIDs.
+        // We use RETURNING go_id, id so we can map go_id → uuid for subsidiary inserts.
         let mut query_builder: QueryBuilder<Postgres> = QueryBuilder::new(
             r#"
             INSERT INTO go_term_metadata (
@@ -228,9 +230,6 @@ impl GoStorage {
                 definition,
                 namespace,
                 is_obsolete,
-                synonyms,
-                xrefs,
-                alt_ids,
                 comments,
                 go_release_version
             )
@@ -245,9 +244,6 @@ impl GoStorage {
                 .push_bind(&term.definition)
                 .push_bind(term.namespace.as_str())
                 .push_bind(term.is_obsolete)
-                .push_bind(serde_json::to_value(&term.synonyms).unwrap_or(serde_json::json!([])))
-                .push_bind(serde_json::to_value(&term.xrefs).unwrap_or(serde_json::json!([])))
-                .push_bind(serde_json::to_value(&term.alt_ids).unwrap_or(serde_json::json!([])))
                 .push_bind(&term.comments)
                 .push_bind(&term.go_release_version);
         });
@@ -260,15 +256,105 @@ impl GoStorage {
                 definition = EXCLUDED.definition,
                 namespace = EXCLUDED.namespace,
                 is_obsolete = EXCLUDED.is_obsolete,
-                synonyms = EXCLUDED.synonyms,
-                xrefs = EXCLUDED.xrefs,
-                alt_ids = EXCLUDED.alt_ids,
                 comments = EXCLUDED.comments,
                 updated_at = NOW()
+            RETURNING go_id, id
             "#,
         );
 
-        query_builder.build().execute(&mut **tx).await?;
+        let rows: Vec<(String, Uuid)> = query_builder
+            .build_query_as()
+            .fetch_all(&mut **tx)
+            .await?;
+
+        // Build go_id → term_id map from returned rows
+        let term_id_map: HashMap<String, Uuid> = rows.into_iter().collect();
+
+        // Step 2: Build subsidiary batches
+        // (term_id, scope, text, synonym_type) for ont_term_synonyms
+        let mut synonyms_batch: Vec<(Uuid, String, String, Option<String>)> = Vec::new();
+        // (term_id, source_db, source_id) for ont_term_xrefs
+        let mut xrefs_batch: Vec<(Uuid, String, String)> = Vec::new();
+        // (term_id, alt_go_id) for go_term_alt_ids
+        let mut alt_ids_batch: Vec<(Uuid, String)> = Vec::new();
+
+        for term in terms {
+            let Some(&term_id) = term_id_map.get(&term.go_id) else {
+                continue;
+            };
+
+            for syn in &term.synonyms {
+                use crate::ingest::gene_ontology::SynonymScope;
+                let scope_str = match syn.scope {
+                    SynonymScope::Exact => "EXACT",
+                    SynonymScope::Broad => "BROAD",
+                    SynonymScope::Narrow => "NARROW",
+                    SynonymScope::Related => "RELATED",
+                };
+                synonyms_batch.push((
+                    term_id,
+                    scope_str.to_string(),
+                    syn.text.clone(),
+                    syn.synonym_type.clone(),
+                ));
+            }
+
+            for xref in &term.xrefs {
+                let (source_db, source_id) = if let Some(colon_pos) = xref.find(':') {
+                    (xref[..colon_pos].to_string(), xref[colon_pos + 1..].to_string())
+                } else {
+                    ("unknown".to_string(), xref.clone())
+                };
+                xrefs_batch.push((term_id, source_db, source_id));
+            }
+
+            for alt_id in &term.alt_ids {
+                alt_ids_batch.push((term_id, alt_id.clone()));
+            }
+        }
+
+        // Step 3: Insert synonyms into ont_term_synonyms
+        if !synonyms_batch.is_empty() {
+            let mut q: QueryBuilder<Postgres> = QueryBuilder::new(
+                "INSERT INTO ont_term_synonyms (term_id, term_table, scope, text, synonym_type) ",
+            );
+            q.push_values(&synonyms_batch, |mut b, (term_id, scope, text, synonym_type)| {
+                b.push_bind(term_id)
+                    .push_bind("go_term_metadata")
+                    .push_bind(scope)
+                    .push_bind(text)
+                    .push_bind(synonym_type);
+            });
+            q.push(" ON CONFLICT (term_id, term_table, scope, text) DO NOTHING");
+            q.build().execute(&mut **tx).await?;
+        }
+
+        // Step 4: Insert xrefs into ont_term_xrefs
+        if !xrefs_batch.is_empty() {
+            let mut q: QueryBuilder<Postgres> = QueryBuilder::new(
+                "INSERT INTO ont_term_xrefs (term_id, term_table, source_db, source_id) ",
+            );
+            q.push_values(&xrefs_batch, |mut b, (term_id, source_db, source_id)| {
+                b.push_bind(term_id)
+                    .push_bind("go_term_metadata")
+                    .push_bind(source_db)
+                    .push_bind(source_id);
+            });
+            q.push(" ON CONFLICT DO NOTHING");
+            q.build().execute(&mut **tx).await?;
+        }
+
+        // Step 5: Insert alt_ids into go_term_alt_ids
+        if !alt_ids_batch.is_empty() {
+            let mut q: QueryBuilder<Postgres> = QueryBuilder::new(
+                "INSERT INTO go_term_alt_ids (go_term_id, alt_go_id) ",
+            );
+            q.push_values(&alt_ids_batch, |mut b, (term_id, alt_go_id)| {
+                b.push_bind(term_id).push_bind(alt_go_id);
+            });
+            q.push(" ON CONFLICT (go_term_id, alt_go_id) DO NOTHING");
+            q.build().execute(&mut **tx).await?;
+        }
 
         Ok(())
     }
