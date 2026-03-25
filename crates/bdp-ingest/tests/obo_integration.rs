@@ -132,6 +132,51 @@ async fn test_parse_chebi_sample() {
     );
 }
 
+/// Parse real HPO OBO (full, no limit) and verify counts.
+/// Run: cargo test -p bdp-ingest --test obo_integration test_parse_full_hpo -- --ignored --nocapture
+#[tokio::test]
+#[ignore = "downloads ~7MB from github.com"]
+async fn test_parse_full_hpo() {
+    use bdp_ingest::pipelines::hpo::parser::HpoParser;
+
+    let url = bdp_ingest::pipelines::hpo::HPO_OBO_URL;
+    let content = bdp_ingest::common::http::download_text(url, 3)
+        .await
+        .expect("download HPO OBO");
+
+    let parsed = HpoParser::parse_obo(&content, "test", None).expect("parse HPO OBO");
+
+    // HPO has ~17K terms
+    assert!(
+        parsed.terms.len() > 15_000,
+        "expected >15K HPO terms, got {}",
+        parsed.terms.len()
+    );
+
+    // HPO has many is_a relationships
+    assert!(
+        parsed.relationships.len() > 15_000,
+        "expected >15K HPO relationships, got {}",
+        parsed.relationships.len()
+    );
+
+    // Spot check: HP:0000001 is the root term "All"
+    let root = parsed.terms.iter().find(|t| t.hpo_id == "HP:0000001");
+    assert!(root.is_some(), "HP:0000001 (root) not found");
+    assert_eq!(root.unwrap().name, "All");
+
+    // Count non-obsolete terms
+    let active = parsed.terms.iter().filter(|t| !t.is_obsolete).count();
+    assert!(active > 14_000, "expected >14K active HPO terms, got {}", active);
+
+    println!(
+        "HPO: {} terms ({} active), {} relationships",
+        parsed.terms.len(),
+        active,
+        parsed.relationships.len()
+    );
+}
+
 #[tokio::test]
 #[ignore = "downloads from reactome.org"]
 async fn test_parse_reactome_pathways() {
