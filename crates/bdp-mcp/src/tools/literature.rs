@@ -109,7 +109,9 @@ pub async fn get_publication(
     let pub_data = queries::get_publication(pool, pmid)
         .await
         .map_err(|e| McpError::internal_error(e.to_string(), None))?
-        .ok_or_else(|| McpError::invalid_params(format!("Publication PMID:{pmid} not found"), None))?;
+        .ok_or_else(|| {
+            McpError::invalid_params(format!("Publication PMID:{pmid} not found"), None)
+        })?;
 
     let duration_ms = start.elapsed().as_millis() as i32;
 
@@ -128,10 +130,12 @@ pub async fn get_publication(
 
     let title = pub_data["title"].as_str().unwrap_or("N/A");
     let journal = pub_data["journal"].as_str().unwrap_or("N/A");
-    let pub_year = pub_data["pub_year"].as_i64().map(|y| y.to_string()).unwrap_or_else(|| "N/A".to_string());
-    let text = format!(
-        "Publication PMID:{pmid}\nTitle: {title}\nJournal: {journal}\nYear: {pub_year}"
-    );
+    let pub_year = pub_data["pub_year"]
+        .as_i64()
+        .map(|y| y.to_string())
+        .unwrap_or_else(|| "N/A".to_string());
+    let text =
+        format!("Publication PMID:{pmid}\nTitle: {title}\nJournal: {journal}\nYear: {pub_year}");
 
     let mut result = CallToolResult::success(vec![Content::text(text)]);
     result.structured_content = Some(pub_data);

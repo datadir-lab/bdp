@@ -111,6 +111,7 @@ pub enum SynonymScope {
 }
 
 impl SynonymScope {
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> std::result::Result<Self, String> {
         match s.to_uppercase().as_str() {
             "EXACT" => Ok(SynonymScope::Exact),

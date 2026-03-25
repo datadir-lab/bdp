@@ -26,9 +26,8 @@ pub async fn fetch_updated_studies(
     let mut page_token: Option<String> = None;
 
     loop {
-        let mut url = format!(
-            "{base_url}/studies?query.term={filter}&pageSize={page_size}&format=json"
-        );
+        let mut url =
+            format!("{base_url}/studies?query.term={filter}&pageSize={page_size}&format=json");
         if let Some(ref token) = page_token {
             url.push_str(&format!("&pageToken={token}"));
         }
@@ -44,7 +43,7 @@ pub async fn fetch_updated_studies(
                             Ok(p) => break 'retry p,
                             Err(e) => last_err = e.into(),
                         }
-                    }
+                    },
                     Err(e) => last_err = e.into(),
                 }
                 if attempt < max_retries {

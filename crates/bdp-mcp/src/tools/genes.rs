@@ -241,7 +241,10 @@ pub async fn get_gene_diseases(
         .await
         .map_err(|e| McpError::internal_error(e.to_string(), None))?
         .ok_or_else(|| {
-            McpError::invalid_params(format!("Gene '{uniprot_acc}' not found in data_sources"), None)
+            McpError::invalid_params(
+                format!("Gene '{uniprot_acc}' not found in data_sources"),
+                None,
+            )
         })?;
 
     let offset = 0i64;
@@ -337,9 +340,7 @@ pub async fn get_gene_interactions(
 
     let count = rows.len();
     let text = if rows.is_empty() {
-        format!(
-            "No protein interactions found for {uniprot_acc} with min_score >= {min_score}"
-        )
+        format!("No protein interactions found for {uniprot_acc} with min_score >= {min_score}")
     } else {
         format!(
             "Protein interactions for {} ({} found, min_score >= {}):",

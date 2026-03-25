@@ -8,9 +8,7 @@ use tracing::{info, warn};
 
 use crate::framework::{PipelineRunner, PipelineStats};
 use crate::pipelines::pubmed::{
-    config::PubmedConfig,
-    manifest::get_pending_files,
-    parser::parse_pubmed_xml,
+    config::PubmedConfig, manifest::get_pending_files, parser::parse_pubmed_xml,
     storage::PubmedStorage,
 };
 use sqlx::PgPool;
@@ -49,14 +47,14 @@ impl PipelineRunner for PubmedPipelineRunner {
                     if let Err(e) = storage.mark_file_done(file_id).await {
                         warn!("failed to mark file {} done: {}", file_id, e);
                     }
-                }
+                },
                 Err(e) => {
                     warn!(%url, "PubMed file failed: {}", e);
                     stats.records_failed += 1;
                     if let Err(e2) = storage.mark_file_error(file_id, &e.to_string()).await {
                         warn!("failed to mark file {} error: {}", file_id, e2);
                     }
-                }
+                },
             }
         }
 
@@ -88,14 +86,14 @@ async fn download_bytes(client: &Client, url: &str, max_retries: u32) -> Result<
                 let resp = resp
                     .error_for_status()
                     .context("PubMed download HTTP error")?;
-                return Ok(resp.bytes().await.context("reading PubMed response bytes")?);
-            }
+                return resp.bytes().await.context("reading PubMed response bytes");
+            },
             Err(e) => {
                 last_err = e.into();
                 if attempt < max_retries {
                     tokio::time::sleep(std::time::Duration::from_secs(2u64.pow(attempt))).await;
                 }
-            }
+            },
         }
     }
     Err(last_err)

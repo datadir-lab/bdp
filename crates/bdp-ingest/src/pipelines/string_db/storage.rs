@@ -40,12 +40,11 @@ impl StringStorage {
 
         Ok(ensp_to_uniprot
             .iter()
-            .filter_map(|(ensp, uniprot)| {
-                uniprot_map.get(uniprot).map(|&id| (ensp.clone(), id))
-            })
+            .filter_map(|(ensp, uniprot)| uniprot_map.get(uniprot).map(|&id| (ensp.clone(), id)))
             .collect())
     }
 
+    #[allow(clippy::type_complexity)]
     pub async fn insert_interactions(
         &self,
         rows: &[(Uuid, Uuid, i16, i16, i16, i16, i16, i16, i16, i16)],

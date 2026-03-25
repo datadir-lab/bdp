@@ -18,7 +18,8 @@ pub async fn list_parquet_files(client: &Client, url: &str) -> Result<Vec<String
         .await?;
 
     let doc = Html::parse_document(&html);
-    let sel = Selector::parse("a[href]").map_err(|e| anyhow::anyhow!("invalid selector: {:?}", e))?;
+    let sel =
+        Selector::parse("a[href]").map_err(|e| anyhow::anyhow!("invalid selector: {:?}", e))?;
     let files: Vec<String> = doc
         .select(&sel)
         .filter_map(|el| el.value().attr("href"))
@@ -46,13 +47,13 @@ pub async fn download_parquet(client: &Client, url: &str, max_retries: u32) -> R
                 let bytes = resp.bytes().await.context("reading parquet bytes")?;
                 debug!(url, bytes = bytes.len(), "downloaded parquet");
                 return Ok(bytes);
-            }
+            },
             Err(e) => {
                 last_err = anyhow::anyhow!("{}", e);
                 if attempt < max_retries {
                     tokio::time::sleep(std::time::Duration::from_secs(2u64.pow(attempt))).await;
                 }
-            }
+            },
         }
     }
     Err(last_err).context(format!("downloading {url}"))

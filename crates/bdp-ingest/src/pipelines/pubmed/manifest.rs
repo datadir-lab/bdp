@@ -10,8 +10,7 @@ use uuid::Uuid;
 pub async fn list_pubmed_files(client: &Client, base_url: &str) -> Result<Vec<String>> {
     let html = client.get(base_url).send().await?.text().await?;
     let doc = Html::parse_document(&html);
-    let sel =
-        Selector::parse("a[href]").map_err(|e| anyhow::anyhow!("selector: {:?}", e))?;
+    let sel = Selector::parse("a[href]").map_err(|e| anyhow::anyhow!("selector: {:?}", e))?;
     let files: Vec<String> = doc
         .select(&sel)
         .filter_map(|el| el.value().attr("href"))

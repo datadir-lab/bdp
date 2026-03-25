@@ -85,7 +85,8 @@ impl PipelineRunner for OpenTargetsPipelineRunner {
         }
 
         // Collect unique disease IDs from the already-downloaded rows
-        let mut all_disease_ids: Vec<String> = all_rows.iter().map(|r| r.disease_id.clone()).collect();
+        let mut all_disease_ids: Vec<String> =
+            all_rows.iter().map(|r| r.disease_id.clone()).collect();
         all_disease_ids.sort();
         all_disease_ids.dedup();
 

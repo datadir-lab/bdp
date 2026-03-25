@@ -49,7 +49,6 @@ pub fn parse_pubmed_xml(data: &[u8]) -> Result<Vec<PubmedArticle>> {
     let mut in_article_id = false;
     let mut article_id_type = String::new();
     let mut in_mesh_descriptor = false;
-    let mut mesh_major = false;
     let mut current_mesh: MeshHeading = MeshHeading::default();
     let mut current_author: Option<Author> = None;
     let mut in_last_name = false;
@@ -67,7 +66,7 @@ pub fn parse_pubmed_xml(data: &[u8]) -> Result<Vec<PubmedArticle>> {
                     b"PubmedArticle" => {
                         current = Some(PubmedArticle::default());
                         abstract_parts.clear();
-                    }
+                    },
                     b"PMID" => in_pmid = true,
                     b"ArticleTitle" => in_title = true,
                     b"AbstractText" => in_abstract = true,
@@ -80,26 +79,24 @@ pub fn parse_pubmed_xml(data: &[u8]) -> Result<Vec<PubmedArticle>> {
                             .find(|a| a.key.as_ref() == b"IdType")
                             .map(|a| String::from_utf8_lossy(&a.value).to_string())
                             .unwrap_or_default();
-                    }
+                    },
                     b"DescriptorName" => {
                         in_mesh_descriptor = true;
-                        mesh_major = e
+                        current_mesh = MeshHeading::default();
+                        current_mesh.is_major_topic = e
                             .attributes()
                             .filter_map(|a| a.ok())
                             .find(|a| a.key.as_ref() == b"MajorTopicYN")
                             .map(|a| a.value.as_ref() == b"Y")
                             .unwrap_or(false);
-                        current_mesh = MeshHeading::default();
-                        current_mesh.is_major_topic = mesh_major;
                         if let Some(ui_attr) = e
                             .attributes()
                             .filter_map(|a| a.ok())
                             .find(|a| a.key.as_ref() == b"UI")
                         {
-                            current_mesh.ui =
-                                String::from_utf8_lossy(&ui_attr.value).to_string();
+                            current_mesh.ui = String::from_utf8_lossy(&ui_attr.value).to_string();
                         }
-                    }
+                    },
                     b"Author" => current_author = Some(Author::default()),
                     b"LastName" if current_author.is_some() => in_last_name = true,
                     b"ForeName" if current_author.is_some() => in_fore_name = true,
@@ -107,9 +104,9 @@ pub fn parse_pubmed_xml(data: &[u8]) -> Result<Vec<PubmedArticle>> {
                     b"Affiliation" if current_author.is_some() => in_affiliation = true,
                     b"KeywordList" => in_keyword_list = true,
                     b"Keyword" if in_keyword_list => in_keyword = true,
-                    _ => {}
+                    _ => {},
                 }
-            }
+            },
             Ok(Event::End(ref e)) => {
                 let name = e.name().as_ref().to_vec();
                 match name.as_slice() {
@@ -123,7 +120,7 @@ pub fn parse_pubmed_xml(data: &[u8]) -> Result<Vec<PubmedArticle>> {
                                 articles.push(art);
                             }
                         }
-                    }
+                    },
                     b"PMID" => in_pmid = false,
                     b"ArticleTitle" => in_title = false,
                     b"AbstractText" => in_abstract = false,
@@ -136,28 +133,26 @@ pub fn parse_pubmed_xml(data: &[u8]) -> Result<Vec<PubmedArticle>> {
                             art.mesh_headings.push(std::mem::take(&mut current_mesh));
                         }
                         in_mesh_descriptor = false;
-                    }
+                    },
                     b"Author" => {
-                        if let (Some(auth), Some(art)) =
-                            (current_author.take(), current.as_mut())
-                        {
+                        if let (Some(auth), Some(art)) = (current_author.take(), current.as_mut()) {
                             art.authors.push(auth);
                         }
                         in_last_name = false;
                         in_fore_name = false;
                         in_collective = false;
                         in_affiliation = false;
-                    }
-                    _ => {}
+                    },
+                    _ => {},
                 }
-            }
+            },
             Ok(Event::Text(e)) => {
                 let text = match e.decode() {
                     Ok(t) => t.into_owned(),
                     Err(e) => {
                         warn!("XML decode error, skipping text: {}", e);
                         continue;
-                    }
+                    },
                 };
                 if in_pmid {
                     if let Some(art) = current.as_mut() {
@@ -165,7 +160,7 @@ pub fn parse_pubmed_xml(data: &[u8]) -> Result<Vec<PubmedArticle>> {
                             Ok(id) => art.pmid = id,
                             Err(_) => {
                                 debug!(text = %text, "non-numeric PMID, will be discarded");
-                            }
+                            },
                         }
                     }
                     in_pmid = false;
@@ -192,7 +187,7 @@ pub fn parse_pubmed_xml(data: &[u8]) -> Result<Vec<PubmedArticle>> {
                         match article_id_type.as_str() {
                             "doi" => art.doi = Some(text.clone()),
                             "pmc" => art.pmcid = Some(text.clone()),
-                            _ => {}
+                            _ => {},
                         }
                     }
                 }
@@ -223,7 +218,7 @@ pub fn parse_pubmed_xml(data: &[u8]) -> Result<Vec<PubmedArticle>> {
                         in_affiliation = false;
                     }
                 }
-            }
+            },
             Ok(Event::Eof) => break,
             Err(e) => {
                 return Err(anyhow::anyhow!(
@@ -231,8 +226,8 @@ pub fn parse_pubmed_xml(data: &[u8]) -> Result<Vec<PubmedArticle>> {
                     reader.error_position(),
                     e
                 ))
-            }
-            _ => {}
+            },
+            _ => {},
         }
         buf.clear();
     }
@@ -259,10 +254,7 @@ mod tests {
         assert_eq!(articles.len(), 1);
         assert_eq!(articles[0].pmid, 12345678);
         assert_eq!(articles[0].title, "Test Title");
-        assert_eq!(
-            articles[0].abstract_text.as_deref(),
-            Some("Some abstract text.")
-        );
+        assert_eq!(articles[0].abstract_text.as_deref(), Some("Some abstract text."));
     }
 
     #[test]

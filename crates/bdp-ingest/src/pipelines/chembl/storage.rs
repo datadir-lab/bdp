@@ -30,13 +30,19 @@ impl ChemblStorage {
         for chunk in rows.chunks(500) {
             let compound_ids: Vec<Uuid> = chunk.iter().map(|r| r.compound_id).collect();
             let target_ids: Vec<Uuid> = chunk.iter().map(|r| r.target_gene_id).collect();
-            let types: Vec<Option<&str>> = chunk.iter().map(|r| r.activity_type.as_deref()).collect();
+            let types: Vec<Option<&str>> =
+                chunk.iter().map(|r| r.activity_type.as_deref()).collect();
             let values: Vec<Option<f32>> = chunk.iter().map(|r| r.activity_value).collect();
-            let units: Vec<Option<&str>> = chunk.iter().map(|r| r.activity_unit.as_deref()).collect();
-            let relations: Vec<Option<&str>> = chunk.iter().map(|r| r.relation.as_deref()).collect();
-            let assay_types: Vec<Option<&str>> = chunk.iter().map(|r| r.assay_type.as_deref()).collect();
-            let assay_ids: Vec<Option<&str>> = chunk.iter().map(|r| r.chembl_assay_id.as_deref()).collect();
-            let doc_ids: Vec<Option<&str>> = chunk.iter().map(|r| r.chembl_doc_id.as_deref()).collect();
+            let units: Vec<Option<&str>> =
+                chunk.iter().map(|r| r.activity_unit.as_deref()).collect();
+            let relations: Vec<Option<&str>> =
+                chunk.iter().map(|r| r.relation.as_deref()).collect();
+            let assay_types: Vec<Option<&str>> =
+                chunk.iter().map(|r| r.assay_type.as_deref()).collect();
+            let assay_ids: Vec<Option<&str>> =
+                chunk.iter().map(|r| r.chembl_assay_id.as_deref()).collect();
+            let doc_ids: Vec<Option<&str>> =
+                chunk.iter().map(|r| r.chembl_doc_id.as_deref()).collect();
             let confidences: Vec<Option<i16>> = chunk.iter().map(|r| r.confidence).collect();
             let versions: Vec<&str> = chunk.iter().map(|r| r.source_version.as_str()).collect();
 

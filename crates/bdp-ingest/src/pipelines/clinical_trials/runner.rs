@@ -56,30 +56,26 @@ impl PipelineRunner for ClinicalTrialsPipelineRunner {
                         .pointer("/protocolSection/identificationModule/nctId")?
                         .as_str()?
                         .to_string();
-                    Some(
-                        crate::pipelines::clinical_trials::aact_loader::AactStudyRow {
-                            nct_id,
-                            brief_title: v
-                                .pointer(
-                                    "/protocolSection/identificationModule/briefTitle",
-                                )
-                                .and_then(|t| t.as_str())
-                                .map(String::from),
-                            overall_status: v
-                                .pointer("/protocolSection/statusModule/overallStatus")
-                                .and_then(|t| t.as_str())
-                                .map(String::from),
-                            phase: v
-                                .pointer("/protocolSection/designModule/phases/0")
-                                .and_then(|t| t.as_str())
-                                .map(String::from),
-                            start_date: None,
-                            completion_date: None,
-                            source: None,
-                            conditions: Vec::new(),
-                            interventions: Vec::new(),
-                        },
-                    )
+                    Some(crate::pipelines::clinical_trials::aact_loader::AactStudyRow {
+                        nct_id,
+                        brief_title: v
+                            .pointer("/protocolSection/identificationModule/briefTitle")
+                            .and_then(|t| t.as_str())
+                            .map(String::from),
+                        overall_status: v
+                            .pointer("/protocolSection/statusModule/overallStatus")
+                            .and_then(|t| t.as_str())
+                            .map(String::from),
+                        phase: v
+                            .pointer("/protocolSection/designModule/phases/0")
+                            .and_then(|t| t.as_str())
+                            .map(String::from),
+                        start_date: None,
+                        completion_date: None,
+                        source: None,
+                        conditions: Vec::new(),
+                        interventions: Vec::new(),
+                    })
                 })
                 .collect();
             let inserted = storage.upsert_studies(&rows).await?;

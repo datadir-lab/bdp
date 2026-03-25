@@ -38,7 +38,7 @@ pub fn normalize_entity_id(entity_type: &str, concept_id: &str) -> String {
             } else {
                 concept_id.to_string()
             }
-        }
+        },
         _ => concept_id.to_string(),
     }
 }
@@ -59,10 +59,7 @@ pub async fn fetch_pubtator_annotations(
     );
     let resp = client.get(&url).send().await?.error_for_status()?;
     let text = resp.text().await?;
-    let entries = text
-        .lines()
-        .filter_map(parse_pubtator_line)
-        .collect();
+    let entries = text.lines().filter_map(parse_pubtator_line).collect();
     Ok(entries)
 }
 
@@ -95,10 +92,7 @@ mod tests {
     #[test]
     fn test_normalize_mesh_disease() {
         assert_eq!(normalize_entity_id("Disease", "D009369"), "MESH:D009369");
-        assert_eq!(
-            normalize_entity_id("Disease", "MONDO:0005015"),
-            "MONDO:0005015"
-        );
+        assert_eq!(normalize_entity_id("Disease", "MONDO:0005015"), "MONDO:0005015");
     }
 
     #[test]

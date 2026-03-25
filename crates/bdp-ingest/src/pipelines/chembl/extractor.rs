@@ -70,7 +70,9 @@ pub fn is_valid_inchikey(key: &str) -> bool {
         && parts[0].len() == 14
         && parts[1].len() == 10
         && parts[2].len() == 1
-        && parts.iter().all(|p| p.chars().all(|c| c.is_ascii_uppercase()))
+        && parts
+            .iter()
+            .all(|p| p.chars().all(|c| c.is_ascii_uppercase()))
 }
 
 #[cfg(test)]

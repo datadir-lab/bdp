@@ -39,10 +39,8 @@ impl PipelineRunner for StringPipelineRunner {
         info!("downloading STRING aliases (~30MB)");
         let alias_content =
             download_gz(&client, &self.config.aliases_url, self.config.max_retries).await?;
-        let ensp_to_uniprot: HashMap<String, String> = alias_content
-            .lines()
-            .filter_map(parse_alias_row)
-            .collect();
+        let ensp_to_uniprot: HashMap<String, String> =
+            alias_content.lines().filter_map(parse_alias_row).collect();
         info!(entries = ensp_to_uniprot.len(), "alias map built");
 
         let protein_map = storage.build_protein_map(&ensp_to_uniprot).await?;
@@ -60,10 +58,13 @@ impl PipelineRunner for StringPipelineRunner {
                 Err(_) => {
                     stats.records_failed += 1;
                     continue;
-                }
+                },
             };
             if row.combined_score < 0 {
-                warn!(score = row.combined_score, "STRING row has negative combined_score, skipping");
+                warn!(
+                    score = row.combined_score,
+                    "STRING row has negative combined_score, skipping"
+                );
                 continue;
             }
             if (row.combined_score as u16) < min_score {
@@ -109,13 +110,13 @@ async fn download_gz(client: &Client, url: &str, max_retries: u32) -> Result<Str
                 let mut s = String::new();
                 gz.read_to_string(&mut s)?;
                 return Ok(s);
-            }
+            },
             Err(e) => {
                 last_err = e.into();
                 if attempt < max_retries {
                     tokio::time::sleep(std::time::Duration::from_secs(2u64.pow(attempt))).await;
                 }
-            }
+            },
         }
     }
     Err(last_err)

@@ -43,9 +43,10 @@ impl PubmedStorage {
             dois.push(art.doi.clone());
             titles.push(art.title.clone());
             abstracts.push(art.abstract_text.clone());
-            pub_dates.push(art.pub_year.and_then(|y| {
-                chrono::NaiveDate::from_ymd_opt(y, 1, 1)
-            }));
+            pub_dates.push(
+                art.pub_year
+                    .and_then(|y| chrono::NaiveDate::from_ymd_opt(y, 1, 1)),
+            );
             journals.push(art.journal.clone());
         }
 

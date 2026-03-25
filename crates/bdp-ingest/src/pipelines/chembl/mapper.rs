@@ -3,16 +3,18 @@ use sqlx::{PgPool, Row};
 use std::collections::HashMap;
 use uuid::Uuid;
 
-pub async fn build_compound_map(pool: &PgPool, inchikeys: &[String]) -> Result<HashMap<String, Uuid>> {
+pub async fn build_compound_map(
+    pool: &PgPool,
+    inchikeys: &[String],
+) -> Result<HashMap<String, Uuid>> {
     if inchikeys.is_empty() {
         return Ok(HashMap::new());
     }
-    let rows = sqlx::query(
-        "SELECT ct.inchikey, ct.id FROM compound_terms ct WHERE ct.inchikey = ANY($1)",
-    )
-    .bind(inchikeys)
-    .fetch_all(pool)
-    .await?;
+    let rows =
+        sqlx::query("SELECT ct.inchikey, ct.id FROM compound_terms ct WHERE ct.inchikey = ANY($1)")
+            .bind(inchikeys)
+            .fetch_all(pool)
+            .await?;
     Ok(rows
         .iter()
         .filter_map(|r| {

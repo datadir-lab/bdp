@@ -1,7 +1,6 @@
 use uuid::Uuid;
 
-pub const OPEN_TARGETS_BASE: &str =
-    "https://ftp.ebi.ac.uk/pub/databases/opentargets/platform";
+pub const OPEN_TARGETS_BASE: &str = "https://ftp.ebi.ac.uk/pub/databases/opentargets/platform";
 
 #[derive(Debug, Clone)]
 pub struct OpenTargetsConfig {

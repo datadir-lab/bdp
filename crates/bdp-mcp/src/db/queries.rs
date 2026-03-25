@@ -498,12 +498,11 @@ pub async fn compound_uuid_by_chebi_id(
     pool: &PgPool,
     chebi_id: &str,
 ) -> sqlx::Result<Option<Uuid>> {
-    let row = sqlx::query(
-        "SELECT id FROM compound_terms WHERE chebi_id = $1 AND is_obsolete = FALSE",
-    )
-    .bind(chebi_id)
-    .fetch_optional(pool)
-    .await?;
+    let row =
+        sqlx::query("SELECT id FROM compound_terms WHERE chebi_id = $1 AND is_obsolete = FALSE")
+            .bind(chebi_id)
+            .fetch_optional(pool)
+            .await?;
     Ok(row.map(|r| r.get("id")))
 }
 
