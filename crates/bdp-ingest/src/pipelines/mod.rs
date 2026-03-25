@@ -9,10 +9,10 @@
 // Existing pipelines (in bdp-server, pending migration):
 //   uniprot, ncbi_taxonomy, genbank, interpro
 
+pub mod chebi;
 pub mod gene_ontology;
 
 // Uncomment as pipelines are migrated from bdp-server:
 // pub mod reactome;
 // pub mod mondo;
 // pub mod hpo;
-// pub mod chebi;

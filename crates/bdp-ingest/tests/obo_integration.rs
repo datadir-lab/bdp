@@ -56,3 +56,32 @@ async fn test_parse_real_mondo_obo() {
     println!("Parsed {} MONDO OBO terms (first 1000)", terms.len());
     println!("Sample IDs: {:?}", terms.iter().take(5).map(|t| &t.id).collect::<Vec<_>>());
 }
+
+/// Parse the first 1000 ChEBI terms from the live OBO file.
+/// Run with: cargo test -p bdp-ingest --test obo_integration test_parse_chebi_sample -- --ignored --nocapture
+#[tokio::test]
+#[ignore = "downloads ~280MB from EBI FTP"]
+async fn test_parse_chebi_sample() {
+    use bdp_ingest::pipelines::chebi::parser;
+
+    // Parse only first 1000 terms to keep test fast
+    let url = "https://ftp.ebi.ac.uk/pub/databases/chebi/ontology/chebi.obo";
+    let content = bdp_ingest::common::http::download_text(url, 3)
+        .await
+        .expect("failed to download ChEBI OBO");
+    let parsed = parser::parse_obo(&content, "test", Some(1000))
+        .expect("failed to parse ChEBI OBO");
+
+    assert_eq!(parsed.terms.len(), 1000, "expected 1000 ChEBI terms");
+
+    // Check that InChIKey extraction works on real data
+    let with_inchikey: Vec<_> = parsed.terms.iter().filter(|t| t.inchikey.is_some()).collect();
+    assert!(!with_inchikey.is_empty(), "expected some terms with InChIKey");
+
+    println!(
+        "ChEBI sample: {} terms, {} with InChIKey, {} rels",
+        parsed.terms.len(),
+        with_inchikey.len(),
+        parsed.relationships.len()
+    );
+}

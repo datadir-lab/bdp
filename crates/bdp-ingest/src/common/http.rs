@@ -10,7 +10,7 @@ use tracing::{debug, info};
 /// Tries up to `max_retries` times with exponential backoff.
 pub async fn download_text(url: &str, max_retries: u32) -> Result<String> {
     let client = Client::builder()
-        .timeout(Duration::from_secs(300))
+        .timeout(Duration::from_secs(600))
         .user_agent("bdp-ingest/0.1 (https://github.com/datadir-lab/bdp)")
         .build()
         .context("failed to build HTTP client")?;
