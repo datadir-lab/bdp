@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT external_version\n            FROM versions\n            WHERE entry_id = $1\n              AND external_version IS NOT NULL\n            ORDER BY release_date DESC\n            LIMIT 1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "external_version",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "2939e3e5d1b0cdfaec2bc5879f23d055672b1201127a1fd7095b6167dff68d57"
+}

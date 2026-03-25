@@ -426,7 +426,11 @@ impl IngestOrchestrator {
     /// Run MONDO disease ontology pipeline
     async fn run_mondo(db: Arc<PgPool>, org_id: Uuid, release: String) -> Result<&'static str> {
         info!("Starting MONDO pipeline");
-        let release = if release.is_empty() { "current".to_string() } else { release };
+        let release = if release.is_empty() {
+            "current".to_string()
+        } else {
+            release
+        };
         let config = MondoConfig::new(release, org_id);
         let runner = MondoPipelineRunner::new(config, (*db).clone());
         let stats = runner.run().await?;
@@ -437,7 +441,11 @@ impl IngestOrchestrator {
     /// Run HPO phenotype ontology pipeline
     async fn run_hpo(db: Arc<PgPool>, org_id: Uuid, release: String) -> Result<&'static str> {
         info!("Starting HPO pipeline");
-        let release = if release.is_empty() { "current".to_string() } else { release };
+        let release = if release.is_empty() {
+            "current".to_string()
+        } else {
+            release
+        };
         let config = HpoConfig::new(release, org_id);
         let runner = HpoPipelineRunner::new(config, (*db).clone());
         let stats = runner.run().await?;
@@ -448,7 +456,11 @@ impl IngestOrchestrator {
     /// Run ChEBI chemical entities pipeline
     async fn run_chebi(db: Arc<PgPool>, org_id: Uuid, release: String) -> Result<&'static str> {
         info!("Starting ChEBI pipeline");
-        let release = if release.is_empty() { "current".to_string() } else { release };
+        let release = if release.is_empty() {
+            "current".to_string()
+        } else {
+            release
+        };
         let config = ChebiConfig::new(release, org_id);
         let runner = ChebiPipelineRunner::new(config, (*db).clone());
         let stats = runner.run().await?;
@@ -457,13 +469,13 @@ impl IngestOrchestrator {
     }
 
     /// Run Reactome pathway database pipeline
-    async fn run_reactome(
-        db: Arc<PgPool>,
-        org_id: Uuid,
-        release: String,
-    ) -> Result<&'static str> {
+    async fn run_reactome(db: Arc<PgPool>, org_id: Uuid, release: String) -> Result<&'static str> {
         info!("Starting Reactome pipeline");
-        let release = if release.is_empty() { "current".to_string() } else { release };
+        let release = if release.is_empty() {
+            "current".to_string()
+        } else {
+            release
+        };
         let config = ReactomeConfig::human_only(release, org_id);
         let runner = ReactomePipelineRunner::new(config, (*db).clone());
         let stats = runner.run().await?;

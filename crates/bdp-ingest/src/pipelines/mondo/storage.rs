@@ -298,8 +298,7 @@ impl MondoStorage {
         tx: &mut Transaction<'_, Postgres>,
         relationships: &[DiseaseRelationship],
     ) -> Result<usize> {
-        let total_chunks =
-            (relationships.len() + REL_CHUNK_SIZE - 1).max(1) / REL_CHUNK_SIZE;
+        let total_chunks = (relationships.len() + REL_CHUNK_SIZE - 1).max(1) / REL_CHUNK_SIZE;
         let mut stored = 0;
 
         for (chunk_idx, chunk) in relationships.chunks(REL_CHUNK_SIZE).enumerate() {

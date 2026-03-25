@@ -172,7 +172,6 @@ pub fn validate_optional_url(
     Ok(())
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -272,6 +271,4 @@ mod tests {
         assert!(!is_valid_url("ftp://example.com"));
         assert!(!is_valid_url("example.com"));
     }
-
-
 }

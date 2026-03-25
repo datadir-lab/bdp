@@ -4,8 +4,7 @@
 // MONDO terms are prefixed with "MONDO:"; non-MONDO terms are skipped.
 
 use crate::pipelines::mondo::models::{
-    DiseaseRelationship, DiseaseRelationType, DiseaseSynonym, DiseaseTerm, DiseaseXref,
-    ParsedMondo,
+    DiseaseRelationType, DiseaseRelationship, DiseaseSynonym, DiseaseTerm, DiseaseXref, ParsedMondo,
 };
 use tracing::{info, warn};
 
@@ -48,13 +47,13 @@ pub fn parse_obo(
                 Ok(Some((term, rels))) => {
                     parsed.relationships.extend(rels);
                     parsed.terms.push(term);
-                }
+                },
                 Ok(None) => {
                     // Non-MONDO term — skip
-                }
+                },
                 Err(e) => {
                     warn!("Skipping MONDO term stanza due to parse error: {}", e);
-                }
+                },
             }
         } else {
             i += 1;
@@ -112,28 +111,28 @@ fn parse_term_stanza(
                     if let Some(syn) = parse_synonym(value) {
                         synonyms.push(syn);
                     }
-                }
+                },
                 "xref" => {
                     // Strip inline comment: "OMIM:114500 {source=\"...\"}" → "OMIM:114500"
                     let xref_val = value.split_whitespace().next().unwrap_or("").to_string();
                     if !xref_val.is_empty() {
                         raw_xrefs.push(xref_val);
                     }
-                }
+                },
                 "is_a" => {
                     // Format: "MONDO:0000001 ! disease"
                     if let Some(parent_id) = value.split_whitespace().next() {
                         is_a_ids.push(parent_id.to_string());
                     }
-                }
+                },
                 "relationship" => {
                     // Format: "part_of MONDO:0000001 ! disease"
                     let parts: Vec<&str> = value.split_whitespace().collect();
                     if parts.len() >= 2 {
                         relationships.push((parts[0].to_string(), parts[1].to_string()));
                     }
-                }
-                _ => {}
+                },
+                _ => {},
             }
         }
 
@@ -148,10 +147,7 @@ fn parse_term_stanza(
     let name = name.ok_or_else(|| format!("Missing name for {}", term_id))?;
 
     // Parse numeric accession
-    let mondo_accession: i64 = term_id
-        .trim_start_matches("MONDO:")
-        .parse()
-        .unwrap_or(0);
+    let mondo_accession: i64 = term_id.trim_start_matches("MONDO:").parse().unwrap_or(0);
 
     // Build structured xrefs
     let xrefs: Vec<DiseaseXref> = raw_xrefs
@@ -363,9 +359,6 @@ relationship: part_of MONDO:0000001 ! disease
 "#;
         let parsed = parse_obo(content, "2026-03-01", None).unwrap();
         assert_eq!(parsed.relationships.len(), 1);
-        assert_eq!(
-            parsed.relationships[0].relationship_type,
-            DiseaseRelationType::PartOf
-        );
+        assert_eq!(parsed.relationships[0].relationship_type, DiseaseRelationType::PartOf);
     }
 }

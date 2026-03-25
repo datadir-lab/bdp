@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO interpro_entry_metadata (\n            data_source_id, interpro_id, entry_type, name, short_name, description\n        )\n        VALUES ($1, $2, $3, $4, $5, $6)\n        ON CONFLICT (interpro_id) DO UPDATE\n        SET\n            name = EXCLUDED.name,\n            short_name = EXCLUDED.short_name,\n            description = EXCLUDED.description,\n            updated_at = NOW()\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Varchar",
+        "Varchar",
+        "Text",
+        "Varchar",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f2a92f35ebc0052f692a673939f612bd3933063145f7754486da9ec7e98cf09c"
+}

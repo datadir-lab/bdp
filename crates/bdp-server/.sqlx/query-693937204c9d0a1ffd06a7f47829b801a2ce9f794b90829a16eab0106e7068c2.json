@@ -36,7 +36,7 @@
       {
         "ordinal": 6,
         "name": "source_type?",
-        "type_info": "Varchar"
+        "type_info": "Text"
       },
       {
         "ordinal": 7,

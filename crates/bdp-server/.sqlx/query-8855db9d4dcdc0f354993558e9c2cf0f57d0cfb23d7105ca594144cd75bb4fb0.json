@@ -1,0 +1,46 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                pm.data_source_id,\n                pm.accession,\n                v.id as version_id,\n                v.version_major,\n                v.version_minor\n            FROM protein_metadata pm\n            JOIN data_sources ds ON ds.id = pm.data_source_id\n            JOIN versions v ON v.entry_id = ds.id\n            WHERE pm.accession = ANY($1)\n            ORDER BY pm.accession, v.version_major DESC, v.version_minor DESC\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "data_source_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "accession",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "version_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 3,
+        "name": "version_major",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
+        "name": "version_minor",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "TextArray"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "8855db9d4dcdc0f354993558e9c2cf0f57d0cfb23d7105ca594144cd75bb4fb0"
+}

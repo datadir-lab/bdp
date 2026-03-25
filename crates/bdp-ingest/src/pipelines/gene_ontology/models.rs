@@ -138,9 +138,6 @@ mod tests {
         assert_eq!(RelationshipType::parse("is_a"), RelationshipType::IsA);
         assert_eq!(RelationshipType::parse("part_of"), RelationshipType::PartOf);
         assert_eq!(RelationshipType::parse("regulates"), RelationshipType::Regulates);
-        assert!(matches!(
-            RelationshipType::parse("novel_rel"),
-            RelationshipType::Other(_)
-        ));
+        assert!(matches!(RelationshipType::parse("novel_rel"), RelationshipType::Other(_)));
     }
 }

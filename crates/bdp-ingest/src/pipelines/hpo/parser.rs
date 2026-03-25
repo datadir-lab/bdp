@@ -81,23 +81,19 @@ impl OboParser {
                     Ok((term, term_rels)) => {
                         terms.push(term);
                         relationships.extend(term_rels);
-                    }
+                    },
                     Err(e) => {
                         warn!("Failed to parse HPO term stanza at line {}: {}", i, e);
                         // Advance past the stanza to avoid infinite loop
                         i += 1;
-                    }
+                    },
                 }
             } else {
                 i += 1;
             }
         }
 
-        info!(
-            "Parsed {} HPO terms and {} relationships",
-            terms.len(),
-            relationships.len()
-        );
+        info!("Parsed {} HPO terms and {} relationships", terms.len(), relationships.len());
 
         Ok(ParsedHpo {
             terms,
@@ -143,7 +139,7 @@ impl OboParser {
                     "name" => name = Some(value.to_string()),
                     "def" => {
                         definition = Some(extract_quoted_text(value));
-                    }
+                    },
                     "comment" => comment = Some(value.to_string()),
                     "is_obsolete" => is_obsolete = value == "true",
                     "replaced_by" => replaced_by = Some(value.to_string()),
@@ -151,16 +147,16 @@ impl OboParser {
                         if let Ok(syn) = parse_synonym(value) {
                             synonyms.push(syn);
                         }
-                    }
+                    },
                     "xref" => {
                         xrefs.push(value.to_string());
-                    }
+                    },
                     "alt_id" => {
                         alt_ids.push(value.to_string());
-                    }
+                    },
                     "subset" => {
                         subset.push(value.to_string());
-                    }
+                    },
                     "is_a" => {
                         // "HP:0000001 ! All"  → take first token
                         if let Some(parent_id) = value.split_whitespace().next() {
@@ -173,7 +169,7 @@ impl OboParser {
                                 });
                             }
                         }
-                    }
+                    },
                     "relationship" => {
                         // "part_of HP:0000001 ! All"
                         let parts: Vec<&str> = value.split_whitespace().collect();
@@ -187,19 +183,17 @@ impl OboParser {
                                 });
                             }
                         }
-                    }
-                    _ => {} // Ignore unrecognised fields
+                    },
+                    _ => {}, // Ignore unrecognised fields
                 }
             }
 
             *i += 1;
         }
 
-        let hpo_id =
-            hpo_id.ok_or_else(|| anyhow!("Missing HPO ID in [Term] stanza"))?;
+        let hpo_id = hpo_id.ok_or_else(|| anyhow!("Missing HPO ID in [Term] stanza"))?;
 
-        let name =
-            name.ok_or_else(|| anyhow!("Missing name for term {}", hpo_id))?;
+        let name = name.ok_or_else(|| anyhow!("Missing name for term {}", hpo_id))?;
 
         // Build term (skip ID validation for alt/obsolete terms that may not match pattern)
         let hpo_accession = HpoTerm::parse_accession(&hpo_id).unwrap_or(0);
@@ -277,7 +271,7 @@ impl HpoaParser {
                 Err(e) => {
                     debug!("Failed to parse HPOA line {}: {}", lines_processed, e);
                     skipped += 1;
-                }
+                },
             }
 
             if lines_processed % 100_000 == 0 {
@@ -315,8 +309,8 @@ impl HpoaParser {
         let qualifier = cols[2].trim();
         let hpo_id = cols[3].trim();
 
-        let (disease_db, disease_id) = DiseaseAnnotation::parse_database_id(database_id)
-            .map_err(|e| anyhow!("{}", e))?;
+        let (disease_db, disease_id) =
+            DiseaseAnnotation::parse_database_id(database_id).map_err(|e| anyhow!("{}", e))?;
 
         Ok(DiseaseAnnotation {
             disease_db,
@@ -370,10 +364,17 @@ fn parse_synonym(text: &str) -> std::result::Result<HpoSynonym, String> {
 
     let syn_text = parts[1].to_string();
     let remainder = if parts.len() > 2 { parts[2] } else { "" };
-    let scope_str = remainder.split_whitespace().next().unwrap_or("EXACT").trim();
+    let scope_str = remainder
+        .split_whitespace()
+        .next()
+        .unwrap_or("EXACT")
+        .trim();
     let scope = SynonymScope::from_str(scope_str).unwrap_or(SynonymScope::Exact);
 
-    Ok(HpoSynonym { scope, text: syn_text })
+    Ok(HpoSynonym {
+        scope,
+        text: syn_text,
+    })
 }
 
 // ============================================================================
@@ -499,12 +500,7 @@ OMIM:114500\tBreast cancer\t\tHP:0003002\tOMIM:114500\tPCS\t\t\t\t\tP\t\n\
     #[test]
     fn test_parse_hpoa_limit() {
         let rows: Vec<String> = (0..10)
-            .map(|i| {
-                format!(
-                    "OMIM:{:06}\tDisease{i}\t\tHP:0000001\tOMIM:{i}\tPCS\t\t\t\t\tP\t",
-                    i
-                )
-            })
+            .map(|i| format!("OMIM:{:06}\tDisease{i}\t\tHP:0000001\tOMIM:{i}\tPCS\t\t\t\t\tP\t", i))
             .collect();
         let content = rows.join("\n");
         let annotations = HpoParser::parse_hpoa(&content, "2026-03-01", Some(5)).unwrap();

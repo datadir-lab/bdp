@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT id, slug, name, website, description, logo_url,\n                   is_system as \"is_system!\",\n                   license, license_url, citation, citation_url,\n                   version_strategy, version_description,\n                   data_source_url, documentation_url, contact_email,\n                   created_at as \"created_at!\", updated_at as \"updated_at!\"\n            FROM organizations\n            WHERE LOWER(slug) = LOWER($1)\n            ",
+  "query": "\n            SELECT id, slug, name, website, description, logo_url,\n                   is_system as \"is_system!\",\n                   license, license_url, citation, citation_url,\n                   version_strategy, version_description,\n                   data_source_url, documentation_url, contact_email,\n                   versioning_rules,\n                   created_at as \"created_at!\", updated_at as \"updated_at!\"\n            FROM organizations\n            WHERE id = $1\n            ",
   "describe": {
     "columns": [
       {
@@ -85,18 +85,23 @@
       },
       {
         "ordinal": 16,
+        "name": "versioning_rules",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 17,
         "name": "created_at!",
         "type_info": "Timestamptz"
       },
       {
-        "ordinal": 17,
+        "ordinal": 18,
         "name": "updated_at!",
         "type_info": "Timestamptz"
       }
     ],
     "parameters": {
       "Left": [
-        "Text"
+        "Uuid"
       ]
     },
     "nullable": [
@@ -117,8 +122,9 @@
       true,
       true,
       true,
+      true,
       true
     ]
   },
-  "hash": "3529af5e9a19e7342eeb4ab80bf28788a7c45f9ed636a19a158c57174819592b"
+  "hash": "76bbf4aa2563536f41f2f0015f372465d754a14fcee138a39c2130ddac2093d7"
 }

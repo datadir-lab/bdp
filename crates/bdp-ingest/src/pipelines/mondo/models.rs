@@ -3,8 +3,8 @@
 /// A single disease term from MONDO OBO.
 #[derive(Debug, Clone)]
 pub struct DiseaseTerm {
-    pub mondo_id: String,            // "MONDO:0004992"
-    pub mondo_accession: i64,        // 4992
+    pub mondo_id: String,     // "MONDO:0004992"
+    pub mondo_accession: i64, // 4992
     pub name: String,
     pub definition: Option<String>,
     pub is_obsolete: bool,

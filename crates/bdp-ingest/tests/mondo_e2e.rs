@@ -2,7 +2,7 @@ mod common;
 
 use bdp_ingest::pipelines::mondo::{
     models::{
-        DiseaseRelationship, DiseaseRelationType, DiseaseSynonym, DiseaseTerm, DiseaseXref,
+        DiseaseRelationType, DiseaseRelationship, DiseaseSynonym, DiseaseTerm, DiseaseXref,
         ParsedMondo,
     },
     storage::MondoStorage,
@@ -127,11 +127,7 @@ async fn test_mondo_storage_e2e() {
             .fetch_one(&pg.pool)
             .await
             .expect("fetch cancer term");
-    assert_eq!(
-        omim_id.as_deref(),
-        Some("114500"),
-        "cancer should have OMIM 114500"
-    );
+    assert_eq!(omim_id.as_deref(), Some("114500"), "cancer should have OMIM 114500");
 
     // Obsolete term should be stored
     let obsolete_count: i64 =

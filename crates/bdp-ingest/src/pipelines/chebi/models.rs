@@ -2,7 +2,7 @@
 
 #[derive(Debug, Clone, Default)]
 pub struct CompoundTerm {
-    pub chebi_id: String,           // "CHEBI:33709"
+    pub chebi_id: String, // "CHEBI:33709"
     pub chebi_accession: i64,
     pub name: String,
     pub definition: Option<String>,

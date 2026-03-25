@@ -16,7 +16,10 @@ pub struct ReactomeStorage {
 
 impl ReactomeStorage {
     pub fn new(pool: PgPool) -> Self {
-        Self { pool, batch: BatchConfig::default() }
+        Self {
+            pool,
+            batch: BatchConfig::default(),
+        }
     }
 
     pub async fn ingest_release(
@@ -29,11 +32,14 @@ impl ReactomeStorage {
         let mut tx = self.pool.begin().await?;
 
         let data_source_id = self.upsert_registry(&mut tx, org_id).await?;
-        self.upsert_version(&mut tx, data_source_id, release).await?;
+        self.upsert_version(&mut tx, data_source_id, release)
+            .await?;
 
         info!(count = pathways.len(), "storing Reactome pathways");
         // Store pathways and collect reactome_id -> UUID map
-        let pathway_id_map = self.store_pathways(&mut tx, data_source_id, pathways).await?;
+        let pathway_id_map = self
+            .store_pathways(&mut tx, data_source_id, pathways)
+            .await?;
 
         info!(count = links.len(), "storing protein->pathway associations");
         self.store_links(&mut tx, &pathway_id_map, links).await?;
@@ -137,7 +143,7 @@ impl ReactomeStorage {
                         // Pathway not in pathway_terms (e.g., cross-species link)
                         skipped += 1;
                         continue;
-                    }
+                    },
                 };
 
                 sqlx::query(

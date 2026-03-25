@@ -262,10 +262,7 @@ impl GoStorage {
             "#,
         );
 
-        let rows: Vec<(String, Uuid)> = query_builder
-            .build_query_as()
-            .fetch_all(&mut **tx)
-            .await?;
+        let rows: Vec<(String, Uuid)> = query_builder.build_query_as().fetch_all(&mut **tx).await?;
 
         // Build go_id → term_id map from returned rows
         let term_id_map: HashMap<String, Uuid> = rows.into_iter().collect();
@@ -346,9 +343,8 @@ impl GoStorage {
 
         // Step 5: Insert alt_ids into go_term_alt_ids
         if !alt_ids_batch.is_empty() {
-            let mut q: QueryBuilder<Postgres> = QueryBuilder::new(
-                "INSERT INTO go_term_alt_ids (go_term_id, alt_go_id) ",
-            );
+            let mut q: QueryBuilder<Postgres> =
+                QueryBuilder::new("INSERT INTO go_term_alt_ids (go_term_id, alt_go_id) ");
             q.push_values(&alt_ids_batch, |mut b, (term_id, alt_go_id)| {
                 b.push_bind(term_id).push_bind(alt_go_id);
             });

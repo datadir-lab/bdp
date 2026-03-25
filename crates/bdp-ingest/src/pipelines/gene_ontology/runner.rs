@@ -80,11 +80,7 @@ impl PipelineRunner for GoPipelineRunner {
         // Report terms as records_ingested; relationships as part of the total.
         stats.records_ingested = parsed.term_count() as u64;
         // Skipped = obsolete terms
-        stats.records_skipped = parsed
-            .terms
-            .iter()
-            .filter(|t| t.is_obsolete)
-            .count() as u64;
+        stats.records_skipped = parsed.terms.iter().filter(|t| t.is_obsolete).count() as u64;
 
         Ok(stats)
     }

@@ -5,7 +5,9 @@
 //! namespace validation, relationship extraction, and struct construction.
 
 use crate::common::obo::{OboParser, RawOboTerm};
-use crate::pipelines::gene_ontology::models::{GoRelationship, GoTerm, Namespace, RelationshipType};
+use crate::pipelines::gene_ontology::models::{
+    GoRelationship, GoTerm, Namespace, RelationshipType,
+};
 use tracing::{debug, warn};
 
 /// Parsed output from the GO OBO file.
@@ -139,7 +141,11 @@ namespace: biological_process
     #[test]
     fn test_obsolete_flag() {
         let parsed = parse_obo(SAMPLE_OBO, None).unwrap();
-        let obsolete = parsed.terms.iter().find(|t| t.go_id == "GO:0999999").unwrap();
+        let obsolete = parsed
+            .terms
+            .iter()
+            .find(|t| t.go_id == "GO:0999999")
+            .unwrap();
         assert!(obsolete.is_obsolete);
     }
 
@@ -171,9 +177,17 @@ namespace: biological_process
     #[test]
     fn test_namespace_mapping() {
         let parsed = parse_obo(SAMPLE_OBO, None).unwrap();
-        let bp = parsed.terms.iter().find(|t| t.go_id == "GO:0008150").unwrap();
+        let bp = parsed
+            .terms
+            .iter()
+            .find(|t| t.go_id == "GO:0008150")
+            .unwrap();
         assert_eq!(bp.namespace, Namespace::BiologicalProcess);
-        let cc = parsed.terms.iter().find(|t| t.go_id == "GO:0005575").unwrap();
+        let cc = parsed
+            .terms
+            .iter()
+            .find(|t| t.go_id == "GO:0005575")
+            .unwrap();
         assert_eq!(cc.namespace, Namespace::CellularComponent);
     }
 

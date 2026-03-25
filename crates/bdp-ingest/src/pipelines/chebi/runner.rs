@@ -53,21 +53,12 @@ impl PipelineRunner for ChebiPipelineRunner {
         let content = download_text(&self.config.obo_url, self.config.max_retries).await?;
 
         info!(bytes = content.len(), "parsing ChEBI OBO");
-        let parsed =
-            parser::parse_obo(&content, &self.config.release, self.config.parse_limit)?;
+        let parsed = parser::parse_obo(&content, &self.config.release, self.config.parse_limit)?;
 
         stats.records_ingested = parsed.terms.len() as u64;
-        stats.records_skipped = parsed
-            .terms
-            .iter()
-            .filter(|t| t.is_obsolete)
-            .count() as u64;
+        stats.records_skipped = parsed.terms.iter().filter(|t| t.is_obsolete).count() as u64;
 
-        info!(
-            terms = parsed.terms.len(),
-            rels = parsed.relationships.len(),
-            "ChEBI parsed"
-        );
+        info!(terms = parsed.terms.len(), rels = parsed.relationships.len(), "ChEBI parsed");
 
         let storage = ChebiStorage::new(self.pool);
         storage

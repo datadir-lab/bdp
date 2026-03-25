@@ -48,7 +48,10 @@ impl TestPostgres {
             .await
             .context("run migrations")?;
 
-        Ok(Self { _container: container, pool })
+        Ok(Self {
+            _container: container,
+            pool,
+        })
     }
 }
 

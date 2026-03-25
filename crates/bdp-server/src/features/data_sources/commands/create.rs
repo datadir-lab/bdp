@@ -272,7 +272,6 @@ mod tests {
         assert!(matches!(cmd.validate(), Err(CreateDataSourceError::SlugValidation(_))));
     }
 
-
     #[sqlx::test]
     async fn test_handle_creates_data_source(pool: PgPool) -> sqlx::Result<()> {
         let org_id = Uuid::new_v4();

@@ -216,14 +216,9 @@ pub struct DiseaseAnnotation {
 
 impl DiseaseAnnotation {
     /// Parse database_id like "OMIM:114500" into (disease_db, disease_id)
-    pub fn parse_database_id(
-        database_id: &str,
-    ) -> std::result::Result<(String, String), String> {
+    pub fn parse_database_id(database_id: &str) -> std::result::Result<(String, String), String> {
         let (db, id) = database_id.split_once(':').ok_or_else(|| {
-            format!(
-                "Invalid database_id format '{}': expected 'DB:ID'",
-                database_id
-            )
+            format!("Invalid database_id format '{}': expected 'DB:ID'", database_id)
         })?;
         Ok((db.to_string(), id.to_string()))
     }
@@ -260,12 +255,9 @@ mod tests {
 
     #[test]
     fn test_hpo_term_new() {
-        let term = HpoTerm::new(
-            "HP:0000001".to_string(),
-            "All".to_string(),
-            "2026-03-01".to_string(),
-        )
-        .unwrap();
+        let term =
+            HpoTerm::new("HP:0000001".to_string(), "All".to_string(), "2026-03-01".to_string())
+                .unwrap();
 
         assert_eq!(term.hpo_id, "HP:0000001");
         assert_eq!(term.hpo_accession, 1);
@@ -276,11 +268,8 @@ mod tests {
 
     #[test]
     fn test_hpo_term_new_invalid_id() {
-        let result = HpoTerm::new(
-            "INVALID".to_string(),
-            "All".to_string(),
-            "2026-03-01".to_string(),
-        );
+        let result =
+            HpoTerm::new("INVALID".to_string(), "All".to_string(), "2026-03-01".to_string());
         assert!(result.is_err());
     }
 
@@ -289,14 +278,8 @@ mod tests {
         assert_eq!(SynonymScope::from_str("EXACT").unwrap(), SynonymScope::Exact);
         assert_eq!(SynonymScope::from_str("exact").unwrap(), SynonymScope::Exact);
         assert_eq!(SynonymScope::from_str("BROAD").unwrap(), SynonymScope::Broad);
-        assert_eq!(
-            SynonymScope::from_str("NARROW").unwrap(),
-            SynonymScope::Narrow
-        );
-        assert_eq!(
-            SynonymScope::from_str("RELATED").unwrap(),
-            SynonymScope::Related
-        );
+        assert_eq!(SynonymScope::from_str("NARROW").unwrap(), SynonymScope::Narrow);
+        assert_eq!(SynonymScope::from_str("RELATED").unwrap(), SynonymScope::Related);
         assert!(SynonymScope::from_str("invalid").is_err());
     }
 

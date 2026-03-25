@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        INSERT INTO organizations (slug, name, website, description, logo_url, is_system)\n        VALUES ($1, $2, $3, $4, $5, $6)\n        RETURNING id, slug, name, website, description, logo_url,\n                  is_system as \"is_system!\", created_at as \"created_at!\", updated_at as \"updated_at!\"\n        ",
+  "query": "\n        INSERT INTO organizations (slug, name, website, description, logo_url, is_system)\n        VALUES ($1, $2, $3, $4, $5, $6)\n        RETURNING id, slug, name, website, description, logo_url,\n                  is_system as \"is_system!\", created_at as \"created_at!\"\n        ",
   "describe": {
     "columns": [
       {
@@ -42,11 +42,6 @@
         "ordinal": 7,
         "name": "created_at!",
         "type_info": "Timestamptz"
-      },
-      {
-        "ordinal": 8,
-        "name": "updated_at!",
-        "type_info": "Timestamptz"
       }
     ],
     "parameters": {
@@ -67,9 +62,8 @@
       true,
       true,
       true,
-      true,
       true
     ]
   },
-  "hash": "348d71e21b948786025f4ef25f5a1024890cd6fb6da98b3758baae6f106fa8e2"
+  "hash": "fa9bd925acc1df7a0f7cf8826d1d240ba87eb4ff01bc7179d3f16de28602506f"
 }

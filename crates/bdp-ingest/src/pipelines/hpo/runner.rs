@@ -62,20 +62,11 @@ impl PipelineRunner for HpoPipelineRunner {
             self.config.parse_limit,
         )?;
 
-        info!(
-            terms = parsed.terms.len(),
-            rels = parsed.relationships.len(),
-            "HPO OBO parsed"
-        );
+        info!(terms = parsed.terms.len(), rels = parsed.relationships.len(), "HPO OBO parsed");
 
         let storage = HpoStorage::new(self.pool.clone(), self.config.org_id);
         storage
-            .store_ontology(
-                &parsed.terms,
-                &parsed.relationships,
-                &self.config.release,
-                "1.0",
-            )
+            .store_ontology(&parsed.terms, &parsed.relationships, &self.config.release, "1.0")
             .await?;
 
         stats.records_ingested = parsed.terms.len() as u64;

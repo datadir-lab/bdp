@@ -218,7 +218,7 @@ echo "  3. Run: cargo xtask infra apply"
     return run_bash(&script, "Bootstrap infrastructure");
     #[cfg(target_os = "windows")]
     return run_powershell(
-        &format!("wsl bash -c '{}'", script.replace('\'', "'\\''")),
+        &format!("wsl bash -c '{}'", script.replace("'", r"'\''")),
         "Bootstrap infrastructure",
     );
 }
@@ -237,7 +237,7 @@ terraform init
     return run_bash(&script, "Terraform init");
     #[cfg(target_os = "windows")]
     return run_powershell(
-        &format!("wsl bash -c '{}'", script.replace('\'', "'\\''")),
+        &format!("wsl bash -c '{}'", script.replace("'", r"'\''")),
         "Terraform init",
     );
 }
@@ -257,7 +257,7 @@ terraform plan
     return run_bash(&script, "Terraform plan");
     #[cfg(target_os = "windows")]
     return run_powershell(
-        &format!("wsl bash -c '{}'", script.replace('\'', "'\\''")),
+        &format!("wsl bash -c '{}'", script.replace("'", r"'\''")),
         "Terraform plan",
     );
 }
@@ -279,7 +279,7 @@ echo "Done. Run 'cargo xtask infra post-deploy' to wait for cloud-init."
     return run_bash(&script, "Terraform apply");
     #[cfg(target_os = "windows")]
     return run_powershell(
-        &format!("wsl bash -c '{}'", script.replace('\'', "'\\''")),
+        &format!("wsl bash -c '{}'", script.replace("'", r"'\''")),
         "Terraform apply",
     );
 }
@@ -306,7 +306,7 @@ terraform destroy
     return run_bash(&script, "Terraform destroy");
     #[cfg(target_os = "windows")]
     return run_powershell(
-        &format!("wsl bash -c '{}'", script.replace('\'', "'\\''")),
+        &format!("wsl bash -c '{}'", script.replace("'", r"'\''")),
         "Terraform destroy",
     );
 }
@@ -327,7 +327,7 @@ terraform output
     return run_bash(&script, "Terraform info");
     #[cfg(target_os = "windows")]
     return run_powershell(
-        &format!("wsl bash -c '{}'", script.replace('\'', "'\\''")),
+        &format!("wsl bash -c '{}'", script.replace("'", r"'\''")),
         "Terraform info",
     );
 }
@@ -346,7 +346,7 @@ echo "Terraform configuration is valid."
     return run_bash(&script, "Terraform validate");
     #[cfg(target_os = "windows")]
     return run_powershell(
-        &format!("wsl bash -c '{}'", script.replace('\'', "'\\''")),
+        &format!("wsl bash -c '{}'", script.replace("'", r"'\''")),
         "Terraform validate",
     );
 }
@@ -431,7 +431,7 @@ ssh -i {key} -o StrictHostKeyChecking=accept-new root@{ip} "/opt/bdp/scripts/sho
     return run_bash(&script, "Post-deploy");
     #[cfg(target_os = "windows")]
     return run_powershell(
-        &format!("wsl bash -c '{}'", script.replace('\'', "'\\''")),
+        &format!("wsl bash -c '{}'", script.replace("'", r"'\''")),
         "Post-deploy",
     );
 }
@@ -603,7 +603,7 @@ echo "  SSH_PUBLIC_KEY=        (cargo xtask infra bootstrap)"
     return run_bash(script, "Generate secrets");
     #[cfg(target_os = "windows")]
     return run_powershell(
-        &format!("wsl bash -c '{}'", script.replace('\'', "'\\''")),
+        &format!("wsl bash -c '{}'", script.replace("'", r"'\''")),
         "Generate secrets",
     );
 }

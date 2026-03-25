@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT EXISTS(\n                SELECT 1 FROM versions v\n                JOIN registry_entries re ON v.entry_id = re.id\n                JOIN organizations o ON re.organization_id = o.id\n                WHERE o.name = 'InterPro'\n                  AND re.entry_type = 'data_source'\n                  AND v.external_version = $1\n            ) as \"exists!\"\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "exists!",
+        "type_info": "Bool"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "a1391ff4ee5ff8a80da25deb9d47535ffef0bb11962c7bca3ff3b1a7f8876422"
+}

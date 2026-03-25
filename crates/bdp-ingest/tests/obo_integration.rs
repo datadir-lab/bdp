@@ -12,8 +12,7 @@ async fn test_parse_real_go_obo() {
         .await
         .expect("failed to download GO OBO");
 
-    let terms = OboParser::parse(&content, None)
-        .expect("failed to parse GO OBO");
+    let terms = OboParser::parse(&content, None).expect("failed to parse GO OBO");
 
     // GO has ~45,000 terms
     assert!(terms.len() > 40_000, "expected >40k terms, got {}", terms.len());
@@ -41,8 +40,7 @@ async fn test_parse_real_mondo_obo() {
         .await
         .expect("failed to download MONDO OBO");
 
-    let terms = OboParser::parse(&content, Some(1000))
-        .expect("failed to parse MONDO OBO");
+    let terms = OboParser::parse(&content, Some(1000)).expect("failed to parse MONDO OBO");
 
     // Just check we can parse 1000 terms without errors
     assert_eq!(terms.len(), 1000);
@@ -115,13 +113,17 @@ async fn test_parse_chebi_sample() {
     let content = bdp_ingest::common::http::download_text(url, 3)
         .await
         .expect("failed to download ChEBI OBO");
-    let parsed = parser::parse_obo(&content, "test", Some(1000))
-        .expect("failed to parse ChEBI OBO");
+    let parsed =
+        parser::parse_obo(&content, "test", Some(1000)).expect("failed to parse ChEBI OBO");
 
     assert_eq!(parsed.terms.len(), 1000, "expected 1000 ChEBI terms");
 
     // Check that InChIKey extraction works on real data
-    let with_inchikey: Vec<_> = parsed.terms.iter().filter(|t| t.inchikey.is_some()).collect();
+    let with_inchikey: Vec<_> = parsed
+        .terms
+        .iter()
+        .filter(|t| t.inchikey.is_some())
+        .collect();
     assert!(!with_inchikey.is_empty(), "expected some terms with InChIKey");
 
     println!(
@@ -190,7 +192,10 @@ async fn test_parse_reactome_pathways() {
 
     assert!(pathways.len() > 20_000, "expected >20K pathways, got {}", pathways.len());
 
-    let human = pathways.iter().filter(|p| p.species_name == "Homo sapiens").count();
+    let human = pathways
+        .iter()
+        .filter(|p| p.species_name == "Homo sapiens")
+        .count();
     assert!(human > 2_000, "expected >2K human pathways, got {}", human);
 
     println!("Reactome: {} total pathways, {} human", pathways.len(), human);
@@ -206,8 +211,8 @@ async fn test_parse_reactome_uniprot_human() {
     let content = bdp_ingest::common::http::download_text(url, 3)
         .await
         .expect("failed to download UniProt2Reactome_All_Levels.txt");
-    let links =
-        parser::parse_uniprot_reactome(&content, "114", Some("Homo sapiens")).expect("failed to parse links");
+    let links = parser::parse_uniprot_reactome(&content, "114", Some("Homo sapiens"))
+        .expect("failed to parse links");
 
     assert!(links.len() > 100_000, "expected >100K human links, got {}", links.len());
 

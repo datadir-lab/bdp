@@ -80,7 +80,11 @@ pub fn parse_uniprot_reactome(
             pathway_name: cols[3].trim().to_string(),
             evidence_type: {
                 let ev = cols[4].trim();
-                if ev.is_empty() { None } else { Some(ev.to_string()) }
+                if ev.is_empty() {
+                    None
+                } else {
+                    Some(ev.to_string())
+                }
             },
             species_name: species.to_string(),
             reactome_release: release.to_string(),

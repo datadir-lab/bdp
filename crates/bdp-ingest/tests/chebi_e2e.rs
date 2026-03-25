@@ -55,14 +55,12 @@ fn sample_chebi() -> ParsedChebi {
                 chebi_release: "test-2026".to_string(),
             },
         ],
-        relationships: vec![
-            CompoundRelationship {
-                subject_chebi_id: "CHEBI:30616".to_string(),
-                object_chebi_id: "CHEBI:15422".to_string(),
-                relationship_type: "is_a".to_string(),
-                chebi_release: "test-2026".to_string(),
-            },
-        ],
+        relationships: vec![CompoundRelationship {
+            subject_chebi_id: "CHEBI:30616".to_string(),
+            object_chebi_id: "CHEBI:15422".to_string(),
+            relationship_type: "is_a".to_string(),
+            chebi_release: "test-2026".to_string(),
+        }],
     }
 }
 
@@ -82,11 +80,15 @@ async fn test_chebi_storage_e2e() {
         .expect("ingest_release");
 
     // registry_entries: at least 1 row for 'chebi'
-    let reg_count = common::count_rows(&pg.pool, "registry_entries").await.unwrap();
+    let reg_count = common::count_rows(&pg.pool, "registry_entries")
+        .await
+        .unwrap();
     assert!(reg_count >= 1, "registry_entries should have >=1 row");
 
     // compound_terms: 3 rows
-    let term_count = common::count_rows(&pg.pool, "compound_terms").await.unwrap();
+    let term_count = common::count_rows(&pg.pool, "compound_terms")
+        .await
+        .unwrap();
     assert_eq!(term_count, 3, "expected 3 compound_terms");
 
     // compound_relationships: 1 row
@@ -108,6 +110,8 @@ async fn test_chebi_storage_e2e() {
         .ingest_release(org_id, "test-2026", &parsed)
         .await
         .expect("second ingest");
-    let term_count2 = common::count_rows(&pg.pool, "compound_terms").await.unwrap();
+    let term_count2 = common::count_rows(&pg.pool, "compound_terms")
+        .await
+        .unwrap();
     assert_eq!(term_count2, 3, "idempotent: still 3 terms after second run");
 }

@@ -37,10 +37,7 @@ impl ChebiStorage {
         self.store_terms(&mut tx, data_source_id, &parsed.terms)
             .await?;
 
-        info!(
-            count = parsed.relationships.len(),
-            "storing ChEBI relationships"
-        );
+        info!(count = parsed.relationships.len(), "storing ChEBI relationships");
         self.store_relationships(&mut tx, &parsed.relationships)
             .await?;
 

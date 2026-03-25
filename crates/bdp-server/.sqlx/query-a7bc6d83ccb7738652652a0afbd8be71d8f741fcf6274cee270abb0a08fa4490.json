@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO interpro_external_references (\n                interpro_data_source_id, database, database_id, description\n            )\n            VALUES ($1, $2, $3, $4)\n            ON CONFLICT (interpro_data_source_id, database, database_id) DO UPDATE\n            SET description = EXCLUDED.description\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Varchar",
+        "Varchar",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a7bc6d83ccb7738652652a0afbd8be71d8f741fcf6274cee270abb0a08fa4490"
+}

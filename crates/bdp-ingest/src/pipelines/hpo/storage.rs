@@ -106,10 +106,7 @@ impl HpoStorage {
             }
         }
 
-        info!(
-            "Stored {} annotations for version {}",
-            total, release_version
-        );
+        info!("Stored {} annotations for version {}", total, release_version);
         Ok(total)
     }
 
@@ -198,12 +195,7 @@ impl HpoStorage {
         let mut stored = 0;
 
         for (idx, chunk) in terms.chunks(chunk_size).enumerate() {
-            info!(
-                "Storing HPO terms chunk {} / {} ({} terms)",
-                idx + 1,
-                total_chunks,
-                chunk.len()
-            );
+            info!("Storing HPO terms chunk {} / {} ({} terms)", idx + 1, total_chunks, chunk.len());
             self.batch_insert_terms(tx, chunk, release_version).await?;
             stored += chunk.len();
         }
@@ -248,16 +240,10 @@ impl HpoStorage {
                 .push_bind(&term.comment)
                 .push_bind(term.is_obsolete)
                 .push_bind(&term.replaced_by)
-                .push_bind(
-                    serde_json::to_value(&term.synonyms).unwrap_or(serde_json::json!([])),
-                )
+                .push_bind(serde_json::to_value(&term.synonyms).unwrap_or(serde_json::json!([])))
                 .push_bind(serde_json::to_value(&term.xrefs).unwrap_or(serde_json::json!([])))
-                .push_bind(
-                    serde_json::to_value(&term.alt_ids).unwrap_or(serde_json::json!([])),
-                )
-                .push_bind(
-                    serde_json::to_value(&term.subset).unwrap_or(serde_json::json!([])),
-                )
+                .push_bind(serde_json::to_value(&term.alt_ids).unwrap_or(serde_json::json!([])))
+                .push_bind(serde_json::to_value(&term.subset).unwrap_or(serde_json::json!([])))
                 .push_bind(&term.hpo_release_version);
         });
 

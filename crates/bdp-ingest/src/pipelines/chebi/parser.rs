@@ -139,20 +139,11 @@ name: organic acid
         assert_eq!(aa.name, "amino acid");
         assert_eq!(aa.formula.as_deref(), Some("C2H5NO2"));
         assert!(aa.mass_mono.is_some());
-        assert_eq!(
-            aa.inchikey.as_deref(),
-            Some("DHMQDGOQFOQNFH-UHFFFAOYSA-N")
-        );
+        assert_eq!(aa.inchikey.as_deref(), Some("DHMQDGOQFOQNFH-UHFFFAOYSA-N"));
 
         assert_eq!(parsed.relationships.len(), 1);
-        assert_eq!(
-            parsed.relationships[0].subject_chebi_id,
-            "CHEBI:33709"
-        );
-        assert_eq!(
-            parsed.relationships[0].object_chebi_id,
-            "CHEBI:25703"
-        );
+        assert_eq!(parsed.relationships[0].subject_chebi_id, "CHEBI:33709");
+        assert_eq!(parsed.relationships[0].object_chebi_id, "CHEBI:25703");
         assert_eq!(parsed.relationships[0].relationship_type, "is_a");
     }
 }

@@ -130,26 +130,26 @@ async fn test_hpo_storage_e2e() {
         .await
         .expect("store_ontology");
     assert_eq!(stats.terms_stored, 3, "store_ontology should report 3 terms");
-    assert_eq!(
-        stats.relationships_stored, 2,
-        "store_ontology should report 2 relationships"
-    );
+    assert_eq!(stats.relationships_stored, 2, "store_ontology should report 2 relationships");
 
     // hpo_term_metadata: 3 rows
-    let term_count = common::count_rows(&pg.pool, "hpo_term_metadata").await.unwrap();
+    let term_count = common::count_rows(&pg.pool, "hpo_term_metadata")
+        .await
+        .unwrap();
     assert_eq!(term_count, 3, "expected 3 hpo terms");
 
     // hpo_relationships: 2 rows
-    let rel_count = common::count_rows(&pg.pool, "hpo_relationships").await.unwrap();
+    let rel_count = common::count_rows(&pg.pool, "hpo_relationships")
+        .await
+        .unwrap();
     assert_eq!(rel_count, 2, "expected 2 hpo relationships");
 
     // Spot-check term name
-    let name: String = sqlx::query_scalar(
-        "SELECT name FROM hpo_term_metadata WHERE hpo_id = 'HP:0000118'",
-    )
-    .fetch_one(&pg.pool)
-    .await
-    .expect("fetch phenotypic abnormality");
+    let name: String =
+        sqlx::query_scalar("SELECT name FROM hpo_term_metadata WHERE hpo_id = 'HP:0000118'")
+            .fetch_one(&pg.pool)
+            .await
+            .expect("fetch phenotypic abnormality");
     assert_eq!(name, "Phenotypic abnormality");
 
     // Store annotations
@@ -179,7 +179,9 @@ async fn test_hpo_storage_e2e() {
         .store_ontology(&terms, &relationships, release, "1.0")
         .await
         .expect("second ontology");
-    let term_count2 = common::count_rows(&pg.pool, "hpo_term_metadata").await.unwrap();
+    let term_count2 = common::count_rows(&pg.pool, "hpo_term_metadata")
+        .await
+        .unwrap();
     assert_eq!(term_count2, 3, "idempotent: still 3 terms");
 
     storage

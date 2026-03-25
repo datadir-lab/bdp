@@ -495,7 +495,6 @@ mod tests {
         Ok(())
     }
 
-
     #[test]
     fn test_validation_valid_source_type_filter() {
         let query = SearchSuggestionsQuery {

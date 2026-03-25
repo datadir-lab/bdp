@@ -1,0 +1,31 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT v.id as version_id, vf.id as file_id\n        FROM versions v\n        JOIN registry_entries re ON re.id = v.entry_id\n        JOIN organizations o ON o.id = re.organization_id\n        JOIN version_files vf ON vf.version_id = v.id AND vf.format = $4\n        WHERE LOWER(o.slug) = LOWER($1)\n          AND LOWER(re.slug) = LOWER($2)\n          AND v.version = $3\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "version_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "file_id",
+        "type_info": "Uuid"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "0705e958dbdc01efe30e989ef65023883ebb71aeba6afd7c9342fb2fe0a4fa5b"
+}
