@@ -41,6 +41,7 @@
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "recharts": "^2.15.0",
+    "regl-scatterplot": "^0.18.0",
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7"
   },
