@@ -176,6 +176,26 @@ pub struct PhenotypeRow {
     pub alt_ids_json: Option<serde_json::Value>,
 }
 
+/// Fetch phenotype by internal UUID (for FTS resolve path).
+pub async fn get_phenotype_by_id(pool: &PgPool, id: Uuid) -> sqlx::Result<Option<PhenotypeRow>> {
+    let row = sqlx::query(
+        "SELECT id, hpo_id, name, definition, synonyms, alt_ids
+         FROM hpo_term_metadata WHERE id = $1 AND is_obsolete = FALSE",
+    )
+    .bind(id)
+    .fetch_optional(pool)
+    .await?;
+
+    Ok(row.map(|r| PhenotypeRow {
+        id: r.get("id"),
+        hpo_id: r.get("hpo_id"),
+        name: r.get("name"),
+        definition: r.get("definition"),
+        synonyms_json: r.get("synonyms"),
+        alt_ids_json: r.get("alt_ids"),
+    }))
+}
+
 pub async fn get_phenotype(pool: &PgPool, hpo_id: &str) -> sqlx::Result<Option<PhenotypeRow>> {
     let row = sqlx::query(
         "SELECT id, hpo_id, name, definition, synonyms, alt_ids
@@ -331,6 +351,25 @@ pub struct PathwayRow {
     pub reactome_release: String,
 }
 
+/// Fetch a pathway by internal UUID (for FTS resolve path).
+pub async fn get_pathway_by_id(pool: &PgPool, id: Uuid) -> sqlx::Result<Option<PathwayRow>> {
+    let row = sqlx::query(
+        "SELECT reactome_id, name, species_name, is_top_level, reactome_release
+         FROM pathway_terms WHERE id = $1",
+    )
+    .bind(id)
+    .fetch_optional(pool)
+    .await?;
+
+    Ok(row.map(|r| PathwayRow {
+        reactome_id: r.get("reactome_id"),
+        name: r.get("name"),
+        species_name: r.get("species_name"),
+        is_top_level: r.get("is_top_level"),
+        reactome_release: r.get("reactome_release"),
+    }))
+}
+
 pub async fn get_pathway(pool: &PgPool, reactome_id: &str) -> sqlx::Result<Option<PathwayRow>> {
     let row = sqlx::query(
         "SELECT reactome_id, name, species_name, is_top_level, reactome_release
@@ -398,6 +437,28 @@ pub struct CompoundRow {
     pub smiles: Option<String>,
     pub mass_mono: Option<f64>,
     pub charge: Option<i32>,
+}
+
+/// Fetch compound by internal UUID (for FTS resolve path).
+pub async fn get_compound_by_id(pool: &PgPool, id: Uuid) -> sqlx::Result<Option<CompoundRow>> {
+    let row = sqlx::query(
+        "SELECT chebi_id, name, definition, formula, inchikey, smiles, mass_mono, charge
+         FROM compound_terms WHERE id = $1 AND is_obsolete = FALSE",
+    )
+    .bind(id)
+    .fetch_optional(pool)
+    .await?;
+
+    Ok(row.map(|r| CompoundRow {
+        chebi_id: r.get("chebi_id"),
+        name: r.get("name"),
+        definition: r.get("definition"),
+        formula: r.get("formula"),
+        inchikey: r.get("inchikey"),
+        smiles: r.get("smiles"),
+        mass_mono: r.get("mass_mono"),
+        charge: r.get("charge"),
+    }))
 }
 
 pub async fn get_compound(pool: &PgPool, chebi_id: &str) -> sqlx::Result<Option<CompoundRow>> {

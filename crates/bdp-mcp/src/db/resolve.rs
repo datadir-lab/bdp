@@ -105,12 +105,103 @@ pub async fn phenotype_by_hpo_id(pool: &PgPool, hpo_id: &str) -> sqlx::Result<Op
         .await
 }
 
+/// Find up to 5 HPO phenotype terms by FTS name match.
+pub async fn phenotypes_by_name(pool: &PgPool, name: &str) -> sqlx::Result<Vec<FtsMatch>> {
+    let name = cap_input(name);
+    let rows = sqlx::query(
+        "SELECT id, name FROM hpo_term_metadata,
+         plainto_tsquery('english', $1) q
+         WHERE to_tsvector('english', name) @@ q AND is_obsolete = FALSE
+         ORDER BY ts_rank(to_tsvector('english', name), q) DESC LIMIT 5",
+    )
+    .bind(name)
+    .fetch_all(pool)
+    .await?;
+    Ok(rows
+        .iter()
+        .map(|r| FtsMatch {
+            id: r.get("id"),
+            name: r.get("name"),
+        })
+        .collect())
+}
+
 /// Find compound by CHEBI: canonical ID.
 pub async fn compound_by_chebi_id(pool: &PgPool, chebi_id: &str) -> sqlx::Result<Option<Uuid>> {
     sqlx::query_scalar("SELECT id FROM compound_terms WHERE chebi_id = $1 AND is_obsolete = FALSE")
         .bind(chebi_id)
         .fetch_optional(pool)
         .await
+}
+
+/// Find up to 5 compound terms by FTS name match.
+pub async fn compounds_by_name(pool: &PgPool, name: &str) -> sqlx::Result<Vec<FtsMatch>> {
+    let name = cap_input(name);
+    let rows = sqlx::query(
+        "SELECT id, name FROM compound_terms,
+         plainto_tsquery('english', $1) q
+         WHERE to_tsvector('english', name) @@ q AND is_obsolete = FALSE
+         ORDER BY ts_rank(to_tsvector('english', name), q) DESC LIMIT 5",
+    )
+    .bind(name)
+    .fetch_all(pool)
+    .await?;
+    Ok(rows
+        .iter()
+        .map(|r| FtsMatch {
+            id: r.get("id"),
+            name: r.get("name"),
+        })
+        .collect())
+}
+
+/// FTS result for gene symbol / accession lookups.
+#[derive(Debug)]
+pub struct GeneFtsMatch {
+    pub accession: String,
+    pub gene_name: Option<String>,
+}
+
+/// Find up to 5 genes by symbol prefix match in protein_metadata.
+pub async fn genes_by_symbol(pool: &PgPool, symbol: &str) -> sqlx::Result<Vec<GeneFtsMatch>> {
+    let symbol = cap_input(symbol);
+    let rows = sqlx::query(
+        "SELECT accession, gene_name FROM protein_metadata
+         WHERE gene_name ILIKE $1
+         ORDER BY gene_name
+         LIMIT 5",
+    )
+    .bind(format!("{symbol}%"))
+    .fetch_all(pool)
+    .await?;
+    Ok(rows
+        .iter()
+        .map(|r| GeneFtsMatch {
+            accession: r.get("accession"),
+            gene_name: r.get("gene_name"),
+        })
+        .collect())
+}
+
+/// Find up to 5 pathways by FTS name match.
+pub async fn pathways_by_name(pool: &PgPool, name: &str) -> sqlx::Result<Vec<FtsMatch>> {
+    let name = cap_input(name);
+    let rows = sqlx::query(
+        "SELECT id, name FROM pathway_terms,
+         plainto_tsquery('english', $1) q
+         WHERE to_tsvector('english', name) @@ q
+         ORDER BY ts_rank(to_tsvector('english', name), q) DESC LIMIT 5",
+    )
+    .bind(name)
+    .fetch_all(pool)
+    .await?;
+    Ok(rows
+        .iter()
+        .map(|r| FtsMatch {
+            id: r.get("id"),
+            name: r.get("name"),
+        })
+        .collect())
 }
 
 /// Find pathway by R-HSA-... canonical ID.
